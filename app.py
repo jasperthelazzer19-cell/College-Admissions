@@ -55,8 +55,11 @@ def _date_context():
 # ─── CONFIG ───────────────────────────────────────────────
 DB_PATH    = os.environ.get("DB_PATH", os.path.join(os.path.dirname(os.path.abspath(__file__)), "college.db"))
 NEWSAPI_KEY = os.environ.get("NEWSAPI_KEY", "")
+SCORECARD_KEY = os.environ.get("SCORECARD_KEY", "")
 SECRET_KEY = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
+ADMIN_KEY = os.environ.get("ADMIN_KEY", "")  # gates the bulk-refresh endpoint
 ARTICLE_TTL_HOURS = 12   # how long to cache per-college articles
+SCORECARD_TTL_DAYS = 30  # refresh federal stats monthly
 
 
 # ─── COLLEGE DATA (~80 schools) ──────────────────────────
@@ -591,7 +594,9 @@ SF_RATIO_BY_SLUG = {
 
 def sf_ratio(c):
     """Best-effort student-faculty ratio: curated value if known, else estimated
-    from size + type."""
+    from size + type. Override table (Scorecard data) takes precedence when set."""
+    over = _get_overrides(c["slug"])
+    if over and over.get("sf_ratio"): return over["sf_ratio"]
     if c["slug"] in SF_RATIO_BY_SLUG:
         return SF_RATIO_BY_SLUG[c["slug"]]
     s = c.get("size", 10000)
@@ -603,6 +608,196 @@ def sf_ratio(c):
     if s < 8000: return 14
     if s < 20000: return 17
     return 19
+
+
+# ─── COLLEGE SCORECARD INTEGRATION ────────────────────────
+_overrides_cache = {}  # slug → dict, in-memory cache to avoid hitting DB on every render
+
+def _get_overrides(slug):
+    """Pull cached federal-data overrides for a school. Returns None if no
+    overrides exist (yet)."""
+    if slug in _overrides_cache:
+        return _overrides_cache[slug]
+    try:
+        with db() as conn:
+            row = conn.execute(
+                "SELECT accept, sat_25, sat_75, act_25, act_75, size, tuition, sf_ratio, source, verified_at "
+                "FROM school_stats_overrides WHERE college_slug=?",
+                (slug,)
+            ).fetchone()
+    except sqlite3.OperationalError:
+        return None
+    if not row:
+        _overrides_cache[slug] = None
+        return None
+    d = {k: row[k] for k in row.keys()}
+    _overrides_cache[slug] = d
+    return d
+
+
+def merged_school(c):
+    """Return a copy of the college dict with Scorecard overrides applied
+    where they exist. Renderers use this so the displayed values always
+    match the most-recently-verified source."""
+    over = _get_overrides(c["slug"])
+    if not over:
+        return c
+    out = dict(c)
+    for k in ("accept", "sat_25", "sat_75", "act_25", "act_75", "size", "tuition"):
+        v = over.get(k)
+        if v is not None:
+            out[k] = v
+    return out
+
+
+# Map our slug → Scorecard "name" search term. For most schools the school
+# name works directly; the trickier ones get an explicit override.
+SCORECARD_NAME_OVERRIDES = {
+    "ucb": "University of California-Berkeley",
+    "ucla": "University of California-Los Angeles",
+    "uci": "University of California-Irvine",
+    "ucsd": "University of California-San Diego",
+    "ucsb": "University of California-Santa Barbara",
+    "ucdavis": "University of California-Davis",
+    "umich": "University of Michigan-Ann Arbor",
+    "umd": "University of Maryland-College Park",
+    "uiuc": "University of Illinois Urbana-Champaign",
+    "ut-austin": "The University of Texas at Austin",
+    "wm": "William & Mary",
+    "wisc": "University of Wisconsin-Madison",
+    "uchicago": "University of Chicago",
+    "upenn": "University of Pennsylvania",
+    "jhu": "Johns Hopkins University",
+    "cmu": "Carnegie Mellon University",
+    "usc": "University of Southern California",
+    "nyu": "New York University",
+    "uw": "University of Washington-Seattle Campus",
+    "umn": "University of Minnesota-Twin Cities",
+    "osu": "Ohio State University-Main Campus",
+    "tamu": "Texas A & M University-College Station",
+    "psu": "Pennsylvania State University-Main Campus",
+    "penn-state": "Pennsylvania State University-Main Campus",
+    "msu": "Michigan State University",
+    "asu": "Arizona State University Campus Immersion",
+    "vt": "Virginia Polytechnic Institute and State University",
+    "uoregon": "University of Oregon",
+    "uvm": "University of Vermont",
+    "calpoly-slo": "California Polytechnic State University-San Luis Obispo",
+    "sjsu": "San Jose State University",
+    "sdsu": "San Diego State University",
+    "csulb": "California State University-Long Beach",
+    "iu": "Indiana University-Bloomington",
+    "uiowa": "University of Iowa",
+    "uf": "University of Florida",
+    "fsu": "Florida State University",
+    "uga": "University of Georgia",
+    "uconn": "University of Connecticut",
+    "udel": "University of Delaware",
+    "stony-brook": "Stony Brook University",
+    "binghamton": "Binghamton University",
+    "gmu": "George Mason University",
+    "neiu": "Northeastern Illinois University",
+}
+
+
+def fetch_scorecard(c):
+    """Hit the College Scorecard API for a single school. Returns the
+    normalized override dict (caller persists it). Returns None on any
+    failure — renderers will keep using the hardcoded fallback values."""
+    if not SCORECARD_KEY:
+        return None
+    name = SCORECARD_NAME_OVERRIDES.get(c["slug"], c["name"])
+    fields = ",".join([
+        "school.name",
+        "latest.admissions.admission_rate.overall",
+        "latest.admissions.sat_scores.25th_percentile.critical_reading",
+        "latest.admissions.sat_scores.75th_percentile.critical_reading",
+        "latest.admissions.sat_scores.25th_percentile.math",
+        "latest.admissions.sat_scores.75th_percentile.math",
+        "latest.admissions.act_scores.25th_percentile.cumulative",
+        "latest.admissions.act_scores.75th_percentile.cumulative",
+        "latest.student.size",
+        "latest.cost.tuition.in_state",
+        "latest.cost.tuition.out_of_state",
+        "latest.student.demographics.student_faculty_ratio",
+    ])
+    try:
+        r = requests.get(
+            "https://api.data.gov/ed/collegescorecard/v1/schools",
+            params={
+                "school.name": name,
+                "fields": fields,
+                "per_page": 5,
+                "api_key": SCORECARD_KEY,
+            },
+            timeout=10,
+        )
+        if r.status_code != 200:
+            print(f"Scorecard {r.status_code} for {c['slug']}: {r.text[:160]}")
+            return None
+        results = (r.json() or {}).get("results", [])
+        if not results:
+            print(f"Scorecard: no results for {c['slug']} (name='{name}')")
+            return None
+        # Best match: the result whose name most closely matches our target.
+        target = name.lower()
+        results.sort(key=lambda x: abs(len(x.get("school.name","")) - len(target)))
+        row = results[0]
+        accept = row.get("latest.admissions.admission_rate.overall")
+        sat_cr_25 = row.get("latest.admissions.sat_scores.25th_percentile.critical_reading")
+        sat_cr_75 = row.get("latest.admissions.sat_scores.75th_percentile.critical_reading")
+        sat_m_25 = row.get("latest.admissions.sat_scores.25th_percentile.math")
+        sat_m_75 = row.get("latest.admissions.sat_scores.75th_percentile.math")
+        # Total SAT = critical reading + math
+        sat_25 = (sat_cr_25 + sat_m_25) if sat_cr_25 and sat_m_25 else None
+        sat_75 = (sat_cr_75 + sat_m_75) if sat_cr_75 and sat_m_75 else None
+        act_25 = row.get("latest.admissions.act_scores.25th_percentile.cumulative")
+        act_75 = row.get("latest.admissions.act_scores.75th_percentile.cumulative")
+        size = row.get("latest.student.size")
+        # Use OOS tuition for privates and instate for publics (cheaper headline)
+        tuition_oos = row.get("latest.cost.tuition.out_of_state")
+        tuition_is  = row.get("latest.cost.tuition.in_state")
+        tuition = tuition_is if c["type"] == "public" else tuition_oos
+        sf = row.get("latest.student.demographics.student_faculty_ratio")
+        return {
+            "accept": accept,
+            "sat_25": int(sat_25) if sat_25 else None,
+            "sat_75": int(sat_75) if sat_75 else None,
+            "act_25": int(act_25) if act_25 else None,
+            "act_75": int(act_75) if act_75 else None,
+            "size": int(size) if size else None,
+            "tuition": int(tuition) if tuition else None,
+            "sf_ratio": int(round(sf)) if sf else None,
+            "source": "College Scorecard (IPEDS)",
+        }
+    except Exception as e:
+        print(f"Scorecard error for {c['slug']}: {e}")
+        return None
+
+
+def update_scorecard_overrides(c):
+    """Fetch fresh Scorecard data for a school + persist as overrides.
+    Returns True on success."""
+    data = fetch_scorecard(c)
+    if not data:
+        return False
+    with db() as conn:
+        conn.execute("""INSERT INTO school_stats_overrides
+            (college_slug, accept, sat_25, sat_75, act_25, act_75, size, tuition, sf_ratio, source, verified_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(college_slug) DO UPDATE SET
+                accept=excluded.accept,
+                sat_25=excluded.sat_25, sat_75=excluded.sat_75,
+                act_25=excluded.act_25, act_75=excluded.act_75,
+                size=excluded.size, tuition=excluded.tuition,
+                sf_ratio=excluded.sf_ratio,
+                source=excluded.source, verified_at=CURRENT_TIMESTAMP""",
+            (c["slug"], data["accept"], data["sat_25"], data["sat_75"],
+             data["act_25"], data["act_75"], data["size"], data["tuition"],
+             data["sf_ratio"], data["source"]))
+        conn.commit()
+    _overrides_cache.pop(c["slug"], None)
+    return True
 
 def class_size_bucket(c):
     """Map SF ratio into a class-size category for matching."""
@@ -1537,6 +1732,19 @@ def init_db():
             conn.execute("ALTER TABLE profiles ADD COLUMN pref_weights TEXT DEFAULT ''")
         except sqlite3.OperationalError:
             pass
+        # Federal-data overrides for each school's stats (College Scorecard).
+        # Hardcoded COLLEGES values are fallback; this table takes precedence.
+        conn.execute("""CREATE TABLE IF NOT EXISTS school_stats_overrides (
+            college_slug TEXT PRIMARY KEY,
+            accept REAL,
+            sat_25 INTEGER, sat_75 INTEGER,
+            act_25 INTEGER, act_75 INTEGER,
+            size INTEGER,
+            tuition INTEGER,
+            sf_ratio INTEGER,
+            source TEXT,
+            verified_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )""")
         conn.commit()
 
 
@@ -1952,8 +2160,13 @@ def _match_card(c):
 
 
 def college_detail_html(slug):
-    c = COLLEGES_BY_SLUG.get(slug)
-    if not c: abort(404)
+    raw = COLLEGES_BY_SLUG.get(slug)
+    if not raw: abort(404)
+    c = merged_school(raw)
+    over = _get_overrides(slug)
+    verified_badge = ""
+    if over and over.get("source"):
+        verified_badge = f'<span class="muted" style="font-size:.78em;background:#dff6e0;color:#1d6c2a;padding:2px 8px;border-radius:5px;margin-left:8px">✓ {over["source"]}</span>'
     majors_tags = "".join(f'<span class="tag">{m}</span>' for m in c["majors"])
     type_pill = f'<span class="pill pill-{c["type"]}">{c["type"]}</span>'
     tier_pill = f'<span class="pill pill-tier-{c["tier"]}">Tier {c["tier"]}</span>'
@@ -1962,7 +2175,7 @@ def college_detail_html(slug):
 <div class="card">
   <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;align-items:flex-start">
     <div>
-      <h1 style="margin:0 0 4px">{c['name']}</h1>
+      <h1 style="margin:0 0 4px">{c['name']} {verified_badge}</h1>
       <div class="muted">{city_state(c)} ({region_of(c)}) · {c['size']:,} undergrads · ~{avg_class_size_estimate(c)} avg class size · {sf_ratio(c)}:1 student-faculty · ${c['tuition']:,}/yr sticker</div>
     </div>
     <div>{type_pill} {tier_pill}</div>
@@ -2159,19 +2372,13 @@ def my_fit_html():
         "pref_class_size": profile.get("pref_class_size"), "pref_prestige": profile.get("pref_prestige"),
         "pref_region": profile.get("pref_region"), "pref_cost": profile.get("pref_cost"),
     }
-    prestige_set = pref_set(prof, "pref_prestige")
     region_set = pref_set(prof, "pref_region")
 
     def passes_hard_filters(c):
-        # Hard filters: prestige + region. Both multi-select; if user checks
-        # any value, school must match at least one of them.
-        if prestige_set:
-            tier = c.get("tier", 5)
-            ok_prestige = (("high" in prestige_set and tier <= 2)
-                           or ("medium" in prestige_set and tier in (2,3))
-                           or ("low" in prestige_set))
-            if not ok_prestige:
-                return False
+        # Region is the only hard filter. Prestige used to be one too, but
+        # that excluded tier-3 schools (Villanova, BU, Wake Forest, etc.)
+        # whenever the user checked "high." Prestige is now soft — already
+        # penalized in pref_score, no need to also exclude.
         if region_set and region_of(c) not in region_set:
             return False
         return True
@@ -3912,6 +4119,27 @@ def chat_api_send():
         "reply": reply,
         "html": _render_message({"role": "assistant", "content": reply or ""}),
     })
+
+
+@app.route("/admin/refresh-scorecard")
+def admin_refresh_scorecard():
+    """Bulk-refresh all 155 schools' stats from College Scorecard.
+    Gated by ADMIN_KEY so only the operator can run it (it's slow + makes
+    155 API calls). Hit with ?key=YOUR_ADMIN_KEY."""
+    if not ADMIN_KEY or request.args.get("key") != ADMIN_KEY:
+        return jsonify({"error": "unauthorized"}), 401
+    if not SCORECARD_KEY:
+        return jsonify({"error": "SCORECARD_KEY env var not set"}), 500
+    only_slug = request.args.get("slug")
+    target = [c for c in COLLEGES if c["slug"] == only_slug] if only_slug else COLLEGES
+    updated, failed = [], []
+    for c in target:
+        if update_scorecard_overrides(c):
+            updated.append(c["slug"])
+        else:
+            failed.append(c["slug"])
+    return jsonify({"updated": len(updated), "failed": len(failed),
+                    "updated_slugs": updated[:30], "failed_slugs": failed[:30]})
 
 
 @app.route("/healthz")
