@@ -2472,8 +2472,7 @@ def my_fit_html():
       <h3 style="margin-top:0">How fit is calculated</h3>
       <p class="muted" style="margin:0 0 8px;font-size:.92em">Fit is about whether you'd <i>thrive</i> at the school. Admission odds live on the Chances page — they barely move this score.</p>
       <ul style="padding-left:18px;margin:0;font-size:.92em">
-        <li><b>Preferences match (60%)</b> — weather, setting, size, class size, region, Greek life, sports culture, internships, prestige, cost from your saved profile. Dominant factor.</li>
-        <li><b>Major fit (20%)</b> — does this school actually have your declared major as a real program.</li>
+        <li><b>Preferences match (80%)</b> — weather, setting, size, class size, Greek life, sports culture, major strength, prestige, cost from your saved profile. Dominant factor.</li>
         <li><b>Academic match (10%)</b> — small thumb toward schools where your stats are competitive.</li>
         <li><b>Admit realism (10%)</b> — small thumb toward realistic admit options.</li>
       </ul>
