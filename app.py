@@ -283,6 +283,83 @@ def city_state(c):
     return f"{city}, {c['state']}" if city else c["state"]
 
 
+# ─── MAJORS — comprehensive list for autocomplete on the profile form ──
+MAJORS = [
+    # Computing / Tech
+    "Computer Science","Computer Engineering","Software Engineering","Information Systems",
+    "Information Technology","Cybersecurity","Data Science","Artificial Intelligence",
+    "Machine Learning","Game Design","Game Development","Robotics","Mechatronics","Bioinformatics",
+    "Computational Biology","Health Informatics","Web Development",
+    # Math / Stats
+    "Mathematics","Applied Mathematics","Pure Mathematics","Statistics","Actuarial Science",
+    "Operations Research","Decision Science","Quantitative Finance",
+    # Physical sciences
+    "Physics","Astrophysics","Astronomy","Chemistry","Biochemistry","Geochemistry","Materials Science",
+    "Earth Science","Geology","Atmospheric Science","Meteorology","Oceanography","Hydrology",
+    # Life sciences / pre-health
+    "Biology","Molecular Biology","Cell Biology","Genetics","Microbiology","Neuroscience",
+    "Behavioral Neuroscience","Cognitive Science","Ecology","Marine Biology","Botany","Zoology",
+    "Wildlife Biology","Forensic Science","Pre-Med","Pre-Dental","Pre-Vet","Pre-Pharm","Pre-Law",
+    # Engineering
+    "Mechanical Engineering","Electrical Engineering","Civil Engineering","Chemical Engineering",
+    "Aerospace Engineering","Biomedical Engineering","Industrial Engineering","Environmental Engineering",
+    "Nuclear Engineering","Petroleum Engineering","Materials Engineering","Agricultural Engineering",
+    "Architectural Engineering","Engineering Physics","Engineering Mechanics","Systems Engineering",
+    # Health professions
+    "Nursing","Public Health","Health Sciences","Health Administration","Healthcare Management",
+    "Epidemiology","Pharmacy","Physical Therapy","Occupational Therapy","Speech Pathology",
+    "Athletic Training","Nutrition","Dietetics","Kinesiology","Exercise Science","Sports Science",
+    # Business
+    "Business Administration","Finance","Accounting","Economics","Quantitative Economics",
+    "Behavioral Economics","International Business","Marketing","Management","Entrepreneurship",
+    "Operations Management","Supply Chain Management","Logistics","Real Estate",
+    "Hospitality Management","Hotel Administration","Sports Management","Tourism Management",
+    "Risk Management","Business Analytics","Information Systems Management","Human Resources",
+    "Organizational Behavior",
+    # Social sciences
+    "Political Science","Government","International Relations","International Affairs","Public Policy",
+    "Public Administration","Law","Pre-Law","Criminal Justice","Criminology","Sociology","Anthropology",
+    "Cultural Anthropology","Archaeology","Social Work","Psychology","Clinical Psychology",
+    "Counseling Psychology","Forensic Psychology","Geography","Urban Studies","Urban Planning",
+    # Humanities
+    "History","American Studies","European Studies","African Studies","Asian Studies",
+    "Latin American Studies","Middle Eastern Studies","Russian Studies","Religious Studies",
+    "Theology","Philosophy","Ethics","Linguistics","English","Creative Writing","Comparative Literature",
+    "Classics","Latin","Greek","Hebrew",
+    # Languages
+    "Spanish","French","German","Chinese","Japanese","Korean","Italian","Portuguese","Russian","Arabic",
+    # Communication / Media
+    "Communication","Communications","Journalism","Mass Communication","Public Relations","Advertising",
+    "Media Studies","Film Studies","Cinema Studies","Cinematic Arts","Film Production","Photography",
+    "Digital Media","Broadcast Journalism",
+    # Art / Design
+    "Architecture","Industrial Design","Interior Design","Fashion Design","Graphic Design",
+    "Visual Communication Design","Web Design","Animation","Illustration","Studio Art","Fine Arts",
+    "Sculpture","Painting","Printmaking","Ceramics","Photography",
+    # Performing arts
+    "Music","Music Performance","Music Composition","Music Education","Music Production","Music Business",
+    "Music Therapy","Songwriting","Jazz Studies","Conducting","Theater","Drama","Acting",
+    "Theater Production","Stage Management","Musical Theater","Dance","Dance Performance","Choreography",
+    # Education
+    "Education","Elementary Education","Secondary Education","Special Education","Early Childhood Education",
+    "Educational Leadership","Higher Education","Curriculum and Instruction",
+    # Agriculture / Environment
+    "Agricultural Science","Animal Science","Plant Science","Food Science","Forestry","Sustainability Studies",
+    "Environmental Studies","Environmental Science","Conservation","Renewable Energy",
+    # Aviation / Maritime / Military
+    "Aviation","Aviation Management","Aerospace Studies","Maritime Studies","Military Science","Naval Science",
+    # Interdisciplinary / liberal arts
+    "Liberal Arts","Liberal Studies","Interdisciplinary Studies","General Studies","Honors",
+    "Women's and Gender Studies","LGBTQ Studies","Africana Studies","Latinx Studies",
+    "Asian American Studies","Native American Studies","Disability Studies",
+    # Specialized
+    "Hotel Administration","Culinary Arts","Library Science","Information Science","Public Affairs",
+    "Symbolic Systems","Diplomacy and World Affairs",
+    # Undecided
+    "Undecided",
+]
+
+
 # ─── PREFERENCES ──────────────────────────────────────────
 # Allowed values for each preference field. These appear in both the profile
 # form and the school-match logic, so keep them in one place.
@@ -1164,7 +1241,10 @@ def compute_fit(profile, school):
     lead_total = min(5, _keyword_strength(profile.get("leadership", "") or "", LEADERSHIP_KEYWORDS) * 1.5)
     score += lead_total
     components["leadership"] = round(lead_total, 1)
-    hook_total = (3 if profile.get("legacy") else 0) + (4 if profile.get("first_gen") else 0) + (5 if profile.get("athlete") else 0)
+    # Legacy now requires the user to have listed *this* school specifically;
+    # the generic legacy flag alone no longer adds the boost.
+    legacy_here = has_legacy_at(profile, school)
+    hook_total = (3 if legacy_here else 0) + (4 if profile.get("first_gen") else 0) + (5 if profile.get("athlete") else 0)
     score += hook_total
     components["hooks"] = hook_total
     if school["type"] == "public" and profile.get("state") and profile["state"].lower() == school["state"].lower():
@@ -1193,9 +1273,9 @@ def estimate_odds(school, fit, profile):
     # boosted but capped hard at elite tiers.
     fit_mult = 0.20 + (fit / 65.0) ** 1.6
     hook_mult = 1.0
-    if profile.get("athlete"): hook_mult *= 1.30   # was 1.40
-    if profile.get("legacy"):  hook_mult *= 1.15   # was 1.20
-    if profile.get("first_gen"): hook_mult *= 1.10  # was 1.15
+    if profile.get("athlete"): hook_mult *= 1.30
+    if has_legacy_at(profile, school): hook_mult *= 1.15
+    if profile.get("first_gen"): hook_mult *= 1.10
     center = a * fit_mult * hook_mult
     # Caps tightened — even strong applicants almost never crack 18% at sub-10%
     # accept schools.
@@ -1426,6 +1506,12 @@ def init_db():
                 conn.execute(f"ALTER TABLE profiles ADD COLUMN {col} TEXT DEFAULT 'any'")
             except sqlite3.OperationalError:
                 pass
+        # Specific legacy schools (comma-separated). Replaces the boolean
+        # legacy flag for matching purposes.
+        try:
+            conn.execute("ALTER TABLE profiles ADD COLUMN legacy_schools TEXT DEFAULT ''")
+        except sqlite3.OperationalError:
+            pass
         conn.commit()
 
 
@@ -1466,18 +1552,22 @@ def get_profile(user_id):
 
 
 def save_profile(user_id, p):
+    # Legacy is now derived from legacy_schools — auto-true if user listed any.
+    legacy_schools = (p.get("legacy_schools") or "").strip()
+    legacy_flag = 1 if legacy_schools else (1 if p.get("legacy") else 0)
     with db() as conn:
         conn.execute("""INSERT INTO profiles
             (user_id, uw_gpa, weighted_gpa, sat, act, major, state, school_type, ecs, leadership, awards,
-             legacy, first_gen, athlete,
+             legacy, first_gen, athlete, legacy_schools,
              pref_weather, pref_setting, pref_size, pref_greek, pref_sports, pref_internships,
              pref_class_size, pref_prestige, pref_region, pref_cost, updated_at)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)
             ON CONFLICT(user_id) DO UPDATE SET
                 uw_gpa=excluded.uw_gpa, weighted_gpa=excluded.weighted_gpa, sat=excluded.sat, act=excluded.act,
                 major=excluded.major, state=excluded.state, school_type=excluded.school_type,
                 ecs=excluded.ecs, leadership=excluded.leadership, awards=excluded.awards,
                 legacy=excluded.legacy, first_gen=excluded.first_gen, athlete=excluded.athlete,
+                legacy_schools=excluded.legacy_schools,
                 pref_weather=excluded.pref_weather, pref_setting=excluded.pref_setting,
                 pref_size=excluded.pref_size, pref_greek=excluded.pref_greek,
                 pref_sports=excluded.pref_sports, pref_internships=excluded.pref_internships,
@@ -1487,13 +1577,31 @@ def save_profile(user_id, p):
             (user_id, p.get("uw_gpa"), p.get("weighted_gpa"), p.get("sat"), p.get("act"),
              p.get("major"), p.get("state"), p.get("school_type"), p.get("ecs"),
              p.get("leadership"), p.get("awards"),
-             1 if p.get("legacy") else 0, 1 if p.get("first_gen") else 0, 1 if p.get("athlete") else 0,
+             legacy_flag, 1 if p.get("first_gen") else 0, 1 if p.get("athlete") else 0,
+             legacy_schools,
              p.get("pref_weather") or "any", p.get("pref_setting") or "any",
              p.get("pref_size") or "any", p.get("pref_greek") or "any",
              p.get("pref_sports") or "any", p.get("pref_internships") or "any",
              p.get("pref_class_size") or "any", p.get("pref_prestige") or "any",
              p.get("pref_region") or "any", p.get("pref_cost") or "any"))
         conn.commit()
+
+
+def has_legacy_at(profile, school):
+    """Check whether the user has listed a legacy connection at THIS school.
+    Match is name-substring, case-insensitive, both directions — so 'Penn'
+    matches 'University of Pennsylvania' and vice-versa."""
+    if not profile or not school: return False
+    raw = (profile.get("legacy_schools") or "").strip().lower()
+    if not raw: return False
+    school_name = (school.get("name") or "").lower()
+    school_slug = (school.get("slug") or "").lower()
+    parts = [p.strip() for p in raw.split(",") if p.strip()]
+    for p in parts:
+        if not p: continue
+        if p in school_name or school_name in p: return True
+        if p in school_slug or school_slug in p: return True
+    return False
 
 
 # ─── ARTICLES (NewsAPI w/ DB cache) ───────────────────────
@@ -2162,7 +2270,10 @@ def profile_html():
   <h3>About you</h3>
   <div class="row">
     <div><label>Intended major</label>
-      <input name="major" value="{v('major')}" placeholder="Computer Science"></div>
+      <input name="major" value="{v('major')}" placeholder="Computer Science" list="majors-list" autocomplete="off">
+      <datalist id="majors-list">
+        {''.join(f'<option value="{m}">' for m in MAJORS)}
+      </datalist></div>
     <div><label>State</label>
       <input name="state" value="{v('state')}" placeholder="California"></div>
   </div>
@@ -2183,8 +2294,10 @@ def profile_html():
   <textarea name="awards" placeholder="USACO Gold, National Merit Semifinalist.">{v('awards')}</textarea>
 
   <h3>Hooks</h3>
-  <div class="checks">
-    <label><input type="checkbox" name="legacy" value="yes" {checked('legacy')}> Legacy at one of your target schools</label>
+  <label>Legacy schools <span class="muted">(comma-separated)</span></label>
+  <input name="legacy_schools" value="{v('legacy_schools')}" placeholder="e.g. Harvard, Yale, University of Pennsylvania">
+  <p class="muted" style="font-size:.78em;margin:4px 0 0">List the specific schools where you have legacy. The boost only applies at those schools.</p>
+  <div class="checks" style="margin-top:10px">
     <label><input type="checkbox" name="first_gen" value="yes" {checked('first_gen')}> First-generation college student</label>
     <label><input type="checkbox" name="athlete" value="yes" {checked('athlete')}> Recruited / likely-recruit athlete</label>
   </div>
@@ -3522,10 +3635,12 @@ def _read_profile_form(form):
         "ecs": f("ecs") or "",
         "leadership": f("leadership") or "",
         "awards": f("awards") or "",
-        "legacy": form.get("legacy") in ("yes","on","true","1"),
+        "legacy_schools": (f("legacy_schools") or "").strip(),
         "first_gen": form.get("first_gen") in ("yes","on","true","1"),
         "athlete": form.get("athlete") in ("yes","on","true","1"),
     }
+    # Legacy boolean is derived from whether they listed any legacy schools.
+    result["legacy"] = bool(result["legacy_schools"])
     # Multi-select prefs: getlist returns all checked values. Stored as
     # comma-separated string. Empty string = no preference.
     for key in ("pref_weather","pref_setting","pref_size","pref_greek","pref_sports",
