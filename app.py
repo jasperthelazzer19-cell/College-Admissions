@@ -1029,12 +1029,24 @@ def compute_my_fit(profile, school):
     # contribute only a thumb on the scale; major fit is real but secondary.
     #   prefs 60% · major 20% · academic 10% · admit_realism 10%
     score = round(0.10 * admit_realism + 0.60 * pref_score + 0.10 * academic + 0.20 * major, 1)
+    # Veto: if any preference the user marked importance=10 ends up as a
+    # mismatch, this school is a hard no — the user said "deal-breaker"
+    # and we honor that even if other prefs match.
+    vetoed = False
+    veto_reasons = []
+    if m and m.get("per_pref"):
+        for key, (verdict, txt) in m["per_pref"].items():
+            if verdict == "mismatch" and get_pref_weight(profile, key) == 10:
+                vetoed = True
+                veto_reasons.append(f"{key}: {txt}")
     return min(100, max(0, score)), {
         "admit_realism": round(admit_realism, 1),
         "pref": round(pref_score, 1),
         "academic": round(academic, 1),
         "major": major,
         "odds_mid": round(odds_mid, 1),
+        "vetoed": vetoed,
+        "veto_reasons": veto_reasons,
     }
 
 
@@ -2384,10 +2396,14 @@ def my_fit_html():
         return True
 
     scored = []
+    vetoed_count = 0
     for c in COLLEGES:
         if not passes_hard_filters(c):
             continue
         score, parts = compute_my_fit(prof, c)
+        if parts.get("vetoed"):
+            vetoed_count += 1
+            continue
         if score >= 80:   stars = 5
         elif score >= 65: stars = 4
         elif score >= 50: stars = 3
@@ -2400,6 +2416,9 @@ def my_fit_html():
     rows_data = [(f"#{i+1}", c, {"fit": score, "stars": stars}) for i, (c, score, stars, _) in enumerate(top)]
     table = _ranking_table(rows_data, show_stars=True)
     # Tell the user how the score is built so the rankings make sense
+    veto_note = ""
+    if vetoed_count:
+        veto_note = f'<div class="card" style="background:#fff8e1;border-color:#ffeaa7"><b>{vetoed_count} schools hidden</b> because they mismatch a preference you marked importance 10 (deal-breaker). To see them, lower that pref\'s importance below 10 in your <a href="/profile">profile</a>.</div>'
     legend = """<div class="card" style="background:#f7f7f7;border-color:#e6e6e6">
       <h3 style="margin-top:0">How fit is calculated</h3>
       <p class="muted" style="margin:0 0 8px;font-size:.92em">Fit is about whether you'd <i>thrive</i> at the school. Admission odds live on the Chances page — they barely move this score.</p>
@@ -2409,8 +2428,10 @@ def my_fit_html():
         <li><b>Academic match (10%)</b> — small thumb toward schools where your stats are competitive.</li>
         <li><b>Admit realism (10%)</b> — small thumb toward realistic admit options.</li>
       </ul>
-      <p class="muted" style="font-size:.85em;margin:10px 0 0">★★★★★ 80+ &nbsp; ★★★★ 65-79 &nbsp; ★★★ 50-64 &nbsp; ★★ 35-49 &nbsp; ★ 20-34</p>
+      <p class="muted" style="margin:8px 0 0;font-size:.92em"><b>Importance dial</b> on each pref: 1 = barely matters, 5 = neutral, 10 = <b>deal-breaker</b> (school is removed from this list if it mismatches).</p>
+      <p class="muted" style="font-size:.85em;margin:6px 0 0">★★★★★ 80+ &nbsp; ★★★★ 65-79 &nbsp; ★★★ 50-64 &nbsp; ★★ 35-49 &nbsp; ★ 20-34</p>
     </div>"""
+    legend = veto_note + legend
     # Soft warning if any of the 4 inputs is essentially missing
     warnings = []
     if not (profile.get("major") or "").strip():
@@ -2572,7 +2593,7 @@ def profile_html():
   </div>
 
   <h3>Preferences</h3>
-  <p class="muted" style="font-size:.85em;margin:-2px 0 8px">Pick everything you'd be happy with for each preference (multi-select), and dial in how much each one matters to you (1-10, where 5 is neutral, 10 is critical). Leave a pref unchecked entirely if you don't care.</p>
+  <p class="muted" style="font-size:.85em;margin:-2px 0 8px">Pick everything you'd be happy with for each preference (multi-select), and dial in how much each one matters (1-10, where 5 is neutral). <b>Set importance to 10 to make a preference a deal-breaker</b> — schools that mismatch will be removed from your My Fit ranking.</p>
   {_pref_form_fields(p)}
 
   <p style="margin-top:18px"><button class="btn btn-primary" type="submit">Save profile</button></p>
