@@ -1736,7 +1736,9 @@ def colleges_html():
 
 
 def _match_card(c):
-    """If user has a profile, render a 'School Match' card based on prefs."""
+    """My Fit card on the school detail page. Uses the SAME composite score
+    as the My Fit ranking — they had drifted: this card was showing the prefs-only
+    score (~90) while the ranking showed the composite (~70). Now both match."""
     user = current_user()
     if not user:
         return ""
@@ -1744,28 +1746,46 @@ def _match_card(c):
     if not profile:
         return ""
     m = school_match(profile, c)
-    if not m or not m["rated_count"]:
+    overall, parts = compute_my_fit(profile, c)
+    if overall <= 0 and (not m or not m["rated_count"]):
         return ""
+    if overall >= 80:   stars_n = 5
+    elif overall >= 65: stars_n = 4
+    elif overall >= 50: stars_n = 3
+    elif overall >= 35: stars_n = 2
+    elif overall >= 20: stars_n = 1
+    else: stars_n = 0
+    star_html = ('<span style="color:#f0c040;letter-spacing:1px">' + ('★' * stars_n) +
+                 '</span><span style="color:#ddd">' + ('★' * (5 - stars_n)) + '</span>')
     pref_labels = {"weather":"Weather","setting":"Campus setting","size":"School size",
                    "class_size":"Class size","greek":"Greek life","sports":"Sports culture",
                    "internships":"Internships","prestige":"Prestige","region":"Region","cost":"Cost"}
     rows = ""
-    for key, label in pref_labels.items():
-        if key not in m["per_pref"]:
-            continue
-        verdict, txt = m["per_pref"][key]
-        icon = {"match":"✓","mismatch":"✗","neutral":"·"}[verdict]
-        color = {"match":"#1d6c2a","mismatch":"#9a1d1d","neutral":"#666"}[verdict]
-        rows += f'<div style="display:flex;justify-content:space-between;padding:6px 0;border-top:1px solid #f0f0f0;font-size:.92em"><span><span style="color:{color};font-weight:700;margin-right:6px">{icon}</span>{label}</span><span class="muted" style="font-size:.85em">{txt}</span></div>'
-    if not rows:
-        return ""
-    score_color = "#1d6c2a" if m["score"] >= 80 else ("#8a4a00" if m["score"] >= 60 else "#9a1d1d")
+    if m and m.get("per_pref"):
+        for key, label in pref_labels.items():
+            if key not in m["per_pref"]:
+                continue
+            verdict, txt = m["per_pref"][key]
+            icon = {"match":"✓","mismatch":"✗","neutral":"·"}[verdict]
+            color = {"match":"#1d6c2a","mismatch":"#9a1d1d","neutral":"#666"}[verdict]
+            rows += f'<div style="display:flex;justify-content:space-between;padding:6px 0;border-top:1px solid #f0f0f0;font-size:.92em"><span><span style="color:{color};font-weight:700;margin-right:6px">{icon}</span>{label}</span><span class="muted" style="font-size:.85em">{txt}</span></div>'
+    score_color = "#1d6c2a" if overall >= 80 else ("#8a4a00" if overall >= 60 else "#9a1d1d")
+    breakdown = (f'<div class="muted" style="font-size:.78em;margin:6px 0 8px">'
+                 f'admit realism {parts["admit_realism"]}/100 · '
+                 f'prefs {parts["pref"]}/100 · '
+                 f'academic {parts["academic"]}/100 · '
+                 f'major {parts["major"]}/100'
+                 f'</div>')
     return f"""<div class="card" style="background:#fafffe;border-color:#cfe7d8">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px">
-        <h3 style="margin:0">Your School Match</h3>
-        <div style="font-size:1.4em;font-weight:800;color:{score_color}">{m['score']}/100</div>
+        <h3 style="margin:0">My Fit</h3>
+        <div style="text-align:right">
+          <div>{star_html}</div>
+          <div style="font-size:1.4em;font-weight:800;color:{score_color}">{overall}/100</div>
+        </div>
       </div>
-      <div class="muted" style="font-size:.82em;margin-bottom:6px">Based on your saved preferences. <a href="/profile">Update preferences</a></div>
+      <div class="muted" style="font-size:.82em;margin-bottom:6px">Same score as the My Fit ranking. <a href="/profile">Update prefs</a></div>
+      {breakdown}
       {rows}
     </div>"""
 
@@ -3046,13 +3066,23 @@ def school_plan_html(slug):
     tier_class = {"Dream":"pill-dream","Reach":"pill-reach","Target":"pill-target","Safety":"pill-safety"}[r["tier"]]
     conf_class = {"low":"pill-conf-low","medium":"pill-conf-medium","high":"pill-conf-high"}[r["confidence"]]
 
-    # 2) School match (preference fit)
+    # 2) My Fit — same composite score the ranking uses, with the per-pref
+    # breakdown beneath it.
     m = school_match(prof, school)
+    overall, parts = compute_my_fit(prof, school)
+    if overall >= 80:   stars_n = 5
+    elif overall >= 65: stars_n = 4
+    elif overall >= 50: stars_n = 3
+    elif overall >= 35: stars_n = 2
+    elif overall >= 20: stars_n = 1
+    else: stars_n = 0
+    star_html = ('<span style="color:#f0c040;letter-spacing:1px">' + ('★' * stars_n) +
+                 '</span><span style="color:#ddd">' + ('★' * (5 - stars_n)) + '</span>')
     pref_labels = {"weather":"Weather","setting":"Campus setting","size":"School size",
                    "class_size":"Class size","greek":"Greek life","sports":"Sports culture",
                    "internships":"Internships","prestige":"Prestige","region":"Region","cost":"Cost"}
     match_rows = ""
-    if m and m.get("rated_count"):
+    if m and m.get("per_pref"):
         for key, label in pref_labels.items():
             if key not in m["per_pref"]:
                 continue
@@ -3060,17 +3090,24 @@ def school_plan_html(slug):
             icon = {"match":"✓","mismatch":"✗","neutral":"·"}[verdict]
             color = {"match":"#1d6c2a","mismatch":"#9a1d1d","neutral":"#666"}[verdict]
             match_rows += f'<div style="display:flex;justify-content:space-between;padding:6px 0;border-top:1px solid #f0f0f0;font-size:.92em"><span><span style="color:{color};font-weight:700;margin-right:6px">{icon}</span>{label}</span><span class="muted" style="font-size:.85em">{txt}</span></div>'
-        match_score_color = "#1d6c2a" if m["score"] >= 80 else ("#8a4a00" if m["score"] >= 60 else "#9a1d1d")
-        match_card = f"""<div class="card" style="background:#fafffe;border-color:#cfe7d8">
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px">
-            <h3 style="margin:0">School match</h3>
-            <div style="font-size:1.4em;font-weight:800;color:{match_score_color}">{m['score']}/100</div>
-          </div>
-          <div class="muted" style="font-size:.82em;margin-bottom:6px">Based on your saved preferences. <a href="/profile">Update</a></div>
-          {match_rows}
-        </div>"""
-    else:
-        match_card = """<div class="card" style="background:#fff8e1;border-color:#ffeaa7"><p style="margin:0">Set your <a href="/profile">preferences</a> (weather, setting, Greek, sports, internships) to see how this school matches.</p></div>"""
+    score_color = "#1d6c2a" if overall >= 80 else ("#8a4a00" if overall >= 60 else "#9a1d1d")
+    breakdown = (f'<div class="muted" style="font-size:.78em;margin:6px 0 8px">'
+                 f'admit realism {parts["admit_realism"]}/100 · '
+                 f'prefs {parts["pref"]}/100 · '
+                 f'academic {parts["academic"]}/100 · '
+                 f'major {parts["major"]}/100</div>')
+    match_card = f"""<div class="card" style="background:#fafffe;border-color:#cfe7d8">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px">
+        <h3 style="margin:0">My Fit</h3>
+        <div style="text-align:right">
+          <div>{star_html}</div>
+          <div style="font-size:1.4em;font-weight:800;color:{score_color}">{overall}/100</div>
+        </div>
+      </div>
+      <div class="muted" style="font-size:.82em;margin-bottom:6px">Same composite score as the My Fit ranking.</div>
+      {breakdown}
+      {match_rows}
+    </div>"""
 
     # 3) Tailored advice (Claude-generated, cached 7 days)
     force_refresh = request.args.get("refresh") == "1"
@@ -3155,13 +3192,14 @@ def plans_index_html():
         c = COLLEGES_BY_SLUG.get(row["college_slug"])
         if not c: continue
         tier_class = {"Dream":"pill-dream","Reach":"pill-reach","Target":"pill-target","Safety":"pill-safety"}.get(row["tier"], "pill-target")
-        # Compute match score on the fly so it stays fresh as preferences change
+        # Compute the SAME composite My Fit score the ranking uses, so all
+        # surfaces agree on the number for a given school.
         match_score = ""
         if profile:
-            mm = school_match({k: profile.get(k) for k in profile.keys()}, c)
-            if mm and mm.get("rated_count"):
-                col = "#1d6c2a" if mm["score"] >= 80 else ("#8a4a00" if mm["score"] >= 60 else "#9a1d1d")
-                match_score = f'<div class="muted" style="font-size:.85em;margin-top:4px">Match: <span style="color:{col};font-weight:700">{mm["score"]}/100</span></div>'
+            prof_dict = {k: profile.get(k) for k in profile.keys()}
+            overall, _ = compute_my_fit(prof_dict, c)
+            col = "#1d6c2a" if overall >= 80 else ("#8a4a00" if overall >= 60 else "#9a1d1d")
+            match_score = f'<div class="muted" style="font-size:.85em;margin-top:4px">My Fit: <span style="color:{col};font-weight:700">{overall}/100</span></div>'
         cards += f"""<a href="/college/{c['slug']}/plan" class="school-card" style="display:block;color:inherit">
           <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">
             <div>
