@@ -1209,7 +1209,7 @@ def school_match(profile, school):
     # 7-9 to noticeably drag a school down without fully vetoing it (10 is
     # the hard veto, handled in compute_my_fit).
     #   6 → 5% penalty   7 → 18%   8 → 35%   9 → 55%
-    PENALTY = {6: 0.95, 7: 0.82, 8: 0.65, 9: 0.45}
+    PENALTY = {6: 0.85, 7: 0.65, 8: 0.45, 9: 0.25}
     for key, (verdict, _txt) in out.items():
         if verdict != "mismatch":
             continue
