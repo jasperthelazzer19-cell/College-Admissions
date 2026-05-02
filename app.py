@@ -743,11 +743,10 @@ def compute_my_fit(profile, school):
     else:
         major = 75
 
-    # Weights heavily de-emphasize admit realism (10%) — fit is about whether
-    # you'd thrive at the school, not whether you'd get in. Admission odds
-    # belong on the chances page, not in this score.
-    #   prefs 40% · academic 30% · major 20% · admit_realism 10%
-    score = round(0.10 * admit_realism + 0.40 * pref_score + 0.30 * academic + 0.20 * major, 1)
+    # Fit is dominated by preferences. Admit realism + academic match each
+    # contribute only a thumb on the scale; major fit is real but secondary.
+    #   prefs 60% · major 20% · academic 10% · admit_realism 10%
+    score = round(0.10 * admit_realism + 0.60 * pref_score + 0.10 * academic + 0.20 * major, 1)
     return min(100, max(0, score)), {
         "admit_realism": round(admit_realism, 1),
         "pref": round(pref_score, 1),
@@ -2037,10 +2036,10 @@ def my_fit_html():
       <h3 style="margin-top:0">How fit is calculated</h3>
       <p class="muted" style="margin:0 0 8px;font-size:.92em">Fit is about whether you'd <i>thrive</i> at the school. Admission odds live on the Chances page — they barely move this score.</p>
       <ul style="padding-left:18px;margin:0;font-size:.92em">
-        <li><b>Preferences match (40%)</b> — weather, setting, size, class size, region, Greek life, sports culture, internships, prestige, cost from your saved profile.</li>
-        <li><b>Academic match (30%)</b> — your stats vs the school's typical admit. Above-range counts as a great fit.</li>
+        <li><b>Preferences match (60%)</b> — weather, setting, size, class size, region, Greek life, sports culture, internships, prestige, cost from your saved profile. Dominant factor.</li>
         <li><b>Major fit (20%)</b> — does this school actually have your declared major as a real program.</li>
-        <li><b>Admit realism (10%)</b> — small thumb on the scale toward schools you can realistically get into.</li>
+        <li><b>Academic match (10%)</b> — small thumb toward schools where your stats are competitive.</li>
+        <li><b>Admit realism (10%)</b> — small thumb toward realistic admit options.</li>
       </ul>
       <p class="muted" style="font-size:.85em;margin:10px 0 0">★★★★★ 80+ &nbsp; ★★★★ 65-79 &nbsp; ★★★ 50-64 &nbsp; ★★ 35-49 &nbsp; ★ 20-34</p>
     </div>"""
