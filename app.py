@@ -373,10 +373,8 @@ PREF_OPTIONS = {
     "class_size":   [("any","No preference"), ("tiny","Tiny classes (≤7:1)"), ("small","Small (8-10:1)"), ("medium","Medium (11-15:1)"), ("large","Large (16-20:1)"), ("xl","Huge lectures (21+:1)")],
     "greek":        [("any","No preference"), ("strong","Active Greek scene"), ("avoid","No Greek life")],
     "sports":       [("any","No preference"), ("strong","Big sports culture"), ("low","Low-key athletics")],
-    "internships":  [("any","No preference"), ("strong","Strong internship pipeline"), ("low","Less of a focus")],
+    "major_strength": [("any","No preference"), ("top","Top program in my major"), ("solid","Don't care about ranking")],
     "prestige":     [("any","No preference"), ("high","High prestige matters"), ("medium","Mid-tier is fine"), ("low","Don't care about brand name")],
-    "region":       [("any","No preference"), ("Northeast","Northeast"), ("Mid-Atlantic","Mid-Atlantic"), ("South","South"),
-                     ("Midwest","Midwest"), ("Southwest","Southwest"), ("West","West")],
     "cost":         [("any","No preference"), ("low","Low (<$15K/yr sticker)"), ("medium","Medium (<$40K)"), ("high","Cost not an issue")],
 }
 
@@ -1038,23 +1036,11 @@ def compute_my_fit(profile, school):
     else:
         academic = max(0, fit_acad * 1.5)
 
-    # 4) Major fit — bumped the floor for "no exact match" from 50 → 65,
-    # because most schools offer the user's major somewhere even if it
-    # doesn't appear in the popular-majors list.
-    user_major = (profile.get("major") or "").strip().lower()
-    if user_major:
-        school_majors = [m.lower() for m in school.get("majors", [])]
-        if any(user_major in sm or sm in user_major for sm in school_majors):
-            major = 100
-        else:
-            major = 65
-    else:
-        major = 75
-
-    # Fit is dominated by preferences. Admit realism + academic match each
-    # contribute only a thumb on the scale; major fit is real but secondary.
-    #   prefs 60% · major 20% · academic 10% · admit_realism 10%
-    score = round(0.10 * admit_realism + 0.60 * pref_score + 0.10 * academic + 0.20 * major, 1)
+    # Fit is dominated by preferences. Major-strength is now a user-controlled
+    # preference (with importance dial), so the standalone major component
+    # was removed.
+    #   prefs 80% · academic 10% · admit_realism 10%
+    score = round(0.10 * admit_realism + 0.80 * pref_score + 0.10 * academic, 1)
     # Veto: if any preference the user marked importance=10 ends up as a
     # mismatch, this school is a hard no — the user said "deal-breaker"
     # and we honor that even if other prefs match.
@@ -1069,7 +1055,6 @@ def compute_my_fit(profile, school):
         "admit_realism": round(admit_realism, 1),
         "pref": round(pref_score, 1),
         "academic": round(academic, 1),
-        "major": major,
         "odds_mid": round(odds_mid, 1),
         "vetoed": vetoed,
         "veto_reasons": veto_reasons,
@@ -1166,18 +1151,20 @@ def school_match(profile, school):
         else:
             out["sports"] = ("mismatch", f"{s} sports culture"); add("sports", 0)
 
-    # 7) Internships
-    chosen = pref_set(profile, "pref_internships")
-    has_int = has_strong_internships(school)
-    if chosen:
-        if "strong" in chosen and has_int:
-            out["internships"] = ("match", "strong internship pipeline"); add("internships", 10)
-        elif "strong" in chosen:
-            out["internships"] = ("mismatch", "less of an internship hub"); add("internships", 0)
-        elif "low" in chosen and not has_int:
-            out["internships"] = ("match", "less internship-heavy"); add("internships", 10)
-        else:
-            out["internships"] = ("neutral", "internship pipeline strong"); add("internships", 7)
+    # 7) Major strength — does the school feature the user's major in its
+    # notable programs list. Skipped if user hasn't entered a major.
+    chosen = pref_set(profile, "pref_major_strength")
+    user_major = (profile.get("major") or "").strip().lower()
+    if chosen and user_major:
+        school_majors = [m.lower() for m in school.get("majors", [])]
+        is_top = any(user_major in sm or sm in user_major for sm in school_majors)
+        if "top" in chosen:
+            if is_top:
+                out["major_strength"] = ("match", f"known for {user_major}"); add("major_strength", 10)
+            else:
+                out["major_strength"] = ("mismatch", f"not known for {user_major}"); add("major_strength", 0)
+        else:  # "solid" — any school is fine
+            out["major_strength"] = ("match", "solid program"); add("major_strength", 10)
 
     # 8) Prestige — graduated, not binary. Tier-3 schools (Villanova, Wake
     # Forest, BU, Tufts, etc.) are still strong; if the user wants "high"
@@ -1203,16 +1190,7 @@ def school_match(profile, school):
         else:  # "low" — anything goes
             out["prestige"] = ("match", f"tier {tier}"); add("prestige", 10)
 
-    # 9) Region
-    chosen = pref_set(profile, "pref_region")
-    region = region_of(school)
-    if chosen:
-        if region in chosen:
-            out["region"] = ("match", region); add("region", 10)
-        else:
-            out["region"] = ("mismatch", f"{region} (you wanted {' or '.join(sorted(chosen))})"); add("region", 0)
-
-    # 10) Cost
+    # 9) Cost
     chosen = pref_set(profile, "pref_cost")
     sticker = school.get("tuition", 0) or 0
     if chosen:
@@ -1240,7 +1218,7 @@ def school_match(profile, school):
             overall *= PENALTY[w]
     overall = round(overall, 1)
     # rated_count = number of distinct prefs the user set (not the weight sum)
-    rated = sum(1 for k in ("weather","setting","size","class_size","greek","sports","internships","prestige","region","cost") if k in out)
+    rated = sum(1 for k in ("weather","setting","size","class_size","greek","sports","major_strength","prestige","cost") if k in out)
     return {"per_pref": out, "score": overall, "rated_count": rated}
 
 
@@ -1787,7 +1765,8 @@ def init_db():
         # Defensive migration — preferences fields added later. Old DBs won't have them.
         for col in ("pref_weather", "pref_setting", "pref_size",
                     "pref_greek", "pref_sports", "pref_internships",
-                    "pref_class_size", "pref_prestige", "pref_region", "pref_cost"):
+                    "pref_class_size", "pref_prestige", "pref_region", "pref_cost",
+                    "pref_major_strength"):
             try:
                 conn.execute(f"ALTER TABLE profiles ADD COLUMN {col} TEXT DEFAULT 'any'")
             except sqlite3.OperationalError:
@@ -1802,6 +1781,11 @@ def init_db():
         # Empty / missing means use neutral weight (5) for all prefs.
         try:
             conn.execute("ALTER TABLE profiles ADD COLUMN pref_weights TEXT DEFAULT ''")
+        except sqlite3.OperationalError:
+            pass
+        # Major-strength preference (replaces internships).
+        try:
+            conn.execute("ALTER TABLE profiles ADD COLUMN pref_major_strength TEXT DEFAULT 'any'")
         except sqlite3.OperationalError:
             pass
         # Federal-data overrides for each school's stats (College Scorecard).
@@ -1865,9 +1849,9 @@ def save_profile(user_id, p):
         conn.execute("""INSERT INTO profiles
             (user_id, uw_gpa, weighted_gpa, sat, act, major, state, school_type, ecs, leadership, awards,
              legacy, first_gen, athlete, legacy_schools,
-             pref_weather, pref_setting, pref_size, pref_greek, pref_sports, pref_internships,
-             pref_class_size, pref_prestige, pref_region, pref_cost, pref_weights, updated_at)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)
+             pref_weather, pref_setting, pref_size, pref_greek, pref_sports, pref_major_strength,
+             pref_class_size, pref_prestige, pref_cost, pref_weights, updated_at)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)
             ON CONFLICT(user_id) DO UPDATE SET
                 uw_gpa=excluded.uw_gpa, weighted_gpa=excluded.weighted_gpa, sat=excluded.sat, act=excluded.act,
                 major=excluded.major, state=excluded.state, school_type=excluded.school_type,
@@ -1876,9 +1860,9 @@ def save_profile(user_id, p):
                 legacy_schools=excluded.legacy_schools,
                 pref_weather=excluded.pref_weather, pref_setting=excluded.pref_setting,
                 pref_size=excluded.pref_size, pref_greek=excluded.pref_greek,
-                pref_sports=excluded.pref_sports, pref_internships=excluded.pref_internships,
+                pref_sports=excluded.pref_sports, pref_major_strength=excluded.pref_major_strength,
                 pref_class_size=excluded.pref_class_size, pref_prestige=excluded.pref_prestige,
-                pref_region=excluded.pref_region, pref_cost=excluded.pref_cost,
+                pref_cost=excluded.pref_cost,
                 pref_weights=excluded.pref_weights,
                 updated_at=CURRENT_TIMESTAMP""",
             (user_id, p.get("uw_gpa"), p.get("weighted_gpa"), p.get("sat"), p.get("act"),
@@ -1888,9 +1872,9 @@ def save_profile(user_id, p):
              legacy_schools,
              p.get("pref_weather") or "any", p.get("pref_setting") or "any",
              p.get("pref_size") or "any", p.get("pref_greek") or "any",
-             p.get("pref_sports") or "any", p.get("pref_internships") or "any",
+             p.get("pref_sports") or "any", p.get("pref_major_strength") or "any",
              p.get("pref_class_size") or "any", p.get("pref_prestige") or "any",
-             p.get("pref_region") or "any", p.get("pref_cost") or "any",
+             p.get("pref_cost") or "any",
              pref_weights))
         conn.commit()
 
@@ -1910,7 +1894,7 @@ def get_pref_weight(profile, key):
 def parse_pref_weights_form(form):
     """Read importance dropdown values from the profile form, return JSON string."""
     out = {}
-    for k in ("weather","setting","size","class_size","greek","sports","internships","prestige","region","cost"):
+    for k in ("weather","setting","size","class_size","greek","sports","major_strength","prestige","cost"):
         try:
             out[k] = max(1, min(10, int(form.get(f"weight_{k}", 5))))
         except (TypeError, ValueError):
@@ -2200,7 +2184,7 @@ def _match_card(c):
                  '</span><span style="color:#ddd">' + ('★' * (5 - stars_n)) + '</span>')
     pref_labels = {"weather":"Weather","setting":"Campus setting","size":"School size",
                    "class_size":"Class size","greek":"Greek life","sports":"Sports culture",
-                   "internships":"Internships","prestige":"Prestige","region":"Region","cost":"Cost"}
+                   "major_strength":"Major strength","prestige":"Prestige","cost":"Cost"}
     rows = ""
     if m and m.get("per_pref"):
         for key, label in pref_labels.items():
@@ -2214,8 +2198,7 @@ def _match_card(c):
     breakdown = (f'<div class="muted" style="font-size:.78em;margin:6px 0 8px">'
                  f'admit realism {parts["admit_realism"]}/100 · '
                  f'prefs {parts["pref"]}/100 · '
-                 f'academic {parts["academic"]}/100 · '
-                 f'major {parts["major"]}/100'
+                 f'academic {parts["academic"]}/100'
                  f'</div>')
     return f"""<div class="card" style="background:#fafffe;border-color:#cfe7d8">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px">
@@ -2441,27 +2424,14 @@ def my_fit_html():
         "legacy_schools": profile.get("legacy_schools") or "",
         "pref_weather": profile.get("pref_weather"), "pref_setting": profile.get("pref_setting"),
         "pref_size": profile.get("pref_size"), "pref_greek": profile.get("pref_greek"),
-        "pref_sports": profile.get("pref_sports"), "pref_internships": profile.get("pref_internships"),
+        "pref_sports": profile.get("pref_sports"), "pref_major_strength": profile.get("pref_major_strength"),
         "pref_class_size": profile.get("pref_class_size"), "pref_prestige": profile.get("pref_prestige"),
-        "pref_region": profile.get("pref_region"), "pref_cost": profile.get("pref_cost"),
+        "pref_cost": profile.get("pref_cost"),
         "pref_weights": profile.get("pref_weights") or "",
     }
-    region_set = pref_set(prof, "pref_region")
-
-    def passes_hard_filters(c):
-        # Region is the only hard filter. Prestige used to be one too, but
-        # that excluded tier-3 schools (Villanova, BU, Wake Forest, etc.)
-        # whenever the user checked "high." Prestige is now soft — already
-        # penalized in pref_score, no need to also exclude.
-        if region_set and region_of(c) not in region_set:
-            return False
-        return True
-
     scored = []
     vetoed_count = 0
     for c in COLLEGES:
-        if not passes_hard_filters(c):
-            continue
         score, parts = compute_my_fit(prof, c)
         if parts.get("vetoed"):
             vetoed_count += 1
@@ -2515,7 +2485,7 @@ def my_fit_html():
     warnings = []
     if not (profile.get("major") or "").strip():
         warnings.append("You haven't set an intended major — major-fit defaults to neutral. <a href='/profile'>Add one</a> for a sharper ranking.")
-    if all((profile.get(k) or "any") == "any" for k in ("pref_weather","pref_setting","pref_size","pref_greek","pref_sports","pref_internships")):
+    if all((profile.get(k) or "any") == "any" for k in ("pref_weather","pref_setting","pref_size","pref_greek","pref_sports","pref_major_strength")):
         warnings.append("All preferences set to 'No preference' — preference-match defaults to neutral. <a href='/profile'>Set a few</a> for a sharper ranking.")
     warning_html = ""
     if warnings:
@@ -2569,16 +2539,15 @@ def _pref_form_fields(p):
     importance dial (1-10) next to each. User can pick multiple values per
     preference and tell us how much each one matters."""
     labels = {
-        "pref_weather":     "Weather",
-        "pref_setting":     "Campus setting",
-        "pref_region":      "Region",
-        "pref_size":        "School size",
-        "pref_class_size":  "Class size",
-        "pref_prestige":    "Prestige",
-        "pref_cost":        "Cost",
-        "pref_greek":       "Greek life",
-        "pref_sports":      "Sports culture",
-        "pref_internships": "Internship pipeline",
+        "pref_weather":         "Weather",
+        "pref_setting":         "Campus setting",
+        "pref_size":            "School size",
+        "pref_class_size":      "Class size",
+        "pref_prestige":        "Prestige",
+        "pref_cost":            "Cost",
+        "pref_greek":           "Greek life",
+        "pref_sports":          "Sports culture",
+        "pref_major_strength":  "Major strength",
     }
     out = ""
     for key, label in labels.items():
@@ -3312,7 +3281,7 @@ def get_tailored_advice(user_id, school, profile, force=False):
     pref_str = []
     for k, label in [("pref_weather","weather"),("pref_setting","setting"),("pref_size","school size"),
                      ("pref_class_size","class size"),("pref_greek","Greek life"),("pref_sports","sports culture"),
-                     ("pref_internships","internships"),("pref_prestige","prestige"),("pref_region","region"),
+                     ("pref_major_strength","major strength"),("pref_prestige","prestige"),
                      ("pref_cost","cost")]:
         s = pref_set(profile, k)
         if s:
@@ -3531,9 +3500,9 @@ def school_plan_html(slug):
         "legacy_schools": profile.get("legacy_schools") or "",
         "pref_weather": profile.get("pref_weather"), "pref_setting": profile.get("pref_setting"),
         "pref_size": profile.get("pref_size"), "pref_greek": profile.get("pref_greek"),
-        "pref_sports": profile.get("pref_sports"), "pref_internships": profile.get("pref_internships"),
+        "pref_sports": profile.get("pref_sports"), "pref_major_strength": profile.get("pref_major_strength"),
         "pref_class_size": profile.get("pref_class_size"), "pref_prestige": profile.get("pref_prestige"),
-        "pref_region": profile.get("pref_region"), "pref_cost": profile.get("pref_cost"),
+        "pref_cost": profile.get("pref_cost"),
         "pref_weights": profile.get("pref_weights") or "",
     }
 
@@ -3568,7 +3537,7 @@ def school_plan_html(slug):
                  '</span><span style="color:#ddd">' + ('★' * (5 - stars_n)) + '</span>')
     pref_labels = {"weather":"Weather","setting":"Campus setting","size":"School size",
                    "class_size":"Class size","greek":"Greek life","sports":"Sports culture",
-                   "internships":"Internships","prestige":"Prestige","region":"Region","cost":"Cost"}
+                   "major_strength":"Major strength","prestige":"Prestige","cost":"Cost"}
     match_rows = ""
     if m and m.get("per_pref"):
         for key, label in pref_labels.items():
@@ -3582,8 +3551,7 @@ def school_plan_html(slug):
     breakdown = (f'<div class="muted" style="font-size:.78em;margin:6px 0 8px">'
                  f'admit realism {parts["admit_realism"]}/100 · '
                  f'prefs {parts["pref"]}/100 · '
-                 f'academic {parts["academic"]}/100 · '
-                 f'major {parts["major"]}/100</div>')
+                 f'academic {parts["academic"]}/100</div>')
     match_card = f"""<div class="card" style="background:#fafffe;border-color:#cfe7d8">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px">
         <h3 style="margin:0">My Fit</h3>
@@ -4016,7 +3984,7 @@ def _read_profile_form(form):
     # Multi-select prefs: getlist returns all checked values. Stored as
     # comma-separated string. Empty string = no preference.
     for key in ("pref_weather","pref_setting","pref_size","pref_greek","pref_sports",
-                "pref_internships","pref_class_size","pref_prestige","pref_region","pref_cost"):
+                "pref_major_strength","pref_class_size","pref_prestige","pref_cost"):
         vals = form.getlist(key) if hasattr(form, "getlist") else (form.get(key, "") or "").split(",")
         vals = [v.strip() for v in vals if v and v.strip() and v.strip() != "any"]
         result[key] = ",".join(vals)
