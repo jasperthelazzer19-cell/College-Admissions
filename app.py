@@ -1179,6 +1179,20 @@ def school_match(profile, school):
             out["cost"] = ("mismatch", f"${sticker:,} sticker"); add("cost", 0)
 
     overall = round(score / max(1.0, count) * 10, 1) if count else 0
+    # Multiplicative penalty for high-importance mismatches, so the importance
+    # dial actually scales. Weighted-averaging alone barely moves the score
+    # when one pref mismatches and the others match — user wanted importance
+    # 7-9 to noticeably drag a school down without fully vetoing it (10 is
+    # the hard veto, handled in compute_my_fit).
+    #   6 → 5% penalty   7 → 18%   8 → 35%   9 → 55%
+    PENALTY = {6: 0.95, 7: 0.82, 8: 0.65, 9: 0.45}
+    for key, (verdict, _txt) in out.items():
+        if verdict != "mismatch":
+            continue
+        w = get_pref_weight(profile, key)
+        if w in PENALTY:
+            overall *= PENALTY[w]
+    overall = round(overall, 1)
     # rated_count = number of distinct prefs the user set (not the weight sum)
     rated = sum(1 for k in ("weather","setting","size","class_size","greek","sports","internships","prestige","region","cost") if k in out)
     return {"per_pref": out, "score": overall, "rated_count": rated}
