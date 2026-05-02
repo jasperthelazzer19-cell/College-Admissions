@@ -369,7 +369,7 @@ MAJORS = [
 PREF_OPTIONS = {
     "weather":      [("any","No preference"), ("warm","Warm/sunny"), ("mild","Mild/temperate"), ("cold","Cold/snow")],
     "setting":      [("any","No preference"), ("urban","Big city"), ("college_town","College town"), ("suburban","Suburban"), ("rural","Rural")],
-    "size":         [("any","No preference"), ("xs","Tiny (<2K)"), ("small","Small (2-7K)"), ("medium","Medium (7-15K)"), ("large","Large (15-25K)"), ("xl","Huge (25K+)")],
+    "size":         [("any","No preference"), ("xs","Tiny (<2K)"), ("small","Small (2-6K)"), ("medium","Medium (6-12K)"), ("ml","Medium/Large (12-18K)"), ("large","Large (18K+)")],
     "class_size":   [("any","No preference"), ("tiny","Tiny classes (≤7:1)"), ("small","Small (8-10:1)"), ("medium","Medium (11-15:1)"), ("large","Large (16-20:1)"), ("xl","Huge lectures (21+:1)")],
     "greek":        [("any","No preference"), ("strong","Active Greek scene"), ("avoid","No Greek life")],
     "sports":       [("any","No preference"), ("strong","Big sports culture"), ("low","Low-key athletics")],
@@ -801,12 +801,12 @@ def update_scorecard_overrides(c):
 
 SIZE_RANGES = {
     "xs":     (0, 2000),
-    "small":  (2000, 7000),
-    "medium": (7000, 15000),
-    "large":  (15000, 25000),
-    "xl":     (25000, 10**9),
+    "small":  (2000, 6000),
+    "medium": (6000, 12000),
+    "ml":     (12000, 18000),
+    "large":  (18000, 10**9),
 }
-SIZE_TOLERANCE = 3000
+SIZE_TOLERANCE = 2000
 
 CLASS_SIZE_RANGES = {
     "tiny":   (0, 8),
