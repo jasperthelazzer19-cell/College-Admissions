@@ -1050,6 +1050,17 @@ def compute_my_fit(profile, school):
     }
 
 
+def _adjacent_bucket(actual, chosen_set, ordered):
+    """True when `actual` is one bucket away from any item in `chosen_set`
+    along the `ordered` sequence (e.g. small/medium/large). Used to give
+    partial credit when a school is in the bucket next to what the user
+    wanted, instead of treating it as a full mismatch."""
+    if actual not in ordered:
+        return False
+    a = ordered.index(actual)
+    return any(c in ordered and abs(ordered.index(c) - a) == 1 for c in chosen_set)
+
+
 def school_match(profile, school):
     """Score how well a school matches the user's preferences, weighted by
     each pref's user-set importance (1-10, default 5). Returns
@@ -1088,21 +1099,28 @@ def school_match(profile, school):
         else:
             out["setting"] = ("mismatch", f"{school_setting} (you wanted {' or '.join(sorted(chosen))})"); add("setting", 0)
 
-    # 3) Size
+    # 3) Size — adjacent buckets are "close enough" (Cornell at 15,700 is
+    # technically large but still feels mid-sized). Hard mismatch only when
+    # the school is the opposite extreme of what the user picked.
     chosen = pref_set(profile, "pref_size")
     size_bucket = _school_size_bucket(school)
+    size_n = school.get("size", 0) or 0
     if chosen:
         if size_bucket in chosen:
-            out["size"] = ("match", f"{size_bucket} ({school.get('size',0):,} undergrads)"); add("size", 10)
+            out["size"] = ("match", f"{size_bucket} ({size_n:,} undergrads)"); add("size", 10)
+        elif _adjacent_bucket(size_bucket, chosen, ("small","medium","large")):
+            out["size"] = ("neutral", f"{size_bucket} ({size_n:,}) — close to {' or '.join(sorted(chosen))}"); add("size", 7)
         else:
-            out["size"] = ("mismatch", f"{size_bucket} ({school.get('size',0):,}) — you wanted {' or '.join(sorted(chosen))}"); add("size", 0)
+            out["size"] = ("mismatch", f"{size_bucket} ({size_n:,}) — you wanted {' or '.join(sorted(chosen))}"); add("size", 0)
 
-    # 4) Class size
+    # 4) Class size — same graduated logic as school size
     chosen = pref_set(profile, "pref_class_size")
     cs = class_size_bucket(school)
     if chosen:
         if cs in chosen:
             out["class_size"] = ("match", f"{sf_ratio(school)}:1 student-faculty"); add("class_size", 10)
+        elif _adjacent_bucket(cs, chosen, ("small","medium","large")):
+            out["class_size"] = ("neutral", f"{sf_ratio(school)}:1 ({cs}) — close to {' or '.join(sorted(chosen))}"); add("class_size", 7)
         else:
             out["class_size"] = ("mismatch", f"{sf_ratio(school)}:1 ({cs}) — you wanted {' or '.join(sorted(chosen))}"); add("class_size", 0)
 
