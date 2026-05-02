@@ -797,6 +797,7 @@ def update_scorecard_overrides(c):
     _overrides_cache.pop(c["slug"], None)
     return True
 
+SIZE_BUCKETS = ("xs", "small", "medium", "ml", "large")
 SIZE_RANGES = {
     "xs":     (0, 2000),
     "small":  (2000, 6000),
@@ -804,8 +805,8 @@ SIZE_RANGES = {
     "ml":     (12000, 18000),
     "large":  (18000, 10**9),
 }
-SIZE_TOLERANCE = 2000
 
+CLASS_SIZE_BUCKETS = ("tiny", "small", "medium", "large", "xl")
 CLASS_SIZE_RANGES = {
     "tiny":   (0, 8),
     "small":  (8, 11),
@@ -813,30 +814,33 @@ CLASS_SIZE_RANGES = {
     "large":  (16, 21),
     "xl":     (21, 999),
 }
-CLASS_SIZE_TOLERANCE = 2
 
 
-def _range_verdict(value, chosen, ranges, tol):
-    """match / neutral / mismatch based on a numeric value vs. selected
-    bucket ranges, with a tolerance band counting as 'close enough'."""
+def _bucket_of(value, ranges, ordered):
+    for k in ordered:
+        lo, hi = ranges[k]
+        if lo <= value < hi:
+            return k
+    return ordered[-1]
+
+
+def _bucket_verdict(value, chosen, ranges, ordered):
+    """match if school's bucket is in user's chosen set; neutral if it's
+    one bucket away from any chosen bucket; mismatch otherwise. This gives
+    a consistent middle ground for schools that are 'close but not in.'"""
     if not chosen:
         return None
-    wanted = [ranges[k] for k in ranges if k in chosen]
-    if any(lo <= value < hi for lo, hi in wanted):
+    actual = _bucket_of(value, ranges, ordered)
+    if actual in chosen:
         return "match"
-    if any(max(0, lo - tol) <= value < hi + tol for lo, hi in wanted):
+    a = ordered.index(actual)
+    if any(abs(ordered.index(c) - a) == 1 for c in chosen if c in ordered):
         return "neutral"
     return "mismatch"
 
 
 def class_size_bucket(c):
-    """Map SF ratio into a class-size category for matching."""
-    r = sf_ratio(c)
-    if r < 8: return "tiny"
-    if r < 11: return "small"
-    if r < 16: return "medium"
-    if r < 21: return "large"
-    return "xl"
+    return _bucket_of(sf_ratio(c), CLASS_SIZE_RANGES, CLASS_SIZE_BUCKETS)
 
 
 def avg_class_size_estimate(c):
@@ -1099,11 +1103,11 @@ def school_match(profile, school):
         else:
             out["setting"] = ("mismatch", f"{school_setting} (you wanted {' or '.join(sorted(chosen))})"); add("setting", 0)
 
-    # 3) Size — 5-bucket numeric ranges (xs/small/medium/large/xl) with 3k
-    # tolerance for "close enough". User picks any subset of buckets.
+    # 3) Size — 5-bucket scale (xs/small/medium/ml/large). Adjacent buckets
+    # count as neutral so schools "close but not in" land in the middle.
     chosen = pref_set(profile, "pref_size")
     size_n = school.get("size", 0) or 0
-    verdict = _range_verdict(size_n, chosen, SIZE_RANGES, SIZE_TOLERANCE)
+    verdict = _bucket_verdict(size_n, chosen, SIZE_RANGES, SIZE_BUCKETS)
     if verdict:
         label = f"{size_n:,} undergrads"
         if verdict == "match":
@@ -1113,10 +1117,10 @@ def school_match(profile, school):
         else:
             out["size"] = ("mismatch", f"{label} — you wanted {' or '.join(sorted(chosen))}"); add("size", 0)
 
-    # 4) Class size — same 5-bucket graduated logic, on SF ratio
+    # 4) Class size — same 5-bucket adjacency logic, on SF ratio
     chosen = pref_set(profile, "pref_class_size")
     r = sf_ratio(school)
-    verdict = _range_verdict(r, chosen, CLASS_SIZE_RANGES, CLASS_SIZE_TOLERANCE)
+    verdict = _bucket_verdict(r, chosen, CLASS_SIZE_RANGES, CLASS_SIZE_BUCKETS)
     if verdict:
         if verdict == "match":
             out["class_size"] = ("match", f"{r}:1 student-faculty"); add("class_size", 10)
