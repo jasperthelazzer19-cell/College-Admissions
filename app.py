@@ -2378,11 +2378,13 @@ def my_fit_html():
         "major": profile.get("major"), "state": profile.get("state"), "school_type": profile.get("school_type"),
         "ecs": profile.get("ecs"), "leadership": profile.get("leadership"), "awards": profile.get("awards"),
         "legacy": bool(profile.get("legacy")), "first_gen": bool(profile.get("first_gen")), "athlete": bool(profile.get("athlete")),
+        "legacy_schools": profile.get("legacy_schools") or "",
         "pref_weather": profile.get("pref_weather"), "pref_setting": profile.get("pref_setting"),
         "pref_size": profile.get("pref_size"), "pref_greek": profile.get("pref_greek"),
         "pref_sports": profile.get("pref_sports"), "pref_internships": profile.get("pref_internships"),
         "pref_class_size": profile.get("pref_class_size"), "pref_prestige": profile.get("pref_prestige"),
         "pref_region": profile.get("pref_region"), "pref_cost": profile.get("pref_cost"),
+        "pref_weights": profile.get("pref_weights") or "",
     }
     region_set = pref_set(prof, "pref_region")
 
@@ -2746,6 +2748,7 @@ def school_improve_html(slug):
             "major": profile.get("major"), "state": profile.get("state"), "school_type": profile.get("school_type"),
             "ecs": profile.get("ecs"), "leadership": profile.get("leadership"), "awards": profile.get("awards"),
             "legacy": bool(profile.get("legacy")), "first_gen": bool(profile.get("first_gen")), "athlete": bool(profile.get("athlete")),
+            "legacy_schools": profile.get("legacy_schools") or "",
         }
         fit, components = compute_fit(prof, school)
         action_lines = []
@@ -3465,11 +3468,13 @@ def school_plan_html(slug):
         "ecs": profile.get("ecs"), "leadership": profile.get("leadership"), "awards": profile.get("awards"),
         "legacy": bool(profile.get("legacy")), "first_gen": bool(profile.get("first_gen")),
         "athlete": bool(profile.get("athlete")),
+        "legacy_schools": profile.get("legacy_schools") or "",
         "pref_weather": profile.get("pref_weather"), "pref_setting": profile.get("pref_setting"),
         "pref_size": profile.get("pref_size"), "pref_greek": profile.get("pref_greek"),
         "pref_sports": profile.get("pref_sports"), "pref_internships": profile.get("pref_internships"),
         "pref_class_size": profile.get("pref_class_size"), "pref_prestige": profile.get("pref_prestige"),
         "pref_region": profile.get("pref_region"), "pref_cost": profile.get("pref_cost"),
+        "pref_weights": profile.get("pref_weights") or "",
     }
 
     # 1) Chances analysis (also persists to saved_chances)
