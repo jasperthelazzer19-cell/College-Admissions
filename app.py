@@ -721,30 +721,33 @@ def compute_my_fit(profile, school):
     m = school_match(profile, school)
     pref_score = m["score"] if (m and m.get("rated_count")) else 50  # neutral if no prefs
 
-    # 3) Academic match — penalize being WAY too far above the school too,
-    # because that often means a weaker overall pile, scholarship-but-not-flagship.
-    # Re-grade to a sweet-spot curve around fit_acad=60-80.
-    if fit_acad >= 80:
-        academic = 100 - (fit_acad - 80) * 0.5  # mild penalty for overqualified
-    elif fit_acad >= 60:
+    # 3) Academic match — over-qualified penalty removed (it was punishing
+    # safety schools that should be dream-fit safety options).
+    if fit_acad >= 60:
         academic = 100
     elif fit_acad >= 40:
         academic = 60 + (fit_acad - 40) * 2  # 40 → 60, 60 → 100
     else:
-        academic = max(0, fit_acad * 1.5)  # below 40 falls fast
+        academic = max(0, fit_acad * 1.5)
 
-    # 4) Major fit
+    # 4) Major fit — bumped the floor for "no exact match" from 50 → 65,
+    # because most schools offer the user's major somewhere even if it
+    # doesn't appear in the popular-majors list.
     user_major = (profile.get("major") or "").strip().lower()
     if user_major:
         school_majors = [m.lower() for m in school.get("majors", [])]
         if any(user_major in sm or sm in user_major for sm in school_majors):
             major = 100
         else:
-            major = 50
+            major = 65
     else:
-        major = 70  # neutral when no major declared
+        major = 75
 
-    score = round(0.30 * admit_realism + 0.30 * pref_score + 0.25 * academic + 0.15 * major, 1)
+    # Weights heavily de-emphasize admit realism (10%) — fit is about whether
+    # you'd thrive at the school, not whether you'd get in. Admission odds
+    # belong on the chances page, not in this score.
+    #   prefs 40% · academic 30% · major 20% · admit_realism 10%
+    score = round(0.10 * admit_realism + 0.40 * pref_score + 0.30 * academic + 0.20 * major, 1)
     return min(100, max(0, score)), {
         "admit_realism": round(admit_realism, 1),
         "pref": round(pref_score, 1),
@@ -803,7 +806,7 @@ def school_match(profile, school):
         else:
             out["class_size"] = ("mismatch", f"{sf_ratio(school)}:1 ({cs}) — you wanted {' or '.join(sorted(chosen))}"); score += 0; count += 1
 
-    # 5) Greek life
+    # 5) Greek life — partial credit for "medium" boosted from 5 to 7
     chosen = pref_set(profile, "pref_greek")
     g = greek_strength(school)
     if chosen:
@@ -812,7 +815,7 @@ def school_match(profile, school):
         elif "avoid" in chosen and g == "light":
             out["greek"] = ("match", "light Greek scene"); score += 10; count += 1
         elif g == "medium":
-            out["greek"] = ("neutral", "medium Greek scene"); score += 5; count += 1
+            out["greek"] = ("neutral", "medium Greek scene"); score += 7; count += 1
         else:
             out["greek"] = ("mismatch", f"{g} Greek scene"); score += 0; count += 1
 
@@ -825,7 +828,7 @@ def school_match(profile, school):
         elif "low" in chosen and s == "low":
             out["sports"] = ("match", "low-key sports"); score += 10; count += 1
         elif s == "medium":
-            out["sports"] = ("neutral", "moderate sports"); score += 5; count += 1
+            out["sports"] = ("neutral", "moderate sports"); score += 7; count += 1
         else:
             out["sports"] = ("mismatch", f"{s} sports culture"); score += 0; count += 1
 
@@ -840,7 +843,7 @@ def school_match(profile, school):
         elif "low" in chosen and not has_int:
             out["internships"] = ("match", "less internship-heavy"); score += 10; count += 1
         else:
-            out["internships"] = ("neutral", "internship pipeline strong"); score += 5; count += 1
+            out["internships"] = ("neutral", "internship pipeline strong"); score += 7; count += 1
 
     # 8) Prestige — accept the school if its tier maps to any chosen prestige bucket
     chosen = pref_set(profile, "pref_prestige")
@@ -2032,11 +2035,12 @@ def my_fit_html():
     # Tell the user how the score is built so the rankings make sense
     legend = """<div class="card" style="background:#f7f7f7;border-color:#e6e6e6">
       <h3 style="margin-top:0">How fit is calculated</h3>
+      <p class="muted" style="margin:0 0 8px;font-size:.92em">Fit is about whether you'd <i>thrive</i> at the school. Admission odds live on the Chances page — they barely move this score.</p>
       <ul style="padding-left:18px;margin:0;font-size:.92em">
-        <li><b>Admit realism (30%)</b> — peaks at ~50% odds. A 3% admit chance lowers fit even if you're academically strong, because realistic options matter.</li>
-        <li><b>Preferences match (30%)</b> — weather, setting, size, Greek life, sports culture, internships from your saved profile.</li>
-        <li><b>Academic match (25%)</b> — sweet spot is being competitive but not wildly over-qualified.</li>
-        <li><b>Major fit (15%)</b> — does this school actually have your declared major as a real program.</li>
+        <li><b>Preferences match (40%)</b> — weather, setting, size, class size, region, Greek life, sports culture, internships, prestige, cost from your saved profile.</li>
+        <li><b>Academic match (30%)</b> — your stats vs the school's typical admit. Above-range counts as a great fit.</li>
+        <li><b>Major fit (20%)</b> — does this school actually have your declared major as a real program.</li>
+        <li><b>Admit realism (10%)</b> — small thumb on the scale toward schools you can realistically get into.</li>
       </ul>
       <p class="muted" style="font-size:.85em;margin:10px 0 0">★★★★★ 80+ &nbsp; ★★★★ 65-79 &nbsp; ★★★ 50-64 &nbsp; ★★ 35-49 &nbsp; ★ 20-34</p>
     </div>"""
