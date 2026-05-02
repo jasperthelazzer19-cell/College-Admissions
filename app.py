@@ -612,6 +612,16 @@ def class_size_bucket(c):
     return "large"
 
 
+def avg_class_size_estimate(c):
+    """Rough estimate of average undergrad class size, derived from S/F ratio.
+    True avg class size depends on class-size distribution which schools report
+    separately on the Common Data Set (Section I-3). We approximate as
+    ~2.2× the S/F ratio: not every faculty teaches every term, big publics
+    have lectures of 200+ that pull the avg up. Marked 'est.' in the UI."""
+    r = sf_ratio(c)
+    return max(8, round(r * 2.2))
+
+
 # ─── SCHOOL ATTRIBUTES (for preference matching + ranking) ─
 # Tag set per school. Untagged → falls back to neutral matching. We focus tags
 # on schools where the attribute is genuinely a defining feature, not on
@@ -1953,7 +1963,7 @@ def college_detail_html(slug):
   <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;align-items:flex-start">
     <div>
       <h1 style="margin:0 0 4px">{c['name']}</h1>
-      <div class="muted">{city_state(c)} ({region_of(c)}) · {c['size']:,} undergrads · {sf_ratio(c)}:1 student-faculty · ${c['tuition']:,}/yr sticker</div>
+      <div class="muted">{city_state(c)} ({region_of(c)}) · {c['size']:,} undergrads · ~{avg_class_size_estimate(c)} avg class size · {sf_ratio(c)}:1 student-faculty · ${c['tuition']:,}/yr sticker</div>
     </div>
     <div>{type_pill} {tier_pill}</div>
   </div>
@@ -1967,6 +1977,7 @@ def college_detail_html(slug):
     <a class="btn btn-light" href="/college/{c['slug']}/profiles">Real profiles & essays</a>
   </div>
 </div>
+<p class="muted" style="font-size:.78em;margin:14px 0 6px">Stats below are CDS-based estimates from recent admissions cycles. Verify on the school's official site before making application decisions.</p>
 <div class="grid">
   <div class="card">
     <h3 style="margin-top:0">Acceptance rate</h3>
@@ -2065,7 +2076,7 @@ def _ranking_table(rows_data, show_stars=False):
         <th class="hide-sm">SAT mid-50%</th>
         <th class="hide-sm">ACT mid-50%</th>
         <th class="hide-sm">Undergrads</th>
-        <th class="hide-sm">S/F</th>
+        <th class="hide-sm">Avg Class Size</th>
         <th class="hide-sm">Type</th>
         <th></th>
       </tr></thead><tbody>"""
@@ -2081,6 +2092,7 @@ def _ranking_table(rows_data, show_stars=False):
             metric_col = f"{round(c['accept']*100,1)}%"
         type_pill = f'<span class="pill pill-{c["type"]}" style="font-size:.65em">{c["type"]}</span>'
         size_str = f"{c['size']:,}" if c.get("size") else "—"
+        avg_cs = f"~{avg_class_size_estimate(c)} <span class='muted' style='font-size:.78em'>est.</span>"
         rows += f"""<tr>
           <td class="rank-num">{rank_label}</td>
           <td class="name"><a href="/college/{c['slug']}">{c['name']}</a></td>
@@ -2089,7 +2101,7 @@ def _ranking_table(rows_data, show_stars=False):
           <td class="hide-sm num-col">{c['sat_25']}-{c['sat_75']}</td>
           <td class="hide-sm num-col">{c['act_25']}-{c['act_75']}</td>
           <td class="hide-sm num-col">{size_str}</td>
-          <td class="hide-sm num-col">{sf_ratio(c)}:1</td>
+          <td class="hide-sm num-col">{avg_cs}</td>
           <td class="hide-sm">{type_pill}</td>
           <td><a class="btn btn-light btn-sm" href="/college/{c['slug']}">View</a></td>
         </tr>"""
