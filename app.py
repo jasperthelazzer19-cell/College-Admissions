@@ -834,13 +834,20 @@ def compute_my_fit(profile, school):
 
 
 def school_match(profile, school):
-    """Score how well a school matches the user's preferences.
-    Returns {per_pref, score 0-100, rated_count}. Only prefs the user actually
-    set + we have data on are counted — no 'unclear' filler rows."""
+    """Score how well a school matches the user's preferences, weighted by
+    each pref's user-set importance (1-10, default 5). Returns
+    {per_pref, score 0-100, rated_count}. Only prefs the user actually set
+    are counted — no filler rows."""
     if not profile:
         return None
     out = {}
-    score, count = 0, 0
+    score, count = 0.0, 0.0
+    def add(key, base_score):
+        """Add a pref's contribution, scaled by user-set importance weight."""
+        nonlocal score, count
+        w = get_pref_weight(profile, key)
+        score += base_score * w
+        count += w
 
     # All prefs are now multi-select. Match if school's value is in the user's
     # chosen set; mismatch if they made a choice and the school isn't in it;
@@ -851,77 +858,77 @@ def school_match(profile, school):
     school_climate = climate_of(school)
     if chosen:
         if school_climate in chosen:
-            out["weather"] = ("match", school_climate); score += 10; count += 1
+            out["weather"] = ("match", school_climate); add("weather", 10)
         else:
-            out["weather"] = ("mismatch", f"{school_climate} (you wanted {' or '.join(sorted(chosen))})"); score += 0; count += 1
+            out["weather"] = ("mismatch", f"{school_climate} (you wanted {' or '.join(sorted(chosen))})"); add("weather", 0)
 
     # 2) Setting
     chosen = pref_set(profile, "pref_setting")
     school_setting = setting_of(school)
     if chosen:
         if school_setting in chosen:
-            out["setting"] = ("match", school_setting); score += 10; count += 1
+            out["setting"] = ("match", school_setting); add("setting", 10)
         else:
-            out["setting"] = ("mismatch", f"{school_setting} (you wanted {' or '.join(sorted(chosen))})"); score += 0; count += 1
+            out["setting"] = ("mismatch", f"{school_setting} (you wanted {' or '.join(sorted(chosen))})"); add("setting", 0)
 
     # 3) Size
     chosen = pref_set(profile, "pref_size")
     size_bucket = _school_size_bucket(school)
     if chosen:
         if size_bucket in chosen:
-            out["size"] = ("match", f"{size_bucket} ({school.get('size',0):,} undergrads)"); score += 10; count += 1
+            out["size"] = ("match", f"{size_bucket} ({school.get('size',0):,} undergrads)"); add("size", 10)
         else:
-            out["size"] = ("mismatch", f"{size_bucket} ({school.get('size',0):,}) — you wanted {' or '.join(sorted(chosen))}"); score += 0; count += 1
+            out["size"] = ("mismatch", f"{size_bucket} ({school.get('size',0):,}) — you wanted {' or '.join(sorted(chosen))}"); add("size", 0)
 
     # 4) Class size
     chosen = pref_set(profile, "pref_class_size")
     cs = class_size_bucket(school)
     if chosen:
         if cs in chosen:
-            out["class_size"] = ("match", f"{sf_ratio(school)}:1 student-faculty"); score += 10; count += 1
+            out["class_size"] = ("match", f"{sf_ratio(school)}:1 student-faculty"); add("class_size", 10)
         else:
-            out["class_size"] = ("mismatch", f"{sf_ratio(school)}:1 ({cs}) — you wanted {' or '.join(sorted(chosen))}"); score += 0; count += 1
+            out["class_size"] = ("mismatch", f"{sf_ratio(school)}:1 ({cs}) — you wanted {' or '.join(sorted(chosen))}"); add("class_size", 0)
 
-    # 5) Greek life — partial credit for "medium" boosted from 5 to 7
+    # 5) Greek life
     chosen = pref_set(profile, "pref_greek")
     g = greek_strength(school)
     if chosen:
         if "strong" in chosen and g == "strong":
-            out["greek"] = ("match", "strong Greek scene"); score += 10; count += 1
+            out["greek"] = ("match", "strong Greek scene"); add("greek", 10)
         elif "avoid" in chosen and g == "light":
-            out["greek"] = ("match", "light Greek scene"); score += 10; count += 1
+            out["greek"] = ("match", "light Greek scene"); add("greek", 10)
         elif g == "medium":
-            out["greek"] = ("neutral", "medium Greek scene"); score += 7; count += 1
+            out["greek"] = ("neutral", "medium Greek scene"); add("greek", 7)
         else:
-            out["greek"] = ("mismatch", f"{g} Greek scene"); score += 0; count += 1
+            out["greek"] = ("mismatch", f"{g} Greek scene"); add("greek", 0)
 
     # 6) Sports
     chosen = pref_set(profile, "pref_sports")
     s = sports_strength(school)
     if chosen:
         if "strong" in chosen and s == "strong":
-            out["sports"] = ("match", "big sports culture"); score += 10; count += 1
+            out["sports"] = ("match", "big sports culture"); add("sports", 10)
         elif "low" in chosen and s == "low":
-            out["sports"] = ("match", "low-key sports"); score += 10; count += 1
+            out["sports"] = ("match", "low-key sports"); add("sports", 10)
         elif s == "medium":
-            out["sports"] = ("neutral", "moderate sports"); score += 7; count += 1
+            out["sports"] = ("neutral", "moderate sports"); add("sports", 7)
         else:
-            out["sports"] = ("mismatch", f"{s} sports culture"); score += 0; count += 1
+            out["sports"] = ("mismatch", f"{s} sports culture"); add("sports", 0)
 
     # 7) Internships
     chosen = pref_set(profile, "pref_internships")
     has_int = has_strong_internships(school)
     if chosen:
         if "strong" in chosen and has_int:
-            out["internships"] = ("match", "strong internship pipeline"); score += 10; count += 1
+            out["internships"] = ("match", "strong internship pipeline"); add("internships", 10)
         elif "strong" in chosen:
-            out["internships"] = ("mismatch", "less of an internship hub"); score += 0; count += 1
+            out["internships"] = ("mismatch", "less of an internship hub"); add("internships", 0)
         elif "low" in chosen and not has_int:
-            out["internships"] = ("match", "less internship-heavy"); score += 10; count += 1
+            out["internships"] = ("match", "less internship-heavy"); add("internships", 10)
         else:
-            out["internships"] = ("neutral", "internship pipeline strong"); score += 7; count += 1
+            out["internships"] = ("neutral", "internship pipeline strong"); add("internships", 7)
 
-    # 8) Prestige — accept the school if its tier maps to any chosen prestige bucket
+    # 8) Prestige
     chosen = pref_set(profile, "pref_prestige")
     tier = school.get("tier", 3)
     if chosen:
@@ -929,18 +936,18 @@ def school_match(profile, school):
              ("medium" in chosen and tier in (2, 3)) or \
              ("low" in chosen)
         if ok:
-            out["prestige"] = ("match", f"tier {tier}"); score += 10; count += 1
+            out["prestige"] = ("match", f"tier {tier}"); add("prestige", 10)
         else:
-            out["prestige"] = ("mismatch", f"tier {tier}"); score += 0; count += 1
+            out["prestige"] = ("mismatch", f"tier {tier}"); add("prestige", 0)
 
     # 9) Region
     chosen = pref_set(profile, "pref_region")
     region = region_of(school)
     if chosen:
         if region in chosen:
-            out["region"] = ("match", region); score += 10; count += 1
+            out["region"] = ("match", region); add("region", 10)
         else:
-            out["region"] = ("mismatch", f"{region} (you wanted {' or '.join(sorted(chosen))})"); score += 0; count += 1
+            out["region"] = ("mismatch", f"{region} (you wanted {' or '.join(sorted(chosen))})"); add("region", 0)
 
     # 10) Cost
     chosen = pref_set(profile, "pref_cost")
@@ -950,12 +957,14 @@ def school_match(profile, school):
              ("medium" in chosen and sticker < 40000) or \
              ("high" in chosen)
         if ok:
-            out["cost"] = ("match", f"${sticker:,} sticker"); score += 10; count += 1
+            out["cost"] = ("match", f"${sticker:,} sticker"); add("cost", 10)
         else:
-            out["cost"] = ("mismatch", f"${sticker:,} sticker"); score += 0; count += 1
+            out["cost"] = ("mismatch", f"${sticker:,} sticker"); add("cost", 0)
 
-    overall = round(score / max(1, count) * 10, 1) if count else 0
-    return {"per_pref": out, "score": overall, "rated_count": count}
+    overall = round(score / max(1.0, count) * 10, 1) if count else 0
+    # rated_count = number of distinct prefs the user set (not the weight sum)
+    rated = sum(1 for k in ("weather","setting","size","class_size","greek","sports","internships","prestige","region","cost") if k in out)
+    return {"per_pref": out, "score": overall, "rated_count": rated}
 
 
 # ─── RANKINGS ─────────────────────────────────────────────
@@ -1512,6 +1521,12 @@ def init_db():
             conn.execute("ALTER TABLE profiles ADD COLUMN legacy_schools TEXT DEFAULT ''")
         except sqlite3.OperationalError:
             pass
+        # Per-preference importance weights (JSON dict 1-10 per pref).
+        # Empty / missing means use neutral weight (5) for all prefs.
+        try:
+            conn.execute("ALTER TABLE profiles ADD COLUMN pref_weights TEXT DEFAULT ''")
+        except sqlite3.OperationalError:
+            pass
         conn.commit()
 
 
@@ -1555,13 +1570,14 @@ def save_profile(user_id, p):
     # Legacy is now derived from legacy_schools — auto-true if user listed any.
     legacy_schools = (p.get("legacy_schools") or "").strip()
     legacy_flag = 1 if legacy_schools else (1 if p.get("legacy") else 0)
+    pref_weights = p.get("pref_weights") or ""
     with db() as conn:
         conn.execute("""INSERT INTO profiles
             (user_id, uw_gpa, weighted_gpa, sat, act, major, state, school_type, ecs, leadership, awards,
              legacy, first_gen, athlete, legacy_schools,
              pref_weather, pref_setting, pref_size, pref_greek, pref_sports, pref_internships,
-             pref_class_size, pref_prestige, pref_region, pref_cost, updated_at)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)
+             pref_class_size, pref_prestige, pref_region, pref_cost, pref_weights, updated_at)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)
             ON CONFLICT(user_id) DO UPDATE SET
                 uw_gpa=excluded.uw_gpa, weighted_gpa=excluded.weighted_gpa, sat=excluded.sat, act=excluded.act,
                 major=excluded.major, state=excluded.state, school_type=excluded.school_type,
@@ -1573,6 +1589,7 @@ def save_profile(user_id, p):
                 pref_sports=excluded.pref_sports, pref_internships=excluded.pref_internships,
                 pref_class_size=excluded.pref_class_size, pref_prestige=excluded.pref_prestige,
                 pref_region=excluded.pref_region, pref_cost=excluded.pref_cost,
+                pref_weights=excluded.pref_weights,
                 updated_at=CURRENT_TIMESTAMP""",
             (user_id, p.get("uw_gpa"), p.get("weighted_gpa"), p.get("sat"), p.get("act"),
              p.get("major"), p.get("state"), p.get("school_type"), p.get("ecs"),
@@ -1583,8 +1600,32 @@ def save_profile(user_id, p):
              p.get("pref_size") or "any", p.get("pref_greek") or "any",
              p.get("pref_sports") or "any", p.get("pref_internships") or "any",
              p.get("pref_class_size") or "any", p.get("pref_prestige") or "any",
-             p.get("pref_region") or "any", p.get("pref_cost") or "any"))
+             p.get("pref_region") or "any", p.get("pref_cost") or "any",
+             pref_weights))
         conn.commit()
+
+
+def get_pref_weight(profile, key):
+    """Return importance weight 1-10 for a pref. 5 = neutral, 10 = critical, 1 = barely matters."""
+    raw = (profile.get("pref_weights") or "").strip() if profile else ""
+    if not raw: return 5
+    try:
+        d = json.loads(raw)
+        v = int(d.get(key, 5))
+        return max(1, min(10, v))
+    except Exception:
+        return 5
+
+
+def parse_pref_weights_form(form):
+    """Read importance dropdown values from the profile form, return JSON string."""
+    out = {}
+    for k in ("weather","setting","size","class_size","greek","sports","internships","prestige","region","cost"):
+        try:
+            out[k] = max(1, min(10, int(form.get(f"weight_{k}", 5))))
+        except (TypeError, ValueError):
+            out[k] = 5
+    return json.dumps(out)
 
 
 def has_legacy_at(profile, school):
@@ -2205,16 +2246,16 @@ def login_html():
 
 
 def _pref_form_fields(p):
-    """Build all preference inputs as multi-select checkbox groups.
-    User can pick multiple values per preference (e.g. region: West + Northeast).
-    Stored as comma-separated string; empty string means 'no preference'."""
+    """Build all preference inputs as multi-select checkbox groups + an
+    importance dial (1-10) next to each. User can pick multiple values per
+    preference and tell us how much each one matters."""
     labels = {
-        "pref_weather":     "Weather (pick any that work for you)",
+        "pref_weather":     "Weather",
         "pref_setting":     "Campus setting",
         "pref_region":      "Region",
         "pref_size":        "School size",
         "pref_class_size":  "Class size",
-        "pref_prestige":    "Prestige importance",
+        "pref_prestige":    "Prestige",
         "pref_cost":        "Cost",
         "pref_greek":       "Greek life",
         "pref_sports":      "Sports culture",
@@ -2222,10 +2263,8 @@ def _pref_form_fields(p):
     }
     out = ""
     for key, label in labels.items():
-        opts = PREF_OPTIONS[key.replace("pref_","")]
-        # Drop the synthetic "any" option for multi-select — leaving everything
-        # unchecked already means "no preference".
-        opts = [(v, lbl) for v, lbl in opts if v != "any"]
+        short = key.replace("pref_","")
+        opts = [(v, lbl) for v, lbl in PREF_OPTIONS[short] if v != "any"]
         cur_str = (p.get(key) if isinstance(p, dict) else None) or ""
         cur = set(s.strip() for s in cur_str.split(",") if s.strip() and s.strip() != "any")
         boxes = ""
@@ -2238,8 +2277,19 @@ def _pref_form_fields(p):
                 f'<input type="checkbox" name="{key}" value="{val}" {checked} style="width:auto;margin:0">'
                 f'{opt_label}</label>'
             )
+        # Current importance weight (default 5)
+        cur_w = get_pref_weight(p if isinstance(p, dict) else {}, short)
+        weight_options = "".join(
+            f'<option value="{i}" {"selected" if i==cur_w else ""}>{i}</option>'
+            for i in range(1, 11)
+        )
         out += (
-            f'<label style="margin:14px 0 6px">{label}</label>'
+            f'<div style="margin:16px 0 4px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">'
+            f'<label style="margin:0;font-weight:600">{label}</label>'
+            f'<label style="margin:0;font-size:.78em;color:#666;font-weight:500;display:inline-flex;align-items:center;gap:5px">'
+            f'How much it matters '
+            f'<select name="weight_{short}" style="width:auto;padding:3px 6px;font-size:.85em">{weight_options}</select>'
+            f'</label></div>'
             f'<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px">{boxes}</div>'
         )
     return out
@@ -2303,7 +2353,7 @@ def profile_html():
   </div>
 
   <h3>Preferences</h3>
-  <p class="muted" style="font-size:.85em;margin:-2px 0 8px">Used to compute "School Match" on each college page and for preference-based ranking lists. Leave anything as "No preference" if you don't care.</p>
+  <p class="muted" style="font-size:.85em;margin:-2px 0 8px">Pick everything you'd be happy with for each preference (multi-select), and dial in how much each one matters to you (1-10, where 5 is neutral, 10 is critical). Leave a pref unchecked entirely if you don't care.</p>
   {_pref_form_fields(p)}
 
   <p style="margin-top:18px"><button class="btn btn-primary" type="submit">Save profile</button></p>
@@ -3648,6 +3698,8 @@ def _read_profile_form(form):
         vals = form.getlist(key) if hasattr(form, "getlist") else (form.get(key, "") or "").split(",")
         vals = [v.strip() for v in vals if v and v.strip() and v.strip() != "any"]
         result[key] = ",".join(vals)
+    # Per-pref importance weights
+    result["pref_weights"] = parse_pref_weights_form(form)
     return result
 
 
