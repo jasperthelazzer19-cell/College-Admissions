@@ -1,0 +1,10 @@
+college.db
+college.db-journal
+*.db
+*.db-journal
+__pycache__/
+*.pyc
+.env
+.DS_Store
+.venv/
+venv/
