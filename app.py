@@ -2419,6 +2419,23 @@ def my_fit_html():
     veto_note = ""
     if vetoed_count:
         veto_note = f'<div class="card" style="background:#fff8e1;border-color:#ffeaa7"><b>{vetoed_count} schools hidden</b> because they mismatch a preference you marked importance 10 (deal-breaker). To see them, lower that pref\'s importance below 10 in your <a href="/profile">profile</a>.</div>'
+
+    # Diagnostic: surface the user's saved importance weights so they can
+    # verify their settings actually saved. If everything is the default 5,
+    # they probably didn't click Save after touching the dials.
+    weights_summary = ""
+    try:
+        d = json.loads((prof.get("pref_weights") or "").strip() or "{}")
+    except Exception:
+        d = {}
+    if d:
+        items = " &nbsp; ".join(f"<b>{k}:</b> {d.get(k, 5)}" for k in ("weather","setting","size","class_size","greek","sports","internships","prestige","region","cost"))
+        all_default = all(int(v) == 5 for v in d.values())
+        bg, border = ("#fff8e1","#ffeaa7") if all_default else ("#f7f7f7","#e6e6e6")
+        warn = " <i>(all 5 — did you forget to click Save in the profile form?)</i>" if all_default else ""
+        weights_summary = f'<div class="card" style="background:{bg};border-color:{border};font-size:.85em"><b>Your importance dials:</b> {items}{warn}</div>'
+    else:
+        weights_summary = '<div class="card" style="background:#fff8e1;border-color:#ffeaa7;font-size:.9em"><b>No importance weights saved yet.</b> Go to <a href="/profile">your profile</a>, set the importance dials (especially any deal-breakers at 10), and click <b>Save profile</b> at the bottom.</div>'
     legend = """<div class="card" style="background:#f7f7f7;border-color:#e6e6e6">
       <h3 style="margin-top:0">How fit is calculated</h3>
       <p class="muted" style="margin:0 0 8px;font-size:.92em">Fit is about whether you'd <i>thrive</i> at the school. Admission odds live on the Chances page — they barely move this score.</p>
@@ -2431,7 +2448,7 @@ def my_fit_html():
       <p class="muted" style="margin:8px 0 0;font-size:.92em"><b>Importance dial</b> on each pref: 1 = barely matters, 5 = neutral, 10 = <b>deal-breaker</b> (school is removed from this list if it mismatches).</p>
       <p class="muted" style="font-size:.85em;margin:6px 0 0">★★★★★ 80+ &nbsp; ★★★★ 65-79 &nbsp; ★★★ 50-64 &nbsp; ★★ 35-49 &nbsp; ★ 20-34</p>
     </div>"""
-    legend = veto_note + legend
+    legend = weights_summary + veto_note + legend
     # Soft warning if any of the 4 inputs is essentially missing
     warnings = []
     if not (profile.get("major") or "").strip():
