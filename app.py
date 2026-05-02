@@ -1145,17 +1145,29 @@ def school_match(profile, school):
         else:
             out["internships"] = ("neutral", "internship pipeline strong"); add("internships", 7)
 
-    # 8) Prestige
+    # 8) Prestige — graduated, not binary. Tier-3 schools (Villanova, Wake
+    # Forest, BU, Tufts, etc.) are still strong; if the user wants "high"
+    # prestige, those should be partial credit rather than a hard mismatch
+    # that triggers the importance penalty.
     chosen = pref_set(profile, "pref_prestige")
     tier = school.get("tier", 3)
     if chosen:
-        ok = ("high" in chosen and tier <= 2) or \
-             ("medium" in chosen and tier in (2, 3)) or \
-             ("low" in chosen)
-        if ok:
+        if "high" in chosen:
+            if tier <= 2:
+                out["prestige"] = ("match", f"tier {tier}"); add("prestige", 10)
+            elif tier == 3:
+                out["prestige"] = ("neutral", f"tier {tier} — still strong"); add("prestige", 7)
+            else:
+                out["prestige"] = ("mismatch", f"tier {tier}"); add("prestige", 0)
+        elif "medium" in chosen:
+            if tier in (1, 2, 3):
+                out["prestige"] = ("match", f"tier {tier}"); add("prestige", 10)
+            elif tier == 4:
+                out["prestige"] = ("neutral", f"tier {tier}"); add("prestige", 6)
+            else:
+                out["prestige"] = ("mismatch", f"tier {tier}"); add("prestige", 0)
+        else:  # "low" — anything goes
             out["prestige"] = ("match", f"tier {tier}"); add("prestige", 10)
-        else:
-            out["prestige"] = ("mismatch", f"tier {tier}"); add("prestige", 0)
 
     # 9) Region
     chosen = pref_set(profile, "pref_region")
