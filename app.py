@@ -1099,19 +1099,27 @@ def school_match(profile, school):
         else:
             out["setting"] = ("mismatch", f"{school_setting} (you wanted {' or '.join(sorted(chosen))})"); add("setting", 0)
 
-    # 3) Size — adjacent buckets are "close enough" (Cornell at 15,700 is
-    # technically large but still feels mid-sized). Hard mismatch only when
-    # the school is the opposite extreme of what the user picked.
+    # 3) Size — numeric ranges with a 5k tolerance. A 17k school is "close
+    # enough" to medium, but a 37k school is not. Catches the Purdue case.
+    #   small  = 0-7,000
+    #   medium = 7,000-17,000
+    #   large  = 17,000+
+    #   tolerance 5k on either side counts as neutral (partial credit)
     chosen = pref_set(profile, "pref_size")
-    size_bucket = _school_size_bucket(school)
     size_n = school.get("size", 0) or 0
     if chosen:
-        if size_bucket in chosen:
-            out["size"] = ("match", f"{size_bucket} ({size_n:,} undergrads)"); add("size", 10)
-        elif _adjacent_bucket(size_bucket, chosen, ("small","medium","large")):
-            out["size"] = ("neutral", f"{size_bucket} ({size_n:,}) — close to {' or '.join(sorted(chosen))}"); add("size", 7)
+        ranges = {"small": (0, 7000), "medium": (7000, 17000), "large": (17000, 10**9)}
+        soft = 5000
+        wanted = [(k, ranges[k]) for k in ("small","medium","large") if k in chosen]
+        in_match = any(lo <= size_n < hi for _, (lo, hi) in wanted)
+        in_soft  = any(max(0, lo - soft) <= size_n < hi + soft for _, (lo, hi) in wanted)
+        label = f"{size_n:,} undergrads"
+        if in_match:
+            out["size"] = ("match", label); add("size", 10)
+        elif in_soft:
+            out["size"] = ("neutral", f"{label} — close to {' or '.join(sorted(chosen))}"); add("size", 7)
         else:
-            out["size"] = ("mismatch", f"{size_bucket} ({size_n:,}) — you wanted {' or '.join(sorted(chosen))}"); add("size", 0)
+            out["size"] = ("mismatch", f"{label} — you wanted {' or '.join(sorted(chosen))}"); add("size", 0)
 
     # 4) Class size — same graduated logic as school size
     chosen = pref_set(profile, "pref_class_size")
