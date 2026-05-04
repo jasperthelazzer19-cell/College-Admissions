@@ -884,6 +884,8 @@ def merged_school(c):
 # Map our slug → Scorecard "name" search term. For most schools the school
 # name works directly; the trickier ones get an explicit override.
 SCORECARD_NAME_OVERRIDES = {
+    "unc": "University of North Carolina at Chapel Hill",
+    "parsons": "The New School",
     "ucb": "University of California-Berkeley",
     "ucla": "University of California-Los Angeles",
     "uci": "University of California-Irvine",
