@@ -1,4 +1,4 @@
-"""Admit — college database, ranking lists, and chances calculator.
+"""Candor — college database, ranking lists, and chances calculator.
 
 Single-file Flask app. Persistent SQLite stores users, profiles, and
 saved chances. NewsAPI fetches recent articles per college (cached).
@@ -2306,13 +2306,13 @@ input:focus,select:focus,textarea:focus{outline:0;border-color:#2b6cff}
 .tag{display:inline-block;padding:3px 9px;border-radius:5px;background:#f1f1f1;color:#444;font-size:.78em}
 """
 
-NAV = """<div class="nav"><a class="brand" href="/colleges">Admit</a>
+NAV = """<div class="nav"><a class="brand" href="/colleges">Candor</a>
 <a href="/colleges">Browse</a>
 <a href="/rankings">Rankings</a>
 <a href="/profiles">Real Profiles</a>
 <a href="/plans">My Plans</a>
 <a href="/improve">Improve</a>
-<a href="/chat">AI Chat</a>
+<a href="/chat">AI Advisor</a>
 <span class="sp"></span>
 __USER_LINKS__
 </div>"""
@@ -2341,7 +2341,7 @@ def _flash():
     return "\n".join(msgs)
 
 
-def _page(body_html, title="Admit"):
+def _page(body_html, title="Candor"):
     return f"""<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{title}</title><style>{BASE_CSS}</style></head>
 <body>{_nav()}<div class="wrap">{_flash()}{body_html}</div></body></html>"""
@@ -2388,7 +2388,7 @@ def colleges_html():
   <a class="btn btn-light" href="/colleges">Reset</a>
 </form>
 <div class="grid">{cards or '<p class="muted">No matches.</p>'}</div>
-""", title="Browse colleges — Admit")
+""", title="Browse colleges — Candor")
 
 
 def _match_card(c):
@@ -2472,7 +2472,7 @@ def college_detail_html(slug):
     <a class="btn btn-primary" href="/college/{c['slug']}/plan">★ My personalized plan</a>
     <a class="btn btn-light" href="/chances/{c['slug']}">Chances only</a>
     <a class="btn btn-light" href="/college/{c['slug']}/improve">Improve guide</a>
-    <a class="btn btn-light" href="/college/{c['slug']}/chat">AI chat</a>
+    <a class="btn btn-light" href="/college/{c['slug']}/chat">AI advisor</a>
     <a class="btn btn-light" href="/college/{c['slug']}/profiles">Real profiles & essays</a>
   </div>
 </div>
@@ -2527,7 +2527,7 @@ def college_detail_html(slug):
   load("articles-block","/api/college/"+slug+"/articles");
 }})();
 </script>
-""", title=f"{c['name']} — Admit")
+""", title=f"{c['name']} — Candor")
 
 
 def rankings_index_html():
@@ -2546,7 +2546,7 @@ def rankings_index_html():
 <h1>Ranking lists</h1>
 <p class="muted">Curated lists for the most-asked categories, plus a personalized fit ranking from your profile.</p>
 {items}
-""", title="Rankings — Admit")
+""", title="Rankings — Candor")
 
 
 RANKING_TABLE_CSS = """
@@ -2630,7 +2630,7 @@ def ranking_detail_html(slug):
 <p class="muted">{r['blurb']}</p>
 {note}
 {table}
-""", title=f"{r['title']} — Admit")
+""", title=f"{r['title']} — Candor")
 
 
 def my_fit_html():
@@ -2646,7 +2646,7 @@ def my_fit_html():
   <p>Add your GPA, test score, intended major, and preferences first. Otherwise this ranking is just academics-only and basically useless.</p>
   <a class="btn btn-primary" href="/profile">Edit profile &rarr;</a>
 </div>
-""", title="My Fit — Admit")
+""", title="My Fit — Candor")
     prof = {
         "uw_gpa": profile.get("uw_gpa"), "weighted_gpa": profile.get("weighted_gpa"),
         "sat": profile.get("sat"), "act": profile.get("act"),
@@ -2730,7 +2730,7 @@ def my_fit_html():
 {warning_html}
 {legend}
 {table}
-""", title="My Fit — Admit")
+""", title="My Fit — Candor")
 
 
 def signup_html():
@@ -2747,7 +2747,7 @@ def signup_html():
   <button class="btn btn-primary" type="submit">Create account</button>
   <p class="muted" style="font-size:.85em;margin-top:14px">Already registered? <a href="/login">Log in</a>.</p>
 </form>
-""", title="Sign up — Admit")
+""", title="Sign up — Candor")
 
 
 def login_html():
@@ -2762,7 +2762,7 @@ def login_html():
   <button class="btn btn-primary" type="submit">Log in</button>
   <p class="muted" style="font-size:.85em;margin-top:14px">No account? <a href="/signup">Sign up</a>.</p>
 </form>
-""", title="Log in — Admit")
+""", title="Log in — Candor")
 
 
 def _pref_form_fields(p):
@@ -2877,7 +2877,7 @@ def profile_html():
 
   <p style="margin-top:18px"><button class="btn btn-primary" type="submit">Save profile</button></p>
 </form>
-""", title="Profile — Admit")
+""", title="Profile — Candor")
 
 
 def chances_html(slug):
@@ -2930,7 +2930,7 @@ def chances_html(slug):
   </ul>
 </div>
 <p style="margin-top:18px"><a class="btn btn-light" href="/profile">Edit profile</a> <a class="btn btn-light" href="/college/{r['slug']}/improve">Get tailored advice for {r['school']} &rarr;</a></p>
-""", title=f"Your chances at {r['school']} — Admit")
+""", title=f"Your chances at {r['school']} — Candor")
 
 
 def _resource_block(category, items):
@@ -2992,7 +2992,7 @@ def improve_html():
   <p class="muted" style="margin:0 0 8px">Every college's detail page has a "Tailored advice for [school]" link with what that school weights, supplemental essay strategy, and specific programs to apply to.</p>
   <a class="btn btn-light btn-sm" href="/colleges">Browse colleges &rarr;</a>
 </div>
-""", title="Improve your application — Admit")
+""", title="Improve your application — Candor")
 
 
 def school_improve_html(slug):
@@ -3081,7 +3081,7 @@ def school_improve_html(slug):
   </ol>
 </div>
 <p style="margin-top:18px"><a class="btn btn-light" href="/college/{slug}/chat">Ask the AI advisor about {school['name']} &rarr;</a> <a class="btn btn-light" href="/improve">General improve guide</a></p>
-""", title=f"Improve your {school['name']} application — Admit")
+""", title=f"Improve your {school['name']} application — Candor")
 
 
 # ─── REFERENCE LINKS PER SCHOOL ───────────────────────────
@@ -3648,7 +3648,7 @@ def profiles_index_html():
 <h2 style="margin-top:24px">Pick a school to see profiles</h2>
 <div class="grid">{cards}</div>
 <p style="margin-top:18px"><a class="btn btn-light" href="/colleges">Browse all 155 colleges &rarr;</a></p>
-""", title="Real Profiles — Admit")
+""", title="Real Profiles — Candor")
 
 
 def school_profiles_html(slug):
@@ -3676,7 +3676,7 @@ def school_profiles_html(slug):
   <a class="btn btn-light btn-sm" href="/college/{slug}">Overview</a>
   <a class="btn btn-light btn-sm" href="/college/{slug}/plan">My plan</a>
   <a class="btn btn-light btn-sm" href="/college/{slug}/improve">Improve</a>
-  <a class="btn btn-light btn-sm" href="/college/{slug}/chat">AI chat</a>
+  <a class="btn btn-light btn-sm" href="/college/{slug}/chat">AI advisor</a>
   <a class="btn btn-light btn-sm" href="?refresh=1">Regenerate</a>
 </div>
 
@@ -3700,7 +3700,7 @@ def school_profiles_html(slug):
   <div style="padding:6px 0;border-top:1px solid #f0f0f0"><a href="{reddit_url}" target="_blank" rel="noopener">r/ApplyingToCollege results threads for {c['name']} &rarr;</a></div>
   {generic_links_html}
 </div>
-""", title=f"Real profiles — {c['name']} — Admit")
+""", title=f"Real profiles — {c['name']} — Candor")
 
 
 # ─── PERSONALIZED SCHOOL PLAN ─────────────────────────────
@@ -3720,7 +3720,7 @@ def school_plan_html(slug):
   <p>Personalized plans need your GPA, scores, ECs, and preferences. Takes 2 minutes.</p>
   <a class="btn btn-primary" href="/profile">Edit profile &rarr;</a>
 </div>
-""", title=f"{school['name']} plan — Admit")
+""", title=f"{school['name']} plan — Candor")
 
     prof = {
         "uw_gpa": profile.get("uw_gpa"), "weighted_gpa": profile.get("weighted_gpa"),
@@ -3850,7 +3850,7 @@ def school_plan_html(slug):
   <a class="btn btn-light" href="/college/{slug}/improve">Full school-specific guide</a>
   <a class="btn btn-light" href="/college/{slug}">School overview</a>
 </div>
-""", title=f"Your plan for {school['name']} — Admit")
+""", title=f"Your plan for {school['name']} — Candor")
 
 
 def plans_index_html():
@@ -3874,7 +3874,7 @@ def plans_index_html():
   <a class="btn btn-primary" href="/colleges">Browse colleges</a>
   <a class="btn btn-light" href="/rankings/my-fit">My Fit ranking</a>
 </div>
-""", title="My Plans — Admit")
+""", title="My Plans — Candor")
     profile = get_profile(user["id"])
     cards = ""
     for row in rows:
@@ -3905,7 +3905,7 @@ def plans_index_html():
 <p class="muted">Schools you've computed chances for. Click any card for the full personalized plan — chances, match, gaps, school-specific advice.</p>
 <div class="grid">{cards}</div>
 <p style="margin-top:18px"><a class="btn btn-light" href="/colleges">+ Add another school</a></p>
-""", title="My Plans — Admit")
+""", title="My Plans — Candor")
 
 
 # ─── CHAT (AI advisor) ────────────────────────────────────
@@ -4152,7 +4152,7 @@ def general_chat_html():
             .replace("__SUGGESTIONS__", sug_html)
             .replace("__PLACEHOLDER__", "college admissions")
             .replace("__SEND_URL__", "/chat/api/send"))
-    return _page(page, title="AI advisor — Admit")
+    return _page(page, title="AI advisor — Candor")
 
 
 def school_chat_html(slug):
@@ -4183,7 +4183,7 @@ def school_chat_html(slug):
             .replace("__SUGGESTIONS__", sug_html)
             .replace("__PLACEHOLDER__", school["name"])
             .replace("__SEND_URL__", f"/chat/api/send?slug={slug}"))
-    return _page(page, title=f"AI advisor — {school['name']} — Admit")
+    return _page(page, title=f"AI advisor — {school['name']} — Candor")
 
 
 # ─── FLASK APP ────────────────────────────────────────────
@@ -4463,7 +4463,7 @@ init_db()
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5050))
-    print(f" * Admit — running on http://127.0.0.1:{port}", flush=True)
+    print(f" * Candor — running on http://127.0.0.1:{port}", flush=True)
     print(f" * DB: {DB_PATH}", flush=True)
     print(f" * Claude: {'on' if _claude_client else 'off (templates)'} · NewsAPI: {'on' if NEWSAPI_KEY else 'off'}", flush=True)
     app.run(host="0.0.0.0", port=port, debug=os.environ.get("DEBUG") == "1")
