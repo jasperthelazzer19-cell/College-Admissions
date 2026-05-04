@@ -4344,7 +4344,14 @@ def logout():
 def profile_page():
     if request.method == "POST":
         p = _read_profile_form(request.form)
-        save_profile(current_user()["id"], p)
+        uid = current_user()["id"]
+        save_profile(uid, p)
+        # Profile changed — invalidate any cached advice/chances that were
+        # generated against the old profile so the next view regenerates.
+        with db() as conn:
+            conn.execute("DELETE FROM tailored_advice WHERE user_id=?", (uid,))
+            conn.execute("DELETE FROM saved_chances WHERE user_id=?", (uid,))
+            conn.commit()
         flash("Profile saved.", "success")
         nxt = session.pop("next_url", None)
         if nxt: return redirect(nxt)
