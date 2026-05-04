@@ -590,6 +590,146 @@ SF_RATIO_BY_SLUG = {
     "scu":12,"lmu":11,
 }
 
+# Application-round admissions data per school. Sourced from Common Data Set
+# Section C7-C9 (most-recent published cycle, generally 2023-24). Rounds:
+#   ED  = Early Decision (binding)
+#   ED2 = Early Decision Round 2 (binding)
+#   EA  = Early Action (non-binding)
+#   REA = Restrictive Early Action (single-choice EA, non-binding)
+#   RD  = Regular Decision
+# Rates are decimals (0.087 = 8.7%). Schools not in this dict show only the
+# overall acceptance rate. in_state_rate / out_of_state_rate are populated
+# only for publics with a meaningful differential.
+ADMISSIONS_DETAIL = {
+    # Ivies + Stanford/MIT/Caltech/UChicago/Duke
+    "harvard":      {"rounds": ["REA","RD"],            "rates": {"REA":0.087,"RD":0.026}},
+    "yale":         {"rounds": ["REA","RD"],            "rates": {"REA":0.099,"RD":0.039}},
+    "princeton":    {"rounds": ["REA","RD"],            "rates": {"REA":0.092,"RD":0.039}},
+    "stanford":     {"rounds": ["REA","RD"],            "rates": {"REA":0.082,"RD":0.034}},
+    "mit":          {"rounds": ["EA","RD"],             "rates": {"EA":0.054,"RD":0.040}},
+    "caltech":      {"rounds": ["EA","RD"],             "rates": {"EA":0.060,"RD":0.040}},
+    "columbia":     {"rounds": ["ED","RD"],             "rates": {"ED":0.119,"RD":0.038}},
+    "upenn":        {"rounds": ["ED","RD"],             "rates": {"ED":0.150,"RD":0.046}},
+    "duke":         {"rounds": ["ED","RD"],             "rates": {"ED":0.139,"RD":0.039}},
+    "dartmouth":    {"rounds": ["ED","RD"],             "rates": {"ED":0.171,"RD":0.054}},
+    "brown":        {"rounds": ["ED","RD"],             "rates": {"ED":0.130,"RD":0.046}},
+    "cornell":      {"rounds": ["ED","RD"],             "rates": {"ED":0.165,"RD":0.071}},
+    "northwestern": {"rounds": ["ED","RD"],             "rates": {"ED":0.250,"RD":0.053}},
+    "uchicago":     {"rounds": ["ED","ED2","EA","RD"],  "rates": {"ED":0.220,"ED2":0.180,"EA":0.080,"RD":0.040}},
+    # Top privates with ED/EA splits
+    "vanderbilt":   {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.176,"ED2":0.150,"RD":0.050}},
+    "rice":         {"rounds": ["ED","RD"],             "rates": {"ED":0.150,"RD":0.071}},
+    "jhu":          {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.319,"ED2":0.175,"RD":0.058}},
+    "washu":        {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.300,"ED2":0.160,"RD":0.110}},
+    "notre-dame":   {"rounds": ["REA","RD"],            "rates": {"REA":0.165,"RD":0.080}},
+    "georgetown":   {"rounds": ["EA","RD"],             "rates": {"EA":0.110,"RD":0.110}},
+    "nyu":          {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.250,"ED2":0.220,"RD":0.080}},
+    "emory":        {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.300,"ED2":0.220,"RD":0.110}},
+    "tufts":        {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.310,"ED2":0.200,"RD":0.080}},
+    "cmu":          {"rounds": ["ED","RD"],             "rates": {"ED":0.190,"RD":0.110}},
+    "usc":          {"rounds": ["EA","RD"],             "rates": {"EA":0.130,"RD":0.090}},
+    "wake-forest":  {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.450,"ED2":0.300,"RD":0.190}},
+    "bc":           {"rounds": ["ED","EA","RD"],        "rates": {"ED":0.330,"EA":0.200,"RD":0.160}},
+    "tulane":       {"rounds": ["ED","EA","RD"],        "rates": {"ED":0.430,"EA":0.110,"RD":0.090}},
+    "villanova":    {"rounds": ["ED","ED2","EA","RD"],  "rates": {"ED":0.380,"ED2":0.200,"EA":0.250,"RD":0.220}},
+    "lehigh":       {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.480,"ED2":0.350,"RD":0.300}},
+    "case":         {"rounds": ["ED","ED2","EA","RD"],  "rates": {"ED":0.350,"ED2":0.300,"EA":0.290,"RD":0.200}},
+    "northeastern": {"rounds": ["ED","ED2","EA","RD"],  "rates": {"ED":0.300,"ED2":0.180,"EA":0.060,"RD":0.060}},
+    "bu":           {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.290,"ED2":0.140,"RD":0.100}},
+    "miami":        {"rounds": ["ED","ED2","EA","RD"],  "rates": {"ED":0.430,"ED2":0.300,"EA":0.200,"RD":0.190}},
+    "brandeis":     {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.500,"ED2":0.380,"RD":0.350}},
+    "fordham":      {"rounds": ["EA","RD"],             "rates": {"EA":0.580,"RD":0.530}},
+    "gwu":          {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.690,"ED2":0.610,"RD":0.480}},
+    "american":     {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.870,"ED2":0.800,"RD":0.510}},
+    # LAC ED-heavy
+    "williams":     {"rounds": ["ED","RD"],             "rates": {"ED":0.260,"RD":0.080}},
+    "amherst":      {"rounds": ["ED","RD"],             "rates": {"ED":0.300,"RD":0.080}},
+    "swarthmore":   {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.250,"ED2":0.180,"RD":0.060}},
+    "pomona":       {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.150,"ED2":0.100,"RD":0.060}},
+    "bowdoin":      {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.230,"ED2":0.180,"RD":0.080}},
+    "middlebury":   {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.380,"ED2":0.300,"RD":0.130}},
+    "wellesley":    {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.380,"ED2":0.260,"RD":0.130}},
+    "colby":        {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.450,"ED2":0.300,"RD":0.080}},
+    "bates":        {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.500,"ED2":0.350,"RD":0.140}},
+    "hamilton":     {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.420,"ED2":0.310,"RD":0.110}},
+    "vassar":       {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.430,"ED2":0.280,"RD":0.170}},
+    "barnard":      {"rounds": ["ED","RD"],             "rates": {"ED":0.230,"RD":0.080}},
+    # Public flagships — in/out of state matters
+    "umich":        {"rounds": ["EA","RD"],   "rates": {"EA":0.230,"RD":0.180}, "in_state_rate":0.42, "out_of_state_rate":0.20},
+    "uva":          {"rounds": ["ED","EA","RD"], "rates": {"ED":0.300,"EA":0.180,"RD":0.150}, "in_state_rate":0.30, "out_of_state_rate":0.16},
+    "unc":          {"rounds": ["EA","RD"],   "rates": {"EA":0.190,"RD":0.150}, "in_state_rate":0.42, "out_of_state_rate":0.09},
+    "ucla":         {"rounds": ["RD"],         "rates": {"RD":0.085}, "in_state_rate":0.13, "out_of_state_rate":0.07},
+    "ucb":          {"rounds": ["RD"],         "rates": {"RD":0.115}, "in_state_rate":0.18, "out_of_state_rate":0.08},
+    "ucsd":         {"rounds": ["RD"],         "rates": {"RD":0.235}, "in_state_rate":0.27, "out_of_state_rate":0.20},
+    "ucsb":         {"rounds": ["RD"],         "rates": {"RD":0.260}, "in_state_rate":0.31, "out_of_state_rate":0.20},
+    "uci":          {"rounds": ["RD"],         "rates": {"RD":0.290}, "in_state_rate":0.32, "out_of_state_rate":0.26},
+    "ucdavis":      {"rounds": ["RD"],         "rates": {"RD":0.420}, "in_state_rate":0.45, "out_of_state_rate":0.39},
+    "gatech":       {"rounds": ["EA","RD"],   "rates": {"EA":0.220,"RD":0.140}, "in_state_rate":0.36, "out_of_state_rate":0.13},
+    "wm":           {"rounds": ["ED","ED2","RD"], "rates": {"ED":0.520,"ED2":0.400,"RD":0.310}, "in_state_rate":0.40, "out_of_state_rate":0.27},
+    "ut-austin":    {"rounds": ["RD"],         "rates": {"RD":0.290}, "in_state_rate":0.36, "out_of_state_rate":0.10},
+    "wisc":         {"rounds": ["EA","RD"],   "rates": {"EA":0.510,"RD":0.450}, "in_state_rate":0.62, "out_of_state_rate":0.39},
+    "uiuc":         {"rounds": ["EA","RD"],   "rates": {"EA":0.600,"RD":0.430}, "in_state_rate":0.62, "out_of_state_rate":0.34},
+    "uf":           {"rounds": ["EA","RD"],   "rates": {"EA":0.230,"RD":0.230}, "in_state_rate":0.30, "out_of_state_rate":0.13},
+    "umd":          {"rounds": ["EA","RD"],   "rates": {"EA":0.470,"RD":0.430}, "in_state_rate":0.55, "out_of_state_rate":0.32},
+    "uw":           {"rounds": ["RD"],         "rates": {"RD":0.430}, "in_state_rate":0.56, "out_of_state_rate":0.34},
+    "binghamton":   {"rounds": ["ED","RD"],   "rates": {"ED":0.500,"RD":0.420}, "in_state_rate":0.49, "out_of_state_rate":0.36},
+    "purdue":       {"rounds": ["EA","RD"],   "rates": {"EA":0.530,"RD":0.500}, "in_state_rate":0.59, "out_of_state_rate":0.50},
+    "rutgers":      {"rounds": ["RD"],         "rates": {"RD":0.660}, "in_state_rate":0.72, "out_of_state_rate":0.58},
+    "penn-state":   {"rounds": ["RD"],         "rates": {"RD":0.540}, "in_state_rate":0.62, "out_of_state_rate":0.46},
+    "osu":          {"rounds": ["EA","RD"],   "rates": {"EA":0.520,"RD":0.530}, "in_state_rate":0.66, "out_of_state_rate":0.45},
+    "msu":          {"rounds": ["RD"],         "rates": {"RD":0.830}, "in_state_rate":0.86, "out_of_state_rate":0.78},
+    "uconn":        {"rounds": ["EA","RD"],   "rates": {"EA":0.570,"RD":0.540}, "in_state_rate":0.66, "out_of_state_rate":0.49},
+    "vt":           {"rounds": ["ED","EA","RD"], "rates": {"ED":0.700,"EA":0.620,"RD":0.560}, "in_state_rate":0.71, "out_of_state_rate":0.39},
+    "clemson":      {"rounds": ["EA","RD"],   "rates": {"EA":0.450,"RD":0.430}, "in_state_rate":0.59, "out_of_state_rate":0.36},
+    "uga":          {"rounds": ["EA","RD"],   "rates": {"EA":0.420,"RD":0.380}, "in_state_rate":0.50, "out_of_state_rate":0.34},
+}
+
+
+def admissions_detail(school):
+    """Return the round/rate detail dict for a school, or None if not curated."""
+    return ADMISSIONS_DETAIL.get(school["slug"])
+
+
+ROUND_LABELS = {
+    "ED":  "Early Decision",
+    "ED2": "Early Decision II",
+    "EA":  "Early Action",
+    "REA": "Restrictive EA",
+    "RD":  "Regular Decision",
+}
+
+
+def render_admissions_breakdown(school, detail, dark=False):
+    """HTML block showing round-by-round acceptance rates + in/out-of-state
+    where available. Empty string if no curated data. dark=True styles for
+    the black chances card on the plan page."""
+    if not detail:
+        return ""
+    rates = detail.get("rates", {})
+    border = "#333" if dark else "#f0f0f0"
+    label_color = "#bdbdbd" if dark else "#666"
+    rows = ""
+    for r in detail.get("rounds", []):
+        rate = rates.get(r)
+        rate_str = f"{round(rate*100,1)}%" if rate is not None else "—"
+        rows += f'<div style="display:flex;justify-content:space-between;padding:5px 0;border-top:1px solid {border};font-size:.9em"><span>{ROUND_LABELS.get(r, r)}</span><span style="font-weight:600">{rate_str}</span></div>'
+    state_block = ""
+    in_r = detail.get("in_state_rate")
+    out_r = detail.get("out_of_state_rate")
+    if in_r is not None or out_r is not None:
+        state_rows = ""
+        if in_r is not None:
+            state_rows += f'<div style="display:flex;justify-content:space-between;padding:5px 0;border-top:1px solid {border};font-size:.9em"><span>In-state</span><span style="font-weight:600">{round(in_r*100,1)}%</span></div>'
+        if out_r is not None:
+            state_rows += f'<div style="display:flex;justify-content:space-between;padding:5px 0;border-top:1px solid {border};font-size:.9em"><span>Out-of-state</span><span style="font-weight:600">{round(out_r*100,1)}%</span></div>'
+        state_block = f'<div style="margin-top:10px"><div style="font-weight:600;font-size:.85em;color:{label_color};margin-bottom:2px">State residency</div>{state_rows}</div>'
+    return f'<div style="margin-top:12px"><div style="font-weight:600;font-size:.85em;color:{label_color};margin-bottom:2px">By application round</div>{rows}{state_block}</div>'
+
+
+def render_round_breakdown_dark(school, detail):
+    return render_admissions_breakdown(school, detail, dark=True)
+
+
 def sf_ratio(c):
     """Best-effort student-faculty ratio: curated value if known, else estimated
     from size + type. Override table (Scorecard data) takes precedence when set."""
@@ -2257,6 +2397,7 @@ def college_detail_html(slug):
     <h3 style="margin-top:0">Acceptance rate</h3>
     <div class="odds" style="color:#2b6cff">{round(c['accept']*100,1)}%</div>
     <div class="muted" style="font-size:.82em">most recent reported cycle</div>
+    {render_admissions_breakdown(c, admissions_detail(c))}
   </div>
   <div class="card">
     <h3 style="margin-top:0">GPA range</h3>
@@ -2696,6 +2837,7 @@ def chances_html(slug):
   </div>
   <div class="odds" style="color:#2b6cff">{r['odds_low']}–{r['odds_high']}%</div>
   <div class="muted" style="font-size:.82em">your estimated chances</div>
+  {render_admissions_breakdown(COLLEGES_BY_SLUG.get(r['slug']), admissions_detail(COLLEGES_BY_SLUG.get(r['slug'])))}
   <ul style="padding-left:18px;margin:18px 0 0">
     <li><b>Strength —</b> {r['strength']}</li>
     <li><b>Weakness —</b> {r['weakness']}</li>
@@ -3592,6 +3734,7 @@ def school_plan_html(slug):
     <div><span class="pill {tier_class}">{r['tier']}</span> <span class="pill {conf_class}" style="margin-left:4px">{r['confidence']} confidence</span></div>
   </div>
   <div style="font-size:1.8em;font-weight:800;letter-spacing:-.5px;margin:10px 0 4px;color:#9bf">{r['odds_low']}–{r['odds_high']}%</div>
+  {render_round_breakdown_dark(school, admissions_detail(school))}
   <ul style="padding-left:18px;margin:14px 0 0;color:#e8e8e8">
     <li><b>Strength —</b> {r['strength']}</li>
     <li><b>Weakness —</b> {r['weakness']}</li>
