@@ -2762,6 +2762,8 @@ hr{border:0;border-top:1px solid var(--border);margin:24px 0}
   -webkit-text-fill-color:transparent;color:transparent;
 }
 .stat-card .delta{font-size:.78em;color:var(--text-2);margin-top:4px}
+.pick-pill:hover{background:var(--surface-hover)!important;border-color:rgba(94,234,212,.3)!important}
+.pick-pill:has(input:checked){background:rgba(94,234,212,.12)!important;border-color:rgba(94,234,212,.45)!important;color:var(--teal)!important}
 """
 
 CANDOR_LOGO_SVG = """<svg viewBox="0 0 64 64" width="22" height="22" xmlns="http://www.w3.org/2000/svg" style="vertical-align:-4px;margin-right:8px">
@@ -3042,16 +3044,17 @@ def rankings_index_html():
 
 RANKING_TABLE_CSS = """
 <style>
-.rank-table{width:100%;border-collapse:collapse;background:#fff;border:1px solid #e6e6e6;border-radius:12px;overflow:hidden;font-size:.92em}
-.rank-table th{background:#f7f7f7;text-align:left;padding:11px 14px;color:#444;font-weight:600;font-size:.78em;text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid #e6e6e6}
-.rank-table td{padding:11px 14px;border-bottom:1px solid #f0f0f0;vertical-align:middle}
-.rank-table tr:hover td{background:#fafafa}
+.rank-table{width:100%;border-collapse:collapse;background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;font-size:.92em;box-shadow:var(--shadow-card)}
+.rank-table th{background:rgba(255,255,255,.02);text-align:left;padding:13px 16px;color:var(--text-2);font-weight:500;font-size:.74em;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border)}
+.rank-table td{padding:13px 16px;border-bottom:1px solid var(--border);vertical-align:middle;color:var(--text)}
+.rank-table tr:hover td{background:rgba(94,234,212,.04)}
 .rank-table tr:last-child td{border-bottom:0}
-.rank-table .rank-num{font-weight:800;color:#999;font-variant-numeric:tabular-nums}
-.rank-table .name a{color:#1a1a1a;font-weight:700}
-.rank-table .num-col{font-variant-numeric:tabular-nums;color:#444}
-.rank-table .stars{color:#f0c040;letter-spacing:1px}
-.rank-table .stars-empty{color:#ddd}
+.rank-table .rank-num{font-weight:600;color:var(--text-3);font-variant-numeric:tabular-nums}
+.rank-table .name a{color:var(--text);font-weight:600}
+.rank-table .name a:hover{color:var(--teal)}
+.rank-table .num-col{font-variant-numeric:tabular-nums;color:var(--text-2)}
+.rank-table .stars{color:var(--teal);letter-spacing:1px;filter:drop-shadow(0 0 6px rgba(94,234,212,.25))}
+.rank-table .stars-empty{color:rgba(255,255,255,.12)}
 @media(max-width:720px){.rank-table th.hide-sm,.rank-table td.hide-sm{display:none}}
 </style>
 """
@@ -3295,9 +3298,10 @@ def _pref_form_fields(p):
         for val, opt_label in opts:
             checked = "checked" if val in cur else ""
             boxes += (
-                f'<label style="display:inline-flex;align-items:center;gap:6px;background:#fff;'
-                f'border:1px solid #ddd;border-radius:6px;padding:6px 10px;font-weight:500;'
-                f'cursor:pointer;font-size:.85em;margin:0">'
+                f'<label class="pick-pill" style="display:inline-flex;align-items:center;gap:7px;'
+                f'background:var(--surface-2);border:1px solid var(--border-strong);'
+                f'border-radius:8px;padding:7px 12px;font-weight:500;color:var(--text);'
+                f'cursor:pointer;font-size:.85em;margin:0;transition:all .15s">'
                 f'<input type="checkbox" name="{key}" value="{val}" {checked} style="width:auto;margin:0">'
                 f'{opt_label}</label>'
             )
@@ -3383,9 +3387,10 @@ def _render_ap_picker(saved_aps_str):
         for canonical, display in items:
             checked = "checked" if canonical.lower() in saved else ""
             boxes += (
-                f'<label style="display:inline-flex;align-items:center;gap:6px;background:#fff;'
-                f'border:1px solid #ddd;border-radius:6px;padding:5px 9px;font-weight:500;'
-                f'cursor:pointer;font-size:.83em;margin:0">'
+                f'<label class="pick-pill" style="display:inline-flex;align-items:center;gap:7px;'
+                f'background:var(--surface-2);border:1px solid var(--border-strong);'
+                f'border-radius:8px;padding:6px 11px;font-weight:500;color:var(--text);'
+                f'cursor:pointer;font-size:.83em;margin:0;transition:all .15s">'
                 f'<input type="checkbox" name="ap_pick" value="{canonical}" {checked} style="width:auto;margin:0">'
                 f'{display}</label>'
             )
@@ -4668,26 +4673,28 @@ def _render_message(m):
 
 CHAT_PAGE_HTML = """
 <style>
-.chat-msgs{background:#fff;border:1px solid #e6e6e6;border-radius:12px;padding:14px;min-height:300px;max-height:520px;overflow-y:auto;margin-bottom:12px}
-.msg{margin:10px 0;display:flex;gap:8px}
+.chat-msgs{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px;min-height:340px;max-height:560px;overflow-y:auto;margin-bottom:14px;box-shadow:var(--shadow-card)}
+.msg{margin:12px 0;display:flex;gap:8px}
 .msg-user{justify-content:flex-end}
-.msg-bubble{max-width:78%;padding:10px 14px;border-radius:14px;font-size:.95em;line-height:1.5}
-.msg-user .msg-bubble{background:#2b6cff;color:#fff}
-.msg-assistant .msg-bubble{background:#f1f1f1;color:#1a1a1a}
+.msg-bubble{max-width:78%;padding:11px 15px;border-radius:14px;font-size:.95em;line-height:1.55}
+.msg-user .msg-bubble{background:var(--accent-grad);color:#031715;font-weight:500;box-shadow:0 6px 18px rgba(56,189,248,.22)}
+.msg-assistant .msg-bubble{background:var(--surface-2);color:var(--text);border:1px solid var(--border-strong)}
 .msg-bubble ul{margin:6px 0;padding-left:18px}
 .msg-bubble li{margin:2px 0}
-.chat-input{display:flex;gap:8px;align-items:flex-end}
-.chat-input textarea{flex:1;min-height:46px;max-height:160px;padding:10px 12px;border:1px solid #d4d4d4;border-radius:10px;font-family:inherit;resize:vertical;font-size:.95em}
-.chat-input button{padding:11px 22px;border-radius:10px;border:0;background:#2b6cff;color:#fff;font-weight:700;cursor:pointer;font-family:inherit}
-.chat-input button:disabled{background:#9bb6f0;cursor:wait}
-.suggestions{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 14px}
-.suggestion{background:#fff;border:1px solid #ddd;border-radius:6px;padding:6px 10px;font-size:.83em;cursor:pointer;color:#444}
-.suggestion:hover{border-color:#2b6cff;color:#2b6cff}
-.typing{display:flex;gap:4px;padding:10px 14px;background:#f1f1f1;border-radius:14px;width:fit-content}
-.typing span{width:8px;height:8px;background:#888;border-radius:50%;animation:typing 1.2s infinite}
+.chat-input{display:flex;gap:10px;align-items:flex-end}
+.chat-input textarea{flex:1;min-height:50px;max-height:160px;padding:12px 14px;border:1px solid var(--border-strong);border-radius:10px;font-family:inherit;resize:vertical;font-size:.95em;background:var(--bg-2);color:var(--text)}
+.chat-input textarea:focus{outline:0;border-color:var(--teal);box-shadow:0 0 0 3px rgba(94,234,212,.12)}
+.chat-input button{padding:12px 24px;border-radius:10px;border:0;background:var(--accent-grad);color:#031715;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 8px 20px rgba(56,189,248,.18);transition:filter .15s}
+.chat-input button:hover{filter:brightness(1.05)}
+.chat-input button:disabled{opacity:.6;cursor:wait;filter:grayscale(.4)}
+.suggestions{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0 18px}
+.suggestion{background:var(--surface-2);border:1px solid var(--border-strong);border-radius:999px;padding:7px 14px;font-size:.83em;cursor:pointer;color:var(--text-2);transition:all .15s;font-family:inherit}
+.suggestion:hover{border-color:rgba(94,234,212,.4);color:var(--teal);background:var(--surface-hover)}
+.typing{display:flex;gap:4px;padding:11px 15px;background:var(--surface-2);border:1px solid var(--border-strong);border-radius:14px;width:fit-content}
+.typing span{width:7px;height:7px;background:var(--teal);border-radius:50%;animation:typing 1.2s infinite}
 .typing span:nth-child(2){animation-delay:.2s}
 .typing span:nth-child(3){animation-delay:.4s}
-@keyframes typing{0%,60%,100%{opacity:.3}30%{opacity:1}}
+@keyframes typing{0%,60%,100%{opacity:.25}30%{opacity:1}}
 </style>
 __HEADER__
 <div id="msgs" class="chat-msgs">__MESSAGES__</div>
