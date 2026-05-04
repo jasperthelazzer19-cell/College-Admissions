@@ -58,8 +58,13 @@ NEWSAPI_KEY = os.environ.get("NEWSAPI_KEY", "")
 SCORECARD_KEY = os.environ.get("SCORECARD_KEY", "")
 SECRET_KEY = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
 ADMIN_KEY = os.environ.get("ADMIN_KEY", "")  # gates the bulk-refresh endpoint
+STRIPE_PAYMENT_LINK = os.environ.get("STRIPE_PAYMENT_LINK",
+    "https://buy.stripe.com/cNicN6egv4XP6XS46Y5AQ01")
+STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
 ARTICLE_TTL_HOURS = 12   # how long to cache per-college articles
 SCORECARD_TTL_DAYS = 30  # refresh federal stats monthly
+FREE_TRIAL_MESSAGES = 5
+PAID_MONTHLY_LIMIT = 250
 
 
 # ─── COLLEGE DATA (~80 schools) ──────────────────────────
@@ -2392,6 +2397,18 @@ def init_db():
                 conn.execute(f"ALTER TABLE profiles ADD COLUMN {col} TEXT DEFAULT 'any'")
             except sqlite3.OperationalError:
                 pass
+        # AI Advisor paywall — usage tracking + paid status on users.
+        for col_def in (
+            "is_paid INTEGER DEFAULT 0",
+            "stripe_customer_id TEXT",
+            "free_msgs_used INTEGER DEFAULT 0",
+            "msgs_this_month INTEGER DEFAULT 0",
+            "msg_month_anchor TEXT",
+        ):
+            try:
+                conn.execute(f"ALTER TABLE users ADD COLUMN {col_def}")
+            except sqlite3.OperationalError:
+                pass
         # International applicant flag — affects acceptance rate calc at
         # schools that have a meaningful international vs domestic split.
         try:
@@ -2538,6 +2555,86 @@ def save_profile(user_id, p):
              p.get("pref_diversity") or "any", p.get("pref_party") or "any",
              p.get("pref_research") or "any", p.get("pref_career_intensity") or "any",
              pref_weights))
+        conn.commit()
+
+
+def get_user_row(user_id):
+    if not user_id: return None
+    with db() as conn:
+        return conn.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
+
+
+def usage_status(user_id):
+    """Return current usage status for a user. Resets monthly counter on
+    first call of each new month. Returns dict with:
+      - is_paid: bool
+      - free_used: int (lifetime free messages)
+      - free_remaining: int
+      - month_used: int (this month, paid users only)
+      - month_remaining: int
+      - blocked: bool — True if they should be paywalled
+      - reason: 'free_exhausted' | 'monthly_cap' | None
+    """
+    u = get_user_row(user_id)
+    if not u:
+        return {"blocked": True, "reason": "no_user"}
+    is_paid = bool(u["is_paid"])
+    free_used = u["free_msgs_used"] or 0
+    month_used = u["msgs_this_month"] or 0
+    anchor = u["msg_month_anchor"] or ""
+    this_month = datetime.utcnow().strftime("%Y-%m")
+    if anchor != this_month:
+        # Roll over the monthly counter
+        with db() as conn:
+            conn.execute("UPDATE users SET msgs_this_month=0, msg_month_anchor=? WHERE id=?",
+                         (this_month, user_id))
+            conn.commit()
+        month_used = 0
+    if is_paid:
+        return {
+            "is_paid": True,
+            "free_used": free_used,
+            "free_remaining": max(0, FREE_TRIAL_MESSAGES - free_used),
+            "month_used": month_used,
+            "month_remaining": max(0, PAID_MONTHLY_LIMIT - month_used),
+            "blocked": month_used >= PAID_MONTHLY_LIMIT,
+            "reason": "monthly_cap" if month_used >= PAID_MONTHLY_LIMIT else None,
+        }
+    return {
+        "is_paid": False,
+        "free_used": free_used,
+        "free_remaining": max(0, FREE_TRIAL_MESSAGES - free_used),
+        "month_used": month_used,
+        "month_remaining": 0,
+        "blocked": free_used >= FREE_TRIAL_MESSAGES,
+        "reason": "free_exhausted" if free_used >= FREE_TRIAL_MESSAGES else None,
+    }
+
+
+def increment_message_count(user_id):
+    """Bump the right counter (free or monthly) after a successful AI call."""
+    u = get_user_row(user_id)
+    if not u: return
+    is_paid = bool(u["is_paid"])
+    this_month = datetime.utcnow().strftime("%Y-%m")
+    with db() as conn:
+        if is_paid:
+            anchor = u["msg_month_anchor"] or ""
+            if anchor != this_month:
+                conn.execute("UPDATE users SET msgs_this_month=1, msg_month_anchor=? WHERE id=?",
+                             (this_month, user_id))
+            else:
+                conn.execute("UPDATE users SET msgs_this_month=msgs_this_month+1 WHERE id=?",
+                             (user_id,))
+        else:
+            conn.execute("UPDATE users SET free_msgs_used=free_msgs_used+1 WHERE id=?",
+                         (user_id,))
+        conn.commit()
+
+
+def grant_paid(user_id):
+    with db() as conn:
+        conn.execute("UPDATE users SET is_paid=1 WHERE id=?", (user_id,))
         conn.commit()
 
 
@@ -5014,9 +5111,15 @@ function sendMsg(text){
   var tokenEl = document.querySelector('meta[name="csrf-token"]');
   if(tokenEl) headers['X-CSRFToken'] = tokenEl.content;
   fetch(SEND_URL, {method:'POST', headers: headers, body: JSON.stringify({message: msg})})
-    .then(function(r){return r.json();})
-    .then(function(d){
+    .then(function(r){return r.json().then(function(d){return {status:r.status, body:d};});})
+    .then(function(o){
+      var d = o.body;
       clearTyping(); btn.disabled=false; input.focus();
+      // Paywall / cap responses arrive as 402 / 429 with HTML body
+      if(o.status === 402 || o.status === 429){
+        renderAssistantMsg(d.html || ('<i>'+escapeHTML(d.error||'Limit reached')+'</i>'));
+        return;
+      }
       if(d.error){renderAssistantMsg('<i>'+escapeHTML(d.error)+'</i>');return;}
       renderAssistantMsg(d.html || escapeHTML(d.reply || ''));
     })
@@ -5051,7 +5154,13 @@ def general_chat_html():
         "How do I ask for recommendation letters?",
     ]
     sug_html = "".join(f'<button class="suggestion" onclick="suggestionClick(this.innerText)">{s}</button>' for s in suggestions)
-    header = f'<h1>AI advisor</h1><p class="muted">Personalized to your profile. Conversation history saved between visits.</p>'
+    usage = usage_status(user["id"])
+    if usage.get("is_paid"):
+        usage_pill = f'<span style="font-size:.74em;background:rgba(94,234,212,.12);color:var(--teal);padding:3px 10px;border-radius:999px;border:1px solid rgba(94,234,212,.25);font-weight:500;margin-left:10px">PREMIUM · {usage["month_used"]}/{PAID_MONTHLY_LIMIT}</span>'
+    else:
+        rem = usage["free_remaining"]
+        usage_pill = f'<span style="font-size:.74em;background:var(--surface-2);color:var(--text-2);padding:3px 10px;border-radius:999px;border:1px solid var(--border-strong);margin-left:10px">FREE · {rem} of {FREE_TRIAL_MESSAGES} left · <a href="/upgrade" style="color:var(--teal)">Upgrade</a></span>'
+    header = f'<h1 style="display:flex;align-items:center;flex-wrap:wrap">AI advisor {usage_pill}</h1><p class="muted">Personalized to your profile. Conversation history saved between visits.</p>'
     page = (CHAT_PAGE_HTML
             .replace("__HEADER__", header)
             .replace("__MESSAGES__", msgs_html)
@@ -5082,7 +5191,13 @@ def school_chat_html(slug):
         f"Should I apply early decision to {school['name']}?",
     ]
     sug_html = "".join(f'<button class="suggestion" onclick="suggestionClick(this.innerText)">{s}</button>' for s in suggestions)
-    header = f'<div class="bar"><a href="/college/{slug}/improve">&larr; back to {school["name"]} advice</a></div><h1>AI advisor — {school["name"]}</h1><p class="muted">Specific to {school["name"]} ({round(school["accept"]*100,1)}% acceptance) and your profile.</p>'
+    usage = usage_status(user["id"])
+    if usage.get("is_paid"):
+        usage_pill = f'<span style="font-size:.74em;background:rgba(94,234,212,.12);color:var(--teal);padding:3px 10px;border-radius:999px;border:1px solid rgba(94,234,212,.25);font-weight:500;margin-left:10px">PREMIUM · {usage["month_used"]}/{PAID_MONTHLY_LIMIT}</span>'
+    else:
+        rem = usage["free_remaining"]
+        usage_pill = f'<span style="font-size:.74em;background:var(--surface-2);color:var(--text-2);padding:3px 10px;border-radius:999px;border:1px solid var(--border-strong);margin-left:10px">FREE · {rem} of {FREE_TRIAL_MESSAGES} left · <a href="/upgrade" style="color:var(--teal)">Upgrade</a></span>'
+    header = f'<div class="bar"><a href="/college/{slug}/improve">&larr; back to {school["name"]} advice</a></div><h1 style="display:flex;align-items:center;flex-wrap:wrap">AI advisor — {school["name"]} {usage_pill}</h1><p class="muted">Specific to {school["name"]} ({round(school["accept"]*100,1)}% acceptance) and your profile.</p>'
     page = (CHAT_PAGE_HTML
             .replace("__HEADER__", header)
             .replace("__MESSAGES__", msgs_html)
@@ -5515,6 +5630,23 @@ def school_chat_page(slug):
 @login_required
 def chat_api_send():
     user = current_user()
+    status = usage_status(user["id"])
+    if status.get("blocked"):
+        if status["reason"] == "free_exhausted":
+            paywall = (f'<div style="padding:18px;border-radius:12px;background:rgba(94,234,212,.06);'
+                       f'border:1px solid rgba(94,234,212,.2)">'
+                       f'<div style="font-weight:600;color:var(--teal);margin-bottom:8px">'
+                       f"You've used your {FREE_TRIAL_MESSAGES} free trial messages.</div>"
+                       f'<div style="color:var(--text-2);font-size:.92em;margin-bottom:12px">'
+                       f"Upgrade to Candor Premium ($5/mo) for {PAID_MONTHLY_LIMIT} messages "
+                       f"per month with the AI Advisor — personalized college admissions help "
+                       f"informed by your full profile and any of 155 schools.</div>"
+                       f'<a href="/upgrade" class="btn btn-primary btn-sm" style="text-decoration:none">'
+                       f'Upgrade →</a></div>')
+            return jsonify({"error": "free_exhausted", "html": paywall}), 402
+        if status["reason"] == "monthly_cap":
+            return jsonify({"error": "monthly_cap",
+                "html": f'<i>You\'ve hit your {PAID_MONTHLY_LIMIT}-message monthly limit. Resets on the 1st.</i>'}), 429
     profile = get_profile(user["id"])
     data = request.get_json(silent=True) or {}
     message = (data.get("message") or "").strip()
@@ -5530,10 +5662,119 @@ def chat_api_send():
     else:
         conv = get_or_create_conversation(user["id"], "general")
         reply = chat_send(conv["id"], message, "general", profile)
+    if reply:
+        increment_message_count(user["id"])
     return jsonify({
         "reply": reply,
         "html": _render_message({"role": "assistant", "content": reply or ""}),
     })
+
+
+@app.route("/upgrade")
+@login_required
+def upgrade_page():
+    user = current_user()
+    status = usage_status(user["id"])
+    is_paid = status.get("is_paid")
+    # Pass user_id as client_reference_id so we can match the Stripe payment
+    # back to this user (via webhook). Also prefill the email.
+    sep = "&" if "?" in STRIPE_PAYMENT_LINK else "?"
+    pay_url = (f"{STRIPE_PAYMENT_LINK}{sep}client_reference_id={user['id']}"
+               f"&prefilled_email={user['email']}")
+    if is_paid:
+        body = f"""<div class="card" style="max-width:560px">
+          <div class="stat-card" style="margin-bottom:14px">
+            <div class="label">Plan</div>
+            <div class="value accent">Candor Premium</div>
+            <div class="delta">{status['month_used']} / {PAID_MONTHLY_LIMIT} messages this month</div>
+          </div>
+          <p class="muted" style="margin:0">You're all set. Manage or cancel through the Stripe email receipt you received.</p>
+        </div>"""
+    else:
+        body = f"""<div class="card" style="max-width:560px">
+          <h2 style="margin-top:0">Upgrade to Candor Premium</h2>
+          <p class="muted" style="margin:0 0 14px">Unlock unlimited use of the AI Advisor — personalized college admissions guidance trained on your full profile and 155 schools.</p>
+          <div style="display:flex;align-items:baseline;gap:8px;margin:14px 0">
+            <span style="font-size:2.2em;font-weight:700;letter-spacing:-1px;background:var(--accent-grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent">$5</span>
+            <span class="muted">/ month · cancel anytime</span>
+          </div>
+          <ul style="padding-left:18px;margin:14px 0;color:var(--text)">
+            <li>{PAID_MONTHLY_LIMIT} AI Advisor messages per month</li>
+            <li>Per-school chat that knows the school + your profile</li>
+            <li>Personalized application strategy, essay feedback, gap analysis</li>
+            <li>Everything else on Candor (chances, fit, plans) stays free</li>
+          </ul>
+          <a href="{pay_url}" class="btn btn-primary" style="margin-top:8px">Subscribe with Stripe →</a>
+          <p class="muted" style="font-size:.78em;margin:14px 0 0">You'll be redirected to Stripe to complete payment. Your premium status activates within ~30 seconds of payment.</p>
+        </div>"""
+    return _page(body, title="Upgrade — Candor")
+
+
+_csrf_exempt = csrf.exempt if _CSRF_ON else (lambda f: f)
+
+
+@app.route("/stripe/webhook", methods=["POST"])
+@_csrf_exempt
+def stripe_webhook():
+    """Stripe webhook for checkout.session.completed events. Configure in
+    Stripe dashboard → Developers → Webhooks, point at this URL, and put
+    the signing secret in STRIPE_WEBHOOK_SECRET env var."""
+    payload = request.get_data(as_text=True)
+    sig_header = request.headers.get("Stripe-Signature", "")
+    if STRIPE_WEBHOOK_SECRET:
+        try:
+            import hmac as _hmac, hashlib as _hashlib
+            ts = next((p.split("=",1)[1] for p in sig_header.split(",") if p.startswith("t=")), "")
+            sigs = [p.split("=",1)[1] for p in sig_header.split(",") if p.startswith("v1=")]
+            signed = f"{ts}.{payload}".encode()
+            expected = _hmac.new(STRIPE_WEBHOOK_SECRET.encode(), signed, _hashlib.sha256).hexdigest()
+            if not any(_hmac.compare_digest(expected, s) for s in sigs):
+                return ("invalid signature", 400)
+        except Exception:
+            return ("signature error", 400)
+    try:
+        event = json.loads(payload)
+    except Exception:
+        return ("bad json", 400)
+    etype = event.get("type", "")
+    obj = event.get("data", {}).get("object", {})
+    if etype == "checkout.session.completed":
+        ref = obj.get("client_reference_id")
+        cust = obj.get("customer")
+        if ref:
+            try:
+                uid = int(ref)
+                with db() as conn:
+                    conn.execute("UPDATE users SET is_paid=1, stripe_customer_id=? WHERE id=?",
+                                 (cust, uid))
+                    conn.commit()
+            except (ValueError, TypeError):
+                pass
+    elif etype in ("customer.subscription.deleted", "invoice.payment_failed"):
+        cust = obj.get("customer")
+        if cust:
+            with db() as conn:
+                conn.execute("UPDATE users SET is_paid=0 WHERE stripe_customer_id=?", (cust,))
+                conn.commit()
+    return ("ok", 200)
+
+
+@app.route("/admin/grant-paid")
+def admin_grant_paid():
+    """Manual fallback: grant paid status by email. Use if webhook isn't set up."""
+    if not ADMIN_KEY or request.args.get("key") != ADMIN_KEY:
+        return ("<h1>401 Unauthorized</h1>", 401)
+    email = (request.args.get("email") or "").strip().lower()
+    if not email:
+        return ("<h1>Missing ?email=</h1>", 400)
+    with db() as conn:
+        row = conn.execute("SELECT id FROM users WHERE email=?", (email,)).fetchone()
+        if not row:
+            return (f"<h1>No user with email {email}</h1>", 404)
+        conn.execute("UPDATE users SET is_paid=1 WHERE id=?", (row["id"],))
+        conn.commit()
+    return _page(f'<h1>Granted Premium</h1><p class="muted">{email} is now on Candor Premium.</p>',
+                 title="Granted — Candor")
 
 
 @app.route("/admin/refresh-scorecard")
