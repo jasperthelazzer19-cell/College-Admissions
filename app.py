@@ -2306,7 +2306,7 @@ input:focus,select:focus,textarea:focus{outline:0;border-color:#2b6cff}
 .tag{display:inline-block;padding:3px 9px;border-radius:5px;background:#f1f1f1;color:#444;font-size:.78em}
 """
 
-NAV = """<div class="nav"><a class="brand" href="/">Admit</a>
+NAV = """<div class="nav"><a class="brand" href="/colleges">Admit</a>
 <a href="/colleges">Browse</a>
 <a href="/rankings">Rankings</a>
 <a href="/profiles">Real Profiles</a>
@@ -2348,35 +2348,6 @@ def _page(body_html, title="Admit"):
 
 
 # ─── PAGE BUILDERS ────────────────────────────────────────
-def landing_html():
-    featured_lists = ""
-    for r in RANKINGS[:4]:
-        items = ""
-        for slug in r["order"][:5]:
-            sch = COLLEGES_BY_SLUG.get(slug)
-            if not sch: continue
-            items += f'<div style="font-size:.92em;margin:4px 0"><a href="/college/{sch["slug"]}">{sch["name"]}</a></div>'
-        featured_lists += f"""<div class="card">
-            <h3 style="margin-top:0"><a href="/rankings/{r['slug']}" style="color:inherit">{r['title']}</a></h3>
-            <div class="muted" style="font-size:.82em;margin-bottom:8px">{r['blurb']}</div>
-            {items}
-            <div style="margin-top:8px"><a href="/rankings/{r['slug']}" style="font-size:.86em">See full ranking &rarr;</a></div>
-        </div>"""
-    return _page(f"""
-<h1>Admit</h1>
-<p class="muted">Browse {len(COLLEGES)} colleges, see how you stack up against admits, and get specific advice on closing the gap.</p>
-<div class="search">
-  <form method="get" action="/colleges" style="display:flex;width:100%;gap:8px">
-    <input name="q" placeholder="Search a college (e.g. Stanford, Penn State)">
-    <button class="btn" type="submit">Search</button>
-  </form>
-</div>
-<h2 style="margin-top:30px">Featured rankings</h2>
-<div class="grid">{featured_lists}</div>
-<div style="text-align:center;margin-top:30px"><a class="btn btn-light" href="/rankings">See all ranking lists &rarr;</a></div>
-""", title="Admit — College Database")
-
-
 def colleges_html():
     q = (request.args.get("q") or "").strip().lower()
     state = request.args.get("state") or ""
@@ -4265,7 +4236,7 @@ def pref_set(profile, key):
 # ─── ROUTES ───────────────────────────────────────────────
 @app.route("/")
 def landing():
-    return landing_html()
+    return redirect("/colleges")
 
 
 @app.route("/colleges")
