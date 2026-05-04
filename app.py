@@ -1781,6 +1781,9 @@ def score_aps(profile):
     # 0-100 scale: ~25 points = solid load, ~40+ = elite load
     rigor = min(100, total * 4)
     return round(rigor, 1), len(matched), [name for name, _ in matched]
+
+
+def _normalize_score(sat, act):
     act_to_sat = {36:1590,35:1540,34:1500,33:1460,32:1430,31:1400,30:1370,29:1340,28:1310,27:1280,26:1240,25:1210,24:1180,23:1140,22:1110,21:1080,20:1040,19:1010,18:970}
     if sat: return int(sat)
     if act: return act_to_sat.get(int(act), 1000)
