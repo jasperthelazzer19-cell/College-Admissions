@@ -1735,6 +1735,8 @@ AP_WEIGHTS = {
     "latin": 2.2, "german": 2.0, "italian": 2.0, "japanese": 2.2,
     "chinese": 2.2, "mandarin": 2.2, "korean": 2.2,
     "music theory": 2.0, "studio art": 1.8, "art history": 1.8,
+    "drawing": 1.8, "2-d art": 1.8, "3-d art": 1.8,
+    "african american studies": 2.0,
     "research": 1.8, "seminar": 1.5,
     # Easier tier (1.0)
     "psychology": 1.2, "psych": 1.2,
@@ -1746,12 +1748,20 @@ AP_WEIGHTS = {
 
 def score_aps(profile):
     """Return (rigor_score 0-100, count, top_aps_listed) for a student's AP
-    courses. Higher = more rigorous course load. If profile says school
-    doesn't offer APs, returns (None, 0, []) signalling no signal either way."""
+    courses. Higher = more rigorous course load. Returns:
+      - (None, 0, []) if school doesn't offer APs (neutral, no penalty)
+      - (negative number, 0, []) if school offers APs but user took none
+        (small negative — signals course-rigor avoidance)
+      - (0-100, count, names) if user listed APs."""
     if profile.get("no_aps_offered"):
         return None, 0, []
     raw = (profile.get("aps") or "").strip().lower()
     if not raw:
+        # No APs picked. If user explicitly said "school offers but I didn't
+        # take any" → small negative. Otherwise treat as 0 (lazy fill = same
+        # as the explicit case, no free pass for skipping the section).
+        if profile.get("aps_offered_not_taken"):
+            return -10.0, 0, []
         return 0, 0, []
     parts = [p.strip() for p in raw.replace(";", ",").split(",") if p.strip()]
     matched = []
@@ -1807,10 +1817,17 @@ def compute_fit(profile, school):
     # AP rigor — elite schools weight course-load harder than mid-tier ones.
     # Tier 1-2: up to +6, tier 3: up to +4, else +3. If user marked
     # "no APs offered" the contribution is 0 (neutral, no penalty).
+    # Negative rigor (school offered, user took none) gets a small penalty
+    # at top schools where rigor matters; less elsewhere.
     rigor, _ap_count, _ = score_aps(profile)
     if rigor is not None:
         cap = 6 if school.get("tier", 5) <= 2 else (4 if school.get("tier", 5) == 3 else 3)
-        rigor_bonus = round(min(cap, rigor / 100 * cap), 1)
+        if rigor >= 0:
+            rigor_bonus = round(min(cap, rigor / 100 * cap), 1)
+        else:
+            # rigor is negative (e.g., -10 → -2 at tier 1, -1 at tier 3, 0 below)
+            penalty_cap = 2 if school.get("tier", 5) <= 2 else (1 if school.get("tier", 5) == 3 else 0)
+            rigor_bonus = round(max(-penalty_cap, rigor / 10 * penalty_cap / 2), 1)
         score += rigor_bonus
         components["rigor"] = rigor_bonus
     # Legacy is school-specific. Generation count scales the boost: 1 gen = +3,
@@ -2106,7 +2123,7 @@ def init_db():
         # AP courses (free-text, comma-separated) + flag for schools that
         # don't offer APs. When the flag is set, course rigor is treated as
         # neutral rather than penalized.
-        for col, default in (("aps", "''"), ("no_aps_offered", "0")):
+        for col, default in (("aps", "''"), ("no_aps_offered", "0"), ("aps_offered_not_taken", "0")):
             try:
                 conn.execute(f"ALTER TABLE profiles ADD COLUMN {col} TEXT DEFAULT {default}" if col == "aps"
                              else f"ALTER TABLE profiles ADD COLUMN {col} INTEGER DEFAULT {default}")
@@ -2172,17 +2189,17 @@ def save_profile(user_id, p):
     with db() as conn:
         conn.execute("""INSERT INTO profiles
             (user_id, uw_gpa, weighted_gpa, sat, act, major, state, school_type, ecs, leadership, awards,
-             legacy, first_gen, athlete, legacy_schools, aps, no_aps_offered,
+             legacy, first_gen, athlete, legacy_schools, aps, no_aps_offered, aps_offered_not_taken,
              pref_weather, pref_setting, pref_size, pref_greek, pref_sports, pref_major_strength,
              pref_class_size, pref_prestige, pref_cost, pref_weights, updated_at)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)
             ON CONFLICT(user_id) DO UPDATE SET
                 uw_gpa=excluded.uw_gpa, weighted_gpa=excluded.weighted_gpa, sat=excluded.sat, act=excluded.act,
                 major=excluded.major, state=excluded.state, school_type=excluded.school_type,
                 ecs=excluded.ecs, leadership=excluded.leadership, awards=excluded.awards,
                 legacy=excluded.legacy, first_gen=excluded.first_gen, athlete=excluded.athlete,
                 legacy_schools=excluded.legacy_schools,
-                aps=excluded.aps, no_aps_offered=excluded.no_aps_offered,
+                aps=excluded.aps, no_aps_offered=excluded.no_aps_offered, aps_offered_not_taken=excluded.aps_offered_not_taken,
                 pref_weather=excluded.pref_weather, pref_setting=excluded.pref_setting,
                 pref_size=excluded.pref_size, pref_greek=excluded.pref_greek,
                 pref_sports=excluded.pref_sports, pref_major_strength=excluded.pref_major_strength,
@@ -2195,6 +2212,7 @@ def save_profile(user_id, p):
              p.get("leadership"), p.get("awards"),
              legacy_flag, 1 if p.get("first_gen") else 0, 1 if p.get("athlete") else 0,
              legacy_schools, p.get("aps") or "", 1 if p.get("no_aps_offered") else 0,
+             1 if p.get("aps_offered_not_taken") else 0,
              p.get("pref_weather") or "any", p.get("pref_setting") or "any",
              p.get("pref_size") or "any", p.get("pref_greek") or "any",
              p.get("pref_sports") or "any", p.get("pref_major_strength") or "any",
@@ -2741,6 +2759,7 @@ def my_fit_html():
         "legacy_schools": profile.get("legacy_schools") or "",
         "aps": profile.get("aps") or "",
         "no_aps_offered": bool(profile.get("no_aps_offered")),
+        "aps_offered_not_taken": bool(profile.get("aps_offered_not_taken")),
         "pref_weather": profile.get("pref_weather"), "pref_setting": profile.get("pref_setting"),
         "pref_size": profile.get("pref_size"), "pref_greek": profile.get("pref_greek"),
         "pref_sports": profile.get("pref_sports"), "pref_major_strength": profile.get("pref_major_strength"),
@@ -2901,12 +2920,14 @@ def _pref_form_fields(p):
     return out
 
 
-# Common AP courses grouped by subject for the profile picker. Keys are
-# what gets stored (matches AP_WEIGHTS substrings); labels are display.
+# Every current AP course offered by College Board (as of 2026), grouped
+# by subject. Keys are what gets stored (matches AP_WEIGHTS substrings);
+# labels are display.
 AP_PICKER_GROUPS = [
     ("Math & CS", [
-        ("Calc AB","Calc AB"),("Calc BC","Calc BC"),("Statistics","Statistics"),
-        ("Pre-Calc","Pre-Calc"),("CSA","Computer Science A"),("CSP","Computer Science Principles"),
+        ("Calc AB","Calc AB"),("Calc BC","Calc BC"),("Pre-Calc","Pre-Calc"),
+        ("Statistics","Statistics"),
+        ("CSA","Computer Science A"),("CSP","Computer Science Principles"),
     ]),
     ("Sciences", [
         ("Biology","Biology"),("Chemistry","Chemistry"),
@@ -2919,20 +2940,22 @@ AP_PICKER_GROUPS = [
         ("Human Geography","Human Geography"),("US Government","US Government"),
         ("Comparative Government","Comparative Government"),
         ("Macroeconomics","Macroeconomics"),("Microeconomics","Microeconomics"),
-        ("Psychology","Psychology"),
+        ("Psychology","Psychology"),("African American Studies","African American Studies"),
     ]),
     ("English", [
         ("English Language","English Language"),("English Literature","English Literature"),
         ("Seminar","Capstone Seminar"),("Research","Capstone Research"),
     ]),
-    ("Languages", [
+    ("World Languages", [
         ("Spanish Language","Spanish Lang"),("Spanish Literature","Spanish Lit"),
         ("French Language","French Lang"),("French Literature","French Lit"),
-        ("Latin","Latin"),("German","German"),("Italian","Italian"),
+        ("German","German"),("Italian","Italian"),("Latin","Latin"),
         ("Chinese","Chinese"),("Japanese","Japanese"),("Korean","Korean"),
     ]),
     ("Arts", [
-        ("Art History","Art History"),("Studio Art","Studio Art"),("Music Theory","Music Theory"),
+        ("Art History","Art History"),("Music Theory","Music Theory"),
+        ("Drawing","Studio Art: Drawing"),("2-D Art","Studio Art: 2-D Design"),
+        ("3-D Art","Studio Art: 3-D Design"),
     ]),
 ]
 
@@ -3015,13 +3038,17 @@ def profile_html():
 
   <label>AP courses taken <span class="muted">(optional — click any you're taking or have taken)</span></label>
   {_render_ap_picker(v('aps'))}
-  <label>Other APs not listed above <span class="muted">(comma-separated)</span></label>
-  <input type="text" name="aps_other" value="{_compute_aps_other(v('aps'))}" placeholder="e.g. African American Studies, Drawing">
-  <label style="display:flex;align-items:center;gap:8px;font-weight:500;margin-top:8px">
-    <input type="checkbox" name="no_aps_offered" {checked('no_aps_offered')} style="width:auto;margin:0">
-    My school doesn't offer APs
-  </label>
-  <p class="muted" style="font-size:.78em;margin:4px 0 0">If your school doesn't offer APs, check the box and course rigor won't count against you. Otherwise, click each AP you've taken — harder APs count for more than easier ones.</p>
+  <div style="margin-top:10px;display:flex;flex-direction:column;gap:6px">
+    <label style="display:flex;align-items:center;gap:8px;font-weight:500">
+      <input type="checkbox" name="no_aps_offered" {checked('no_aps_offered')} style="width:auto;margin:0">
+      My school doesn't offer APs
+    </label>
+    <label style="display:flex;align-items:center;gap:8px;font-weight:500">
+      <input type="checkbox" name="aps_offered_not_taken" {checked('aps_offered_not_taken')} style="width:auto;margin:0">
+      My school offers APs but I haven't taken any
+    </label>
+  </div>
+  <p class="muted" style="font-size:.78em;margin:4px 0 0">Pick whichever applies. Top schools care a lot about course rigor — taking no APs at a school that offers them is a small negative; not having APs available isn't your fault and won't be counted against you.</p>
 
   <h3>Activities</h3>
   <label>Extracurriculars</label>
@@ -3181,6 +3208,7 @@ def school_improve_html(slug):
             "legacy_schools": profile.get("legacy_schools") or "",
         "aps": profile.get("aps") or "",
         "no_aps_offered": bool(profile.get("no_aps_offered")),
+        "aps_offered_not_taken": bool(profile.get("aps_offered_not_taken")),
         }
         fit, components = compute_fit(prof, school)
         action_lines = []
@@ -3903,6 +3931,7 @@ def school_plan_html(slug):
         "legacy_schools": profile.get("legacy_schools") or "",
         "aps": profile.get("aps") or "",
         "no_aps_offered": bool(profile.get("no_aps_offered")),
+        "aps_offered_not_taken": bool(profile.get("aps_offered_not_taken")),
         "pref_weather": profile.get("pref_weather"), "pref_setting": profile.get("pref_setting"),
         "pref_size": profile.get("pref_size"), "pref_greek": profile.get("pref_greek"),
         "pref_sports": profile.get("pref_sports"), "pref_major_strength": profile.get("pref_major_strength"),
@@ -4385,15 +4414,12 @@ def _read_profile_form(form):
         "first_gen": form.get("first_gen") in ("yes","on","true","1"),
         "athlete": form.get("athlete") in ("yes","on","true","1"),
         "no_aps_offered": form.get("no_aps_offered") in ("yes","on","true","1"),
+        "aps_offered_not_taken": form.get("aps_offered_not_taken") in ("yes","on","true","1"),
     }
-    # Merge picker selections + free-text "other" into a single comma-separated string
+    # Merge picker selections into the aps string
     picked = form.getlist("ap_pick") if hasattr(form, "getlist") else []
-    other = (f("aps_other") or "").strip()
     parts = [p.strip() for p in picked if p.strip()]
-    if other:
-        parts += [p.strip() for p in other.split(",") if p.strip()]
     result["aps"] = ", ".join(parts)
-    result["aps_other"] = other
     # Legacy boolean is derived from whether they listed any legacy schools.
     result["legacy"] = bool(result["legacy_schools"])
     # Multi-select prefs: getlist returns all checked values. Stored as
