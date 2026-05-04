@@ -2901,6 +2901,78 @@ def _pref_form_fields(p):
     return out
 
 
+# Common AP courses grouped by subject for the profile picker. Keys are
+# what gets stored (matches AP_WEIGHTS substrings); labels are display.
+AP_PICKER_GROUPS = [
+    ("Math & CS", [
+        ("Calc AB","Calc AB"),("Calc BC","Calc BC"),("Statistics","Statistics"),
+        ("Pre-Calc","Pre-Calc"),("CSA","Computer Science A"),("CSP","Computer Science Principles"),
+    ]),
+    ("Sciences", [
+        ("Biology","Biology"),("Chemistry","Chemistry"),
+        ("Physics 1","Physics 1"),("Physics 2","Physics 2"),
+        ("Physics C Mech","Physics C: Mechanics"),("Physics C E&M","Physics C: E&M"),
+        ("Environmental Science","Environmental Science"),
+    ]),
+    ("History & Social Studies", [
+        ("APUSH","US History"),("World History","World History"),("European History","European History"),
+        ("Human Geography","Human Geography"),("US Government","US Government"),
+        ("Comparative Government","Comparative Government"),
+        ("Macroeconomics","Macroeconomics"),("Microeconomics","Microeconomics"),
+        ("Psychology","Psychology"),
+    ]),
+    ("English", [
+        ("English Language","English Language"),("English Literature","English Literature"),
+        ("Seminar","Capstone Seminar"),("Research","Capstone Research"),
+    ]),
+    ("Languages", [
+        ("Spanish Language","Spanish Lang"),("Spanish Literature","Spanish Lit"),
+        ("French Language","French Lang"),("French Literature","French Lit"),
+        ("Latin","Latin"),("German","German"),("Italian","Italian"),
+        ("Chinese","Chinese"),("Japanese","Japanese"),("Korean","Korean"),
+    ]),
+    ("Arts", [
+        ("Art History","Art History"),("Studio Art","Studio Art"),("Music Theory","Music Theory"),
+    ]),
+]
+
+
+def _compute_aps_other(saved_aps_str):
+    """Return the items in saved AP string that DON'T match any picker
+    canonical name — i.e. user-typed extras to show in the 'Other' box."""
+    if not saved_aps_str:
+        return ""
+    canonicals = {c.lower() for _, items in AP_PICKER_GROUPS for c, _ in items}
+    others = []
+    for part in saved_aps_str.split(","):
+        p = part.strip()
+        if p and p.lower() not in canonicals:
+            others.append(p)
+    return ", ".join(others)
+
+
+def _render_ap_picker(saved_aps_str):
+    """Render the AP-picker checkbox grid. Pre-checks anything already saved
+    that substring-matches one of the canonical names."""
+    saved = (saved_aps_str or "").lower()
+    out = ""
+    for group_label, items in AP_PICKER_GROUPS:
+        boxes = ""
+        for canonical, display in items:
+            checked = "checked" if canonical.lower() in saved else ""
+            boxes += (
+                f'<label style="display:inline-flex;align-items:center;gap:6px;background:#fff;'
+                f'border:1px solid #ddd;border-radius:6px;padding:5px 9px;font-weight:500;'
+                f'cursor:pointer;font-size:.83em;margin:0">'
+                f'<input type="checkbox" name="ap_pick" value="{canonical}" {checked} style="width:auto;margin:0">'
+                f'{display}</label>'
+            )
+        out += (f'<div style="margin:10px 0 6px"><div class="muted" style="font-size:.78em;font-weight:600;'
+                f'text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">{group_label}</div>'
+                f'<div style="display:flex;flex-wrap:wrap;gap:5px">{boxes}</div></div>')
+    return out
+
+
 def profile_html():
     p = get_profile(current_user()["id"]) or {}
     def v(k): return (p.get(k) if p.get(k) is not None else "")
@@ -2941,13 +3013,15 @@ def profile_html():
     <option value="boarding" {"selected" if v('school_type')=='boarding' else ''}>Boarding</option>
   </select>
 
-  <label>AP courses taken <span class="muted">(optional, comma-separated — e.g. Calc BC, Physics C, Chem, US History)</span></label>
-  <textarea name="aps" placeholder="Calc BC, Physics C Mech, Chemistry, US History, English Lang">{v('aps')}</textarea>
-  <label style="display:flex;align-items:center;gap:8px;font-weight:500;margin-top:6px">
+  <label>AP courses taken <span class="muted">(optional — click any you're taking or have taken)</span></label>
+  {_render_ap_picker(v('aps'))}
+  <label>Other APs not listed above <span class="muted">(comma-separated)</span></label>
+  <input type="text" name="aps_other" value="{_compute_aps_other(v('aps'))}" placeholder="e.g. African American Studies, Drawing">
+  <label style="display:flex;align-items:center;gap:8px;font-weight:500;margin-top:8px">
     <input type="checkbox" name="no_aps_offered" {checked('no_aps_offered')} style="width:auto;margin:0">
     My school doesn't offer APs
   </label>
-  <p class="muted" style="font-size:.78em;margin:4px 0 0">If your school doesn't offer APs, check the box and rigor won't count against you. Otherwise, list every AP you've taken or are currently taking — harder APs (Calc BC, Physics C, Chem) count for more than easier ones (Psych, Human Geo).</p>
+  <p class="muted" style="font-size:.78em;margin:4px 0 0">If your school doesn't offer APs, check the box and course rigor won't count against you. Otherwise, click each AP you've taken — harder APs count for more than easier ones.</p>
 
   <h3>Activities</h3>
   <label>Extracurriculars</label>
@@ -4310,9 +4384,16 @@ def _read_profile_form(form):
         "legacy_schools": (f("legacy_schools") or "").strip(),
         "first_gen": form.get("first_gen") in ("yes","on","true","1"),
         "athlete": form.get("athlete") in ("yes","on","true","1"),
-        "aps": (f("aps") or "").strip(),
         "no_aps_offered": form.get("no_aps_offered") in ("yes","on","true","1"),
     }
+    # Merge picker selections + free-text "other" into a single comma-separated string
+    picked = form.getlist("ap_pick") if hasattr(form, "getlist") else []
+    other = (f("aps_other") or "").strip()
+    parts = [p.strip() for p in picked if p.strip()]
+    if other:
+        parts += [p.strip() for p in other.split(",") if p.strip()]
+    result["aps"] = ", ".join(parts)
+    result["aps_other"] = other
     # Legacy boolean is derived from whether they listed any legacy schools.
     result["legacy"] = bool(result["legacy_schools"])
     # Multi-select prefs: getlist returns all checked values. Stored as
