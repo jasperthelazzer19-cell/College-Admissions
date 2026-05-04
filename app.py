@@ -2764,7 +2764,20 @@ hr{border:0;border-top:1px solid var(--border);margin:24px 0}
 .stat-card .delta{font-size:.78em;color:var(--text-2);margin-top:4px}
 """
 
-NAV = """<div class="nav"><a class="brand" href="/colleges">Candor</a>
+CANDOR_LOGO_SVG = """<svg viewBox="0 0 64 64" width="22" height="22" xmlns="http://www.w3.org/2000/svg" style="vertical-align:-4px;margin-right:8px">
+  <defs>
+    <linearGradient id="cdr-g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#5eead4"/>
+    </linearGradient>
+  </defs>
+  <path d="M 52 16 A 22 22 0 1 0 52 48" stroke="url(#cdr-g)" stroke-width="6" fill="none" stroke-linecap="round"/>
+  <rect x="22" y="36" width="5.5" height="10" fill="url(#cdr-g)" rx="1.2"/>
+  <rect x="31" y="28" width="5.5" height="18" fill="url(#cdr-g)" rx="1.2"/>
+  <rect x="40" y="20" width="5.5" height="26" fill="url(#cdr-g)" rx="1.2"/>
+</svg>"""
+
+NAV = """<div class="nav"><a class="brand" href="/colleges">""" + CANDOR_LOGO_SVG + """Candor</a>
 <a href="/colleges">Browse</a>
 <a href="/rankings">Rankings</a>
 <a href="/profiles">Real Profiles</a>
@@ -2807,7 +2820,18 @@ def _page(body_html, title="Candor"):
             csrf_meta = f'<meta name="csrf-token" content="{generate_csrf()}">'
         except Exception:
             pass
+    favicon = ('<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,'
+               '<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22>'
+               '<defs><linearGradient id=%22g%22 x1=%220%22 y1=%220%22 x2=%221%22 y2=%221%22>'
+               '<stop offset=%220%25%22 stop-color=%22%2338bdf8%22/>'
+               '<stop offset=%22100%25%22 stop-color=%22%235eead4%22/></linearGradient></defs>'
+               '<path d=%22M 52 16 A 22 22 0 1 0 52 48%22 stroke=%22url(%23g)%22 stroke-width=%226%22 fill=%22none%22 stroke-linecap=%22round%22/>'
+               '<rect x=%2222%22 y=%2236%22 width=%225.5%22 height=%2210%22 fill=%22url(%23g)%22 rx=%221.2%22/>'
+               '<rect x=%2231%22 y=%2228%22 width=%225.5%22 height=%2218%22 fill=%22url(%23g)%22 rx=%221.2%22/>'
+               '<rect x=%2240%22 y=%2220%22 width=%225.5%22 height=%2226%22 fill=%22url(%23g)%22 rx=%221.2%22/>'
+               '</svg>">')
     return f"""<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+{favicon}
 {csrf_meta}<title>{title}</title><style>{BASE_CSS}</style></head>
 <body>{_nav()}<div class="wrap">{_flash()}{body_html}</div></body></html>"""
 
