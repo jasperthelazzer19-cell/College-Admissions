@@ -1590,8 +1590,10 @@ def generate_bullets(profile, school, fit, components, tier, odds):
 - Awards: {profile.get('awards','(blank)') or '(blank)'}
 - Hooks: legacy={profile.get('legacy')}, first_gen={profile.get('first_gen')}, athlete={profile.get('athlete')}
 
-Target: {school['name']} (acceptance {round(school['accept']*100,1)}%, GPA midpoint ~{round((school['gpa_lo']+school['gpa_hi'])/2,2)}, SAT mid-50% {school['sat_25']}-{school['sat_75']}).
+Target: {school['name']} (acceptance {round(school['accept']*100,1)}%, GPA midpoint ~{round((school['gpa_lo']+school['gpa_hi'])/2,2)}, SAT mid-50% {school['sat_25']}-{school['sat_75']}, ACT mid-50% {school['act_25']}-{school['act_75']}).
 Computed fit: {fit}/100. Tier: {tier}. Odds: {odds[0]}-{odds[1]}%.
+
+CRITICAL: Use ONLY the numbers given above. Do not invent percentile rankings or stats not provided. If the student submitted ACT, compare to the ACT range; if SAT, compare to the SAT range. Don't compare an ACT score to an SAT range.
 
 Output exactly three lines:
 STRENGTH: <one-sentence biggest advantage, citing a specific number/item>
