@@ -1696,6 +1696,64 @@ RESOURCES = {
 }
 
 
+# Comprehensive competitions database, filterable by major. Each entry:
+#   name, url, majors (empty list = applies to all), tier, deadline, note.
+COMPETITIONS = [
+    {"name":"USACO","url":"http://www.usaco.org/","majors":["Computer Science","Engineering","Mathematics"],"tier":"national","deadline":"Dec / Jan / Feb / Mar","note":"Programming. Reach Gold or Platinum for a real signal at top CS programs."},
+    {"name":"AMC 10/12 → AIME → USAMO","url":"https://www.maa.org/math-competitions","majors":["Mathematics","Engineering","Physics","Computer Science","Economics"],"tier":"national/international","deadline":"Nov","note":"Math olympiad track. AIME qualification (top ~5% of AMC) starts mattering at top STEM programs."},
+    {"name":"Regeneron Science Talent Search","url":"https://www.societyforscience.org/regeneron-sts/","majors":["Biology","Chemistry","Physics","Engineering","Computer Science","Mathematics","Environmental Science"],"tier":"national","deadline":"Nov (seniors only)","note":"Most prestigious HS science research competition. 300 scholars, 40 finalists, $250K top prize."},
+    {"name":"ISEF (Regeneron International Science & Engineering Fair)","url":"https://www.societyforscience.org/isef/","majors":["Biology","Chemistry","Physics","Engineering","Computer Science","Environmental Science"],"tier":"international","deadline":"Spring (qualify through state fairs)","note":"World's largest pre-college science fair. Qualify through regional/state fairs first."},
+    {"name":"USA Olympiads (Bio, Chem, Physics, CS, Math, Linguistics)","url":"https://www.usabo-trc.org","majors":["Biology","Chemistry","Physics","Computer Science","Mathematics"],"tier":"national/international","deadline":"Spring qualifiers","note":"Olympiad track for each subject. Reaching the national camp = HYPSM-tier signal."},
+    {"name":"Junior Science & Humanities Symposium (JSHS)","url":"https://jshs.org","majors":["Biology","Chemistry","Physics","Engineering","Computer Science","Environmental Science"],"tier":"national","deadline":"Spring","note":"Research presentations + scholarships ($2K-$12K). Solid mid-tier research signal."},
+    {"name":"Davidson Fellows Scholarship","url":"https://www.davidsongifted.org/fellows-scholarship/","majors":["Mathematics","Physics","Biology","Chemistry","Computer Science","Engineering","Music","Philosophy","Literature"],"tier":"national","deadline":"Feb","note":"$10K-$50K for substantial student work. Project-based, deeply selective."},
+    {"name":"MIT THINK Scholars","url":"https://think.mit.edu","majors":["Engineering","Computer Science","Physics"],"tier":"national","deadline":"Jan","note":"Pitch a STEM project, get $1K + MIT mentorship to build it. Free entry."},
+    {"name":"Concord Review","url":"https://tcr.org","majors":["History","Political Science","English","International Relations"],"tier":"national","deadline":"Rolling","note":"History essay journal. Publication is a strong signal for humanities applicants."},
+    {"name":"NYTimes Student Contests","url":"https://www.nytimes.com/spotlight/learning-contests","majors":["English","Journalism","History","Political Science","Creative Writing"],"tier":"national","deadline":"Various throughout year","note":"Editorial, profile, summer reading, vocab. Short-form, recognizable wins."},
+    {"name":"Scholastic Art & Writing Awards","url":"https://www.artandwriting.org","majors":["Visual Arts","Creative Writing","English","Photography","Music"],"tier":"national","deadline":"Sep–Dec","note":"Gold/Silver Key + national medals are real signals for art/writing applicants."},
+    {"name":"Adroit Journal","url":"https://www.theadroitjournal.org","majors":["Creative Writing","English"],"tier":"national","deadline":"Various","note":"Top high-school creative writing journal. Publication signals craft to admissions readers."},
+    {"name":"DECA / FBLA","url":"https://www.deca.org","majors":["Business","Economics","Marketing","Finance","Accounting","Entrepreneurship"],"tier":"national","deadline":"State + Internationals (Spring)","note":"Business case competitions. International qualification is the real signal for biz applicants."},
+    {"name":"Model UN — HMUN / NAIMUN / UPenn","url":"https://www.imuna.org","majors":["Political Science","International Relations","History","Economics"],"tier":"national","deadline":"Spring","note":"Top Model UN conferences. Best Delegate / Outstanding Delegate awards carry weight."},
+    {"name":"FIRST Robotics (FRC + FTC)","url":"https://www.firstinspires.org","majors":["Engineering","Computer Science","Mechanical Engineering","Physics"],"tier":"international","deadline":"Build season Jan-Apr","note":"Captain or technical lead role beats generic team membership."},
+    {"name":"Science Olympiad","url":"https://www.soinc.org","majors":["Biology","Chemistry","Physics","Engineering","Mathematics","Environmental Science"],"tier":"national","deadline":"State qualifying","note":"Team-based, broad sciences. Place at state or nationals to make it count."},
+    {"name":"PUMaC + HMMT (Princeton & Harvard-MIT Math Tournaments)","url":"https://www.hmmt.org","majors":["Mathematics","Engineering","Physics","Computer Science"],"tier":"national","deadline":"Nov / Feb","note":"Top HS math tournaments. Strong intermediate signal between AMC and Olympiad."},
+    {"name":"Coca-Cola Scholars","url":"https://www.coca-colascholarsfoundation.org","majors":[],"tier":"national-scholarship","deadline":"Aug-Oct","note":"$20K. 150 winners/year. Heavy leadership + community service signal."},
+    {"name":"National Merit Scholarship","url":"https://www.nationalmerit.org","majors":[],"tier":"national-scholarship","deadline":"PSAT junior year","note":"~16K Semifinalists/year. Money + serious signal at many state and merit-aid schools."},
+    {"name":"YoungArts","url":"https://www.youngarts.org","majors":["Visual Arts","Music","Theater","Creative Writing","Dance","Film","Photography"],"tier":"national","deadline":"Oct","note":"$10K + national recognition. Top award for performing/visual arts."},
+    {"name":"National History Day","url":"https://www.nhd.org","majors":["History","English","Political Science"],"tier":"national","deadline":"State qualifying","note":"Research-based. Less selective than Concord Review but legitimate."},
+    {"name":"Stockholm Junior Water Prize","url":"https://www.wef.org","majors":["Environmental Science","Engineering","Biology","Chemistry"],"tier":"international","deadline":"Spring","note":"International water-research competition. Niche but recognized."},
+]
+
+
+# Selective summer programs database. Selectivity tiers:
+#   Free + selective = highest signal (RSI, MITES, TASP)
+#   Paid + selective = moderate signal (SSP, PROMYS, SUMaC)
+#   Paid + accessible = pay-to-play (skip if real signal is what you want)
+SUMMER_PROGRAMS = [
+    {"name":"RSI (Research Science Institute)","url":"https://www.cee.org/research-science-institute","majors":["Mathematics","Physics","Biology","Chemistry","Engineering","Computer Science"],"cost":"Free","selectivity":"~5%","grade":"Rising senior","note":"6 weeks at MIT. The most prestigious STEM summer program in the world."},
+    {"name":"MITES Summer","url":"https://oeop.mit.edu/programs/mites","majors":["Engineering","Mathematics","Physics","Computer Science","Biology"],"cost":"Free","selectivity":"~5%","grade":"Rising senior","note":"6 weeks at MIT. STEM intensive for underrepresented students. Free + selective."},
+    {"name":"SSP (Summer Science Program)","url":"https://summerscience.org","majors":["Biology","Astronomy","Astrophysics","Chemistry","Biochemistry"],"cost":"$8500 (need-based aid)","selectivity":"~10%","grade":"Rising senior","note":"6 weeks. Astrophysics or biochemistry deep-dive. Real research, real signal."},
+    {"name":"PROMYS / Ross Math Program","url":"https://promys.org","majors":["Mathematics"],"cost":"$5500 (full aid available)","selectivity":"~15%","grade":"Rising 11-12","note":"6 weeks of pure math at BU/Ohio State. Strong signal for math/CS."},
+    {"name":"TASP / TASS (Telluride Association)","url":"https://www.tellurideassociation.org","majors":["English","History","Philosophy","Political Science","Economics"],"cost":"Free","selectivity":"<5%","grade":"Rising senior (TASP) / 11-12 (TASS)","note":"6 weeks. Humanities seminars. Free + the most selective humanities program."},
+    {"name":"COSMOS (UC Summer)","url":"https://cosmos.ucop.edu","majors":["Engineering","Computer Science","Physics","Biology","Chemistry","Mathematics"],"cost":"$5K (CA aid)","selectivity":"Selective","grade":"Rising 9-12","note":"4 weeks at UC campuses. Cluster-specific STEM. Decent mid-tier signal."},
+    {"name":"Stanford SUMaC","url":"https://sumac.stanford.edu","majors":["Mathematics"],"cost":"$8500","selectivity":"~15%","grade":"Rising 11-12","note":"4 weeks of pure/applied math at Stanford."},
+    {"name":"Iowa Young Writers' Studio","url":"https://iyws.uiowa.edu","majors":["Creative Writing","English"],"cost":"$2K","selectivity":"~25%","grade":"Rising 11-12","note":"2 weeks. Iowa Writers' Workshop pipeline."},
+    {"name":"Kenyon Young Writers Workshop","url":"https://www.kenyonreview.org/workshops/young-writers/","majors":["Creative Writing","English"],"cost":"$3K","selectivity":"Selective","grade":"Rising 11-12","note":"2 weeks. Kenyon Review-affiliated. Strong creative writing program."},
+    {"name":"Simons Summer Research","url":"https://www.stonybrook.edu/simons/","majors":["Biology","Chemistry","Physics","Mathematics","Computer Science","Engineering"],"cost":"Free","selectivity":"~10%","grade":"Rising senior","note":"7 weeks of lab research at Stony Brook. Free + selective."},
+    {"name":"Garcia Summer Research","url":"https://www.garcia.sunysb.edu","majors":["Engineering","Materials Science","Chemistry","Biology"],"cost":"$3500","selectivity":"~15%","grade":"Rising 11-12","note":"7 weeks of polymer research at Stony Brook. Often leads to publications."},
+    {"name":"Clark Scholars Program","url":"https://www.depts.ttu.edu/honors/academicsandenrichment/affiliatedandhighschool/clarks/","majors":["Biology","Chemistry","Physics","Engineering","Computer Science","Mathematics"],"tier":"selective","cost":"Free + $750 stipend","selectivity":"~12%","grade":"Rising senior","note":"7 weeks at Texas Tech with PhD mentor. Free + paid + selective."},
+    {"name":"YYGS (Yale Young Global Scholars)","url":"https://globalscholars.yale.edu","majors":["Political Science","International Relations","Economics","Biology","Engineering"],"cost":"$6500","selectivity":"~15%","grade":"Rising 11-12","note":"2 weeks at Yale. Branded but moderately selective."},
+    {"name":"Notre Dame Leadership Seminars","url":"https://precollege.nd.edu","majors":[],"tier":"selective","cost":"Free","selectivity":"~15%","grade":"Rising senior","note":"2 weeks. Free + selective. Strong fit for Catholic-school applicants."},
+    {"name":"Bank of America Student Leaders","url":"https://about.bankofamerica.com/en/making-an-impact/student-leaders","majors":["Business","Economics","Public Policy","Political Science"],"tier":"selective-paid","cost":"PAID internship","selectivity":"~10%","grade":"Rising senior","note":"8 weeks paid internship + week in DC. Service + business signal."},
+    {"name":"Hutton Junior Fisheries Biology","url":"https://hutton.fisheries.org","majors":["Biology","Marine Biology","Environmental Science"],"tier":"selective-paid","cost":"PAID stipend","selectivity":"~25%","grade":"Rising 11-12","note":"8 weeks. Paid fisheries research."},
+    {"name":"NYU Tisch Summer High School","url":"https://tisch.nyu.edu/special-programs/high-school","majors":["Film","Theater","Photography","Music","Dance"],"cost":"$15K","selectivity":"Portfolio-based","grade":"Rising 11-12","note":"4 weeks. Tisch credentials matter for arts applicants."},
+    {"name":"Berklee Summer Programs","url":"https://www.berklee.edu/summer","majors":["Music"],"cost":"$5K","selectivity":"Audition","grade":"Rising 11-12","note":"5 days–5 weeks. Audition-based. Real for music apps."},
+    {"name":"Hampshire College Summer Studies in Math","url":"https://www.hcssim.org","majors":["Mathematics"],"cost":"$5K","selectivity":"Selective","grade":"Rising 11-12","note":"6 weeks. Pure math problem-solving."},
+    {"name":"BU PROMYS","url":"https://promys.org","majors":["Mathematics"],"cost":"$5500","selectivity":"~15%","grade":"Rising 11-12","note":"6 weeks at BU. Pure math, problem-solving."},
+    {"name":"CTY (Johns Hopkins Center for Talented Youth)","url":"https://cty.jhu.edu","majors":[],"tier":"branded-paid","cost":"$5-7K","selectivity":"Test-qualified","grade":"7-12","note":"Pay-to-play but high quality. Not a strong admissions signal alone."},
+    {"name":"Stanford Pre-Collegiate Studies","url":"https://summer.stanford.edu","majors":[],"tier":"branded-paid","cost":"$15K+","selectivity":"Pay-to-play","grade":"Rising 9-12","note":"Branded but not selective. Skip if you want a real signal."},
+]
+
+
 # ─── SCHOOL-SPECIFIC NOTES ─────────────────────────────────
 # What each school weights most + concrete advice. Top schools get curated
 # entries; everything else falls back to TIER_NOTES below by tier.
@@ -2764,6 +2822,32 @@ hr{border:0;border-top:1px solid var(--border);margin:24px 0}
 .stat-card .delta{font-size:.78em;color:var(--text-2);margin-top:4px}
 .pick-pill:hover{background:var(--surface-hover)!important;border-color:rgba(94,234,212,.3)!important}
 .pick-pill:has(input:checked){background:rgba(94,234,212,.12)!important;border-color:rgba(94,234,212,.45)!important;color:var(--teal)!important}
+/* Action plan items */
+.action-item{display:flex;gap:14px;padding:14px 0;border-top:1px solid var(--border)}
+.action-item:first-child{border-top:0;padding-top:6px}
+.action-num{
+  flex-shrink:0;width:32px;height:32px;border-radius:50%;
+  background:rgba(94,234,212,.12);color:var(--teal);
+  display:flex;align-items:center;justify-content:center;
+  font-weight:700;font-size:.95em;border:1px solid rgba(94,234,212,.3);
+}
+.action-body{flex:1}
+.action-title{font-weight:600;color:var(--text);font-size:1.02em;margin-bottom:6px}
+.action-meta{font-size:.88em;color:var(--text-2);margin:3px 0;line-height:1.5}
+.meta-label{color:var(--text-3);font-weight:500;margin-right:4px;text-transform:uppercase;font-size:.78em;letter-spacing:.4px}
+.action-impact{
+  display:inline-block;margin-top:8px;padding:4px 10px;border-radius:6px;
+  background:rgba(94,234,212,.08);color:var(--teal);font-size:.82em;font-weight:500;
+  border:1px solid rgba(94,234,212,.2);
+}
+/* Competition / program rows */
+.comp-row{padding:14px 0;border-top:1px solid var(--border)}
+.comp-row:first-child{border-top:0;padding-top:4px}
+.comp-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.comp-name{color:var(--text);font-weight:600;font-size:1em}
+.comp-name:hover{color:var(--teal)}
+.comp-meta{font-size:.86em;color:var(--text-2);margin-top:4px}
+.comp-note{font-size:.92em;color:var(--text);margin-top:6px;line-height:1.5}
 """
 
 CANDOR_LOGO_SVG = """<svg viewBox="0 0 64 64" width="22" height="22" xmlns="http://www.w3.org/2000/svg" style="vertical-align:-4px;margin-right:8px">
@@ -3550,53 +3634,220 @@ def _resource_block(category, items):
     return f'<div class="card"><h3 style="margin-top:0">{category}</h3>{rows}</div>'
 
 
+def build_action_plan(profile):
+    """Rule-based gap analysis → list of structured action items.
+    Each item: title, why, target, deadline, impact."""
+    items = []
+    if not profile: return items
+    gpa = profile.get("uw_gpa") or 0
+    sat = profile.get("sat") or 0
+    act = profile.get("act") or 0
+    ec_text = (profile.get("ecs") or "").strip()
+    aps = (profile.get("aps") or "").strip()
+
+    if not aps and not profile.get("no_aps_offered"):
+        items.append({
+            "title":"Sign up for at least 2 AP courses next term",
+            "why":"Course rigor is one of the top 3 academic signals at competitive schools. An empty AP slate looks like rigor avoidance.",
+            "target":"Calc BC + Chem (or your major's hardest options — APUSH/Lit if humanities)",
+            "deadline":"Course-selection week (typically Feb–Mar)",
+            "impact":"+4–6 fit at tier-1 schools",
+        })
+    if gpa and gpa < 3.7:
+        items.append({
+            "title":"Lock straight A's for the rest of the semester",
+            "why":f"Current UW GPA {gpa:.2f}. Trend > absolute number for late-blooming applicants — admissions readers see the slope.",
+            "target":"4.0 every grading period from now until application",
+            "deadline":"End of current semester",
+            "impact":"+2–4 fit per 0.1 GPA gain",
+        })
+    if not sat and not act:
+        items.append({
+            "title":"Take the SAT (or ACT) before October of senior year",
+            "why":"Test scores are a clean lever and many top schools have re-required testing. No score = ambiguous read.",
+            "target":"SAT 1450+ for tier-1 schools, 1350+ for tier-2 / ACT 33+ tier-1, 31+ tier-2",
+            "deadline":"August or October of senior year",
+            "impact":"+5–15 fit at top schools depending on score",
+        })
+    elif sat and sat < 1450:
+        items.append({
+            "title":"Retake the SAT — target +50–100 points",
+            "why":f"Current {sat}. Below tier-1 mid-50%. Focused 6-week prep typically moves +60–150.",
+            "target":"1500+ via Khan Academy + 4 official BlueBook practice tests",
+            "deadline":"6-week window before next test date",
+            "impact":"+5–10 fit at reach schools",
+        })
+    elif act and act < 32:
+        items.append({
+            "title":"Retake the ACT — target +2–3 points",
+            "why":f"Current {act}. Below tier-1 mid-50%. ACT prep typically moves +2–3 in a single retake cycle.",
+            "target":"33+",
+            "deadline":"Next ACT date",
+            "impact":"+5–10 fit at reach schools",
+        })
+    if len(ec_text) < 80 or _keyword_strength(ec_text, EC_STRONG_SIGNALS) < 1:
+        items.append({
+            "title":"Build one signature EC project this semester",
+            "why":"Thin EC list. Admissions readers want depth in 1–2 areas, not breadth across 5 generic clubs.",
+            "target":"Pick a project (research, founded org, sustained competition track) and put 5+ hrs/wk into it",
+            "deadline":"Start within 2 weeks; show concrete progress in 3 months",
+            "impact":"Often the deciding factor for tier-1 admits",
+        })
+    if not (profile.get("leadership") or "").strip():
+        items.append({
+            "title":"Take a real leadership role by next semester",
+            "why":"No leadership listed. Captain / founder / president / editor — title + accountability for an outcome.",
+            "target":"One named role with measurable scope (team size, project, budget)",
+            "deadline":"Run / apply within the next month",
+            "impact":"+2–4 fit, especially at LACs and small privates",
+        })
+    if not (profile.get("awards") or "").strip():
+        items.append({
+            "title":"Enter at least 1 national-tier competition this semester",
+            "why":"No awards listed. Externally-validated wins are how ECs become signals admissions can verify.",
+            "target":"Pick one from the Competitions database below that aligns with your major",
+            "deadline":"Check each comp's deadline window",
+            "impact":"+3–7 fit if you place at state or higher",
+        })
+    return items
+
+
+def _render_action_plan(items):
+    if not items:
+        return ""
+    rows = ""
+    for i, it in enumerate(items, 1):
+        rows += f"""<div class="action-item">
+          <div class="action-num">{i}</div>
+          <div class="action-body">
+            <div class="action-title">{it['title']}</div>
+            <div class="action-meta"><span class="meta-label">Why:</span> {it['why']}</div>
+            <div class="action-meta"><span class="meta-label">Target:</span> {it['target']}</div>
+            <div class="action-meta"><span class="meta-label">By:</span> {it['deadline']}</div>
+            <div class="action-impact">{it['impact']}</div>
+          </div>
+        </div>"""
+    return rows
+
+
+def _render_competitions(major_filter):
+    rows = ""
+    matches = []
+    other = []
+    mf = major_filter.lower().strip() if major_filter else ""
+    for c in COMPETITIONS:
+        applicable = (not c.get("majors")) or any(mf in m.lower() or m.lower() in mf for m in c["majors"]) if mf else False
+        if mf and applicable:
+            matches.append(c)
+        elif not mf:
+            matches.append(c)
+        else:
+            other.append(c)
+    def render_one(c):
+        majors = ", ".join(c["majors"]) if c.get("majors") else "Any major"
+        return f"""<div class="comp-row">
+          <div class="comp-head">
+            <a href="{c['url']}" target="_blank" rel="noopener" class="comp-name">{c['name']}</a>
+            <span class="pill">{c.get('tier','national')}</span>
+          </div>
+          <div class="comp-meta"><span class="meta-label">Deadline:</span> {c.get('deadline','—')} · <span class="meta-label">Best for:</span> {majors}</div>
+          <div class="comp-note">{c['note']}</div>
+        </div>"""
+    if mf:
+        rows += "".join(render_one(c) for c in matches)
+        if other:
+            rows += f'<details style="margin-top:14px"><summary class="muted" style="cursor:pointer;font-size:.88em">Show {len(other)} more competitions (not specific to your major)</summary><div style="margin-top:10px">' + "".join(render_one(c) for c in other) + '</div></details>'
+    else:
+        rows = "".join(render_one(c) for c in matches)
+    return rows
+
+
+def _render_summer_programs(major_filter):
+    matches = []
+    other = []
+    mf = major_filter.lower().strip() if major_filter else ""
+    for s in SUMMER_PROGRAMS:
+        if mf:
+            applicable = (not s.get("majors")) or any(mf in m.lower() or m.lower() in mf for m in s["majors"])
+            (matches if applicable else other).append(s)
+        else:
+            matches.append(s)
+    def render_one(s):
+        majors = ", ".join(s["majors"]) if s.get("majors") else "Any major"
+        return f"""<div class="comp-row">
+          <div class="comp-head">
+            <a href="{s['url']}" target="_blank" rel="noopener" class="comp-name">{s['name']}</a>
+            <span class="pill">{s.get('selectivity','—')}</span>
+          </div>
+          <div class="comp-meta"><span class="meta-label">Cost:</span> {s.get('cost','—')} · <span class="meta-label">Grade:</span> {s.get('grade','—')} · <span class="meta-label">Best for:</span> {majors}</div>
+          <div class="comp-note">{s['note']}</div>
+        </div>"""
+    rows = "".join(render_one(s) for s in matches)
+    if mf and other:
+        rows += f'<details style="margin-top:14px"><summary class="muted" style="cursor:pointer;font-size:.88em">Show {len(other)} more programs (not specific to your major)</summary><div style="margin-top:10px">' + "".join(render_one(s) for s in other) + '</div></details>'
+    return rows
+
+
 def improve_html():
     user = current_user()
     profile = get_profile(user["id"]) if user else None
-    personalized = ""
-    if profile:
-        gaps = []
-        gpa = profile.get("uw_gpa") or 0
-        if gpa and gpa < 3.7:
-            gaps.append("GPA below 3.7 — see the Academics section. Upward grade trend can change a competitive read.")
-        sat, act = profile.get("sat"), profile.get("act")
-        if not sat and not act:
-            gaps.append("No test score. See Test Prep — for top schools, a strong score is one of the cleanest ways to stand out.")
-        elif sat and sat < 1450:
-            gaps.append(f"SAT {sat} is below the typical admitted range at most reach schools. Test prep is high-leverage.")
-        elif act and act < 32:
-            gaps.append(f"ACT {act} is below the typical admitted range at most reach schools.")
-        ec_text = profile.get("ecs") or ""
-        if len(ec_text) < 80 or _keyword_strength(ec_text, EC_STRONG_SIGNALS) < 1:
-            gaps.append("ECs read thin. See the Extracurriculars + Competitions sections — depth in 1-2 areas beats breadth across many.")
-        if not (profile.get("leadership") or "").strip():
-            gaps.append("No leadership listed. See the Leadership section for concrete moves.")
-        if not (profile.get("awards") or "").strip():
-            gaps.append("No awards listed. The Competitions section lists routes to externally-validated recognition.")
-        if gaps:
-            items = "".join(f"<li>{g}</li>" for g in gaps)
-            personalized = f"""<div class="card" style="background:#fff8e1;border-color:#ffeaa7">
-                <h3 style="margin-top:0">For your specific profile</h3>
-                <p class="muted" style="margin:0 0 8px">Based on what you have saved. Update <a href="/profile">your profile</a> to refine.</p>
-                <ul style="padding-left:18px;margin:0">{items}</ul>
-            </div>"""
-        else:
-            personalized = '<div class="card" style="background:#dff6e0;border-color:#a3dcb8"><h3 style="margin-top:0">Your profile is in solid shape</h3><p style="margin:0">No obvious gaps showing. Focus on essays + school-specific advice from each college\'s detail page.</p></div>'
+    user_major = (profile.get("major") if profile else "") or ""
+    filter_major = request.args.get("major", user_major).strip()
+
+    action_items = build_action_plan(profile) if profile else []
+    if action_items:
+        action_html = f"""<div class="card">
+          <h2 style="margin-top:0">Your action plan</h2>
+          <p class="muted" style="margin:0 0 16px">Personalized to your profile. Each item has a concrete target, deadline, and expected impact. Do these in order.</p>
+          {_render_action_plan(action_items)}
+        </div>"""
+    elif profile:
+        action_html = '<div class="card"><h2 style="margin-top:0">Your action plan</h2><p style="margin:0">No obvious gaps in your profile. Focus on essays + school-specific advice from each college\'s detail page.</p></div>'
+    else:
+        action_html = '<div class="card"><h2 style="margin-top:0">Your action plan</h2><p class="muted" style="margin:0"><a href="/profile">Save your profile</a> to get a personalized action plan.</p></div>'
+
+    # Major filter dropdown — uses MAJORS list
+    major_opts = '<option value="">All majors</option>' + "".join(
+        f'<option value="{m}" {"selected" if m == filter_major else ""}>{m}</option>'
+        for m in MAJORS
+    )
+    filter_form = f"""<form method="get" action="/improve" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+      <div style="flex:1;min-width:220px"><label style="margin-top:0">Filter by major</label>
+        <select name="major">{major_opts}</select></div>
+      <button class="btn btn-primary" type="submit">Apply</button>
+      <a class="btn btn-light" href="/improve">Clear</a>
+    </form>"""
+
+    comp_html = f"""<div class="card">
+      <h2 style="margin-top:0">Competitions database</h2>
+      <p class="muted" style="margin:0 0 14px">Externally-validated wins. The fastest path from "I have ECs" to "I have awards." Filter by your major.</p>
+      {filter_form}
+      <div style="margin-top:18px">{_render_competitions(filter_major)}</div>
+    </div>"""
+
+    summer_html = f"""<div class="card">
+      <h2 style="margin-top:0">Selective summer programs</h2>
+      <p class="muted" style="margin:0 0 14px">Free + selective programs (RSI, MITES, TASP) carry the strongest signal. Pay-to-play branded programs (Stanford Pre-Collegiate, CTY) don't help much by themselves.</p>
+      <div>{_render_summer_programs(filter_major)}</div>
+    </div>"""
+
     blocks = ""
     blocks += _resource_block("Academics & rigor", RESOURCES["academics"])
     blocks += _resource_block("Test prep (SAT / ACT)", RESOURCES["test_prep"])
-    blocks += _resource_block("Extracurriculars — competitions to enter", RESOURCES["competitions"])
-    blocks += _resource_block("Summer programs (selective)", RESOURCES["summer_programs"])
-    blocks += _resource_block("Leadership", RESOURCES["leadership"])
     blocks += _resource_block("Essays", RESOURCES["essays"])
+    blocks += _resource_block("Leadership", RESOURCES["leadership"])
     blocks += _resource_block("Recommendation letters", RESOURCES["recommendations"])
     blocks += _resource_block("Demonstrated interest", RESOURCES["interest"])
+
     return _page(f"""
-<h1>How to improve your application</h1>
-<p class="muted">Curated, free or near-free resources organized by category. None of this is theoretical — these are the things that actually move admissions outcomes.</p>
-{personalized}
+<h1>Improve your application</h1>
+<p class="muted">Personalized action plan + curated databases of competitions and summer programs. None of this is theoretical — these are the things that actually move admissions outcomes.</p>
+{action_html}
+{comp_html}
+{summer_html}
+<h2 style="margin-top:36px">More resources</h2>
 {blocks}
-<div class="card" style="background:#f4f4f4;border-color:#ddd">
+<div class="card">
   <h3 style="margin-top:0">Looking for school-specific advice?</h3>
   <p class="muted" style="margin:0 0 8px">Every college's detail page has a "Tailored advice for [school]" link with what that school weights, supplemental essay strategy, and specific programs to apply to.</p>
   <a class="btn btn-light btn-sm" href="/colleges">Browse colleges &rarr;</a>
