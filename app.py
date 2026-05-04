@@ -3029,7 +3029,7 @@ def college_detail_html(slug):
     over = _get_overrides(slug)
     verified_badge = ""
     if over and over.get("source"):
-        verified_badge = f'<span class="muted" style="font-size:.78em;background:#dff6e0;color:#1d6c2a;padding:2px 8px;border-radius:5px;margin-left:8px">✓ {over["source"]}</span>'
+        verified_badge = f'<span style="font-size:.74em;background:rgba(94,234,212,.12);color:var(--teal);padding:3px 10px;border-radius:999px;margin-left:8px;border:1px solid rgba(94,234,212,.25);font-weight:500;letter-spacing:.3px">VERIFIED · {over["source"]}</span>'
     majors_tags = "".join(f'<span class="tag">{m}</span>' for m in c["majors"])
     type_pill = f'<span class="pill pill-{c["type"]}">{c["type"]}</span>'
     tier_pill = f'<span class="pill pill-tier-{c["tier"]}">Tier {c["tier"]}</span>'
@@ -5514,10 +5514,11 @@ def admin_refresh_scorecard():
     Gated by ADMIN_KEY so only the operator can run it (it's slow + makes
     155 API calls). Hit with ?key=YOUR_ADMIN_KEY."""
     if not ADMIN_KEY or request.args.get("key") != ADMIN_KEY:
-        return jsonify({"error": "unauthorized"}), 401
+        return ("<h1>401 Unauthorized</h1><p>Pass <code>?key=YOUR_ADMIN_KEY</code></p>", 401)
     if not SCORECARD_KEY:
-        return jsonify({"error": "SCORECARD_KEY env var not set"}), 500
+        return ("<h1>SCORECARD_KEY not configured</h1><p>Set the env var on Railway.</p>", 500)
     only_slug = request.args.get("slug")
+    fmt = request.args.get("format", "html")
     target = [c for c in COLLEGES if c["slug"] == only_slug] if only_slug else COLLEGES
     updated, failed = [], []
     for c in target:
@@ -5525,8 +5526,56 @@ def admin_refresh_scorecard():
             updated.append(c["slug"])
         else:
             failed.append(c["slug"])
-    return jsonify({"updated": len(updated), "failed": len(failed),
-                    "updated_slugs": updated[:30], "failed_slugs": failed[:30]})
+    if fmt == "json":
+        return jsonify({"updated": len(updated), "failed": len(failed),
+                        "updated_slugs": updated[:30], "failed_slugs": failed[:30]})
+    failed_list = "".join(f"<li>{s}</li>" for s in failed) or "<li>None</li>"
+    return _page(f"""
+<h1>Scorecard refresh complete</h1>
+<div class="card">
+  <div class="stat-card" style="margin-bottom:16px">
+    <div class="label">Updated</div>
+    <div class="value accent">{len(updated)} / {len(target)}</div>
+    <div class="delta">schools refreshed from federal IPEDS via College Scorecard</div>
+  </div>
+  <h3 style="margin-top:18px">Failed lookups ({len(failed)})</h3>
+  <p class="muted" style="font-size:.86em;margin:0 0 8px">These slugs didn't match a Scorecard record. They keep their hardcoded values; usually fixable by adding to SCORECARD_NAME_OVERRIDES.</p>
+  <ul style="font-size:.86em;color:var(--text-2);columns:3;column-gap:30px">{failed_list}</ul>
+</div>
+<p class="muted" style="font-size:.85em">Tip: rerun anytime to pull the latest federal data (IPEDS releases yearly, ~October). Append <code>&format=json</code> for machine-readable output.</p>
+""", title="Scorecard refresh — Candor")
+
+
+@app.route("/admin/data-status")
+def admin_data_status():
+    """Show how many schools have Scorecard overrides applied + fields covered."""
+    if not ADMIN_KEY or request.args.get("key") != ADMIN_KEY:
+        return ("<h1>401 Unauthorized</h1>", 401)
+    with db() as conn:
+        rows = conn.execute("SELECT college_slug, accept, sat_25, sat_75, size, tuition, source, verified_at FROM school_stats_overrides").fetchall()
+    overrides_by_slug = {r["college_slug"]: r for r in rows}
+    total = len(COLLEGES)
+    covered = len(overrides_by_slug)
+    missing = [c for c in COLLEGES if c["slug"] not in overrides_by_slug]
+    miss_list = "".join(f'<li><a href="/college/{c["slug"]}">{c["name"]}</a> — using hardcoded</li>' for c in missing[:60])
+    if len(missing) > 60:
+        miss_list += f"<li class='muted'>+{len(missing)-60} more</li>"
+    pct = round(covered / total * 100) if total else 0
+    return _page(f"""
+<h1>Data freshness</h1>
+<div class="card">
+  <div class="stat-card">
+    <div class="label">Schools with federal overrides</div>
+    <div class="value accent">{covered} / {total}</div>
+    <div class="delta">{pct}% of the database is on College Scorecard data; the rest fall back to the hardcoded values</div>
+  </div>
+</div>
+<div class="card">
+  <h3 style="margin-top:0">Schools still on hardcoded values</h3>
+  <ul style="font-size:.86em;columns:2;column-gap:30px">{miss_list or '<li>None — all 155 covered</li>'}</ul>
+  <p style="margin-top:14px"><a class="btn btn-primary btn-sm" href="/admin/refresh-scorecard?key={request.args.get('key','')}">Refresh now</a></p>
+</div>
+""", title="Data status — Candor")
 
 
 @app.route("/healthz")
