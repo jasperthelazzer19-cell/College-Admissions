@@ -1649,10 +1649,12 @@ def compute_fit(profile, school):
     lead_total = min(5, _keyword_strength(profile.get("leadership", "") or "", LEADERSHIP_KEYWORDS) * 1.5)
     score += lead_total
     components["leadership"] = round(lead_total, 1)
-    # Legacy now requires the user to have listed *this* school specifically;
-    # the generic legacy flag alone no longer adds the boost.
-    legacy_here = has_legacy_at(profile, school)
-    hook_total = (3 if legacy_here else 0) + (4 if profile.get("first_gen") else 0) + (5 if profile.get("athlete") else 0)
+    # Legacy is school-specific. Generation count scales the boost: 1 gen = +3,
+    # 2 = +4, 3+ = +5. (Marginal returns drop off — research suggests legacy
+    # admit boost is largely binary, with a modest extra edge for multi-gen.)
+    legacy_gens = legacy_generations_at(profile, school)
+    legacy_bonus = {0:0, 1:3, 2:4}.get(legacy_gens, 5) if legacy_gens else 0
+    hook_total = legacy_bonus + (4 if profile.get("first_gen") else 0) + (5 if profile.get("athlete") else 0)
     score += hook_total
     components["hooks"] = hook_total
     if school["type"] == "public" and profile.get("state") and profile["state"].lower() == school["state"].lower():
@@ -1682,7 +1684,10 @@ def estimate_odds(school, fit, profile):
     fit_mult = 0.20 + (fit / 65.0) ** 1.6
     hook_mult = 1.0
     if profile.get("athlete"): hook_mult *= 1.30
-    if has_legacy_at(profile, school): hook_mult *= 1.15
+    legacy_gens = legacy_generations_at(profile, school)
+    if legacy_gens >= 3:   hook_mult *= 1.25
+    elif legacy_gens == 2: hook_mult *= 1.20
+    elif legacy_gens == 1: hook_mult *= 1.15
     if profile.get("first_gen"): hook_mult *= 1.10
     center = a * fit_mult * hook_mult
     # Caps tightened — even strong applicants almost never crack 18% at sub-10%
@@ -1728,7 +1733,7 @@ def generate_bullets(profile, school, fit, components, tier, odds):
 - ECs: {profile.get('ecs','(blank)') or '(blank)'}
 - Leadership: {profile.get('leadership','(blank)') or '(blank)'}
 - Awards: {profile.get('awards','(blank)') or '(blank)'}
-- Hooks: legacy={profile.get('legacy')}, first_gen={profile.get('first_gen')}, athlete={profile.get('athlete')}
+- Hooks for THIS school: legacy_generations={legacy_generations_at(profile, school)} (0 means no legacy here, even if the student has legacy elsewhere), first_gen={profile.get('first_gen')}, athlete={profile.get('athlete')}
 
 Target: {school['name']} (acceptance {round(school['accept']*100,1)}%, GPA midpoint ~{round((school['gpa_lo']+school['gpa_hi'])/2,2)}, SAT mid-50% {school['sat_25']}-{school['sat_75']}, ACT mid-50% {school['act_25']}-{school['act_75']}).
 Computed fit: {fit}/100. Tier: {tier}. Odds: {odds[0]}-{odds[1]}%.
@@ -2048,21 +2053,41 @@ def parse_pref_weights_form(form):
     return json.dumps(out)
 
 
-def has_legacy_at(profile, school):
-    """Check whether the user has listed a legacy connection at THIS school.
+_LEGACY_COUNT_RE = re.compile(r"\s*(?:[\(\[]?\s*(\d+)\s*x?\s*[\)\]]?|x\s*(\d+))\s*$", re.IGNORECASE)
+
+
+def legacy_generations_at(profile, school):
+    """How many generations of legacy the user has at THIS school. Returns
+    0 if none. Parses '<name> Nx' or '<name> (N)' or just '<name>' (=1 gen).
     Match is name-substring, case-insensitive, both directions — so 'Penn'
     matches 'University of Pennsylvania' and vice-versa."""
-    if not profile or not school: return False
+    if not profile or not school: return 0
     raw = (profile.get("legacy_schools") or "").strip().lower()
-    if not raw: return False
+    if not raw: return 0
     school_name = (school.get("name") or "").lower()
     school_slug = (school.get("slug") or "").lower()
-    parts = [p.strip() for p in raw.split(",") if p.strip()]
-    for p in parts:
+    best = 0
+    for p in raw.split(","):
+        p = p.strip()
         if not p: continue
-        if p in school_name or school_name in p: return True
-        if p in school_slug or school_slug in p: return True
-    return False
+        # Strip a trailing count suffix like "4x", "x4", "(4)" — default 1.
+        m = _LEGACY_COUNT_RE.search(p)
+        if m:
+            count = int(m.group(1) or m.group(2))
+            name = p[:m.start()].strip()
+        else:
+            count = 1
+            name = p
+        if not name: continue
+        if name in school_name or school_name in name or name in school_slug or school_slug in name:
+            best = max(best, count)
+    return best
+
+
+def has_legacy_at(profile, school):
+    """Boolean wrapper around legacy_generations_at for code that just wants
+    a yes/no signal."""
+    return legacy_generations_at(profile, school) > 0
 
 
 # ─── ARTICLES (NewsAPI w/ DB cache) ───────────────────────
@@ -2780,7 +2805,7 @@ def profile_html():
   <h3>Hooks</h3>
   <label>Legacy schools <span class="muted">(comma-separated)</span></label>
   <input name="legacy_schools" value="{v('legacy_schools')}" placeholder="e.g. Harvard, Yale, University of Pennsylvania">
-  <p class="muted" style="font-size:.78em;margin:4px 0 0">List the specific schools where you have legacy. The boost only applies at those schools.</p>
+  <p class="muted" style="font-size:.78em;margin:4px 0 0">List the specific schools where you have legacy. The boost only applies at those schools. Add a generation count if multi-generational (e.g., "Cornell 4x" = 4 generations).</p>
   <div class="checks" style="margin-top:10px">
     <label><input type="checkbox" name="first_gen" value="yes" {checked('first_gen')}> First-generation college student</label>
     <label><input type="checkbox" name="athlete" value="yes" {checked('athlete')}> Recruited / likely-recruit athlete</label>
@@ -3449,7 +3474,7 @@ def get_tailored_advice(user_id, school, profile, force=False):
 - Extracurriculars: {profile.get('ecs') or '(blank)'}
 - Leadership: {profile.get('leadership') or '(blank)'}
 - Awards: {profile.get('awards') or '(blank)'}
-- Hooks: legacy={bool(profile.get('legacy'))}, first_gen={bool(profile.get('first_gen'))}, athlete={bool(profile.get('athlete'))}
+- Hooks for THIS school: legacy_generations={legacy_generations_at(profile, school)} (0 = no legacy here), first_gen={bool(profile.get('first_gen'))}, athlete={bool(profile.get('athlete'))}
 - Preferences: {prefs_line}
 
 TARGET SCHOOL: {school['name']} ({city_state(school)}, {region_of(school)})
