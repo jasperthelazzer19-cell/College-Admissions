@@ -5122,6 +5122,16 @@ function sendMsg(text){
       }
       if(d.error){renderAssistantMsg('<i>'+escapeHTML(d.error)+'</i>');return;}
       renderAssistantMsg(d.html || escapeHTML(d.reply || ''));
+      if(d.usage){
+        var pill = document.getElementById('usage-pill');
+        if(pill){
+          if(d.usage.is_paid){
+            pill.innerHTML = 'PREMIUM · ' + d.usage.month_used + '/' + d.usage.month_limit;
+          } else {
+            pill.innerHTML = 'FREE · ' + d.usage.free_remaining + ' of ' + d.usage.free_limit + ' left · <a href="/upgrade" style="color:var(--teal)">Upgrade</a>';
+          }
+        }
+      }
     })
     .catch(function(e){clearTyping(); btn.disabled=false; renderAssistantMsg('<i>Network error — try again.</i>');});
 }
@@ -5156,10 +5166,10 @@ def general_chat_html():
     sug_html = "".join(f'<button class="suggestion" onclick="suggestionClick(this.innerText)">{s}</button>' for s in suggestions)
     usage = usage_status(user["id"])
     if usage.get("is_paid"):
-        usage_pill = f'<span style="font-size:.74em;background:rgba(94,234,212,.12);color:var(--teal);padding:3px 10px;border-radius:999px;border:1px solid rgba(94,234,212,.25);font-weight:500;margin-left:10px">PREMIUM · {usage["month_used"]}/{PAID_MONTHLY_LIMIT}</span>'
+        usage_pill = f'<span id="usage-pill" style="font-size:.74em;background:rgba(94,234,212,.12);color:var(--teal);padding:3px 10px;border-radius:999px;border:1px solid rgba(94,234,212,.25);font-weight:500;margin-left:10px">PREMIUM · {usage["month_used"]}/{PAID_MONTHLY_LIMIT}</span>'
     else:
         rem = usage["free_remaining"]
-        usage_pill = f'<span style="font-size:.74em;background:var(--surface-2);color:var(--text-2);padding:3px 10px;border-radius:999px;border:1px solid var(--border-strong);margin-left:10px">FREE · {rem} of {FREE_TRIAL_MESSAGES} left · <a href="/upgrade" style="color:var(--teal)">Upgrade</a></span>'
+        usage_pill = f'<span id="usage-pill" style="font-size:.74em;background:var(--surface-2);color:var(--text-2);padding:3px 10px;border-radius:999px;border:1px solid var(--border-strong);margin-left:10px">FREE · {rem} of {FREE_TRIAL_MESSAGES} left · <a href="/upgrade" style="color:var(--teal)">Upgrade</a></span>'
     header = f'<h1 style="display:flex;align-items:center;flex-wrap:wrap">AI advisor {usage_pill}</h1><p class="muted">Personalized to your profile. Conversation history saved between visits.</p>'
     page = (CHAT_PAGE_HTML
             .replace("__HEADER__", header)
@@ -5193,10 +5203,10 @@ def school_chat_html(slug):
     sug_html = "".join(f'<button class="suggestion" onclick="suggestionClick(this.innerText)">{s}</button>' for s in suggestions)
     usage = usage_status(user["id"])
     if usage.get("is_paid"):
-        usage_pill = f'<span style="font-size:.74em;background:rgba(94,234,212,.12);color:var(--teal);padding:3px 10px;border-radius:999px;border:1px solid rgba(94,234,212,.25);font-weight:500;margin-left:10px">PREMIUM · {usage["month_used"]}/{PAID_MONTHLY_LIMIT}</span>'
+        usage_pill = f'<span id="usage-pill" style="font-size:.74em;background:rgba(94,234,212,.12);color:var(--teal);padding:3px 10px;border-radius:999px;border:1px solid rgba(94,234,212,.25);font-weight:500;margin-left:10px">PREMIUM · {usage["month_used"]}/{PAID_MONTHLY_LIMIT}</span>'
     else:
         rem = usage["free_remaining"]
-        usage_pill = f'<span style="font-size:.74em;background:var(--surface-2);color:var(--text-2);padding:3px 10px;border-radius:999px;border:1px solid var(--border-strong);margin-left:10px">FREE · {rem} of {FREE_TRIAL_MESSAGES} left · <a href="/upgrade" style="color:var(--teal)">Upgrade</a></span>'
+        usage_pill = f'<span id="usage-pill" style="font-size:.74em;background:var(--surface-2);color:var(--text-2);padding:3px 10px;border-radius:999px;border:1px solid var(--border-strong);margin-left:10px">FREE · {rem} of {FREE_TRIAL_MESSAGES} left · <a href="/upgrade" style="color:var(--teal)">Upgrade</a></span>'
     header = f'<div class="bar"><a href="/college/{slug}/improve">&larr; back to {school["name"]} advice</a></div><h1 style="display:flex;align-items:center;flex-wrap:wrap">AI advisor — {school["name"]} {usage_pill}</h1><p class="muted">Specific to {school["name"]} ({round(school["accept"]*100,1)}% acceptance) and your profile.</p>'
     page = (CHAT_PAGE_HTML
             .replace("__HEADER__", header)
@@ -5664,9 +5674,17 @@ def chat_api_send():
         reply = chat_send(conv["id"], message, "general", profile)
     if reply:
         increment_message_count(user["id"])
+    new_status = usage_status(user["id"])
     return jsonify({
         "reply": reply,
         "html": _render_message({"role": "assistant", "content": reply or ""}),
+        "usage": {
+            "is_paid": new_status.get("is_paid", False),
+            "free_remaining": new_status.get("free_remaining", 0),
+            "month_used": new_status.get("month_used", 0),
+            "free_limit": FREE_TRIAL_MESSAGES,
+            "month_limit": PAID_MONTHLY_LIMIT,
+        },
     })
 
 
