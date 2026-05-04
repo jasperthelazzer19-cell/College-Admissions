@@ -376,6 +376,10 @@ PREF_OPTIONS = {
     "major_strength": [("any","No preference"), ("top","Top program in my major"), ("solid","Don't care about ranking")],
     "prestige":     [("any","No preference"), ("high","High prestige matters"), ("medium","Mid-tier is fine"), ("low","Don't care about brand name")],
     "cost":         [("any","No preference"), ("low","Low (<$15K/yr sticker)"), ("medium","Medium (<$40K)"), ("high","Cost not an issue")],
+    "diversity":    [("any","No preference"), ("high","Strongly diverse student body"), ("similar","Mostly people like me is fine")],
+    "party":        [("any","No preference"), ("high","I want a party scene"), ("low","Quiet/dry environment")],
+    "research":     [("any","No preference"), ("critical","Research access is critical"), ("nice","Nice to have"), ("none","Not important")],
+    "career_intensity": [("any","No preference"), ("preprof","Pre-professional / career-focused"), ("balanced","Balanced"), ("flexible","Exploration / flexible")],
 }
 
 
@@ -1435,6 +1439,74 @@ def school_match(profile, school):
         else:
             out["cost"] = ("mismatch", f"${sticker:,} sticker"); add("cost", 0)
 
+    # 10) Diversity — heuristic: large publics + urban privates skew more
+    # diverse; small rural LACs skew less. (Real CDS race/ethnicity data
+    # not yet wired in — this is a coarse proxy until it is.)
+    chosen = pref_set(profile, "pref_diversity")
+    if chosen:
+        size_n = school.get("size", 0) or 0
+        urban_ish = setting_of(school) in ("urban", "college_town")
+        diverse = (size_n >= 8000) or urban_ish or school.get("type") == "public"
+        if "high" in chosen:
+            out["diversity"] = ("match", "diverse student body") if diverse else ("mismatch", "less diverse student body")
+            add("diversity", 10 if diverse else 0)
+        else:
+            out["diversity"] = ("match", "homogeneous student body") if not diverse else ("neutral", "diverse student body")
+            add("diversity", 10 if not diverse else 7)
+
+    # 11) Party scene — heuristic from Greek strength + sports tier.
+    # Strong Greek + strong sports = party school; light Greek = quiet.
+    chosen = pref_set(profile, "pref_party")
+    if chosen:
+        g = greek_strength(school); s = sports_strength(school)
+        partyish = (g == "strong") or (s == "strong" and g != "light")
+        if "high" in chosen:
+            if partyish:
+                out["party"] = ("match", "active social scene"); add("party", 10)
+            else:
+                out["party"] = ("mismatch", "quieter social scene"); add("party", 0)
+        else:  # "low"
+            if not partyish:
+                out["party"] = ("match", "quiet / low-party"); add("party", 10)
+            else:
+                out["party"] = ("mismatch", "active party scene"); add("party", 0)
+
+    # 12) Research access — heuristic: tier-1/2 research universities (R1)
+    # and large publics offer the most undergrad research. LACs vary;
+    # most have decent access despite smaller size.
+    chosen = pref_set(profile, "pref_research")
+    if chosen:
+        tier = school.get("tier", 5)
+        size_n = school.get("size", 0) or 0
+        is_research_heavy = tier <= 2 or (school.get("type") == "public" and size_n >= 15000)
+        is_research_decent = tier == 3 or (size_n >= 5000)
+        if "critical" in chosen:
+            if is_research_heavy:
+                out["research"] = ("match", "strong research opportunities"); add("research", 10)
+            elif is_research_decent:
+                out["research"] = ("neutral", "moderate research access"); add("research", 6)
+            else:
+                out["research"] = ("mismatch", "limited research access"); add("research", 0)
+        elif "nice" in chosen:
+            out["research"] = ("match", "research available"); add("research", 10)
+        # "none" -> skip (no contribution)
+
+    # 13) Academic culture — heuristic: tier-1 with biz/eng dominance =
+    # pre-professional; LACs = exploratory; everything else = balanced.
+    chosen = pref_set(profile, "pref_career_intensity")
+    if chosen:
+        size_n = school.get("size", 0) or 0
+        majors = [m.lower() for m in school.get("majors", [])]
+        preprof_signals = sum(1 for m in majors if any(k in m for k in
+            ("business","finance","engineering","computer","economics","accounting","marketing")))
+        is_preprof = preprof_signals >= 2 and (size_n >= 4000 or school.get("type") == "private")
+        is_lac = size_n < 3500 and school.get("type") == "private"
+        culture = "preprof" if is_preprof else ("flexible" if is_lac else "balanced")
+        if culture in chosen:
+            out["career_intensity"] = ("match", f"{culture} culture"); add("career_intensity", 10)
+        else:
+            out["career_intensity"] = ("mismatch", f"{culture} culture"); add("career_intensity", 0)
+
     overall = round(score / max(1.0, count) * 10, 1) if count else 0
     # Soft additive penalty (capped) for high-importance mismatches. The
     # weighted average already does most of the importance scaling; this is
@@ -1451,7 +1523,7 @@ def school_match(profile, school):
     total = min(total, 0.40)
     overall = round(overall * (1.0 - total), 1)
     # rated_count = number of distinct prefs the user set (not the weight sum)
-    rated = sum(1 for k in ("weather","setting","size","class_size","greek","sports","major_strength","prestige","cost") if k in out)
+    rated = sum(1 for k in ("weather","setting","size","class_size","greek","sports","major_strength","prestige","cost","diversity","party","research","career_intensity") if k in out)
     return {"per_pref": out, "score": overall, "rated_count": rated}
 
 
@@ -1790,13 +1862,28 @@ def _normalize_score(sat, act):
     return None
 
 
+def _is_test_focused_school(school):
+    """Schools where applying test-optional is read as a real signal of
+    weakness. Elite STEM is the clearest case; some Ivies (Yale,
+    Dartmouth, Brown) have already reinstated tests. Tier-1 in general
+    weights tests heavily."""
+    if school.get("slug") in ("mit","caltech","gatech","harvey-mudd","cmu","rpi","wpi","stevens"):
+        return True
+    return school.get("tier", 5) == 1
+
+
 def compute_fit(profile, school):
     score = 50.0
     components = {}
+    has_test = bool(profile.get("sat") or profile.get("act"))
     gpa = profile.get("uw_gpa")
     if gpa is not None:
         midpoint = (school["gpa_lo"] + school["gpa_hi"]) / 2
         delta = max(-18, min(18, (gpa - midpoint) * 50))
+        # Test-optional applicants: GPA carries more weight to compensate
+        # for the missing test signal.
+        if not has_test:
+            delta = max(-22, min(22, delta * 1.25))
         score += delta
         components["gpa"] = round(delta, 1)
     sat_eq = _normalize_score(profile.get("sat"), profile.get("act"))
@@ -1807,7 +1894,14 @@ def compute_fit(profile, school):
         score += delta
         components["test"] = round(delta, 1)
     else:
-        components["test"] = 0
+        # Test-optional handling. At test-focused schools (MIT/Caltech/etc.),
+        # not submitting reads as a weakness. At test-flexible schools,
+        # neutral (we already up-weighted GPA above).
+        if _is_test_focused_school(school):
+            score -= 6
+            components["test"] = -6
+        else:
+            components["test"] = 0
     ec_strength = _keyword_strength(profile.get("ecs", "") or "", EC_STRONG_SIGNALS)
     awards_strength = _keyword_strength(profile.get("awards", "") or "", EC_STRONG_SIGNALS)
     ec_total = min(10, ec_strength * 1.5 + awards_strength * 2)
@@ -1856,12 +1950,94 @@ def assign_tier(school, fit):
     return "Safety"
 
 
+def _render_di_card(slug, school_name, current_level):
+    levels = [
+        ("none", "Haven't engaged yet"),
+        ("emailed", "Emailed admissions"),
+        ("info_session", "Attended info session / virtual event"),
+        ("visited", "Visited campus in person"),
+    ]
+    options = "".join(
+        f'<option value="{v}" {"selected" if v == current_level else ""}>{lbl}</option>'
+        for v, lbl in levels
+    )
+    return f"""<div class="card" style="background:#f7faff;border-color:#cfe0ff">
+      <h3 style="margin-top:0">Demonstrated interest</h3>
+      <p class="muted" style="font-size:.85em;margin:0 0 8px">{school_name} tracks demonstrated interest at the institutional level. Marking your engagement gives a small boost (~1–4%) at schools that explicitly weight it. Doesn't change odds at schools that don't (Ivies, MIT).</p>
+      <form method="post" action="/college/{slug}/demonstrated-interest" style="display:flex;gap:8px;align-items:center">
+        {csrf_input()}
+        <select name="level" style="flex:1">{options}</select>
+        <button class="btn btn-light btn-sm" type="submit">Save</button>
+      </form>
+    </div>"""
+
+
+def get_demonstrated_interest(user_id, college_slug):
+    """Return the user's demonstrated-interest level at this school
+    ('visited' / 'info_session' / 'emailed' / 'none'). Returns 'none' if
+    no record exists."""
+    if not user_id: return "none"
+    with db() as conn:
+        row = conn.execute(
+            "SELECT level FROM demonstrated_interest WHERE user_id=? AND college_slug=?",
+            (user_id, college_slug)
+        ).fetchone()
+    return row["level"] if row else "none"
+
+
+def _di_multiplier(level, school_tier):
+    """Demonstrated interest only matters at schools that explicitly weight
+    it. Most tier-1 schools (Ivies, MIT) say they don't track it; tier 2-3
+    schools (BU, Tufts, Northeastern, etc.) often do."""
+    if school_tier in (2, 3):
+        return {"visited":1.04, "info_session":1.025, "emailed":1.01, "none":1.0}.get(level, 1.0)
+    return 1.0
+
+
+def _international_pct(school):
+    """Rough per-school international undergrad enrollment share. Used to
+    adjust acceptance rate up for domestic applicants (the published rate
+    is overall; if 15% of admits are international, domestic odds are
+    correspondingly higher than the headline). Curated for schools known
+    to attract a meaningful international pool; defaults to 5% otherwise."""
+    high_intl = {  # ≥20%
+        "mit":0.30,"caltech":0.27,"cmu":0.25,"columbia":0.20,"jhu":0.27,
+        "nyu":0.27,"northeastern":0.20,"usc":0.20,"bu":0.20,
+    }
+    mid_intl = {  # 10-20%
+        "harvard":0.15,"yale":0.13,"princeton":0.13,"stanford":0.13,
+        "upenn":0.14,"brown":0.13,"cornell":0.12,"dartmouth":0.10,
+        "duke":0.12,"northwestern":0.13,"uchicago":0.18,"berklee":0.30,
+        "juilliard":0.30,"parsons":0.35,"saic":0.30,"risd":0.20,"pratt":0.22,
+        "georgetown":0.13,"ucb":0.12,"ucla":0.11,"umich":0.07,"rice":0.13,
+        "washu":0.12,"emory":0.18,"vanderbilt":0.10,"notre-dame":0.07,
+        "tufts":0.11,"cooper":0.13,"olin":0.10,
+    }
+    if school["slug"] in high_intl:
+        return high_intl[school["slug"]]
+    if school["slug"] in mid_intl:
+        return mid_intl[school["slug"]]
+    return 0.05  # most US colleges land here
+
+
 def estimate_odds(school, fit, profile):
     """Harsher version. Markets and admissions are noisy; previous curve was
     over-generous in the middle of the fit range. Tighter slope + lower caps
     on elite schools so the headline numbers don't promise a Stanford that
     isn't there."""
     a = school["accept"]
+    # International / domestic pool adjustment. The published acceptance rate
+    # is overall (intl + domestic combined). At schools with a large intl
+    # admit pool, domestic applicants are competing for fewer effective
+    # slots → raw rate slightly understates domestic odds. Conversely,
+    # international applicants face stiffer competition (~65% of domestic
+    # rate empirically).
+    intl_pct = _international_pct(school)
+    if profile.get("is_international"):
+        a = a * 0.65
+    else:
+        # Adjust headline rate up for the domestic pool
+        a = min(1.0, a / max(0.5, 1 - intl_pct * 0.65))
     # Steeper, less-generous fit curve. At fit=50 (average), multiplier ≈ 0.85,
     # i.e. you do worse than the school's headline accept. Top fits still get
     # boosted but capped hard at elite tiers.
@@ -1873,6 +2049,9 @@ def estimate_odds(school, fit, profile):
     elif legacy_gens == 2: hook_mult *= 1.20
     elif legacy_gens == 1: hook_mult *= 1.15
     if profile.get("first_gen"): hook_mult *= 1.10
+    # Demonstrated interest (only applies at tier 2-3 schools that track it)
+    di_level = profile.get("_di_level") or "none"
+    hook_mult *= _di_multiplier(di_level, school.get("tier", 5))
     center = a * fit_mult * hook_mult
     # Caps tightened — even strong applicants almost never crack 18% at sub-10%
     # accept schools.
@@ -2123,6 +2302,18 @@ def init_db():
             conn.execute("ALTER TABLE profiles ADD COLUMN pref_major_strength TEXT DEFAULT 'any'")
         except sqlite3.OperationalError:
             pass
+        # Additional preference dimensions added in May 2026.
+        for col in ("pref_diversity","pref_party","pref_research","pref_career_intensity"):
+            try:
+                conn.execute(f"ALTER TABLE profiles ADD COLUMN {col} TEXT DEFAULT 'any'")
+            except sqlite3.OperationalError:
+                pass
+        # International applicant flag — affects acceptance rate calc at
+        # schools that have a meaningful international vs domestic split.
+        try:
+            conn.execute("ALTER TABLE profiles ADD COLUMN is_international INTEGER DEFAULT 0")
+        except sqlite3.OperationalError:
+            pass
         # AP courses (free-text, comma-separated) + flag for schools that
         # don't offer APs. When the flag is set, course rigor is treated as
         # neutral rather than penalized.
@@ -2145,6 +2336,39 @@ def init_db():
             source TEXT,
             verified_at TEXT DEFAULT CURRENT_TIMESTAMP
         )""")
+        # Demonstrated interest — per-user-per-school flag set when the user
+        # marks "I've engaged with this school" (visited, info session,
+        # emailed admissions). Drives a small odds boost at tier 1-2 schools
+        # that publicly weight DI.
+        conn.execute("""CREATE TABLE IF NOT EXISTS demonstrated_interest (
+            user_id INTEGER NOT NULL,
+            college_slug TEXT NOT NULL,
+            level TEXT NOT NULL,
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (user_id, college_slug),
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        )""")
+        # Outcomes — predicted vs. actual admission results, used to validate
+        # and recalibrate the chances model over time. Populated when the
+        # user reports back at /outcomes. Snapshot of the prediction is
+        # frozen at submission so we can compare.
+        conn.execute("""CREATE TABLE IF NOT EXISTS user_outcomes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            college_slug TEXT NOT NULL,
+            application_round TEXT,
+            predicted_odds_low INTEGER,
+            predicted_odds_high INTEGER,
+            predicted_fit INTEGER,
+            predicted_tier TEXT,
+            actual_outcome TEXT,
+            attended INTEGER DEFAULT 0,
+            reported_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(user_id, college_slug),
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        )""")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_outcomes_user ON user_outcomes(user_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_outcomes_school ON user_outcomes(college_slug, actual_outcome)")
         conn.commit()
 
 
@@ -2192,15 +2416,18 @@ def save_profile(user_id, p):
     with db() as conn:
         conn.execute("""INSERT INTO profiles
             (user_id, uw_gpa, weighted_gpa, sat, act, major, state, school_type, ecs, leadership, awards,
-             legacy, first_gen, athlete, legacy_schools, aps, no_aps_offered, aps_offered_not_taken,
+             legacy, first_gen, athlete, is_international, legacy_schools, aps, no_aps_offered, aps_offered_not_taken,
              pref_weather, pref_setting, pref_size, pref_greek, pref_sports, pref_major_strength,
-             pref_class_size, pref_prestige, pref_cost, pref_weights, updated_at)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)
+             pref_class_size, pref_prestige, pref_cost,
+             pref_diversity, pref_party, pref_research, pref_career_intensity,
+             pref_weights, updated_at)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)
             ON CONFLICT(user_id) DO UPDATE SET
                 uw_gpa=excluded.uw_gpa, weighted_gpa=excluded.weighted_gpa, sat=excluded.sat, act=excluded.act,
                 major=excluded.major, state=excluded.state, school_type=excluded.school_type,
                 ecs=excluded.ecs, leadership=excluded.leadership, awards=excluded.awards,
                 legacy=excluded.legacy, first_gen=excluded.first_gen, athlete=excluded.athlete,
+                is_international=excluded.is_international,
                 legacy_schools=excluded.legacy_schools,
                 aps=excluded.aps, no_aps_offered=excluded.no_aps_offered, aps_offered_not_taken=excluded.aps_offered_not_taken,
                 pref_weather=excluded.pref_weather, pref_setting=excluded.pref_setting,
@@ -2208,12 +2435,15 @@ def save_profile(user_id, p):
                 pref_sports=excluded.pref_sports, pref_major_strength=excluded.pref_major_strength,
                 pref_class_size=excluded.pref_class_size, pref_prestige=excluded.pref_prestige,
                 pref_cost=excluded.pref_cost,
+                pref_diversity=excluded.pref_diversity, pref_party=excluded.pref_party,
+                pref_research=excluded.pref_research, pref_career_intensity=excluded.pref_career_intensity,
                 pref_weights=excluded.pref_weights,
                 updated_at=CURRENT_TIMESTAMP""",
             (user_id, p.get("uw_gpa"), p.get("weighted_gpa"), p.get("sat"), p.get("act"),
              p.get("major"), p.get("state"), p.get("school_type"), p.get("ecs"),
              p.get("leadership"), p.get("awards"),
              legacy_flag, 1 if p.get("first_gen") else 0, 1 if p.get("athlete") else 0,
+             1 if p.get("is_international") else 0,
              legacy_schools, p.get("aps") or "", 1 if p.get("no_aps_offered") else 0,
              1 if p.get("aps_offered_not_taken") else 0,
              p.get("pref_weather") or "any", p.get("pref_setting") or "any",
@@ -2221,6 +2451,8 @@ def save_profile(user_id, p):
              p.get("pref_sports") or "any", p.get("pref_major_strength") or "any",
              p.get("pref_class_size") or "any", p.get("pref_prestige") or "any",
              p.get("pref_cost") or "any",
+             p.get("pref_diversity") or "any", p.get("pref_party") or "any",
+             p.get("pref_research") or "any", p.get("pref_career_intensity") or "any",
              pref_weights))
         conn.commit()
 
@@ -2240,7 +2472,7 @@ def get_pref_weight(profile, key):
 def parse_pref_weights_form(form):
     """Read importance dropdown values from the profile form, return JSON string."""
     out = {}
-    for k in ("weather","setting","size","class_size","greek","sports","major_strength","prestige","cost"):
+    for k in ("weather","setting","size","class_size","greek","sports","major_strength","prestige","cost","diversity","party","research","career_intensity"):
         try:
             out[k] = max(1, min(10, int(form.get(f"weight_{k}", 5))))
         except (TypeError, ValueError):
@@ -2448,8 +2680,15 @@ def _flash():
 
 
 def _page(body_html, title="Candor"):
+    csrf_meta = ""
+    if _CSRF_ON:
+        try:
+            from flask_wtf.csrf import generate_csrf
+            csrf_meta = f'<meta name="csrf-token" content="{generate_csrf()}">'
+        except Exception:
+            pass
     return f"""<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{title}</title><style>{BASE_CSS}</style></head>
+{csrf_meta}<title>{title}</title><style>{BASE_CSS}</style></head>
 <body>{_nav()}<div class="wrap">{_flash()}{body_html}</div></body></html>"""
 
 
@@ -2521,7 +2760,9 @@ def _match_card(c):
                  '</span><span style="color:#ddd">' + ('★' * (5 - stars_n)) + '</span>')
     pref_labels = {"weather":"Weather","setting":"Campus setting","size":"School size",
                    "class_size":"Class size","greek":"Greek life","sports":"Sports culture",
-                   "major_strength":"Major strength","prestige":"Prestige","cost":"Cost"}
+                   "major_strength":"Major strength","prestige":"Prestige","cost":"Cost",
+                   "diversity":"Diversity","party":"Party scene","research":"Research access",
+                   "career_intensity":"Academic culture"}
     rows = ""
     if m and m.get("per_pref"):
         for key, label in pref_labels.items():
@@ -2768,6 +3009,11 @@ def my_fit_html():
         "pref_sports": profile.get("pref_sports"), "pref_major_strength": profile.get("pref_major_strength"),
         "pref_class_size": profile.get("pref_class_size"), "pref_prestige": profile.get("pref_prestige"),
         "pref_cost": profile.get("pref_cost"),
+        "pref_diversity": profile.get("pref_diversity"),
+        "pref_party": profile.get("pref_party"),
+        "pref_research": profile.get("pref_research"),
+        "pref_career_intensity": profile.get("pref_career_intensity"),
+        "is_international": bool(profile.get("is_international")),
         "pref_weights": profile.get("pref_weights") or "",
     }
     scored = []
@@ -2843,11 +3089,12 @@ def my_fit_html():
 
 
 def signup_html():
-    return _page("""
+    return _page(f"""
 <div class="bar"><a href="/">&larr; back</a></div>
 <h1>Create your account</h1>
 <p class="muted">Saves your profile so you can come back without re-entering everything.</p>
 <form method="post" action="/signup" class="card" style="max-width:440px">
+  {csrf_input()}
   <label style="margin-top:0">Email</label>
   <input type="email" name="email" required autofocus>
   <label>Password</label>
@@ -2860,10 +3107,11 @@ def signup_html():
 
 
 def login_html():
-    return _page("""
+    return _page(f"""
 <div class="bar"><a href="/">&larr; back</a></div>
 <h1>Log in</h1>
 <form method="post" action="/login" class="card" style="max-width:440px">
+  {csrf_input()}
   <label style="margin-top:0">Email</label>
   <input type="email" name="email" required autofocus>
   <label>Password</label>
@@ -2879,15 +3127,19 @@ def _pref_form_fields(p):
     importance dial (1-10) next to each. User can pick multiple values per
     preference and tell us how much each one matters."""
     labels = {
-        "pref_weather":         "Weather",
-        "pref_setting":         "Campus setting",
-        "pref_size":            "School size",
-        "pref_class_size":      "Class size",
-        "pref_prestige":        "Prestige",
-        "pref_cost":            "Cost",
-        "pref_greek":           "Greek life",
-        "pref_sports":          "Sports culture",
-        "pref_major_strength":  "Major strength",
+        "pref_weather":          "Weather",
+        "pref_setting":          "Campus setting",
+        "pref_size":             "School size",
+        "pref_class_size":       "Class size",
+        "pref_prestige":         "Prestige",
+        "pref_cost":             "Cost",
+        "pref_greek":            "Greek life",
+        "pref_sports":           "Sports culture",
+        "pref_major_strength":   "Major strength",
+        "pref_diversity":        "Student body diversity",
+        "pref_party":            "Party / social scene",
+        "pref_research":         "Research access",
+        "pref_career_intensity": "Academic culture",
     }
     out = ""
     for key, label in labels.items():
@@ -3007,6 +3259,7 @@ def profile_html():
 <h1>Your profile</h1>
 <p class="muted">Used by the chances calculator. Be specific — generic answers produce generic odds.</p>
 <form method="post" action="/profile" class="card">
+  {csrf_input()}
   <h3 style="margin-top:0">Academics</h3>
   <div class="row">
     <div><label>Unweighted GPA <span class="muted">(0–4)</span></label>
@@ -3068,6 +3321,7 @@ def profile_html():
   <div class="checks" style="margin-top:10px">
     <label><input type="checkbox" name="first_gen" value="yes" {checked('first_gen')}> First-generation college student</label>
     <label><input type="checkbox" name="athlete" value="yes" {checked('athlete')}> Recruited / likely-recruit athlete</label>
+    <label><input type="checkbox" name="is_international" value="yes" {checked('is_international')}> International applicant (not a US citizen / permanent resident)</label>
   </div>
 
   <h3>Preferences</h3>
@@ -3092,6 +3346,12 @@ def chances_html(slug):
         "ecs": p.get("ecs"), "leadership": p.get("leadership"), "awards": p.get("awards"),
         "legacy": bool(p.get("legacy")), "first_gen": bool(p.get("first_gen")),
         "athlete": bool(p.get("athlete")),
+        "is_international": bool(p.get("is_international")),
+        "legacy_schools": p.get("legacy_schools") or "",
+        "aps": p.get("aps") or "",
+        "no_aps_offered": bool(p.get("no_aps_offered")),
+        "aps_offered_not_taken": bool(p.get("aps_offered_not_taken")),
+        "_di_level": get_demonstrated_interest(current_user()["id"], slug),
     }
     r = analyze_school(profile, slug)
     if not r: abort(404)
@@ -3128,6 +3388,7 @@ def chances_html(slug):
     <li><b>Differentiator —</b> {r['differentiator']}</li>
   </ul>
 </div>
+{_render_di_card(r['slug'], r['school'], profile.get('_di_level','none'))}
 <p style="margin-top:18px"><a class="btn btn-light" href="/profile">Edit profile</a> <a class="btn btn-light" href="/college/{r['slug']}/improve">Get tailored advice for {r['school']} &rarr;</a></p>
 """, title=f"Your chances at {r['school']} — Candor")
 
@@ -3940,6 +4201,11 @@ def school_plan_html(slug):
         "pref_sports": profile.get("pref_sports"), "pref_major_strength": profile.get("pref_major_strength"),
         "pref_class_size": profile.get("pref_class_size"), "pref_prestige": profile.get("pref_prestige"),
         "pref_cost": profile.get("pref_cost"),
+        "pref_diversity": profile.get("pref_diversity"),
+        "pref_party": profile.get("pref_party"),
+        "pref_research": profile.get("pref_research"),
+        "pref_career_intensity": profile.get("pref_career_intensity"),
+        "is_international": bool(profile.get("is_international")),
         "pref_weights": profile.get("pref_weights") or "",
     }
 
@@ -3974,7 +4240,9 @@ def school_plan_html(slug):
                  '</span><span style="color:#ddd">' + ('★' * (5 - stars_n)) + '</span>')
     pref_labels = {"weather":"Weather","setting":"Campus setting","size":"School size",
                    "class_size":"Class size","greek":"Greek life","sports":"Sports culture",
-                   "major_strength":"Major strength","prestige":"Prestige","cost":"Cost"}
+                   "major_strength":"Major strength","prestige":"Prestige","cost":"Cost",
+                   "diversity":"Diversity","party":"Party scene","research":"Research access",
+                   "career_intensity":"Academic culture"}
     match_rows = ""
     if m and m.get("per_pref"):
         for key, label in pref_labels.items():
@@ -4312,7 +4580,10 @@ function sendMsg(text){
   input.value=''; btn.disabled=true;
   renderUserMsg(msg);
   renderTyping();
-  fetch(SEND_URL, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({message: msg})})
+  var headers = {'Content-Type':'application/json'};
+  var tokenEl = document.querySelector('meta[name="csrf-token"]');
+  if(tokenEl) headers['X-CSRFToken'] = tokenEl.content;
+  fetch(SEND_URL, {method:'POST', headers: headers, body: JSON.stringify({message: msg})})
     .then(function(r){return r.json();})
     .then(function(d){
       clearTyping(); btn.disabled=false; input.focus();
@@ -4395,11 +4666,77 @@ def school_chat_html(slug):
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
 
+# Secure session cookies. SECURE only kicks in over HTTPS — fine in prod
+# (Railway terminates TLS) and harmless on http://localhost since cookies
+# without Secure still work locally.
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Lax",
+    SESSION_COOKIE_SECURE=os.getenv("RAILWAY_ENVIRONMENT") is not None,
+    PERMANENT_SESSION_LIFETIME=timedelta(days=30),
+)
+
+# CSRF protection on every POST form. Requires {{ csrf_token() }} to be
+# emitted in each form template.
+try:
+    from flask_wtf.csrf import CSRFProtect
+    csrf = CSRFProtect(app)
+    _CSRF_ON = True
+except Exception:
+    _CSRF_ON = False
+    print("flask-wtf not available; CSRF disabled")
+
+# Rate limiting (per-IP). Defaults are generous; sensitive routes (login,
+# signup) get tighter caps via @limiter.limit() decorators.
+try:
+    from flask_limiter import Limiter
+    from flask_limiter.util import get_remote_address
+    limiter = Limiter(
+        key_func=get_remote_address,
+        app=app,
+        default_limits=["1000 per day", "200 per hour"],
+        storage_uri="memory://",
+    )
+    _LIMITER_ON = True
+except Exception:
+    _LIMITER_ON = False
+    limiter = None
+    print("flask-limiter not available; rate limiting disabled")
+
+
+def csrf_input():
+    """Return a hidden <input> with the CSRF token, or empty string if
+    Flask-WTF isn't installed (so local dev still works)."""
+    if not _CSRF_ON:
+        return ""
+    try:
+        from flask_wtf.csrf import generate_csrf
+        return f'<input type="hidden" name="csrf_token" value="{generate_csrf()}">'
+    except Exception:
+        return ""
+
 
 def _read_profile_form(form):
+    # Sanitize all free-text inputs to strip any HTML/scripts. Stored XSS
+    # risk: ECs, leadership, awards, etc. get echoed back when rendering
+    # the profile and can show up in AI prompts. Using bleach.clean with
+    # tags=[] strips every tag, leaving plain text.
+    try:
+        from bleach import clean as _bleach
+        def s(v):
+            if not isinstance(v, str): return v
+            return _bleach(v, tags=[], strip=True).strip()
+    except Exception:
+        # Bleach not installed; fall back to a minimal HTML stripper.
+        import html as _html
+        def s(v):
+            if not isinstance(v, str): return v
+            return re.sub(r"<[^>]*>", "", _html.unescape(v)).strip()
+
     def f(k, cast=str, default=None):
         v = form.get(k)
         if v is None or v == "": return default
+        if cast is str: v = s(v)
         try: return cast(v)
         except (TypeError, ValueError): return default
     result = {
@@ -4416,6 +4753,7 @@ def _read_profile_form(form):
         "legacy_schools": (f("legacy_schools") or "").strip(),
         "first_gen": form.get("first_gen") in ("yes","on","true","1"),
         "athlete": form.get("athlete") in ("yes","on","true","1"),
+        "is_international": form.get("is_international") in ("yes","on","true","1"),
         "no_aps_offered": form.get("no_aps_offered") in ("yes","on","true","1"),
         "aps_offered_not_taken": form.get("aps_offered_not_taken") in ("yes","on","true","1"),
     }
@@ -4428,7 +4766,8 @@ def _read_profile_form(form):
     # Multi-select prefs: getlist returns all checked values. Stored as
     # comma-separated string. Empty string = no preference.
     for key in ("pref_weather","pref_setting","pref_size","pref_greek","pref_sports",
-                "pref_major_strength","pref_class_size","pref_prestige","pref_cost"):
+                "pref_major_strength","pref_class_size","pref_prestige","pref_cost",
+                "pref_diversity","pref_party","pref_research","pref_career_intensity"):
         vals = form.getlist(key) if hasattr(form, "getlist") else (form.get(key, "") or "").split(",")
         vals = [v.strip() for v in vals if v and v.strip() and v.strip() != "any"]
         result[key] = ",".join(vals)
@@ -4476,7 +4815,19 @@ def ranking_detail(slug):
     return ranking_detail_html(slug)
 
 
+def _rate_limit(*args, **kwargs):
+    """Apply a flask-limiter rate-limit if the limiter is installed,
+    otherwise act as a no-op decorator. Accepts the same positional and
+    keyword arguments as limiter.limit() (e.g., methods=['POST'])."""
+    def deco(fn):
+        if limiter:
+            return limiter.limit(*args, **kwargs)(fn)
+        return fn
+    return deco
+
+
 @app.route("/signup", methods=["GET", "POST"])
+@_rate_limit("5 per 15 minutes", methods=["POST"])
 def signup_page():
     if current_user(): return redirect(url_for("profile_page"))
     if request.method == "POST":
@@ -4501,6 +4852,7 @@ def signup_page():
 
 
 @app.route("/login", methods=["GET", "POST"])
+@_rate_limit("5 per 15 minutes", methods=["POST"])
 def login_page():
     if current_user(): return redirect(url_for("profile_page"))
     if request.method == "POST":
@@ -4604,6 +4956,117 @@ def school_plan_page(slug):
 @login_required
 def plans_index_page():
     return plans_index_html()
+
+
+@app.route("/college/<slug>/demonstrated-interest", methods=["POST"])
+@login_required
+def set_demonstrated_interest(slug):
+    if slug not in COLLEGES_BY_SLUG:
+        abort(404)
+    level = (request.form.get("level") or "none").strip().lower()
+    if level not in ("none","emailed","info_session","visited"):
+        level = "none"
+    uid = current_user()["id"]
+    with db() as conn:
+        conn.execute("""INSERT INTO demonstrated_interest (user_id, college_slug, level, updated_at)
+            VALUES (?,?,?,CURRENT_TIMESTAMP)
+            ON CONFLICT(user_id, college_slug) DO UPDATE SET
+                level=excluded.level, updated_at=CURRENT_TIMESTAMP""",
+            (uid, slug, level))
+        # Bust the cached chances since odds may shift
+        conn.execute("DELETE FROM saved_chances WHERE user_id=? AND college_slug=?", (uid, slug))
+        conn.commit()
+    flash("Demonstrated interest updated.", "success")
+    return redirect(url_for("chances_page", slug=slug))
+
+
+@app.route("/outcomes", methods=["GET", "POST"])
+@login_required
+def outcomes_page():
+    """Lets users report admission decisions at the schools they ran chances
+    for. Used to validate / recalibrate the prediction model."""
+    user = current_user()
+    if request.method == "POST":
+        slug = (request.form.get("college_slug") or "").strip()
+        outcome = (request.form.get("outcome") or "").strip()
+        attended = 1 if request.form.get("attended") in ("yes","on","true","1") else 0
+        app_round = (request.form.get("round") or "").strip().upper()
+        if slug and outcome in ("admitted", "rejected", "waitlisted", "deferred"):
+            with db() as conn:
+                # Pull the most recent prediction snapshot from saved_chances
+                row = conn.execute(
+                    "SELECT odds_low, odds_high, fit, tier FROM saved_chances WHERE user_id=? AND college_slug=?",
+                    (user["id"], slug)
+                ).fetchone()
+                pl = row["odds_low"] if row else None
+                ph = row["odds_high"] if row else None
+                pf = row["fit"] if row else None
+                pt = row["tier"] if row else None
+                conn.execute("""INSERT INTO user_outcomes
+                    (user_id, college_slug, application_round, predicted_odds_low,
+                     predicted_odds_high, predicted_fit, predicted_tier,
+                     actual_outcome, attended, reported_at)
+                    VALUES (?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)
+                    ON CONFLICT(user_id, college_slug) DO UPDATE SET
+                        application_round=excluded.application_round,
+                        actual_outcome=excluded.actual_outcome,
+                        attended=excluded.attended,
+                        reported_at=CURRENT_TIMESTAMP""",
+                    (user["id"], slug, app_round, pl, ph, pf, pt, outcome, attended))
+                conn.commit()
+            flash("Outcome recorded — thanks, this helps improve predictions.", "success")
+        return redirect(url_for("outcomes_page"))
+    # GET: show form + history
+    with db() as conn:
+        rows = conn.execute(
+            "SELECT college_slug, application_round, predicted_odds_low, predicted_odds_high, "
+            "predicted_tier, actual_outcome, attended, reported_at FROM user_outcomes "
+            "WHERE user_id=? ORDER BY reported_at DESC",
+            (user["id"],)
+        ).fetchall()
+        chances = conn.execute(
+            "SELECT college_slug FROM saved_chances WHERE user_id=?",
+            (user["id"],)
+        ).fetchall()
+    reported_slugs = {r["college_slug"] for r in rows}
+    options = "".join(
+        f'<option value="{c["college_slug"]}">{COLLEGES_BY_SLUG.get(c["college_slug"],{}).get("name", c["college_slug"])}</option>'
+        for c in chances if c["college_slug"] not in reported_slugs
+    )
+    history = ""
+    for r in rows:
+        sch = COLLEGES_BY_SLUG.get(r["college_slug"], {}).get("name", r["college_slug"])
+        rd = r["application_round"] or "—"
+        pred = f"{r['predicted_odds_low']}–{r['predicted_odds_high']}%" if r["predicted_odds_low"] is not None else "—"
+        outcome = (r["actual_outcome"] or "").capitalize()
+        history += f"""<tr><td>{sch}</td><td>{rd}</td><td>{pred}</td><td>{outcome}</td><td>{'Yes' if r['attended'] else ''}</td></tr>"""
+    return _page(f"""
+<h1>Application outcomes</h1>
+<p class="muted">Report your admission decisions so we can validate predictions. Your data is private and only used in aggregate.</p>
+<form method="post" action="/outcomes" class="card" style="max-width:560px">
+  {csrf_input()}
+  <label>School (you've already run chances for)</label>
+  <select name="college_slug" required><option value="">Pick a school…</option>{options}</select>
+  <label>Application round</label>
+  <select name="round"><option value="ED">ED</option><option value="ED2">ED II</option><option value="EA">EA</option><option value="REA">REA</option><option value="RD" selected>RD</option></select>
+  <label>Outcome</label>
+  <select name="outcome" required>
+    <option value="admitted">Admitted</option>
+    <option value="waitlisted">Waitlisted</option>
+    <option value="deferred">Deferred</option>
+    <option value="rejected">Rejected</option>
+  </select>
+  <label style="display:flex;align-items:center;gap:8px;margin-top:8px">
+    <input type="checkbox" name="attended" style="width:auto;margin:0">
+    I attended (or plan to attend) this school
+  </label>
+  <button class="btn btn-primary" type="submit" style="margin-top:14px">Save outcome</button>
+</form>
+<div class="card" style="margin-top:18px">
+  <h3 style="margin-top:0">Your reported outcomes</h3>
+  {('<table style="width:100%;border-collapse:collapse"><thead><tr><th style="text-align:left;padding:6px 0">School</th><th style="text-align:left">Round</th><th style="text-align:left">Predicted</th><th style="text-align:left">Actual</th><th style="text-align:left">Attending</th></tr></thead><tbody>' + history + '</tbody></table>') if history else '<p class="muted">Nothing reported yet.</p>'}
+</div>
+""", title="Outcomes — Candor")
 
 
 @app.route("/chat")
