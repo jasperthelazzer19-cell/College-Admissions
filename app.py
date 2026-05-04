@@ -5833,6 +5833,94 @@ def admin_refresh_scorecard():
 """, title="Scorecard refresh — Candor")
 
 
+@app.route("/admin/stats")
+def admin_stats():
+    """Live activity dashboard. Pulls from existing DB tables."""
+    if not ADMIN_KEY or request.args.get("key") != ADMIN_KEY:
+        return ("<h1>401 Unauthorized</h1>", 401)
+    with db() as conn:
+        total_users = conn.execute("SELECT COUNT(*) c FROM users").fetchone()["c"]
+        users_today = conn.execute(
+            "SELECT COUNT(*) c FROM users WHERE date(created_at) = date('now')"
+        ).fetchone()["c"]
+        users_week = conn.execute(
+            "SELECT COUNT(*) c FROM users WHERE created_at >= date('now','-7 days')"
+        ).fetchone()["c"]
+        profiles_done = conn.execute(
+            "SELECT COUNT(*) c FROM profiles WHERE uw_gpa IS NOT NULL"
+        ).fetchone()["c"]
+        chat_msgs_today = conn.execute(
+            "SELECT COUNT(*) c FROM messages WHERE date(created_at)=date('now') AND role='user'"
+        ).fetchone()["c"]
+        chat_msgs_total = conn.execute(
+            "SELECT COUNT(*) c FROM messages WHERE role='user'"
+        ).fetchone()["c"]
+        chances_run = conn.execute(
+            "SELECT COUNT(DISTINCT user_id||'-'||college_slug) c FROM saved_chances"
+        ).fetchone()["c"]
+        paid_users = conn.execute(
+            "SELECT COUNT(*) c FROM users WHERE is_paid=1"
+        ).fetchone()["c"]
+        recent_users = conn.execute(
+            "SELECT email, created_at FROM users ORDER BY created_at DESC LIMIT 15"
+        ).fetchall()
+        top_schools = conn.execute(
+            "SELECT college_slug, COUNT(*) n FROM saved_chances GROUP BY college_slug ORDER BY n DESC LIMIT 10"
+        ).fetchall()
+    recent_html = "".join(
+        f'<div style="display:flex;justify-content:space-between;padding:8px 0;border-top:1px solid var(--border);font-size:.88em">'
+        f'<span style="color:var(--text)">{r["email"]}</span>'
+        f'<span class="muted">{r["created_at"]}</span></div>'
+        for r in recent_users
+    ) or '<p class="muted">No users yet.</p>'
+    schools_html = "".join(
+        f'<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:.88em">'
+        f'<span>{COLLEGES_BY_SLUG.get(r["college_slug"],{}).get("name", r["college_slug"])}</span>'
+        f'<span class="muted">{r["n"]} chances run</span></div>'
+        for r in top_schools
+    ) or '<p class="muted">No chances calculated yet.</p>'
+    profile_pct = round(profiles_done / max(1, total_users) * 100)
+    return _page(f"""
+<h1>Activity</h1>
+<div class="grid">
+  <div class="stat-card">
+    <div class="label">Total users</div>
+    <div class="value accent">{total_users}</div>
+    <div class="delta">+{users_today} today · +{users_week} this week</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">Profiles completed</div>
+    <div class="value">{profiles_done}</div>
+    <div class="delta">{profile_pct}% of signups</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">Chat messages today</div>
+    <div class="value">{chat_msgs_today}</div>
+    <div class="delta">{chat_msgs_total} all-time</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">Chances run</div>
+    <div class="value">{chances_run}</div>
+    <div class="delta">unique user-school pairs</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">Paid subscribers</div>
+    <div class="value accent">{paid_users}</div>
+    <div class="delta">${paid_users * 5}/mo recurring</div>
+  </div>
+</div>
+<div class="card" style="margin-top:18px">
+  <h3 style="margin-top:0">Recent signups</h3>
+  {recent_html}
+</div>
+<div class="card">
+  <h3 style="margin-top:0">Most-viewed schools</h3>
+  {schools_html}
+</div>
+<p class="muted" style="font-size:.78em;margin-top:18px">Refresh anytime. Bookmark this URL for quick access.</p>
+""", title="Activity — Candor")
+
+
 @app.route("/admin/data-status")
 def admin_data_status():
     """Show how many schools have Scorecard overrides applied + fields covered."""
