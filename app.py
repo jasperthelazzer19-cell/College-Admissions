@@ -866,15 +866,39 @@ def _get_overrides(slug):
     return d
 
 
+# Schools where the hardcoded COLLEGES.accept value reflects 2024-25 or
+# 2025-26 cycle data (hand-typed from each school's press release). Those
+# beat federal Scorecard data on the accept rate, since IPEDS lags 12-18
+# months. Scorecard still wins on the more-stable stats (SAT/ACT/size/
+# tuition) where its current data is fine.
+MANUAL_FRESH_ACCEPT = {
+    "harvard","yale","princeton","stanford","mit","caltech","columbia",
+    "upenn","brown","dartmouth","duke","northwestern","uchicago","cornell",
+    "jhu","vanderbilt","rice","notre-dame","tufts","northeastern","bu","bc",
+    "emory","georgetown","ucla","umich","unc","ut-austin","purdue","rutgers",
+    "wm","binghamton","villanova","bowdoin","carleton","vassar","colgate",
+    "conn-college","skidmore","macalester","reed","grinnell","kenyon",
+    "oberlin","pitzer","scripps","harvey-mudd","cmc","oxy","barnard",
+    "babson","rpi","stevens","drexel","pratt","risd","iu","utk","uvm",
+    "temple","hawaii","spelman","tuskegee","uconn","pepperdine","scu",
+    "msu","cooper","fordham","cmu","nyu",
+}
+
+
 def merged_school(c):
-    """Return a copy of the college dict with Scorecard overrides applied
-    where they exist. Renderers use this so the displayed values always
-    match the most-recently-verified source."""
+    """Return a copy of the college dict with overrides applied. Precedence:
+    1. Hand-typed 2024-25/2025-26 cycle data on `accept` for schools in
+       MANUAL_FRESH_ACCEPT (since federal Scorecard lags 12-18 months).
+    2. Scorecard's federal IPEDS data on all other fields.
+    3. Hardcoded COLLEGES value as final fallback.
+    """
     over = _get_overrides(c["slug"])
     if not over:
         return c
     out = dict(c)
     for k in ("accept", "sat_25", "sat_75", "act_25", "act_75", "size", "tuition"):
+        if k == "accept" and c["slug"] in MANUAL_FRESH_ACCEPT:
+            continue  # keep hand-typed fresher rate
         v = over.get(k)
         if v is not None:
             out[k] = v
@@ -3030,8 +3054,10 @@ def college_detail_html(slug):
     c = merged_school(raw)
     over = _get_overrides(slug)
     verified_badge = ""
-    if over and over.get("source"):
-        verified_badge = f'<span style="font-size:.74em;background:rgba(94,234,212,.12);color:var(--teal);padding:3px 10px;border-radius:999px;margin-left:8px;border:1px solid rgba(94,234,212,.25);font-weight:500;letter-spacing:.3px">VERIFIED · {over["source"]}</span>'
+    if slug in MANUAL_FRESH_ACCEPT:
+        verified_badge = '<span style="font-size:.74em;background:rgba(94,234,212,.12);color:var(--teal);padding:3px 10px;border-radius:999px;margin-left:8px;border:1px solid rgba(94,234,212,.25);font-weight:500;letter-spacing:.3px">2024-25 CYCLE</span>'
+    elif over and over.get("source"):
+        verified_badge = f'<span style="font-size:.74em;background:rgba(94,234,212,.10);color:var(--teal);padding:3px 10px;border-radius:999px;margin-left:8px;border:1px solid rgba(94,234,212,.22);font-weight:500;letter-spacing:.3px">VERIFIED · federal data</span>'
     majors_tags = "".join(f'<span class="tag">{m}</span>' for m in c["majors"])
     type_pill = f'<span class="pill pill-{c["type"]}">{c["type"]}</span>'
     tier_pill = f'<span class="pill pill-tier-{c["tier"]}">Tier {c["tier"]}</span>'
