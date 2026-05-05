@@ -2607,6 +2607,17 @@ def init_db():
             body TEXT NOT NULL,
             generated_at TEXT DEFAULT CURRENT_TIMESTAMP
         )""")
+        # User shortlist — schools the user has explicitly saved as targets.
+        # Independent of saved_chances (which auto-saves on chances calc).
+        # Lets users build a target list before/without running chances.
+        conn.execute("""CREATE TABLE IF NOT EXISTS saved_schools (
+            user_id INTEGER NOT NULL,
+            college_slug TEXT NOT NULL,
+            saved_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            note TEXT,
+            PRIMARY KEY (user_id, college_slug),
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        )""")
         # Real Reddit posts (r/collegeresults + r/chanceme) cached per school.
         # Refreshed every 24h. Body is JSON: list of {title, selftext, url, score, sub, age}.
         conn.execute("""CREATE TABLE IF NOT EXISTS school_reddit_posts (
@@ -3719,7 +3730,7 @@ CANDOR_LOGO_SVG = """<svg viewBox="0 0 64 64" width="22" height="22" xmlns="http
 NAV = """<div class="nav"><a class="brand" href="/colleges">""" + CANDOR_LOGO_SVG + """Candor</a>
 <a href="/colleges">Browse</a>
 <a href="/rankings">Rankings</a>
-<a href="/profiles">Real Profiles</a>
+<a href="/compare">Compare</a>
 <a href="/plans">My Plans</a>
 <a href="/improve">Improve</a>
 <a href="/chat">AI Advisor</a>
@@ -3820,7 +3831,7 @@ def colleges_html():
   <button class="btn btn-primary" type="submit">Apply</button>
   <a class="btn btn-light" href="/colleges">Reset</a>
 </form>
-<div class="grid">{cards or '<p class="muted">No matches.</p>'}</div>
+<div class="grid">{cards or '<div class="card" style="text-align:center;padding:32px"><h3 style="margin:0 0 8px">No schools match these filters</h3><p class="muted">Try clearing one or two filters — too narrow a combo (e.g. small + rural + STEM) sometimes returns zero.</p><a class="btn btn-primary" href="/colleges" style="margin-top:10px">Reset filters</a></div>'}</div>
 """, title="Browse colleges — Candor")
 
 
@@ -3884,6 +3895,14 @@ def college_detail_html(slug):
     raw = COLLEGES_BY_SLUG.get(slug)
     if not raw: abort(404)
     c = merged_school(raw)
+    user = current_user()
+    saved = is_saved(user["id"], slug) if user else False
+    if user:
+        save_btn = (f'<form method="post" action="/{("unsave" if saved else "save")}/{slug}" style="display:inline">'
+                    f'<button class="btn {("btn-primary" if saved else "btn-light")}" type="submit">'
+                    f'{"★ Saved" if saved else "☆ Save to my list"}</button></form>')
+    else:
+        save_btn = f'<a class="btn btn-light" href="/login">☆ Save to my list</a>'
     over = _get_overrides(slug)
     verified_badge = ""
     if slug in MANUAL_FRESH_ACCEPT:
@@ -3911,6 +3930,7 @@ def college_detail_html(slug):
     <a class="btn btn-light" href="/college/{c['slug']}/improve">Improve guide</a>
     <a class="btn btn-light" href="/college/{c['slug']}/chat">AI advisor</a>
     <a class="btn btn-light" href="/college/{c['slug']}/profiles">Real profiles & essays</a>
+    {save_btn}
   </div>
 </div>
 <p class="muted" style="font-size:.78em;margin:14px 0 6px">Stats below are CDS-based estimates from recent admissions cycles. Verify on the school's official site before making application decisions.</p>
@@ -5475,7 +5495,13 @@ def school_profiles_html(slug):
             _profile_to_md(p, i+7) for i, p in enumerate(real_profiles)
         )
     combined_md = (composite_md or "") + extra_md
-    profiles_html = _render_tailored_advice(combined_md)
+    if combined_md.strip():
+        profiles_html = _render_tailored_advice(combined_md)
+    else:
+        profiles_html = f"""<div style="text-align:center;padding:24px 0">
+  <p class="muted" style="margin:0 0 8px">We couldn't generate profiles for {name} right now.</p>
+  <p class="muted" style="font-size:.88em;margin:0">This usually means the AI was rate-limited or {name} has thin Reddit coverage. Try <a href="?refresh=1">refresh</a> in a minute, or browse <a href="https://www.reddit.com/r/collegeresults/search/?q={name.replace(' ','+')}&restrict_sr=1&sort=top" target="_blank" rel="noopener">r/collegeresults posts about {name}</a> directly.</p>
+</div>"""
 
     # Real essays from Reddit (lazily loaded — Claude call takes a few sec)
     essays_card = ""
@@ -5719,7 +5745,8 @@ def plans_index_html():
             WHERE user_id = ?
             ORDER BY computed_at DESC
         """, (user["id"],)).fetchall()
-    if not rows:
+    saved_slugs = get_saved_schools(user["id"])
+    if not rows and not saved_slugs:
         return _page("""
 <h1>My Plans</h1>
 <p class="muted">Each school you've computed chances for shows up here as a personalized plan: chances, match, top gaps, and direct AI chat — all in one view.</p>
@@ -5730,6 +5757,25 @@ def plans_index_html():
   <a class="btn btn-light" href="/rankings/my-fit">My Fit ranking</a>
 </div>
 """, title="My Plans — Candor")
+    saved_card = ""
+    if saved_slugs:
+        saved_pills = ""
+        for s in saved_slugs[:12]:
+            sc = COLLEGES_BY_SLUG.get(s)
+            if not sc: continue
+            saved_pills += f'<a href="/college/{s}" class="pill" style="margin:3px;display:inline-block">{sc["name"]}</a>'
+        cmp_link = f'/compare?schools={",".join(saved_slugs[:4])}' if len(saved_slugs) >= 2 else "/compare"
+        saved_card = f"""<div class="card" style="margin-bottom:16px">
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:8px">
+    <h3 style="margin:0">★ My saved list ({len(saved_slugs)})</h3>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <a class="btn btn-light btn-sm" href="{cmp_link}">Compare</a>
+      <a class="btn btn-light btn-sm" href="/timeline">Timeline</a>
+      <a class="btn btn-light btn-sm" href="/predictor">Score predictor</a>
+    </div>
+  </div>
+  <div style="display:flex;flex-wrap:wrap;gap:4px">{saved_pills}</div>
+</div>"""
     profile = get_profile(user["id"])
     cards = ""
     for row in rows:
@@ -5758,6 +5804,7 @@ def plans_index_html():
     return _page(f"""
 <h1>My Plans</h1>
 <p class="muted">Schools you've computed chances for. Click any card for the full personalized plan — chances, match, gaps, school-specific advice.</p>
+{saved_card}
 <div class="grid">{cards}</div>
 <p style="margin-top:18px"><a class="btn btn-light" href="/colleges">+ Add another school</a></p>
 """, title="My Plans — Candor")
@@ -6380,6 +6427,315 @@ def api_college_articles(slug):
 @login_required
 def school_plan_page(slug):
     return school_plan_html(slug)
+
+
+def is_saved(user_id, slug):
+    if not user_id: return False
+    with db() as conn:
+        return conn.execute(
+            "SELECT 1 FROM saved_schools WHERE user_id=? AND college_slug=?",
+            (user_id, slug)
+        ).fetchone() is not None
+
+
+def get_saved_schools(user_id):
+    if not user_id: return []
+    with db() as conn:
+        rows = conn.execute(
+            "SELECT college_slug FROM saved_schools WHERE user_id=? ORDER BY saved_at DESC",
+            (user_id,)
+        ).fetchall()
+    return [r["college_slug"] for r in rows]
+
+
+@app.route("/compare")
+def compare_page():
+    slugs = (request.args.get("schools") or "").split(",")
+    slugs = [s.strip().lower() for s in slugs if s.strip()][:4]
+    user = current_user()
+    profile = get_profile(user["id"]) if user else None
+    valid = [COLLEGES_BY_SLUG[s] for s in slugs if s in COLLEGES_BY_SLUG]
+    valid = [merged_school(c) for c in valid]
+    # Show picker if nothing valid
+    if not valid:
+        # Pre-fill option list with user's saved schools
+        saved = get_saved_schools(user["id"])[:6] if user else []
+        opts = "".join(f'<option value="{s["slug"]}">{s["name"]}</option>' for s in COLLEGES)
+        prefill = ",".join(saved[:3]) if saved else ""
+        return _page(f"""
+<h1>Compare colleges</h1>
+<p class="muted">Pick 2-4 schools to see stats, fit, and chances side-by-side.</p>
+<form method="get" action="/compare" class="card" style="max-width:680px">
+  <label>Schools (comma-separated slugs)</label>
+  <input name="schools" value="{prefill}" placeholder="e.g. brown,cornell,upenn" required>
+  <p class="muted" style="font-size:.78em;margin-top:6px">Slugs are lowercase: harvard, mit, ucla, etc. Browse <a href="/colleges">all schools</a> to see slugs.</p>
+  <button class="btn btn-primary" type="submit" style="margin-top:10px">Compare</button>
+</form>
+<datalist id="schools-list">{opts}</datalist>
+""", title="Compare colleges — Candor")
+    # Build comparison table
+    fits = []
+    for c in valid:
+        if profile:
+            score, _ = compute_my_fit(profile, c)
+            fit_acad, _ = compute_fit(profile, c)
+            low, high = estimate_odds(c, fit_acad, profile)
+            fits.append({"my_fit": score, "odds": f"{low}–{high}%"})
+        else:
+            fits.append({"my_fit": None, "odds": None})
+    # Render header row
+    headers = "".join(f'<th><a href="/college/{c["slug"]}" style="color:var(--text)">{c["name"]}</a><div class="muted" style="font-size:.78em;font-weight:400">{city_state(c)}</div></th>' for c in valid)
+    rows = []
+    def row(label, fn):
+        cells = "".join(f"<td>{fn(c)}</td>" for c in valid)
+        return f"<tr><td class='muted' style='font-weight:500'>{label}</td>{cells}</tr>"
+    rows.append(row("Acceptance rate", lambda c: f"{round(c['accept']*100,1)}%"))
+    rows.append(row("GPA mid-50%", lambda c: f"{c['gpa_lo']}–{c['gpa_hi']}"))
+    rows.append(row("SAT mid-50%", lambda c: f"{c['sat_25']}–{c['sat_75']}"))
+    rows.append(row("ACT mid-50%", lambda c: f"{c['act_25']}–{c['act_75']}"))
+    rows.append(row("Undergrads", lambda c: f"{c.get('size','?'):,}"))
+    rows.append(row("S/F ratio", lambda c: f"{sf_ratio(c)}:1"))
+    rows.append(row("Tuition (sticker)", lambda c: f"${c.get('tuition',0):,}"))
+    rows.append(row("Type", lambda c: c["type"].title()))
+    rows.append(row("Setting", lambda c: setting_of(c).replace("_"," ").title()))
+    rows.append(row("Region", lambda c: region_of(c)))
+    rows.append(row("Tier", lambda c: f"Tier {c.get('tier','—')}"))
+    if profile:
+        rows.append(row("My Fit", lambda c, _i=[0]: (lambda i: (_i.__setitem__(0, _i[0]+1), f"<span style='color:var(--teal);font-weight:600'>{fits[i]['my_fit']}/100</span>")[1])(_i[0])))
+        rows.append(row("Your odds", lambda c, _i=[0]: (lambda i: (_i.__setitem__(0, _i[0]+1), f"<span style='font-weight:600'>{fits[i]['odds']}</span>")[1])(_i[0])))
+    # Round breakdowns (where curated)
+    has_breakdowns = any(admissions_detail(c) for c in valid)
+    if has_breakdowns:
+        for round_key in ["ED","ED2","REA","EA","RD"]:
+            def get_round_rate(c, k=round_key):
+                d = admissions_detail(c) or {}
+                rate = (d.get("rates") or {}).get(k)
+                return f"{round(rate*100,1)}%" if rate else "—"
+            if any(get_round_rate(c) != "—" for c in valid):
+                rows.append(row(f"{ROUND_LABELS.get(round_key, round_key)} rate", get_round_rate))
+    body = f"""<h1>Comparing {len(valid)} schools</h1>
+<p class="muted">Side-by-side stats, fit, and chances. Click any school name to see its full page.</p>
+<div style="overflow-x:auto"><table class="rank-table" style="margin-top:14px;min-width:600px">
+  <thead><tr><th></th>{headers}</tr></thead>
+  <tbody>{''.join(rows)}</tbody>
+</table></div>
+<p style="margin-top:18px"><a class="btn btn-light" href="/compare">Compare different schools</a></p>"""
+    return _page(body, title="Compare — Candor")
+
+
+@app.route("/predictor")
+@login_required
+def predictor_page():
+    user = current_user()
+    profile = get_profile(user["id"])
+    if not profile:
+        return redirect(url_for("profile_page"))
+    # What schools to simulate over: saved schools, or top-N fits
+    saved = get_saved_schools(user["id"])
+    if saved:
+        target_slugs = saved[:6]
+    else:
+        scored = []
+        for c in COLLEGES[:60]:
+            m = merged_school(c)
+            s, _ = compute_my_fit(profile, m)
+            scored.append((s, c["slug"]))
+        scored.sort(reverse=True)
+        target_slugs = [s for _, s in scored[:6]]
+    # Allow query overrides for what-if
+    try:    sim_sat = int(request.args.get("sat") or profile.get("sat") or 0)
+    except: sim_sat = profile.get("sat") or 0
+    try:    sim_act = int(request.args.get("act") or profile.get("act") or 0)
+    except: sim_act = profile.get("act") or 0
+    try:    sim_gpa = float(request.args.get("gpa") or profile.get("uw_gpa") or 0)
+    except: sim_gpa = profile.get("uw_gpa") or 0.0
+    sim_profile = dict(profile)
+    if sim_sat: sim_profile["sat"] = sim_sat
+    if sim_act: sim_profile["act"] = sim_act
+    if sim_gpa: sim_profile["uw_gpa"] = sim_gpa
+    rows_html = []
+    for slug in target_slugs:
+        if slug not in COLLEGES_BY_SLUG: continue
+        c = merged_school(COLLEGES_BY_SLUG[slug])
+        cur_fit, _ = compute_fit(profile, c)
+        cur_lo, cur_hi = estimate_odds(c, cur_fit, profile)
+        new_fit, _ = compute_fit(sim_profile, c)
+        new_lo, new_hi = estimate_odds(c, new_fit, sim_profile)
+        delta = ((new_lo + new_hi) / 2) - ((cur_lo + cur_hi) / 2)
+        arrow = ""
+        if delta > 1.5: arrow = f'<span style="color:#22c55e;font-weight:600">↑ +{round(delta)}%</span>'
+        elif delta < -1.5: arrow = f'<span style="color:#ef4444;font-weight:600">↓ {round(delta)}%</span>'
+        else: arrow = '<span class="muted">≈ no change</span>'
+        rows_html.append(f"""<tr>
+  <td><a href="/college/{slug}" style="color:var(--text)">{c["name"]}</a></td>
+  <td class="muted">{cur_lo}–{cur_hi}%</td>
+  <td style="font-weight:600">{new_lo}–{new_hi}%</td>
+  <td>{arrow}</td>
+</tr>""")
+    cur_sat = profile.get("sat") or "—"
+    cur_act = profile.get("act") or "—"
+    cur_gpa = profile.get("uw_gpa") or "—"
+    body = f"""<h1>Score predictor</h1>
+<p class="muted">See how raising your test scores or GPA would shift your odds. We re-run the same model used on the chances pages.</p>
+<div class="card" style="background:var(--card);max-width:680px">
+  <p style="margin:0 0 10px;font-weight:600">Current: SAT {cur_sat} · ACT {cur_act} · GPA {cur_gpa}</p>
+  <form method="get" action="/predictor" style="display:grid;gap:12px;grid-template-columns:1fr 1fr 1fr">
+    <div><label>SAT</label><input name="sat" type="number" min="400" max="1600" value="{sim_sat or ''}" placeholder="e.g. 1500"></div>
+    <div><label>ACT</label><input name="act" type="number" min="1" max="36" value="{sim_act or ''}" placeholder="e.g. 34"></div>
+    <div><label>UW GPA</label><input name="gpa" type="number" step="0.01" min="0" max="4.0" value="{sim_gpa or ''}" placeholder="e.g. 3.9"></div>
+    <button class="btn btn-primary" type="submit" style="grid-column:1/-1">Recalculate</button>
+  </form>
+</div>
+<div style="overflow-x:auto;margin-top:18px"><table class="rank-table" style="min-width:520px">
+  <thead><tr><th>School</th><th>Current odds</th><th>With these scores</th><th>Change</th></tr></thead>
+  <tbody>{''.join(rows_html)}</tbody>
+</table></div>
+<p class="muted" style="margin-top:14px;font-size:.85em">Predictions assume the same ECs, hooks, and rigor — only test scores and GPA are simulated. Schools shown: {"your saved list" if saved else "your top auto-matched schools"}.</p>"""
+    return _page(body, title="Score predictor — Candor")
+
+
+ROUND_DEFAULT_DEADLINE = {
+    "ED":  ("Nov 1, 2026",   2026, 11, 1),
+    "REA": ("Nov 1, 2026",   2026, 11, 1),
+    "EA":  ("Nov 15, 2026",  2026, 11, 15),
+    "ED2": ("Jan 1, 2027",   2027, 1,  1),
+    "RD":  ("Jan 1, 2027",   2027, 1,  1),
+}
+
+# Per-school overrides where the round date is well-known.
+SCHOOL_DEADLINE_OVERRIDES = {
+    "mit":          {"EA":  ("Nov 1, 2026",  2026, 11, 1)},
+    "georgetown":   {"EA":  ("Nov 1, 2026",  2026, 11, 1)},
+    "uchicago":     {"EA":  ("Nov 1, 2026",  2026, 11, 1)},
+    "notre-dame":   {"REA": ("Nov 1, 2026",  2026, 11, 1)},
+    "michigan":     {"EA":  ("Nov 1, 2026",  2026, 11, 1), "RD": ("Feb 1, 2027", 2027, 2, 1)},
+    "unc":          {"EA":  ("Oct 15, 2026", 2026, 10, 15), "RD": ("Jan 15, 2027", 2027, 1, 15)},
+    "uva":          {"EA":  ("Nov 1, 2026",  2026, 11, 1)},
+    "berkeley":     {"RD":  ("Nov 30, 2026", 2026, 11, 30)},
+    "ucla":         {"RD":  ("Nov 30, 2026", 2026, 11, 30)},
+    "stanford":     {"REA": ("Nov 1, 2026",  2026, 11, 1)},
+}
+
+MONTH_NAMES = {1:"Jan",2:"Feb",3:"Mar",4:"Apr",5:"May",6:"Jun",7:"Jul",8:"Aug",9:"Sep",10:"Oct",11:"Nov",12:"Dec"}
+
+
+def school_deadline_for_round(slug, round_key):
+    overrides = SCHOOL_DEADLINE_OVERRIDES.get(slug, {})
+    if round_key in overrides: return overrides[round_key]
+    return ROUND_DEFAULT_DEADLINE.get(round_key)
+
+
+@app.route("/timeline")
+@login_required
+def timeline_page():
+    user = current_user()
+    profile = get_profile(user["id"])
+    saved = get_saved_schools(user["id"])
+    if saved:
+        target_slugs = saved
+        list_label = "your saved list"
+    elif profile:
+        scored = []
+        for c in COLLEGES[:60]:
+            m = merged_school(c)
+            s, _ = compute_my_fit(profile, m)
+            scored.append((s, c["slug"]))
+        scored.sort(reverse=True)
+        target_slugs = [s for _, s in scored[:6]]
+        list_label = "your top auto-matched schools"
+    else:
+        target_slugs = []
+        list_label = ""
+    # Collect deadlines: list of (year, month, day, label, school_name, slug, round_key)
+    items = []
+    for slug in target_slugs:
+        if slug not in COLLEGES_BY_SLUG: continue
+        c = COLLEGES_BY_SLUG[slug]
+        detail = admissions_detail(c)
+        rounds = (detail or {}).get("rounds") or ["RD"]
+        for rk in rounds:
+            d = school_deadline_for_round(slug, rk)
+            if not d: continue
+            label, y, m, day = d
+            items.append((y, m, day, label, c["name"], slug, rk))
+    # Universal milestones (FAFSA, CSS, decisions release)
+    universals = [
+        (2026, 10, 1,  "Oct 1, 2026",  "FAFSA opens",                   None, "Aid"),
+        (2026, 10, 1,  "Oct 1, 2026",  "CSS Profile opens",             None, "Aid"),
+        (2026, 12, 15, "Dec 15, 2026", "Most ED/EA decisions release",  None, "Decisions"),
+        (2027, 2,  15, "Feb 15, 2027", "ED2 decisions",                 None, "Decisions"),
+        (2027, 3,  31, "Mar 31, 2027", "RD decisions release",          None, "Decisions"),
+        (2027, 5,  1,  "May 1, 2027",  "National Decision Day (commit)", None, "Decisions"),
+    ]
+    items += universals
+    items.sort(key=lambda x: (x[0], x[1], x[2]))
+    # Group by month
+    groups = {}
+    for it in items:
+        key = (it[0], it[1])
+        groups.setdefault(key, []).append(it)
+    today = datetime.now()
+    cur_y, cur_m = today.year, today.month
+    month_blocks = []
+    for (y, m), its in groups.items():
+        is_past = (y < cur_y) or (y == cur_y and m < cur_m)
+        is_now  = (y == cur_y and m == cur_m)
+        title_color = "var(--muted)" if is_past else ("var(--teal)" if is_now else "var(--text)")
+        item_html = ""
+        for y2, m2, d2, label, name, slug, rk in its:
+            if slug:
+                round_label = ROUND_LABELS.get(rk, rk)
+                item_html += f"""<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-top:1px solid var(--border)">
+  <div><a href="/college/{slug}" style="color:var(--text);font-weight:500">{name}</a> <span class="muted" style="font-size:.85em">· {round_label}</span></div>
+  <div class="muted" style="font-size:.9em">{label}</div>
+</div>"""
+            else:
+                item_html += f"""<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-top:1px solid var(--border)">
+  <div style="font-weight:500">{name} <span class="muted" style="font-size:.85em">· {rk}</span></div>
+  <div class="muted" style="font-size:.9em">{label}</div>
+</div>"""
+        month_blocks.append(f"""<div class="card" style="margin-bottom:14px">
+  <h3 style="margin:0 0 6px;color:{title_color}">{MONTH_NAMES[m]} {y}{' · this month' if is_now else ''}</h3>
+  {item_html}
+</div>""")
+    if not items:
+        body = """<h1>Application timeline</h1>
+<p class="muted">Save some schools first and we'll lay out your deadline calendar.</p>
+<p style="margin-top:16px"><a class="btn btn-primary" href="/colleges">Browse schools →</a></p>"""
+    else:
+        body = f"""<h1>Application timeline</h1>
+<p class="muted">Month-by-month deadlines for {list_label}. Dates are typical cycle deadlines — confirm each school's official portal before submitting.</p>
+{''.join(month_blocks)}"""
+    return _page(body, title="Application timeline — Candor")
+
+
+@app.route("/save/<slug>", methods=["POST"])
+@login_required
+def save_school(slug):
+    if slug not in COLLEGES_BY_SLUG: abort(404)
+    user = current_user()
+    with db() as conn:
+        conn.execute(
+            "INSERT OR IGNORE INTO saved_schools (user_id, college_slug) VALUES (?, ?)",
+            (user["id"], slug)
+        )
+        conn.commit()
+    nxt = request.form.get("next") or request.referrer or url_for("college_detail_page", slug=slug)
+    return redirect(nxt)
+
+
+@app.route("/unsave/<slug>", methods=["POST"])
+@login_required
+def unsave_school(slug):
+    user = current_user()
+    with db() as conn:
+        conn.execute(
+            "DELETE FROM saved_schools WHERE user_id=? AND college_slug=?",
+            (user["id"], slug)
+        )
+        conn.commit()
+    nxt = request.form.get("next") or request.referrer or url_for("college_detail_page", slug=slug)
+    return redirect(nxt)
 
 
 @app.route("/plans")
