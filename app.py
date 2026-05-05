@@ -4182,7 +4182,7 @@ def college_detail_html(slug):
     over = _get_overrides(slug)
     verified_badge = ""
     if is_cds_verified(slug):
-        verified_badge = '<span style="font-size:.74em;background:rgba(94,234,212,.18);color:var(--teal);padding:3px 10px;border-radius:999px;margin-left:8px;border:1px solid rgba(94,234,212,.35);font-weight:600;letter-spacing:.3px" title="Stats hand-verified against the school\'s 2024-25 Common Data Set">CDS VERIFIED · 24-25</span>'
+        verified_badge = '<span style="font-size:.74em;background:rgba(94,234,212,.18);color:var(--teal);padding:3px 10px;border-radius:999px;margin-left:8px;border:1px solid rgba(94,234,212,.35);font-weight:600;letter-spacing:.3px" title="Stats hand-verified against the school\'s most recent Common Data Set (2024-25 or 2025-26 cycle)">CDS VERIFIED</span>'
     elif slug in MANUAL_FRESH_ACCEPT:
         verified_badge = '<span style="font-size:.74em;background:rgba(94,234,212,.12);color:var(--teal);padding:3px 10px;border-radius:999px;margin-left:8px;border:1px solid rgba(94,234,212,.25);font-weight:500;letter-spacing:.3px">2024-25 CYCLE</span>'
     elif over and over.get("source"):
