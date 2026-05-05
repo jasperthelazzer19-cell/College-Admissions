@@ -63,7 +63,7 @@ STRIPE_PAYMENT_LINK = os.environ.get("STRIPE_PAYMENT_LINK",
 STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
 ARTICLE_TTL_HOURS = 12   # how long to cache per-college articles
 SCORECARD_TTL_DAYS = 30  # refresh federal stats monthly
-FREE_TRIAL_MESSAGES = 5
+FREE_TRIAL_MESSAGES = 3
 PAID_MONTHLY_LIMIT = 250
 
 
@@ -2607,6 +2607,13 @@ def init_db():
             body TEXT NOT NULL,
             generated_at TEXT DEFAULT CURRENT_TIMESTAMP
         )""")
+        # Real Reddit posts (r/collegeresults + r/chanceme) cached per school.
+        # Refreshed every 24h. Body is JSON: list of {title, selftext, url, score, sub, age}.
+        conn.execute("""CREATE TABLE IF NOT EXISTS school_reddit_posts (
+            college_slug TEXT PRIMARY KEY,
+            body TEXT NOT NULL,
+            fetched_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )""")
         conn.execute("""CREATE TABLE IF NOT EXISTS school_strategies (
             college_slug TEXT PRIMARY KEY,
             school_values TEXT NOT NULL,
@@ -2952,6 +2959,112 @@ def has_legacy_at(profile, school):
 
 
 # ─── ARTICLES (NewsAPI w/ DB cache) ───────────────────────
+REDDIT_POSTS_TTL_HOURS = 24
+
+
+def fetch_reddit_profiles(college_slug, force=False):
+    """Pull real applicant profiles from r/collegeresults + r/chanceme via
+    Reddit's public JSON endpoint. Cached 24h. Returns a list of dicts:
+    [{title, snippet, url, score, sub, when}].
+    No auth required for public read access."""
+    school = COLLEGES_BY_SLUG.get(college_slug)
+    if not school: return []
+    cutoff = (datetime.utcnow() - timedelta(hours=REDDIT_POSTS_TTL_HOURS)).isoformat()
+    with db() as conn:
+        if not force:
+            row = conn.execute(
+                "SELECT body, fetched_at FROM school_reddit_posts WHERE college_slug=? AND fetched_at >= ?",
+                (college_slug, cutoff)
+            ).fetchone()
+            if row:
+                try:
+                    return json.loads(row["body"])
+                except Exception:
+                    pass
+
+    name = school["name"]
+    # Use a few search variants to maximize hit rate
+    queries = [name]
+    # Common abbreviations / alternate spellings
+    aliases = {
+        "Massachusetts Institute of Technology": ["MIT"],
+        "University of Pennsylvania": ["UPenn", "Penn"],
+        "Carnegie Mellon": ["CMU"],
+        "Northwestern": ["Northwestern"],
+        "University of California-Berkeley": ["UC Berkeley", "Berkeley"],
+        "UC Berkeley": ["Berkeley"],
+        "UCLA": ["UCLA"],
+        "Johns Hopkins": ["JHU", "Johns Hopkins"],
+        "Wash U St. Louis": ["WashU", "Wash U", "Washington University"],
+        "University of Michigan": ["UMich", "Michigan"],
+        "University of Chicago": ["UChicago"],
+    }
+    if name in aliases:
+        queries = aliases[name][:1] + [name]
+
+    posts = []
+    seen_ids = set()
+    headers = {"User-Agent": "Candor/1.0 (college admissions tool)"}
+    for sub in ["collegeresults", "chanceme"]:
+        for q in queries[:2]:
+            try:
+                qenc = q.replace(" ", "+").replace("&", "%26")
+                url = f"https://www.reddit.com/r/{sub}/search.json?q={qenc}&restrict_sr=1&sort=new&limit=10&t=year"
+                r = requests.get(url, headers=headers, timeout=8)
+                if r.status_code != 200:
+                    continue
+                data = r.json()
+                for child in data.get("data", {}).get("children", []):
+                    p = child.get("data", {})
+                    pid = p.get("id")
+                    if pid in seen_ids: continue
+                    seen_ids.add(pid)
+                    selftext = (p.get("selftext") or "").strip()
+                    title = (p.get("title") or "").strip()
+                    # Filter: needs real content (not just a question), not removed
+                    if p.get("removed_by_category") or p.get("over_18"): continue
+                    if len(selftext) < 100 and len(title) < 30: continue
+                    if (p.get("score") or 0) < 1: continue
+                    # Truncate selftext to a snippet
+                    snippet = selftext[:600]
+                    if len(selftext) > 600:
+                        snippet += "…"
+                    # Convert created timestamp to age
+                    import time as _time
+                    created = p.get("created_utc", 0)
+                    age_days = max(1, int((_time.time() - created) / 86400))
+                    when = f"{age_days}d ago" if age_days < 30 else (f"{age_days // 30}mo ago" if age_days < 365 else f"{age_days // 365}y ago")
+                    posts.append({
+                        "title": title[:200],
+                        "snippet": snippet,
+                        "url": f"https://www.reddit.com{p.get('permalink','')}",
+                        "score": p.get("score") or 0,
+                        "sub": f"r/{sub}",
+                        "when": when,
+                        "comments": p.get("num_comments") or 0,
+                    })
+                # Be polite: brief pause between sub queries
+                import time as _t; _t.sleep(0.3)
+            except Exception as e:
+                print(f"reddit fetch error for {college_slug} {sub}: {e}")
+                continue
+    # Sort by score, take top 8
+    posts.sort(key=lambda p: -p["score"])
+    posts = posts[:8]
+    # Cache
+    with db() as conn:
+        try:
+            conn.execute("""INSERT INTO school_reddit_posts (college_slug, body, fetched_at)
+                VALUES (?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(college_slug) DO UPDATE SET
+                    body=excluded.body, fetched_at=CURRENT_TIMESTAMP""",
+                (college_slug, json.dumps(posts)))
+            conn.commit()
+        except Exception as e:
+            print(f"reddit cache write failed: {e}")
+    return posts
+
+
 def fetch_articles(college_slug):
     """Return cached articles if fresh; else fetch from NewsAPI and cache."""
     school = COLLEGES_BY_SLUG.get(college_slug)
@@ -5013,53 +5126,75 @@ def profiles_index_html():
 def school_profiles_html(slug):
     c = COLLEGES_BY_SLUG.get(slug)
     if not c: abort(404)
+    name = c["name"]
     force = request.args.get("refresh") == "1"
-    profiles_md = get_school_profiles(c, force=force)
-    essays_md = get_school_essays(c, force=force)
-    profiles_html = _render_tailored_advice(profiles_md)
-    essays_html = _render_tailored_advice(essays_md)
-    # Real essay archive link if we have one
+    posts = fetch_reddit_profiles(slug, force=force)
+    show_essays = request.args.get("essays") == "1"
+    # Render each Reddit post as a card
+    import html as _html
+    posts_html = ""
+    for p in posts:
+        title_safe = _html.escape(p["title"])
+        snippet_safe = _html.escape(p["snippet"]).replace("\n", "<br>")
+        sub_color = "var(--teal)" if p["sub"] == "r/collegeresults" else "#7dd3fc"
+        posts_html += f"""<div class="card" style="margin-bottom:10px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">
+            <a href="{p['url']}" target="_blank" rel="noopener" style="font-weight:600;color:var(--text);font-size:1em;flex:1;min-width:200px">{title_safe}</a>
+            <span style="font-size:.74em;background:rgba(94,234,212,.1);color:{sub_color};padding:3px 9px;border-radius:999px;border:1px solid rgba(94,234,212,.2);font-weight:500">{p['sub']}</span>
+          </div>
+          <div class="muted" style="font-size:.78em;margin:4px 0 10px">↑ {p['score']} · 💬 {p['comments']} · {p['when']}</div>
+          <div style="font-size:.9em;line-height:1.55;color:var(--text-2)">{snippet_safe}</div>
+          <div style="margin-top:10px"><a href="{p['url']}" target="_blank" rel="noopener" style="font-size:.85em">Read full post on Reddit →</a></div>
+        </div>"""
+    if not posts_html:
+        q = name.replace(" ", "+").replace("&","%26")
+        posts_html = f"""<p class="muted">No recent Reddit posts found for {name}. Reddit search is rate-limited so this can happen sometimes — try refreshing in a minute.</p>
+        <p style="margin-top:10px">Or browse directly: <a href="https://www.reddit.com/r/collegeresults/search/?q={q}&restrict_sr=1" target="_blank" rel="noopener">r/collegeresults</a> · <a href="https://www.reddit.com/r/chanceme/search/?q={q}&restrict_sr=1" target="_blank" rel="noopener">r/chanceme</a></p>"""
+
+    essays_card = ""
+    if show_essays:
+        essays_md = get_school_essays(c, force=force)
+        essays_html = _render_tailored_advice(essays_md)
+        essays_card = f"""<div class="card">
+          <h3 style="margin-top:0">Sample essay openings</h3>
+          <p class="muted" style="font-size:.82em;margin:0 0 8px">Two model openings tailored to {name}'s preferred essay style. Inspiration only — admissions readers spot copied voice instantly.</p>
+          {essays_html}
+        </div>"""
+    else:
+        essays_card = f"""<div class="card">
+          <h3 style="margin-top:0">Sample essay openings</h3>
+          <p class="muted" style="font-size:.82em;margin:0 0 8px">AI-generated model essay openings in {name}'s preferred style. Generates on demand to keep things fast.</p>
+          <a class="btn btn-light btn-sm" href="?essays=1">Generate sample essays</a>
+        </div>"""
     archive_link = ESSAYS_THAT_WORKED.get(slug)
     archive_html = ""
     if archive_link:
-        archive_html = f'<div class="card" style="background:#f0f7ff;border-color:#cfe0ff"><h3 style="margin-top:0">Real published essays for {c["name"]}</h3><p>{c["name"]} publishes admitted-student essays:</p><a class="btn btn-light btn-sm" href="{archive_link}" target="_blank" rel="noopener">Open official archive &rarr;</a></div>'
-    generic_links_html = "".join(f'<div style="padding:6px 0;border-top:1px solid #f0f0f0"><a href="{url}" target="_blank" rel="noopener">{label} &rarr;</a></div>' for label, url in GENERIC_PROFILE_LINKS)
-    # Reddit search URL specific to this school
-    reddit_q = c["name"].replace(" ", "+")
-    reddit_url = f"https://www.reddit.com/r/ApplyingToCollege/search/?q={reddit_q}+results&restrict_sr=1&sort=new"
+        archive_html = f'<div class="card"><h3 style="margin-top:0">Real published essays for {name}</h3><p style="margin:0 0 10px">{name} publishes admitted-student essays on its admissions site.</p><a class="btn btn-light btn-sm" href="{archive_link}" target="_blank" rel="noopener">Open official archive →</a></div>'
     return _page(f"""
-<div class="bar"><a href="/college/{slug}">&larr; back to {c['name']}</a></div>
-<h1>Real profiles & essays — {c['name']}</h1>
+<div class="bar"><a href="/college/{slug}">&larr; back to {name}</a></div>
+<h1>Real profiles — {name}</h1>
 <p class="muted">{city_state(c)} · {round(c['accept']*100,1)}% acceptance · tier {c['tier']}</p>
 <div style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 18px">
   <a class="btn btn-light btn-sm" href="/college/{slug}">Overview</a>
   <a class="btn btn-light btn-sm" href="/college/{slug}/plan">My plan</a>
   <a class="btn btn-light btn-sm" href="/college/{slug}/improve">Improve</a>
   <a class="btn btn-light btn-sm" href="/college/{slug}/chat">AI advisor</a>
-  <a class="btn btn-light btn-sm" href="?refresh=1">Regenerate</a>
+  <a class="btn btn-light btn-sm" href="?refresh=1">Refresh from Reddit</a>
 </div>
 
 <div class="card">
-  <h3 style="margin-top:0">Composite student profiles</h3>
-  <p class="muted" style="font-size:.82em;margin:0 0 8px">Six representative applicants — three admitted, one waitlisted, two rejected — built from real admit patterns at {c['name']}. Names are fictional. Stats reflect the actual admit pool's range.</p>
-  {profiles_html}
+  <h3 style="margin-top:0">Real applicants from r/collegeresults & r/chanceme</h3>
+  <p class="muted" style="font-size:.88em;margin:0 0 14px">Pulled from Reddit's public posts. These are real students sharing their stats and outcomes. Click any title to read the full thread.</p>
 </div>
 
-<div class="card">
-  <h3 style="margin-top:0">Sample essay openings</h3>
-  <p class="muted" style="font-size:.82em;margin:0 0 8px">Two illustrative model openings tailored to {c['name']}'s preferred essay style. Use as inspiration, not a template — admissions readers spot copied voice instantly.</p>
-  {essays_html}
-</div>
+{posts_html}
 
 {archive_html}
 
-<div class="card">
-  <h3 style="margin-top:0">Real-world sources</h3>
-  <p class="muted" style="font-size:.82em;margin:0 0 6px">For unfiltered, public profiles + outcomes:</p>
-  <div style="padding:6px 0;border-top:1px solid #f0f0f0"><a href="{reddit_url}" target="_blank" rel="noopener">r/ApplyingToCollege results threads for {c['name']} &rarr;</a></div>
-  {generic_links_html}
-</div>
-""", title=f"Real profiles — {c['name']} — Candor")
+{essays_card}
+
+<p class="muted" style="font-size:.78em;margin-top:18px">Posts cached 24 hours from Reddit. Click "Refresh from Reddit" to pull the latest.</p>
+""", title=f"Real profiles — {name} — Candor")
 
 
 # ─── PERSONALIZED SCHOOL PLAN ─────────────────────────────
