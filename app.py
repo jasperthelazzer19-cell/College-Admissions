@@ -3005,52 +3005,51 @@ def fetch_reddit_profiles(college_slug, force=False):
     posts = []
     seen_ids = set()
     headers = {"User-Agent": "Candor/1.0 (college admissions tool)"}
-    for sub in ["collegeresults", "chanceme"]:
-        for q in queries[:2]:
-            try:
-                qenc = q.replace(" ", "+").replace("&", "%26")
-                url = f"https://www.reddit.com/r/{sub}/search.json?q={qenc}&restrict_sr=1&sort=new&limit=10&t=year"
-                r = requests.get(url, headers=headers, timeout=8)
-                if r.status_code != 200:
+    # Pull from collegeresults (richest profile data) + chanceme + ApplyingToCollege.
+    # Two sort modes (new + top) per sub to maximize coverage.
+    for sub in ["collegeresults", "chanceme", "ApplyingToCollege"]:
+        for sort in ["new", "top"]:
+            for q in queries[:2]:
+                try:
+                    qenc = q.replace(" ", "+").replace("&", "%26")
+                    url = f"https://www.reddit.com/r/{sub}/search.json?q={qenc}&restrict_sr=1&sort={sort}&limit=25&t=all"
+                    r = requests.get(url, headers=headers, timeout=8)
+                    if r.status_code != 200:
+                        continue
+                    data = r.json()
+                    for child in data.get("data", {}).get("children", []):
+                        p = child.get("data", {})
+                        pid = p.get("id")
+                        if pid in seen_ids: continue
+                        seen_ids.add(pid)
+                        selftext = (p.get("selftext") or "").strip()
+                        title = (p.get("title") or "").strip()
+                        if p.get("removed_by_category") or p.get("over_18"): continue
+                        if len(selftext) < 100 and len(title) < 30: continue
+                        if (p.get("score") or 0) < 1: continue
+                        snippet = selftext[:1200]
+                        if len(selftext) > 1200:
+                            snippet += "…"
+                        import time as _time
+                        created = p.get("created_utc", 0)
+                        age_days = max(1, int((_time.time() - created) / 86400))
+                        when = f"{age_days}d ago" if age_days < 30 else (f"{age_days // 30}mo ago" if age_days < 365 else f"{age_days // 365}y ago")
+                        posts.append({
+                            "title": title[:200],
+                            "snippet": snippet,
+                            "url": f"https://www.reddit.com{p.get('permalink','')}",
+                            "score": p.get("score") or 0,
+                            "sub": f"r/{sub}",
+                            "when": when,
+                            "comments": p.get("num_comments") or 0,
+                        })
+                    import time as _t; _t.sleep(0.25)
+                except Exception as e:
+                    print(f"reddit fetch error for {college_slug} {sub} {sort}: {e}")
                     continue
-                data = r.json()
-                for child in data.get("data", {}).get("children", []):
-                    p = child.get("data", {})
-                    pid = p.get("id")
-                    if pid in seen_ids: continue
-                    seen_ids.add(pid)
-                    selftext = (p.get("selftext") or "").strip()
-                    title = (p.get("title") or "").strip()
-                    # Filter: needs real content (not just a question), not removed
-                    if p.get("removed_by_category") or p.get("over_18"): continue
-                    if len(selftext) < 100 and len(title) < 30: continue
-                    if (p.get("score") or 0) < 1: continue
-                    # Truncate selftext to a snippet
-                    snippet = selftext[:600]
-                    if len(selftext) > 600:
-                        snippet += "…"
-                    # Convert created timestamp to age
-                    import time as _time
-                    created = p.get("created_utc", 0)
-                    age_days = max(1, int((_time.time() - created) / 86400))
-                    when = f"{age_days}d ago" if age_days < 30 else (f"{age_days // 30}mo ago" if age_days < 365 else f"{age_days // 365}y ago")
-                    posts.append({
-                        "title": title[:200],
-                        "snippet": snippet,
-                        "url": f"https://www.reddit.com{p.get('permalink','')}",
-                        "score": p.get("score") or 0,
-                        "sub": f"r/{sub}",
-                        "when": when,
-                        "comments": p.get("num_comments") or 0,
-                    })
-                # Be polite: brief pause between sub queries
-                import time as _t; _t.sleep(0.3)
-            except Exception as e:
-                print(f"reddit fetch error for {college_slug} {sub}: {e}")
-                continue
-    # Sort by score, take top 8
+    # Sort by score, take top 30
     posts.sort(key=lambda p: -p["score"])
-    posts = posts[:8]
+    posts = posts[:30]
     # Cache raw posts
     with db() as conn:
         try:
@@ -3063,6 +3062,198 @@ def fetch_reddit_profiles(college_slug, force=False):
         except Exception as e:
             print(f"reddit cache write failed: {e}")
     return posts
+
+
+def fetch_reddit_essays(college_slug, force=False):
+    """Pull posts that contain actual essay text from college-essay subs.
+    Cached 24h. Returns raw post list with full selftext (longer than
+    profile snippets since essays need full body)."""
+    school = COLLEGES_BY_SLUG.get(college_slug)
+    if not school: return []
+    cutoff = (datetime.utcnow() - timedelta(hours=REDDIT_POSTS_TTL_HOURS)).isoformat()
+    with db() as conn:
+        if not force:
+            row = conn.execute(
+                "SELECT body, fetched_at FROM school_reddit_essays WHERE college_slug=? AND fetched_at >= ?",
+                (college_slug, cutoff)
+            ).fetchone() if _table_exists(conn, "school_reddit_essays") else None
+            if row:
+                try:
+                    return json.loads(row["body"])
+                except Exception:
+                    pass
+    name = school["name"]
+    queries = [name]
+    aliases_map = {
+        "Massachusetts Institute of Technology": ["MIT"],
+        "University of Pennsylvania": ["UPenn", "Penn"],
+        "Carnegie Mellon": ["CMU"],
+        "UC Berkeley": ["Berkeley"],
+        "Johns Hopkins": ["JHU"],
+        "Wash U St. Louis": ["WashU"],
+        "University of Michigan": ["UMich"],
+        "University of Chicago": ["UChicago"],
+    }
+    if name in aliases_map:
+        queries = aliases_map[name][:1] + [name]
+    posts = []
+    seen = set()
+    headers = {"User-Agent": "Candor/1.0 (college admissions tool)"}
+    # Subs known to host essay shares
+    for sub in ["CollegeEssays", "EssayDeath", "ApplyingToCollege", "essayreview", "collegeessayreview"]:
+        for q in queries[:2]:
+            try:
+                qenc = q.replace(" ", "+").replace("&", "%26")
+                url = f"https://www.reddit.com/r/{sub}/search.json?q={qenc}+essay&restrict_sr=1&sort=top&limit=15&t=all"
+                r = requests.get(url, headers=headers, timeout=8)
+                if r.status_code != 200: continue
+                data = r.json()
+                for child in data.get("data", {}).get("children", []):
+                    p = child.get("data", {})
+                    pid = p.get("id")
+                    if pid in seen: continue
+                    seen.add(pid)
+                    selftext = (p.get("selftext") or "").strip()
+                    title = (p.get("title") or "").strip()
+                    if p.get("removed_by_category") or p.get("over_18"): continue
+                    # Essays need substantial body text
+                    if len(selftext) < 300: continue
+                    # Take more of the body for essays
+                    snippet = selftext[:3000]
+                    if len(selftext) > 3000:
+                        snippet += "…"
+                    import time as _time
+                    created = p.get("created_utc", 0)
+                    age_days = max(1, int((_time.time() - created) / 86400))
+                    when = f"{age_days}d ago" if age_days < 30 else (f"{age_days // 30}mo ago" if age_days < 365 else f"{age_days // 365}y ago")
+                    posts.append({
+                        "title": title[:200],
+                        "selftext": snippet,
+                        "url": f"https://www.reddit.com{p.get('permalink','')}",
+                        "score": p.get("score") or 0,
+                        "sub": f"r/{sub}",
+                        "when": when,
+                    })
+                import time as _t; _t.sleep(0.25)
+            except Exception as e:
+                print(f"reddit essay fetch error {sub}: {e}")
+                continue
+    posts.sort(key=lambda p: -p["score"])
+    posts = posts[:15]
+    with db() as conn:
+        try:
+            conn.execute("CREATE TABLE IF NOT EXISTS school_reddit_essays (college_slug TEXT PRIMARY KEY, body TEXT NOT NULL, fetched_at TEXT DEFAULT CURRENT_TIMESTAMP)")
+            conn.execute("""INSERT INTO school_reddit_essays (college_slug, body, fetched_at)
+                VALUES (?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(college_slug) DO UPDATE SET
+                    body=excluded.body, fetched_at=CURRENT_TIMESTAMP""",
+                (college_slug, json.dumps(posts)))
+            conn.commit()
+        except Exception as e:
+            print(f"essay cache write failed: {e}")
+    return posts
+
+
+def extract_real_essays(college_slug, force=False):
+    """Use Claude to scan Reddit essay posts and extract clean essay text
+    + metadata (essay type, word count, prompt). Cached 24h alongside
+    profiles."""
+    school = COLLEGES_BY_SLUG.get(college_slug)
+    if not school: return []
+    cutoff = (datetime.utcnow() - timedelta(hours=REDDIT_POSTS_TTL_HOURS)).isoformat()
+    with db() as conn:
+        conn.execute("CREATE TABLE IF NOT EXISTS school_extracted_essays (college_slug TEXT PRIMARY KEY, body TEXT NOT NULL, generated_at TEXT DEFAULT CURRENT_TIMESTAMP)")
+        if not force:
+            row = conn.execute(
+                "SELECT body, generated_at FROM school_extracted_essays WHERE college_slug=? AND generated_at >= ?",
+                (college_slug, cutoff)
+            ).fetchone()
+            if row:
+                try:
+                    return json.loads(row["body"])
+                except Exception:
+                    pass
+    raw = fetch_reddit_essays(college_slug, force=False)
+    if not raw or not _claude_client: return []
+    posts_text = ""
+    for i, p in enumerate(raw[:12]):
+        posts_text += f"\n---POST {i+1} ({p['sub']}, {p['score']} upvotes)---\nTitle: {p['title']}\nBody: {p['selftext']}\n"
+    name = school["name"]
+    prompt = f"""Below are real Reddit posts where applicants shared their college essays for {name}. Extract the actual essay text from each post.
+
+For each post that contains a real essay (or a real essay excerpt), output:
+
+PROMPT: <which essay/supplement this is — e.g. "Why {name}", "Common App", "Activities", or short description>
+OUTCOME: <Accepted | Rejected | Unknown>
+WORDS: <approximate word count>
+ESSAY:
+<the actual essay text, copied exactly from the post — don't paraphrase or rewrite. Preserve line breaks. If the post has multiple essays, pick the strongest/most specific one.>
+
+---END---
+
+RULES:
+- Only output essays that are actually IN the post text. If a post just describes an essay or links elsewhere, skip it.
+- Use the verbatim essay text. Never rewrite, summarize, or paraphrase.
+- If the essay is incomplete in the post (cut off), include what's there.
+- Skip posts that are reviews/feedback rather than the essay itself.
+- Skip posts that don't mention {name} or its supplements.
+- Aim for 5-12 real essays. Quality over quantity.
+- Separate each essay with the literal string ---END---
+
+Posts:
+{posts_text}"""
+    try:
+        resp = _claude_client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=6000,
+            system="You extract real essay text from Reddit posts. Verbatim, never rewriting. Skip posts that don't contain actual essay text.",
+            messages=[{"role":"user","content": prompt}],
+        )
+        body = resp.content[0].text.strip()
+    except Exception as e:
+        print(f"essay extraction failed for {college_slug}: {e}")
+        return []
+    # Parse essays separated by ---END---
+    essays = []
+    for chunk in body.split("---END---"):
+        chunk = chunk.strip()
+        if not chunk: continue
+        e = {}
+        # First three single-line headers
+        lines = chunk.split("\n")
+        body_started = False
+        body_lines = []
+        for line in lines:
+            stripped = line.strip()
+            if not body_started:
+                if stripped.upper().startswith("PROMPT:"):
+                    e["prompt"] = stripped.split(":", 1)[1].strip()
+                elif stripped.upper().startswith("OUTCOME:"):
+                    e["outcome"] = stripped.split(":", 1)[1].strip()
+                elif stripped.upper().startswith("WORDS:"):
+                    e["words"] = stripped.split(":", 1)[1].strip()
+                elif stripped.upper().startswith("ESSAY:"):
+                    body_started = True
+                    rest = stripped.split(":", 1)[1].strip()
+                    if rest: body_lines.append(rest)
+            else:
+                body_lines.append(line)
+        if body_lines:
+            e["essay"] = "\n".join(body_lines).strip()
+        if e.get("essay") and len(e["essay"]) > 100:
+            essays.append(e)
+    if essays:
+        with db() as conn:
+            try:
+                conn.execute("""INSERT INTO school_extracted_essays (college_slug, body, generated_at)
+                    VALUES (?, ?, CURRENT_TIMESTAMP)
+                    ON CONFLICT(college_slug) DO UPDATE SET
+                        body=excluded.body, generated_at=CURRENT_TIMESTAMP""",
+                    (college_slug, json.dumps(essays)))
+                conn.commit()
+            except Exception as e:
+                print(f"essay extraction cache write failed: {e}")
+    return essays
 
 
 def extract_structured_profiles(college_slug, force=False):
@@ -3089,15 +3280,15 @@ def extract_structured_profiles(college_slug, force=False):
     if not _claude_client: return []
     # Build a compact prompt with all the raw posts
     posts_text = ""
-    for i, p in enumerate(posts[:8]):
-        posts_text += f"\n---POST {i+1}---\nTitle: {p['title']}\nBody: {p['snippet']}\n"
-    prompt = f"""Below are real Reddit posts from r/collegeresults and r/chanceme mentioning {school['name']}. Extract structured profile cards from posts that contain enough detail.
+    for i, p in enumerate(posts[:25]):
+        posts_text += f"\n---POST {i+1} ({p['sub']}, {p['score']} upvotes)---\nTitle: {p['title']}\nBody: {p['snippet']}\n"
+    prompt = f"""Below are real Reddit posts mentioning {school['name']}. Extract as many structured profile cards as the data supports — aim for 12-20 profiles when possible, mixing outcomes (mostly accepted, some waitlisted/deferred, some rejected).
 
-For each post that has clear stats + an outcome at {school['name']}, output a profile in this EXACT format (one per line, separated by blank lines):
+For each post that has clear stats + an outcome at {school['name']}, output a profile in this EXACT format (separated by blank lines):
 
 OUTCOME: <Accepted | Waitlisted | Rejected | Deferred>
-GPA: <unweighted, e.g. 3.95 UW>
-TEST: <SAT 1530 or ACT 35 or 'test-optional'>
+GPA: <unweighted, e.g. 3.95 UW or "not stated">
+TEST: <SAT 1530 or ACT 35 or 'test-optional' or "not stated">
 MAJOR: <intended major>
 GEO: <state or country>
 HOOKS: <legacy / first-gen / athlete / URM / none — pick what applies>
@@ -3106,21 +3297,21 @@ OTHER: <1-2 other notable items, comma-separated>
 WHY: <one sentence on what likely drove the decision>
 
 RULES:
-- Only output profiles where the post mentions {school['name']} specifically (not a generic chanceme post)
-- Skip posts that lack stats or a clear outcome
-- Aim for 4-8 profiles; mix of outcomes
-- Use real data from the posts, don't invent
-- Keep each field short (under 80 chars)
-- Don't include a name or any identifying info
-- Output ONLY the structured profiles, separated by blank lines. No preamble, no headers.
+- Profile must reference {school['name']} or a clear synonym/abbreviation
+- Skip posts that don't reveal at least an outcome + 2 facts (test or GPA + major or hooks)
+- Use real data from the posts, never invent
+- Keep each field under 90 chars
+- No names, no identifying info
+- Aim for 12-20 profiles. More is better.
+- Output ONLY profiles separated by blank lines. No preamble.
 
 Posts:
 {posts_text}"""
     try:
         resp = _claude_client.messages.create(
             model="claude-haiku-4-5-20251001",
-            max_tokens=1500,
-            system="You parse Reddit admissions posts into structured profile cards. Faithful to source data, never inventing facts. Skip posts without enough detail.",
+            max_tokens=4000,
+            system="You parse Reddit admissions posts into structured profile cards. Faithful to source data, never inventing facts. Extract as many as the posts support.",
             messages=[{"role":"user","content": prompt}],
         )
         body = resp.content[0].text.strip()
@@ -5274,20 +5465,40 @@ def school_profiles_html(slug):
           <div style="margin-top:6px">{raw_posts_inner}</div>
         </details>"""
 
+    # Real essays from Reddit (lazily loaded — Claude call takes a few sec)
     essays_card = ""
     if show_essays:
-        essays_md = get_school_essays(c, force=force)
-        essays_html = _render_tailored_advice(essays_md)
-        essays_card = f"""<div class="card">
-          <h3 style="margin-top:0">Sample essay openings</h3>
-          <p class="muted" style="font-size:.82em;margin:0 0 8px">Two model openings tailored to {name}'s preferred essay style. Inspiration only — admissions readers spot copied voice instantly.</p>
-          {essays_html}
-        </div>"""
+        real_essays = extract_real_essays(slug, force=force)
+        if real_essays:
+            essay_inner = ""
+            for e in real_essays:
+                outcome = e.get("outcome", "Unknown")
+                outcome_color = {"Accepted":"var(--teal)","Rejected":"#f9a8d4","Unknown":"var(--text-2)"}.get(outcome, "var(--text-2)")
+                prompt = _html.escape(e.get("prompt", "Essay"))
+                words = e.get("words", "")
+                essay_text = _html.escape(e.get("essay", "")).replace("\n", "<br>")
+                essay_inner += f"""<div class="card" style="margin-bottom:10px">
+                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px">
+                    <span style="font-weight:600;color:var(--text)">{prompt}</span>
+                    <span style="font-size:.74em;color:{outcome_color};padding:3px 11px;border-radius:999px;border:1px solid rgba(94,234,212,.2);background:rgba(94,234,212,.08);font-weight:600;letter-spacing:.4px;text-transform:uppercase">{outcome} · {words} words</span>
+                  </div>
+                  <div style="font-size:.92em;line-height:1.65;color:var(--text);font-family:Georgia,serif;background:var(--bg-2);padding:14px;border-radius:8px;border:1px solid var(--border)">{essay_text}</div>
+                </div>"""
+            essays_card = f"""<div class="card">
+              <h3 style="margin-top:0">Real essays from Reddit</h3>
+              <p class="muted" style="font-size:.85em;margin:0 0 14px">Pulled from r/CollegeEssays, r/EssayDeath, r/A2C — actual essay text shared by applicants who submitted to {name}.</p>
+              {essay_inner}
+            </div>"""
+        else:
+            essays_card = f"""<div class="card">
+              <h3 style="margin-top:0">Real essays from Reddit</h3>
+              <p class="muted" style="font-size:.85em;margin:0">No essay-text posts found yet for {name}. Less popular schools have thin coverage on essay-sharing subs. Try refreshing or check the official archive below if available.</p>
+            </div>"""
     else:
         essays_card = f"""<div class="card">
-          <h3 style="margin-top:0">Sample essay openings</h3>
-          <p class="muted" style="font-size:.82em;margin:0 0 8px">AI-generated model essay openings in {name}'s preferred style. Generates on demand to keep things fast.</p>
-          <a class="btn btn-light btn-sm" href="?essays=1">Generate sample essays</a>
+          <h3 style="margin-top:0">Real essays from Reddit</h3>
+          <p class="muted" style="font-size:.85em;margin:0 0 12px">Actual essays shared by applicants who submitted to {name} — pulled from r/CollegeEssays, r/EssayDeath, and r/A2C. Loads on demand since it takes a few seconds.</p>
+          <a class="btn btn-light btn-sm" href="?essays=1">Load real essays</a>
         </div>"""
     archive_link = ESSAYS_THAT_WORKED.get(slug)
     archive_html = ""
