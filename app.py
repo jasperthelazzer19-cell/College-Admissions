@@ -1242,6 +1242,15 @@ CDS_VERIFIED = {
     "umd":        {"accept": 0.4503, "sat_25": 1410, "sat_75": 1520, "act_25": 32, "act_75": 35},
     "davidson":   {"accept": 0.1262, "sat_25": 1410, "sat_75": 1500, "act_25": 32, "act_75": 34},
     "msu":        {"accept": 0.8479, "sat_25": 1100, "sat_75": 1310, "act_25": 24, "act_75": 30},
+    # Round 5 — more user files + URLs
+    "wisc":       {"accept": 0.4517, "sat_25": 1370, "sat_75": 1490, "act_25": 29, "act_75": 33},
+    "tulane":     {"accept": 0.1446, "sat_25": 1430, "sat_75": 1500, "act_25": 32, "act_75": 34},
+    "pepperdine": {"accept": 0.6286, "sat_25": 1300, "sat_75": 1440, "act_25": 29, "act_75": 32},
+    "pitt":       {"accept": 0.5945, "act_25": 29, "act_75": 33},  # SAT not reported in CDS
+    "bc":         {"accept": 0.1619, "sat_25": 1460, "sat_75": 1520, "act_25": 33, "act_75": 35},
+    "uw":         {"accept": 0.4175, "sat_25": 1320, "sat_75": 1502, "act_25": 30, "act_75": 34},
+    "iu":         {"accept": 0.7589, "sat_25": 1200, "sat_75": 1410, "act_25": 28, "act_75": 33},
+    "fsu":        {"accept": 0.2383, "sat_25": 1300, "sat_75": 1410, "act_25": 29, "act_75": 32},
 }
 
 
