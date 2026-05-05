@@ -2983,33 +2983,54 @@ def fetch_reddit_profiles(college_slug, force=False):
                     pass
 
     name = school["name"]
-    # Use a few search variants to maximize hit rate
-    queries = [name]
-    # Common abbreviations / alternate spellings
+    # Common abbreviations / alternate spellings + phrase variants to maximize hit rate.
+    # The same school appears under multiple names on Reddit.
     aliases = {
         "Massachusetts Institute of Technology": ["MIT"],
         "University of Pennsylvania": ["UPenn", "Penn"],
         "Carnegie Mellon": ["CMU"],
         "Northwestern": ["Northwestern"],
-        "University of California-Berkeley": ["UC Berkeley", "Berkeley"],
-        "UC Berkeley": ["Berkeley"],
+        "University of California-Berkeley": ["UC Berkeley", "Berkeley", "Cal"],
+        "UC Berkeley": ["UC Berkeley", "Berkeley", "Cal"],
         "UCLA": ["UCLA"],
-        "Johns Hopkins": ["JHU", "Johns Hopkins"],
-        "Wash U St. Louis": ["WashU", "Wash U", "Washington University"],
-        "University of Michigan": ["UMich", "Michigan"],
-        "University of Chicago": ["UChicago"],
+        "Johns Hopkins": ["Johns Hopkins", "JHU", "Hopkins"],
+        "Wash U St. Louis": ["WashU", "Wash U", "Washington University in St Louis", "WUSTL"],
+        "University of Michigan": ["UMich", "University of Michigan", "Michigan"],
+        "University of Chicago": ["UChicago", "U Chicago"],
+        "Wake Forest": ["Wake Forest", "WFU", "Wake"],
+        "Notre Dame": ["Notre Dame", "ND"],
+        "Boston College": ["Boston College", "BC"],
+        "Boston University": ["Boston University", "BU"],
+        "Vanderbilt": ["Vanderbilt", "Vandy"],
+        "William & Mary": ["William and Mary", "William & Mary", "W&M", "WM"],
+        "Georgia Tech": ["Georgia Tech", "GT", "Gtech"],
+        "Tufts": ["Tufts"],
+        "Northeastern": ["Northeastern", "NEU"],
+        "Villanova": ["Villanova", "Nova"],
+        "Lehigh": ["Lehigh"],
+        "Case Western": ["Case Western", "CWRU"],
+        "USC": ["USC"],
+        "NYU": ["NYU"],
+        "Georgetown": ["Georgetown", "GT"],
+        "UVA": ["UVA", "Virginia"],
+        "UNC Chapel Hill": ["UNC", "UNC Chapel Hill"],
+        "UT Austin": ["UT Austin", "UT-Austin", "UT"],
+        "University of Texas at Austin": ["UT Austin", "UT-Austin", "UT"],
+        "Cornell": ["Cornell"],
+        "Duke": ["Duke"],
     }
-    if name in aliases:
-        queries = aliases[name][:1] + [name]
+    queries = aliases.get(name, [name])
+    # Add outcome-flavored queries — these target results posts specifically
+    qs = list(queries)
+    for outcome in ["accepted", "ED", "rejected", "waitlisted"]:
+        qs.append(f"{queries[0]} {outcome}")
 
     posts = []
     seen_ids = set()
     headers = {"User-Agent": "Candor/1.0 (college admissions tool)"}
-    # Pull from collegeresults (richest profile data) + chanceme + ApplyingToCollege.
-    # Two sort modes (new + top) per sub to maximize coverage.
     for sub in ["collegeresults", "chanceme", "ApplyingToCollege"]:
         for sort in ["new", "top"]:
-            for q in queries[:2]:
+            for q in qs[:5]:
                 try:
                     qenc = q.replace(" ", "+").replace("&", "%26")
                     url = f"https://www.reddit.com/r/{sub}/search.json?q={qenc}&restrict_sr=1&sort={sort}&limit=25&t=all"
@@ -3083,7 +3104,6 @@ def fetch_reddit_essays(college_slug, force=False):
                 except Exception:
                     pass
     name = school["name"]
-    queries = [name]
     aliases_map = {
         "Massachusetts Institute of Technology": ["MIT"],
         "University of Pennsylvania": ["UPenn", "Penn"],
@@ -3093,18 +3113,31 @@ def fetch_reddit_essays(college_slug, force=False):
         "Wash U St. Louis": ["WashU"],
         "University of Michigan": ["UMich"],
         "University of Chicago": ["UChicago"],
+        "Wake Forest": ["Wake Forest", "WFU"],
+        "Notre Dame": ["Notre Dame", "ND"],
+        "Boston College": ["BC", "Boston College"],
+        "Boston University": ["BU", "Boston University"],
+        "Vanderbilt": ["Vanderbilt", "Vandy"],
+        "Northeastern": ["Northeastern", "NEU"],
+        "Villanova": ["Villanova"],
     }
-    if name in aliases_map:
-        queries = aliases_map[name][:1] + [name]
+    queries = aliases_map.get(name, [name])
+    # Multi-query: target essay-share posts specifically
+    qs = []
+    for q in queries[:2]:
+        qs.append(f"{q} essay")
+        qs.append(f"{q} supplement")
+        qs.append(f"{q} 'why us'")
     posts = []
     seen = set()
     headers = {"User-Agent": "Candor/1.0 (college admissions tool)"}
-    # Subs known to host essay shares
-    for sub in ["CollegeEssays", "EssayDeath", "ApplyingToCollege", "essayreview", "collegeessayreview"]:
-        for q in queries[:2]:
+    # Wider net of subs that host essay shares
+    for sub in ["CollegeEssays", "EssayDeath", "ApplyingToCollege", "EssayReview",
+                "CollegeEssayHelp", "chanceme", "collegeresults"]:
+        for q in qs[:4]:
             try:
-                qenc = q.replace(" ", "+").replace("&", "%26")
-                url = f"https://www.reddit.com/r/{sub}/search.json?q={qenc}+essay&restrict_sr=1&sort=top&limit=15&t=all"
+                qenc = q.replace(" ", "+").replace("&", "%26").replace("'", "%27")
+                url = f"https://www.reddit.com/r/{sub}/search.json?q={qenc}&restrict_sr=1&sort=top&limit=20&t=all"
                 r = requests.get(url, headers=headers, timeout=8)
                 if r.status_code != 200: continue
                 data = r.json()
@@ -3116,8 +3149,8 @@ def fetch_reddit_essays(college_slug, force=False):
                     selftext = (p.get("selftext") or "").strip()
                     title = (p.get("title") or "").strip()
                     if p.get("removed_by_category") or p.get("over_18"): continue
-                    # Essays need substantial body text
-                    if len(selftext) < 300: continue
+                    # Lowered threshold: 150 chars (was 300). Catches shorter essay shares.
+                    if len(selftext) < 150: continue
                     # Take more of the body for essays
                     snippet = selftext[:3000]
                     if len(selftext) > 3000:
@@ -3139,7 +3172,7 @@ def fetch_reddit_essays(college_slug, force=False):
                 print(f"reddit essay fetch error {sub}: {e}")
                 continue
     posts.sort(key=lambda p: -p["score"])
-    posts = posts[:15]
+    posts = posts[:25]
     with db() as conn:
         try:
             conn.execute("CREATE TABLE IF NOT EXISTS school_reddit_essays (college_slug TEXT PRIMARY KEY, body TEXT NOT NULL, fetched_at TEXT DEFAULT CURRENT_TIMESTAMP)")
@@ -5490,9 +5523,14 @@ def school_profiles_html(slug):
               {essay_inner}
             </div>"""
         else:
+            q_enc = name.replace(" ", "+").replace("&","%26")
+            archive_msg = ""
+            if ESSAYS_THAT_WORKED.get(slug):
+                archive_msg = f' Or check <a href="{ESSAYS_THAT_WORKED[slug]}" target="_blank" rel="noopener">{name}\'s official "Essays That Worked" archive →</a>'
             essays_card = f"""<div class="card">
               <h3 style="margin-top:0">Real essays from Reddit</h3>
-              <p class="muted" style="font-size:.85em;margin:0">No essay-text posts found yet for {name}. Less popular schools have thin coverage on essay-sharing subs. Try refreshing or check the official archive below if available.</p>
+              <p class="muted" style="font-size:.9em;margin:0 0 8px">No full-text essays surfaced for {name}. Reddit users often share essays via Google Docs links instead of pasting full text, which our scraper can't follow.</p>
+              <p style="font-size:.9em;margin:0">Try the source directly: <a href="https://www.reddit.com/search/?q={q_enc}+essay&type=link&sort=top" target="_blank" rel="noopener">All-Reddit search for "{name} essay"</a>.{archive_msg}</p>
             </div>"""
     else:
         essays_card = f"""<div class="card">
