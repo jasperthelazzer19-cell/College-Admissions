@@ -3899,6 +3899,7 @@ def college_detail_html(slug):
     saved = is_saved(user["id"], slug) if user else False
     if user:
         save_btn = (f'<form method="post" action="/{("unsave" if saved else "save")}/{slug}" style="display:inline">'
+                    f'{_csrf_input()}'
                     f'<button class="btn {("btn-primary" if saved else "btn-light")}" type="submit">'
                     f'{"★ Saved" if saved else "☆ Save to my list"}</button></form>')
     else:
