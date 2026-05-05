@@ -1204,6 +1204,24 @@ CDS_VERIFIED = {
     "middlebury": {"accept": 0.1075, "sat_25": 1450, "sat_75": 1530, "act_25": 33, "act_75": 35},
     "cmc":        {"accept": 0.0959, "sat_25": 1490, "sat_75": 1550, "act_25": 33, "act_75": 35},
     "hamilton":   {"accept": 0.1362, "sat_25": 1460, "sat_75": 1530, "act_25": 33, "act_75": 35},
+    # ─── Round 2 batch (extracted from CDS PDFs, May 2026) ───
+    "nyu":        {"accept": 0.0906, "sat_25": 1480, "sat_75": 1550, "act_25": 34, "act_75": 35},
+    "tufts":      {"accept": 0.1149, "sat_25": 1480, "sat_75": 1540, "act_25": 33, "act_75": 35},
+    "bu":         {"accept": 0.1111, "sat_25": 1430, "sat_75": 1510, "act_25": 32, "act_75": 34},
+    "wake-forest":{"accept": 0.2076, "sat_25": 1420, "sat_75": 1490, "act_25": 32, "act_75": 34},
+    "villanova":  {"accept": 0.2698, "sat_25": 1410, "sat_75": 1490, "act_25": 32, "act_75": 34},
+    "brandeis":   {"accept": 0.4050, "sat_25": 1415, "sat_75": 1510, "act_25": 31, "act_75": 34},
+    "tamu":       {"accept": 0.5166, "sat_25": 1160, "sat_75": 1390, "act_25": 24, "act_75": 32},
+    "uga":        {"accept": 0.3792, "sat_25": 1220, "sat_75": 1400, "act_25": 26, "act_75": 32},
+    "vassar":     {"accept": 0.2093, "sat_25": 1460, "sat_75": 1520, "act_25": 33, "act_75": 34},
+    "macalester": {"accept": 0.1483, "sat_25": 1325, "sat_75": 1510, "act_25": 31, "act_75": 34},
+    "smith":      {"accept": 0.2100, "sat_25": 1450, "sat_75": 1520, "act_25": 32, "act_75": 35},
+    # SAT/ACT extracted but accept rate not yet pulled from CDS — Scorecard fallback applies
+    "lehigh":     {"sat_25": 1380, "sat_75": 1480, "act_25": 31, "act_75": 34},
+    "case":       {"sat_25": 1440, "sat_75": 1530, "act_25": 32, "act_75": 34},
+    "gatech":     {"sat_25": 1370, "sat_75": 1530, "act_25": 31, "act_75": 35},
+    "penn-state": {"sat_25": 1250, "sat_75": 1410, "act_25": 27, "act_75": 32},
+    "colgate":    {"sat_25": 1450, "sat_75": 1530, "act_25": 33, "act_75": 34},
 }
 
 
