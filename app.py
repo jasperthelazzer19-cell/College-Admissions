@@ -4801,6 +4801,7 @@ def improve_html():
 def school_improve_html(slug):
     school = COLLEGES_BY_SLUG.get(slug)
     if not school: abort(404)
+    school_m = merged_school(school)
     note = get_school_strategy(school)
     user = current_user()
     profile = get_profile(user["id"]) if user else None
@@ -4844,6 +4845,122 @@ def school_improve_html(slug):
             <p style="margin:0 0 8px"><b>Sign up + add your profile</b> to see your specific gaps for {school['name']}.</p>
             <a class="btn btn-light btn-sm" href="/signup">Sign up</a> <a class="btn btn-light btn-sm" href="/login">Log in</a>
         </div>"""
+    # ─── Personalized AI strategy (cached in tailored_advice) ───
+    tailored_card = ""
+    if profile and profile.get("uw_gpa") is not None:
+        try:
+            advice_body = get_tailored_advice(user["id"], school_m, profile, force=False)
+            advice_html = _render_tailored_advice(advice_body) if advice_body else ""
+            if advice_html:
+                tailored_card = f"""<div class="card">
+  <h3 style="margin-top:0">Your personalized strategy for {school['name']}</h3>
+  <p class="muted" style="font-size:.85em;margin:0 0 10px">Concrete actions calibrated to your stats, ECs, and {school['name']}'s admissions priorities.</p>
+  {advice_html}
+</div>"""
+        except Exception as e:
+            print(f"tailored advice (improve) error: {e}")
+    # ─── Application round recommendation ───
+    round_card = ""
+    detail = admissions_detail(school)
+    if detail and detail.get("rates"):
+        rates = detail["rates"]
+        rounds = detail.get("rounds", [])
+        # Pick best non-binding-aware recommendation
+        rec = None
+        rec_reason = ""
+        if "ED" in rates and rates.get("ED", 0) >= rates.get("RD", 0) * 1.4:
+            rec = "ED"; rec_reason = f"ED rate ({round(rates['ED']*100,1)}%) is materially higher than RD ({round(rates.get('RD',0)*100,1)}%). If {school['name']} is your top choice and you can commit financially, this is the highest-leverage round."
+        elif "REA" in rates and rates.get("REA", 0) >= rates.get("RD", 0) * 1.3:
+            rec = "REA"; rec_reason = f"REA is non-binding but signals interest. REA rate ({round(rates['REA']*100,1)}%) beats RD ({round(rates.get('RD',0)*100,1)}%) without locking you in."
+        elif "EA" in rates:
+            rec = "EA"; rec_reason = f"EA gives you an early decision without a binding commitment. Same or slightly better odds than RD."
+        elif "ED2" in rates and rates.get("ED2", 0) >= rates.get("RD", 0) * 1.3:
+            rec = "ED2"; rec_reason = f"If you don't get into your ED1 school, ED2 here ({round(rates['ED2']*100,1)}%) gives you another binding boost over RD ({round(rates.get('RD',0)*100,1)}%)."
+        else:
+            rec = "RD"; rec_reason = "RD is your main option here."
+        rate_rows = ""
+        for r in rounds:
+            v = rates.get(r)
+            v_str = f"{round(v*100,1)}%" if v else "—"
+            highlight = ' style="color:var(--teal);font-weight:700"' if r == rec else ""
+            rate_rows += f'<div style="display:flex;justify-content:space-between;padding:6px 0;border-top:1px solid var(--border)"><span{highlight}>{ROUND_LABELS.get(r,r)}{" ← recommended" if r == rec else ""}</span><span{highlight}>{v_str}</span></div>'
+        round_card = f"""<div class="card">
+  <h3 style="margin-top:0">Best application round for you</h3>
+  <p style="margin:0 0 10px">{rec_reason}</p>
+  {rate_rows}
+</div>"""
+    # ─── Score push impact ───
+    score_card = ""
+    if profile and (profile.get("sat") or profile.get("act")):
+        cur_sat = profile.get("sat")
+        cur_act = profile.get("act")
+        cur_fit, _ = compute_fit(profile, school_m)
+        cur_lo, cur_hi = estimate_odds(school_m, cur_fit, profile)
+        scenarios = []
+        if cur_sat:
+            for delta in (30, 60, 100):
+                new_sat = min(1600, cur_sat + delta)
+                if new_sat == cur_sat: continue
+                sim = dict(profile); sim["sat"] = new_sat
+                sf, _ = compute_fit(sim, school_m)
+                lo, hi = estimate_odds(school_m, sf, sim)
+                scenarios.append((f"SAT +{delta} → {new_sat}", f"{lo}–{hi}%", lo - cur_lo))
+        if cur_act:
+            for delta in (1, 2, 3):
+                new_act = min(36, cur_act + delta)
+                if new_act == cur_act: continue
+                sim = dict(profile); sim["act"] = new_act
+                sf, _ = compute_fit(sim, school_m)
+                lo, hi = estimate_odds(school_m, sf, sim)
+                scenarios.append((f"ACT +{delta} → {new_act}", f"{lo}–{hi}%", lo - cur_lo))
+        if scenarios:
+            rows_html = f'<tr><td><span class="muted">Current</span></td><td>{cur_lo}–{cur_hi}%</td><td></td></tr>'
+            for label, odds, delta in scenarios:
+                arrow = ""
+                if delta >= 2: arrow = f'<span style="color:#22c55e;font-weight:600">↑ +{delta}%</span>'
+                elif delta <= -2: arrow = f'<span style="color:#ef4444;font-weight:600">↓ {delta}%</span>'
+                else: arrow = '<span class="muted">≈</span>'
+                rows_html += f"<tr><td>{label}</td><td style='font-weight:600'>{odds}</td><td>{arrow}</td></tr>"
+            score_card = f"""<div class="card">
+  <h3 style="margin-top:0">Score push impact</h3>
+  <p class="muted" style="font-size:.85em;margin:0 0 10px">How retaking the test moves your odds at {school['name']}. Use this to decide if a retake is worth the time.</p>
+  <table class="rank-table" style="width:100%"><tbody>{rows_html}</tbody></table>
+  <p class="muted" style="font-size:.78em;margin:10px 0 0">More scenarios → <a href="/predictor">full score predictor</a></p>
+</div>"""
+    # ─── Similar admits from Reddit ───
+    similar_card = ""
+    if profile:
+        try:
+            real = extract_structured_profiles(slug, force=False)
+        except Exception:
+            real = []
+        # Filter: accepted only, with stats not wildly different
+        target_gpa = profile.get("uw_gpa")
+        target_sat = profile.get("sat")
+        nearby = []
+        for p in real:
+            if (p.get("OUTCOME") or "").lower() != "accepted": continue
+            gpa_str = (p.get("GPA") or "").strip()
+            test_str = (p.get("TEST") or "").strip()
+            # Loose filter — just want plausibly similar applicants
+            nearby.append(p)
+            if len(nearby) >= 3: break
+        if nearby:
+            cards = ""
+            for p in nearby:
+                hooks = (p.get("HOOKS") or "").strip()
+                stand = (p.get("STANDOUT") or "").strip()
+                cards += f"""<div style="padding:10px 0;border-top:1px solid var(--border)">
+  <div style="font-weight:600">Accepted · GPA {p.get('GPA','—')} · Test {p.get('TEST','—')}</div>
+  <div class="muted" style="font-size:.85em;margin-top:4px">{(p.get('MAJOR') or '—')}{' · ' + hooks if hooks else ''}</div>
+  {f'<div style="font-size:.88em;margin-top:6px"><b>What stood out:</b> {stand}</div>' if stand else ''}
+</div>"""
+            similar_card = f"""<div class="card">
+  <h3 style="margin-top:0">Real admits at {school['name']}</h3>
+  <p class="muted" style="font-size:.85em;margin:0 0 6px">Pulled from r/collegeresults and r/A2C. Use these to calibrate what's actually getting in.</p>
+  {cards}
+  <p style="margin-top:10px"><a class="btn btn-light btn-sm" href="/college/{slug}/profiles">All profiles →</a></p>
+</div>"""
     # School-specific links if this is one of the curated schools
     school_links_html = ""
     if SCHOOL_NOTES.get(slug, {}).get("links"):
@@ -4867,6 +4984,9 @@ def school_improve_html(slug):
 <h1>How to strengthen your {school['name']} application</h1>
 <p class="muted">{school['state']} · {round(school['accept']*100,1)}% acceptance · {school['type']} · Tier {school['tier']}</p>
 {chances_card}
+{tailored_card}
+{round_card}
+{score_card}
 <div class="card">
   <h3 style="margin-top:0">What {school['name']} weights most</h3>
   <p style="margin:0">{note['values']}</p>
@@ -4875,6 +4995,7 @@ def school_improve_html(slug):
   <h3 style="margin-top:0">Supplemental essay strategy</h3>
   <p style="margin:0">{note['supplemental_strategy']}</p>
 </div>
+{similar_card}
 {school_links_html}
 <div class="card">
   <h3 style="margin-top:0">Recommended competitions{' for ' + major if major else ''}</h3>
