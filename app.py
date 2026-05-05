@@ -3051,7 +3051,7 @@ def fetch_reddit_profiles(college_slug, force=False):
     # Sort by score, take top 8
     posts.sort(key=lambda p: -p["score"])
     posts = posts[:8]
-    # Cache
+    # Cache raw posts
     with db() as conn:
         try:
             conn.execute("""INSERT INTO school_reddit_posts (college_slug, body, fetched_at)
@@ -3063,6 +3063,99 @@ def fetch_reddit_profiles(college_slug, force=False):
         except Exception as e:
             print(f"reddit cache write failed: {e}")
     return posts
+
+
+def extract_structured_profiles(college_slug, force=False):
+    """One Claude call per school per 24h. Reads cached raw Reddit posts,
+    asks Claude to extract structured admit/reject/waitlist profiles in
+    the old card format. Cached separately. Falls back to empty list on
+    failure."""
+    school = COLLEGES_BY_SLUG.get(college_slug)
+    if not school: return []
+    cutoff = (datetime.utcnow() - timedelta(hours=REDDIT_POSTS_TTL_HOURS)).isoformat()
+    with db() as conn:
+        if not force:
+            row = conn.execute(
+                "SELECT body, generated_at FROM school_profiles WHERE college_slug=? AND generated_at >= ?",
+                (college_slug, cutoff)
+            ).fetchone()
+            if row:
+                try:
+                    return json.loads(row["body"])
+                except Exception:
+                    pass
+    posts = fetch_reddit_profiles(college_slug, force=False)
+    if not posts: return []
+    if not _claude_client: return []
+    # Build a compact prompt with all the raw posts
+    posts_text = ""
+    for i, p in enumerate(posts[:8]):
+        posts_text += f"\n---POST {i+1}---\nTitle: {p['title']}\nBody: {p['snippet']}\n"
+    prompt = f"""Below are real Reddit posts from r/collegeresults and r/chanceme mentioning {school['name']}. Extract structured profile cards from posts that contain enough detail.
+
+For each post that has clear stats + an outcome at {school['name']}, output a profile in this EXACT format (one per line, separated by blank lines):
+
+OUTCOME: <Accepted | Waitlisted | Rejected | Deferred>
+GPA: <unweighted, e.g. 3.95 UW>
+TEST: <SAT 1530 or ACT 35 or 'test-optional'>
+MAJOR: <intended major>
+GEO: <state or country>
+HOOKS: <legacy / first-gen / athlete / URM / none — pick what applies>
+STANDOUT: <single strongest signal: award, project, leadership, etc.>
+OTHER: <1-2 other notable items, comma-separated>
+WHY: <one sentence on what likely drove the decision>
+
+RULES:
+- Only output profiles where the post mentions {school['name']} specifically (not a generic chanceme post)
+- Skip posts that lack stats or a clear outcome
+- Aim for 4-8 profiles; mix of outcomes
+- Use real data from the posts, don't invent
+- Keep each field short (under 80 chars)
+- Don't include a name or any identifying info
+- Output ONLY the structured profiles, separated by blank lines. No preamble, no headers.
+
+Posts:
+{posts_text}"""
+    try:
+        resp = _claude_client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=1500,
+            system="You parse Reddit admissions posts into structured profile cards. Faithful to source data, never inventing facts. Skip posts without enough detail.",
+            messages=[{"role":"user","content": prompt}],
+        )
+        body = resp.content[0].text.strip()
+    except Exception as e:
+        print(f"profile extraction failed for {college_slug}: {e}")
+        return []
+    # Parse the structured output into a list of dicts
+    profiles = []
+    current = {}
+    for line in body.split("\n"):
+        line = line.strip()
+        if not line:
+            if current.get("OUTCOME"):
+                profiles.append(current)
+            current = {}
+            continue
+        for key in ("OUTCOME","GPA","TEST","MAJOR","GEO","HOOKS","STANDOUT","OTHER","WHY"):
+            if line.upper().startswith(key + ":"):
+                current[key] = line.split(":", 1)[1].strip()
+                break
+    if current.get("OUTCOME"):
+        profiles.append(current)
+    # Cache
+    if profiles:
+        with db() as conn:
+            try:
+                conn.execute("""INSERT INTO school_profiles (college_slug, body, generated_at)
+                    VALUES (?, ?, CURRENT_TIMESTAMP)
+                    ON CONFLICT(college_slug) DO UPDATE SET
+                        body=excluded.body, generated_at=CURRENT_TIMESTAMP""",
+                    (college_slug, json.dumps(profiles)))
+                conn.commit()
+            except Exception as e:
+                print(f"profiles cache write failed: {e}")
+    return profiles
 
 
 def fetch_articles(college_slug):
@@ -5128,28 +5221,58 @@ def school_profiles_html(slug):
     if not c: abort(404)
     name = c["name"]
     force = request.args.get("refresh") == "1"
-    posts = fetch_reddit_profiles(slug, force=force)
+    profiles = extract_structured_profiles(slug, force=force)
+    posts = fetch_reddit_profiles(slug, force=False)  # for the "raw posts" tab below
     show_essays = request.args.get("essays") == "1"
-    # Render each Reddit post as a card
+    # Render structured profile cards in the old style
     import html as _html
-    posts_html = ""
-    for p in posts:
-        title_safe = _html.escape(p["title"])
-        snippet_safe = _html.escape(p["snippet"]).replace("\n", "<br>")
-        sub_color = "var(--teal)" if p["sub"] == "r/collegeresults" else "#7dd3fc"
-        posts_html += f"""<div class="card" style="margin-bottom:10px">
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">
-            <a href="{p['url']}" target="_blank" rel="noopener" style="font-weight:600;color:var(--text);font-size:1em;flex:1;min-width:200px">{title_safe}</a>
-            <span style="font-size:.74em;background:rgba(94,234,212,.1);color:{sub_color};padding:3px 9px;border-radius:999px;border:1px solid rgba(94,234,212,.2);font-weight:500">{p['sub']}</span>
+    def _card(p):
+        outcome = p.get("OUTCOME", "?")
+        outcome_color = {
+            "Accepted": "var(--teal)",
+            "Admitted": "var(--teal)",
+            "Waitlisted": "#fcd34d",
+            "Deferred": "#fcd34d",
+            "Rejected": "#f9a8d4",
+        }.get(outcome, "var(--text-2)")
+        rows = ""
+        for label, key in [("GPA / Test", None), ("Major", "MAJOR"), ("Geography", "GEO"),
+                           ("Hooks", "HOOKS"), ("Standout", "STANDOUT"), ("Other", "OTHER")]:
+            if key is None:  # special-case GPA/Test combined
+                gpa = p.get("GPA", "—")
+                test = p.get("TEST", "—")
+                val = f"{gpa} · {test}"
+            else:
+                val = p.get(key, "—")
+            if val and val != "—":
+                rows += f'<div style="display:flex;font-size:.88em;padding:3px 0"><span class="muted" style="min-width:90px;font-weight:500">{label}</span><span style="color:var(--text)">{_html.escape(val)}</span></div>'
+        why = p.get("WHY", "")
+        why_html = f'<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);font-size:.88em;color:var(--text-2);line-height:1.5"><span class="muted" style="font-weight:500;margin-right:6px">Why {outcome.lower()}:</span>{_html.escape(why)}</div>' if why else ""
+        return f"""<div class="card" style="margin-bottom:10px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:6px">
+            <span style="font-weight:600;color:var(--text)">Real applicant</span>
+            <span style="font-size:.74em;background:rgba(94,234,212,.1);color:{outcome_color};padding:3px 11px;border-radius:999px;border:1px solid rgba(94,234,212,.2);font-weight:600;letter-spacing:.4px;text-transform:uppercase">{outcome}</span>
           </div>
-          <div class="muted" style="font-size:.78em;margin:4px 0 10px">↑ {p['score']} · 💬 {p['comments']} · {p['when']}</div>
-          <div style="font-size:.9em;line-height:1.55;color:var(--text-2)">{snippet_safe}</div>
-          <div style="margin-top:10px"><a href="{p['url']}" target="_blank" rel="noopener" style="font-size:.85em">Read full post on Reddit →</a></div>
+          {rows}
+          {why_html}
         </div>"""
-    if not posts_html:
+    profiles_html = "".join(_card(p) for p in profiles)
+    if not profiles_html:
         q = name.replace(" ", "+").replace("&","%26")
-        posts_html = f"""<p class="muted">No recent Reddit posts found for {name}. Reddit search is rate-limited so this can happen sometimes — try refreshing in a minute.</p>
-        <p style="margin-top:10px">Or browse directly: <a href="https://www.reddit.com/r/collegeresults/search/?q={q}&restrict_sr=1" target="_blank" rel="noopener">r/collegeresults</a> · <a href="https://www.reddit.com/r/chanceme/search/?q={q}&restrict_sr=1" target="_blank" rel="noopener">r/chanceme</a></p>"""
+        profiles_html = f"""<p class="muted">No structured profiles available yet for {name}. This usually means Reddit doesn't have enough recent posts about this school, or the parser couldn't extract clean data.</p>
+        <p style="margin-top:10px">Browse the source directly: <a href="https://www.reddit.com/r/collegeresults/search/?q={q}&restrict_sr=1" target="_blank" rel="noopener">r/collegeresults</a> · <a href="https://www.reddit.com/r/chanceme/search/?q={q}&restrict_sr=1" target="_blank" rel="noopener">r/chanceme</a></p>"""
+
+    # Optionally show raw Reddit posts below the structured cards
+    raw_posts_html = ""
+    if posts:
+        raw_posts_inner = ""
+        for p in posts[:5]:
+            title_safe = _html.escape(p["title"])
+            raw_posts_inner += f'<div style="padding:8px 0;border-top:1px solid var(--border);font-size:.88em"><a href="{p["url"]}" target="_blank" rel="noopener">{title_safe}</a> <span class="muted" style="font-size:.85em">· ↑{p["score"]} · {p["when"]}</span></div>'
+        raw_posts_html = f"""<details style="margin-top:14px">
+          <summary class="muted" style="cursor:pointer;font-size:.88em;padding:8px 0">View {len(posts)} raw Reddit posts</summary>
+          <div style="margin-top:6px">{raw_posts_inner}</div>
+        </details>"""
 
     essays_card = ""
     if show_essays:
@@ -5183,17 +5306,19 @@ def school_profiles_html(slug):
 </div>
 
 <div class="card">
-  <h3 style="margin-top:0">Real applicants from r/collegeresults & r/chanceme</h3>
-  <p class="muted" style="font-size:.88em;margin:0 0 14px">Pulled from Reddit's public posts. These are real students sharing their stats and outcomes. Click any title to read the full thread.</p>
+  <h3 style="margin-top:0">Real applicant profiles</h3>
+  <p class="muted" style="font-size:.88em;margin:0 0 6px">Each card is a real applicant pulled from r/collegeresults / r/chanceme posts about {name}. Their stats, hooks, and outcomes — extracted from what they actually wrote.</p>
 </div>
 
-{posts_html}
+{profiles_html}
+
+{raw_posts_html}
 
 {archive_html}
 
 {essays_card}
 
-<p class="muted" style="font-size:.78em;margin-top:18px">Posts cached 24 hours from Reddit. Click "Refresh from Reddit" to pull the latest.</p>
+<p class="muted" style="font-size:.78em;margin-top:18px">Cached 24 hours. Click "Refresh from Reddit" to pull fresh posts and re-extract profiles.</p>
 """, title=f"Real profiles — {name} — Candor")
 
 
