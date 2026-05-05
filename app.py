@@ -6449,28 +6449,57 @@ def get_saved_schools(user_id):
     return [r["college_slug"] for r in rows]
 
 
+_NAME_TO_SLUG = None
+def _name_to_slug_map():
+    global _NAME_TO_SLUG
+    if _NAME_TO_SLUG is None:
+        _NAME_TO_SLUG = {}
+        for s in COLLEGES:
+            _NAME_TO_SLUG[s["name"].lower().strip()] = s["slug"]
+            _NAME_TO_SLUG[s["slug"].lower().strip()] = s["slug"]
+    return _NAME_TO_SLUG
+
+
 @app.route("/compare")
 def compare_page():
-    slugs = (request.args.get("schools") or "").split(",")
-    slugs = [s.strip().lower() for s in slugs if s.strip()][:4]
+    # Accept either ?schools=slug,slug or ?school=name1&school=name2 (picker form)
+    raw_schools = request.args.get("schools") or ""
+    raw_picker  = request.args.getlist("school")
+    nm = _name_to_slug_map()
+    slugs = []
+    for piece in (raw_schools.split(",") + raw_picker):
+        key = (piece or "").strip().lower()
+        if not key: continue
+        slug = nm.get(key)
+        if slug and slug not in slugs:
+            slugs.append(slug)
+        if len(slugs) >= 4: break
     user = current_user()
     profile = get_profile(user["id"]) if user else None
-    valid = [COLLEGES_BY_SLUG[s] for s in slugs if s in COLLEGES_BY_SLUG]
-    valid = [merged_school(c) for c in valid]
+    valid = [merged_school(COLLEGES_BY_SLUG[s]) for s in slugs if s in COLLEGES_BY_SLUG]
     # Show picker if nothing valid
     if not valid:
-        # Pre-fill option list with user's saved schools
-        saved = get_saved_schools(user["id"])[:6] if user else []
-        opts = "".join(f'<option value="{s["slug"]}">{s["name"]}</option>' for s in COLLEGES)
-        prefill = ",".join(saved[:3]) if saved else ""
+        saved = get_saved_schools(user["id"])[:4] if user else []
+        opts = "".join(f'<option value="{s["name"]}">' for s in COLLEGES)
+        # Pre-fill up to 4 inputs with the user's saved schools (by name)
+        prefills = []
+        for s in saved[:4]:
+            sc = COLLEGES_BY_SLUG.get(s)
+            if sc: prefills.append(sc["name"])
+        while len(prefills) < 4: prefills.append("")
+        inputs_html = "".join(
+            f'<input name="school" list="schools-list" value="{prefills[i]}" '
+            f'placeholder="School {i+1}{" (optional)" if i >= 2 else ""}" '
+            f'autocomplete="off" style="margin-bottom:8px">'
+            for i in range(4)
+        )
         return _page(f"""
 <h1>Compare colleges</h1>
-<p class="muted">Pick 2-4 schools to see stats, fit, and chances side-by-side.</p>
+<p class="muted">Pick 2-4 schools to see stats, fit, and chances side-by-side. Start typing a name and select from the dropdown.</p>
 <form method="get" action="/compare" class="card" style="max-width:680px">
-  <label>Schools (comma-separated slugs)</label>
-  <input name="schools" value="{prefill}" placeholder="e.g. brown,cornell,upenn" required>
-  <p class="muted" style="font-size:.78em;margin-top:6px">Slugs are lowercase: harvard, mit, ucla, etc. Browse <a href="/colleges">all schools</a> to see slugs.</p>
-  <button class="btn btn-primary" type="submit" style="margin-top:10px">Compare</button>
+  <label>Schools</label>
+  {inputs_html}
+  <button class="btn btn-primary" type="submit" style="margin-top:6px">Compare</button>
 </form>
 <datalist id="schools-list">{opts}</datalist>
 """, title="Compare colleges — Candor")
