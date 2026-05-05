@@ -5758,43 +5758,25 @@ def plans_index_html():
   <a class="btn btn-light" href="/rankings/my-fit">My Fit ranking</a>
 </div>
 """, title="My Plans — Candor")
-    saved_card = ""
-    if saved_slugs:
-        saved_pills = ""
-        for s in saved_slugs[:12]:
-            sc = COLLEGES_BY_SLUG.get(s)
-            if not sc: continue
-            saved_pills += f'<a href="/college/{s}" class="pill" style="margin:3px;display:inline-block">{sc["name"]}</a>'
-        cmp_link = f'/compare?schools={",".join(saved_slugs[:4])}' if len(saved_slugs) >= 2 else "/compare"
-        saved_card = f"""<div class="card" style="margin-bottom:16px">
-  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:8px">
-    <h3 style="margin:0">★ My saved list ({len(saved_slugs)})</h3>
-    <div style="display:flex;gap:6px;flex-wrap:wrap">
-      <a class="btn btn-light btn-sm" href="{cmp_link}">Compare</a>
-      <a class="btn btn-light btn-sm" href="/timeline">Timeline</a>
-      <a class="btn btn-light btn-sm" href="/predictor">Score predictor</a>
-    </div>
-  </div>
-  <div style="display:flex;flex-wrap:wrap;gap:4px">{saved_pills}</div>
-</div>"""
     profile = get_profile(user["id"])
+    chances_slugs = {row["college_slug"] for row in rows}
     cards = ""
+    # Cards for chances-computed schools (full data)
     for row in rows:
         c = COLLEGES_BY_SLUG.get(row["college_slug"])
         if not c: continue
         tier_class = {"Dream":"pill-dream","Reach":"pill-reach","Target":"pill-target","Safety":"pill-safety"}.get(row["tier"], "pill-target")
-        # Compute the SAME composite My Fit score the ranking uses, so all
-        # surfaces agree on the number for a given school.
         match_score = ""
         if profile:
             prof_dict = {k: profile.get(k) for k in profile.keys()}
             overall, _ = compute_my_fit(prof_dict, c)
             col = "#1d6c2a" if overall >= 80 else ("#8a4a00" if overall >= 60 else "#9a1d1d")
             match_score = f'<div class="muted" style="font-size:.85em;margin-top:4px">My Fit: <span style="color:{col};font-weight:700">{overall}/100</span></div>'
+        saved_star = ' <span style="color:var(--teal)" title="Saved">★</span>' if c["slug"] in saved_slugs else ""
         cards += f"""<a href="/college/{c['slug']}/plan" class="school-card" style="display:block;color:inherit">
           <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">
             <div>
-              <div style="font-weight:700;font-size:1.05em">{c['name']}</div>
+              <div style="font-weight:700;font-size:1.05em">{c['name']}{saved_star}</div>
               <div class="muted" style="font-size:.82em">{city_state(c)} · {round(c['accept']*100,1)}% accept · fit {row['fit']}/100</div>
             </div>
             <div><span class="pill {tier_class}">{row['tier']}</span></div>
@@ -5802,10 +5784,40 @@ def plans_index_html():
           <div style="font-size:1.4em;font-weight:800;color:#2b6cff;margin-top:8px">{row['odds_low']}–{row['odds_high']}%</div>
           {match_score}
         </a>"""
+    # Cards for saved-but-not-yet-chanced schools (no odds yet)
+    for slug in saved_slugs:
+        if slug in chances_slugs: continue
+        c = COLLEGES_BY_SLUG.get(slug)
+        if not c: continue
+        cm = merged_school(c)
+        match_score = ""
+        if profile:
+            prof_dict = {k: profile.get(k) for k in profile.keys()}
+            overall, _ = compute_my_fit(prof_dict, cm)
+            col = "#1d6c2a" if overall >= 80 else ("#8a4a00" if overall >= 60 else "#9a1d1d")
+            match_score = f'<div class="muted" style="font-size:.85em;margin-top:4px">My Fit: <span style="color:{col};font-weight:700">{overall}/100</span></div>'
+        cards += f"""<a href="/college/{c['slug']}/plan" class="school-card" style="display:block;color:inherit">
+          <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">
+            <div>
+              <div style="font-weight:700;font-size:1.05em">{c['name']} <span style="color:var(--teal)" title="Saved">★</span></div>
+              <div class="muted" style="font-size:.82em">{city_state(c)} · {round(c['accept']*100,1)}% accept</div>
+            </div>
+          </div>
+          <div style="font-size:.95em;color:var(--teal);margin-top:8px">Compute chances →</div>
+          {match_score}
+        </a>"""
+    toolbar = ""
+    if saved_slugs:
+        cmp_link = f'/compare?schools={",".join(saved_slugs[:4])}' if len(saved_slugs) >= 2 else "/compare"
+        toolbar = f"""<div style="display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px">
+  <a class="btn btn-light btn-sm" href="{cmp_link}">Compare saved</a>
+  <a class="btn btn-light btn-sm" href="/timeline">Timeline</a>
+  <a class="btn btn-light btn-sm" href="/predictor">Score predictor</a>
+</div>"""
     return _page(f"""
 <h1>My Plans</h1>
-<p class="muted">Schools you've computed chances for. Click any card for the full personalized plan — chances, match, gaps, school-specific advice.</p>
-{saved_card}
+<p class="muted">Schools you've saved or computed chances for. Click any card for the full personalized plan — chances, match, gaps, school-specific advice.</p>
+{toolbar}
 <div class="grid">{cards}</div>
 <p style="margin-top:18px"><a class="btn btn-light" href="/colleges">+ Add another school</a></p>
 """, title="My Plans — Candor")
