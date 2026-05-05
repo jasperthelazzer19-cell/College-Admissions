@@ -1222,6 +1222,16 @@ CDS_VERIFIED = {
     "gatech":     {"sat_25": 1370, "sat_75": 1530, "act_25": 31, "act_75": 35},
     "penn-state": {"sat_25": 1250, "sat_75": 1410, "act_25": 27, "act_75": 32},
     "colgate":    {"sat_25": 1450, "sat_75": 1530, "act_25": 33, "act_75": 34},
+    # Round 3 batch
+    "uci":        {"accept": 0.2895},  # test-blind
+    "barnard":    {"accept": 0.0884, "sat_25": 1480, "sat_75": 1540, "act_25": 32, "act_75": 34},
+    "oberlin":    {"accept": 0.3416, "sat_25": 1370, "sat_75": 1500, "act_25": 31, "act_75": 34},
+    "grinnell":   {"accept": 0.1451, "sat_25": 1430, "sat_75": 1520, "act_25": 31, "act_75": 34},
+    "bryn-mawr":  {"sat_25": 1290, "sat_75": 1490, "act_25": 29, "act_75": 33},
+    "bucknell":   {"sat_25": 1170, "sat_75": 1360, "act_25": 25, "act_75": 32},
+    "auburn":     {"accept": 0.4587, "sat_25": 1260, "sat_75": 1380, "act_25": 26, "act_75": 31},
+    "northeastern":{"accept": 0.0521, "sat_25": 1450, "sat_75": 1520, "act_25": 33, "act_75": 35},
+    "reed":       {"accept": 0.2919, "sat_25": 1320, "sat_75": 1490, "act_25": 29, "act_75": 34},
 }
 
 
