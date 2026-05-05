@@ -1232,6 +1232,8 @@ CDS_VERIFIED = {
     "auburn":     {"accept": 0.4587, "sat_25": 1260, "sat_75": 1380, "act_25": 26, "act_75": 31},
     "northeastern":{"accept": 0.0521, "sat_25": 1450, "sat_75": 1520, "act_25": 33, "act_75": 35},
     "reed":       {"accept": 0.2919, "sat_25": 1320, "sat_75": 1490, "act_25": 29, "act_75": 34},
+    "umass":      {"accept": 0.5990, "sat_25": 1330, "sat_75": 1480, "act_25": 30, "act_75": 34},
+    "wm":         {"accept": 0.3696, "sat_25": 1390, "sat_75": 1520, "act_25": 32, "act_75": 34},
 }
 
 
