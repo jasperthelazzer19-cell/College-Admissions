@@ -788,6 +788,128 @@ def admissions_detail(school):
     return ADMISSIONS_DETAIL.get(school["slug"])
 
 
+# Where this leads — career feeders / industry pipelines / geographic
+# advantages per school. Structure: list of short bullets, 2-5 per school.
+# AI-generated for schools not in the curated dict (cached forever in DB).
+SCHOOL_FEEDERS = {
+    "harvard": ["Investment banking + consulting (MBB pipeline)", "Government & policy (heavy DC + State Dept presence)", "Academia / PhD programs at any top school", "Big Law via HLS pipeline"],
+    "stanford": ["Tech / SWE (every FAANG hires aggressively)", "Startup founding (#1 founder rate of any school)", "Venture capital (deep Sand Hill connections)", "Quant trading + AI research labs"],
+    "mit": ["Tech / SWE at frontier AI labs (OpenAI, Anthropic, DeepMind)", "Quant trading (Jane Street, Citadel, Two Sigma)", "Hardware engineering + robotics", "Startup founding in deep tech"],
+    "yale": ["Big Law (Yale Law pipeline)", "Consulting (MBB heavy)", "Government / public policy", "Finance + nonprofit leadership"],
+    "princeton": ["Investment banking + PE (heavy NYC pipeline)", "Consulting (MBB)", "Academia (high PhD rate)", "Government / Public Affairs (Wilson School)"],
+    "columbia": ["Investment banking (Wall Street is 20 min away)", "Journalism (J-school feeder)", "Consulting", "Big Law"],
+    "uchicago": ["Consulting (MBB-heavy)", "Quant finance + economics PhD pipeline", "Investment banking", "Academia"],
+    "upenn": ["Investment banking + PE (Wharton dominates Wall St recruiting)", "Consulting (MBB top hire from Wharton)", "Big Tech via M&T / engineering", "VC / hedge funds"],
+    "brown": ["Tech / SWE (Open Curriculum produces flexible engineers)", "Consulting", "Creative writing / journalism", "Medicine via PLME"],
+    "dartmouth": ["Consulting (per-capita MBB hire rate near top of any school)", "Investment banking", "Tech (smaller pipeline but real)", "Tuck MBA pipeline"],
+    "duke": ["Consulting + investment banking (MBB recruits heavily)", "Pre-med (Duke Med pipeline)", "Tech / SWE (growing Triangle ecosystem)", "Big Law"],
+    "northwestern": ["Consulting (MBB top hire)", "Marketing + journalism (Medill pipeline)", "Investment banking", "Tech in Chicago"],
+    "cornell": ["Tech / SWE (especially CS + Engineering schools)", "Hospitality (Hotel School is uniquely strong)", "Investment banking via Dyson / AEM", "Vet / Ag (CALS pipeline)"],
+    "caltech": ["Frontier AI research", "Quant trading", "Tech / SWE at deep-tech firms", "Aerospace + JPL pipeline"],
+    "jhu": ["Pre-med + medical research (Johns Hopkins Hospital pipeline)", "Biomedical engineering at top firms", "International policy (SAIS connection)", "Public health / NIH / CDC"],
+    "vanderbilt": ["Consulting + investment banking (Owen pipeline)", "Pre-med (Vanderbilt Medical Center)", "Healthcare consulting (Nashville hub)", "Education / Peabody pipeline"],
+    "rice": ["Engineering at energy / oil & gas firms (Houston advantage)", "Pre-med (Texas Medical Center next door)", "Tech / SWE", "Architecture (top program)"],
+    "notre-dame": ["Investment banking + consulting (Mendoza recruits well)", "Big Law", "Engineering at Midwest manufacturers", "Catholic Church-affiliated nonprofits"],
+    "cmu": ["Tech / SWE at every FAANG (CS school is top-3 nationally)", "AI / ML research", "Quant trading", "Drama / film (Tisch alternative)"],
+    "usc": ["Entertainment industry (film, TV, music — Hollywood dominance)", "Tech in LA", "Marshall pipeline to consulting / IB", "Journalism via Annenberg"],
+    "nyu": ["Investment banking (Stern is top-3 IB feeder)", "Tech / SWE in NYC", "Film / TV (Tisch)", "Fashion + media"],
+    "georgetown": ["Government / State Dept / foreign service (#1 IR feeder)", "Big Law (Georgetown Law)", "Consulting (DC offices)", "Finance"],
+    "ucb": ["Tech / SWE at every Bay Area firm (Cal CS rivals Stanford)", "Startup founding (deep VC ties)", "Public policy + academia", "Engineering at every top firm"],
+    "ucla": ["Entertainment + media (Hollywood pipeline)", "Tech in LA", "Pre-med (DGSOM)", "Public policy"],
+    "umich": ["Investment banking + consulting (Ross is top-tier)", "Engineering at Big 3 auto + every Big Tech", "Big Law (Michigan Law)", "Healthcare via Med School"],
+    "uva": ["Consulting + investment banking (McIntire is elite)", "Big Law (UVA Law)", "Government / DC pipeline", "Tech (growing)"],
+    "gatech": ["Engineering at every top firm (top-5 engineering school)", "Tech / SWE (Atlanta hub for Coca-Cola, Delta, Home Depot, plus Google ATL)", "Aerospace (Lockheed, Delta)", "Cybersecurity (NSA + GTRI)"],
+    "tufts": ["International relations / foreign service (Fletcher pipeline)", "Pre-med + biotech (Boston ecosystem)", "Tech / SWE (Boston tech)", "Consulting"],
+    "washu": ["Pre-med (BJC HealthCare pipeline)", "Investment banking (Olin recruits)", "Healthcare consulting", "Biology / biomedical research"],
+    "emory": ["Pre-med (Emory Healthcare + CDC + Children's HC of Atlanta)", "Public health (Rollins pipeline)", "Investment banking (Goizueta)", "Big Law"],
+    "unc": ["Pharmacy (top program nationally)", "Journalism (top J-school)", "Pre-med (UNC Hospitals)", "Public policy + government"],
+    "bu": ["Communications / media (huge alumni in journalism)", "Pre-med (BU Medical)", "Engineering at Boston tech / biotech", "Consulting (mid-tier)"],
+    "bc": ["Investment banking (Carroll School recruits well)", "Big Law", "Catholic ministry / nonprofit leadership", "Education + social work"],
+    "wake-forest": ["Investment banking (heavy Wall Street pipeline for the size)", "Big Law", "Banking / wealth management (Charlotte hub)", "Consulting"],
+    "wm": ["Government / CIA / State Dept (DC pipeline + 'CIA prep school' nickname)", "Big Law", "Foreign service", "Public policy"],
+    "uf": ["Pre-med (UF Health)", "Engineering / tech in Florida", "Agriculture (huge ag program)", "Journalism (Innovation News Center)"],
+    "ut-austin": ["Tech / SWE (Austin = mini Silicon Valley: Apple, Tesla, Oracle, Google all hire)", "Engineering at oil + aerospace (Texas advantage)", "Investment banking (McCombs)", "Government / law (UT Law)"],
+    "tulane": ["Pre-med (Tulane Medical)", "Public health (#1 in tropical medicine)", "Architecture", "Music industry (New Orleans)"],
+    "northeastern": ["Co-op pipeline = direct hire at every Boston tech firm", "Engineering / SWE", "Pharma / biotech (Boston ecosystem)", "Finance (NYC pipeline)"],
+    "rpi": ["Engineering at defense + aerospace (Lockheed, Northrop, Raytheon)", "Tech / SWE (especially gaming + simulation)", "Architecture", "Finance / quant (smaller pipeline)"],
+    "harvey-mudd": ["Tech / SWE at every top firm (highest STEM PhD rate per capita)", "Engineering R&D", "Quant trading", "Academia (very high PhD rate)"],
+    "babson": ["Entrepreneurship + founding (built around it)", "Investment banking", "Family business / consulting", "Real estate"],
+    "cmc": ["Investment banking + consulting", "Government / think tanks (Rose Institute)", "Academia (econ PhD pipeline)", "Big Law"],
+    "swarthmore": ["Academia / PhD programs (highest per-capita PhD rate of any college)", "Public service / nonprofit leadership", "Tech (smaller pipeline)", "Big Law"],
+    "williams": ["Academia / PhD programs", "Investment banking + finance (small but elite pipeline)", "Consulting", "Education + nonprofit leadership"],
+    "amherst": ["Academia + PhD pipeline", "Public service + government", "Big Law", "Investment banking"],
+    "pomona": ["Tech / SWE (LA + 5C consortium connections)", "Academia", "Consulting", "Public policy"],
+}
+
+
+def get_school_feeders(school):
+    """Return the curated feeders list for a school. AI-generates and caches
+    for schools not in the manual dict."""
+    if school["slug"] in SCHOOL_FEEDERS:
+        return SCHOOL_FEEDERS[school["slug"]]
+    # Look up in DB cache
+    with db() as conn:
+        row = conn.execute(
+            "SELECT body FROM school_feeders WHERE college_slug=?",
+            (school["slug"],)
+        ).fetchone() if _table_exists(conn, "school_feeders") else None
+    if row and row["body"]:
+        try:
+            return json.loads(row["body"])
+        except Exception:
+            return []
+    # Generate via Claude
+    if not _claude_client:
+        return []
+    try:
+        prompt = (f"List 3-5 specific career pipelines / industries / geographic advantages for graduates of {school['name']} ({city_state(school)}).\n\n"
+                  f"Hard rules:\n"
+                  f"- Each line is one short bullet (under 12 words)\n"
+                  f"- Be specific: name firms, industries, or geographic advantages, not generic 'consulting'\n"
+                  f"- Real downsides ok (e.g., 'mid-tier IB pipeline, not top of class')\n"
+                  f"- No em-dashes, no marketing language ('renowned', 'esteemed', etc)\n\n"
+                  f"Output ONE bullet per line, no formatting characters, no preamble.")
+        resp = _claude_client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=300,
+            system="You list real career pipelines for college graduates. Specific, slightly opinionated. No marketing fluff.",
+            messages=[{"role":"user","content": prompt}],
+        )
+        text = resp.content[0].text.strip()
+        bullets = [line.strip("- •*").strip() for line in text.split("\n") if line.strip() and len(line.strip()) > 4][:5]
+    except Exception as e:
+        print(f"School feeders error: {e}")
+        bullets = []
+    if bullets:
+        with db() as conn:
+            try:
+                conn.execute("INSERT OR REPLACE INTO school_feeders (college_slug, body) VALUES (?, ?)",
+                             (school["slug"], json.dumps(bullets)))
+                conn.commit()
+            except Exception:
+                pass
+    return bullets
+
+
+def _table_exists(conn, name):
+    try:
+        return conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (name,)).fetchone() is not None
+    except Exception:
+        return False
+
+
+def render_school_feeders(school):
+    feeders = get_school_feeders(school)
+    if not feeders:
+        return ""
+    items = "".join(f'<li style="margin:6px 0">{f}</li>' for f in feeders)
+    return f"""<div class="card" style="margin-top:16px">
+      <h3 style="margin-top:0">Where this leads</h3>
+      <p class="muted" style="font-size:.85em;margin:0 0 8px">Real career pipelines from this school, based on alumni outcomes and recruiting patterns.</p>
+      <ul style="padding-left:18px;margin:8px 0;color:var(--text)">{items}</ul>
+    </div>"""
+
+
 ROUND_LABELS = {
     "ED":  "Early Decision",
     "ED2": "Early Decision II",
@@ -1907,6 +2029,38 @@ AP_WEIGHTS = {
 }
 
 
+# IB classes. HL ≈ AP-level; SL slightly less. Stored separately from APs
+# so we can show both in admissions reads (lots of intl applicants take both).
+IB_WEIGHTS = {
+    # HL (Higher Level) — full weight comparable to AP
+    "math aa hl": 3.0, "math analysis hl": 3.0,
+    "math ai hl": 2.6, "math applications hl": 2.6,
+    "physics hl": 3.0, "chemistry hl": 3.0, "biology hl": 3.0,
+    "computer science hl": 2.8,
+    "english lit hl": 2.8, "english language and literature hl": 2.8,
+    "history hl": 2.8, "economics hl": 2.6, "psychology hl": 2.0,
+    "geography hl": 2.0, "global politics hl": 2.4,
+    "business management hl": 2.2,
+    "spanish hl": 2.4, "french hl": 2.4, "german hl": 2.4,
+    "mandarin hl": 2.6, "japanese hl": 2.4,
+    "visual arts hl": 1.8, "music hl": 2.0, "theatre hl": 1.8, "film hl": 1.8,
+    "design technology hl": 2.4, "environmental systems hl": 2.0,
+    "tok": 1.5, "extended essay": 1.8,
+    # SL (Standard Level) — about 70% of HL weight
+    "math aa sl": 2.0, "math ai sl": 1.6,
+    "physics sl": 2.0, "chemistry sl": 2.0, "biology sl": 2.0,
+    "computer science sl": 1.8,
+    "english lit sl": 2.0, "english language and literature sl": 2.0,
+    "history sl": 2.0, "economics sl": 1.8, "psychology sl": 1.4,
+    "geography sl": 1.4, "global politics sl": 1.6,
+    "business management sl": 1.6,
+    "spanish sl": 1.6, "french sl": 1.6, "german sl": 1.6,
+    "mandarin sl": 1.8, "japanese sl": 1.6,
+    "visual arts sl": 1.2, "music sl": 1.4, "theatre sl": 1.2, "film sl": 1.2,
+    "environmental systems sl": 1.4,
+}
+
+
 def score_aps(profile):
     """Return (rigor_score 0-100, count, top_aps_listed) for a student's AP
     courses. Higher = more rigorous course load. Returns:
@@ -1942,6 +2096,49 @@ def score_aps(profile):
     # 0-100 scale: ~25 points = solid load, ~40+ = elite load
     rigor = min(100, total * 4)
     return round(rigor, 1), len(matched), [name for name, _ in matched]
+
+
+def score_ibs(profile):
+    """Same idea as score_aps but for IB classes. HL ≈ AP-level, SL ≈ less.
+    IB and AP can both be filled in (some IB schools offer both); we combine
+    them when computing total course rigor."""
+    if profile.get("no_ibs_offered"):
+        return None, 0, []
+    raw = (profile.get("ibs") or "").strip().lower()
+    if not raw:
+        if profile.get("ibs_offered_not_taken"):
+            return -8.0, 0, []  # slightly less harsh than AP version since IB is rarer
+        return 0, 0, []
+    parts = [p.strip() for p in raw.replace(";", ",").split(",") if p.strip()]
+    matched = []
+    for part in parts:
+        best_key, best_w = None, 0.0
+        for key, w in IB_WEIGHTS.items():
+            if key in part:
+                if len(key) > len(best_key or ""):
+                    best_key, best_w = key, w
+        matched.append((part, best_w if best_key else 1.5))
+    total = sum(w for _, w in matched)
+    rigor = min(100, total * 4)
+    return round(rigor, 1), len(matched), [name for name, _ in matched]
+
+
+def combined_rigor(profile):
+    """Combine AP + IB rigor. If both filled, add (capped). If one is None
+    (school doesn't offer that track) → ignore that one."""
+    ap, ap_count, _ = score_aps(profile)
+    ib, ib_count, _ = score_ibs(profile)
+    if ap is None and ib is None:
+        return None  # neither offered
+    if ap is None: return ib
+    if ib is None: return ap
+    # Both populated → sum, but cap to not double-count when student takes
+    # significant load in both (rare but possible at IB schools that also
+    # offer APs)
+    if ap < 0 and ib < 0: return min(ap, ib)
+    if ap < 0: return ib
+    if ib < 0: return ap
+    return min(100, ap + ib * 0.6)  # IB weighted slightly less when stacked
 
 
 def _normalize_score(sat, act):
@@ -2005,7 +2202,7 @@ def compute_fit(profile, school):
     # "no APs offered" the contribution is 0 (neutral, no penalty).
     # Negative rigor (school offered, user took none) gets a small penalty
     # at top schools where rigor matters; less elsewhere.
-    rigor, _ap_count, _ = score_aps(profile)
+    rigor = combined_rigor(profile)
     if rigor is not None:
         cap = 6 if school.get("tier", 5) <= 2 else (4 if school.get("tier", 5) == 3 else 3)
         if rigor >= 0:
@@ -2177,7 +2374,45 @@ def _claude(model, system, user, max_tokens=400):
 
 def generate_bullets(profile, school, fit, components, tier, odds):
     fb = _fallback_bullets(profile, school, fit, components, tier)
-    test_str = ('SAT ' + str(profile['sat'])) if profile.get('sat') else (('ACT ' + str(profile['act'])) if profile.get('act') else 'none submitted')
+    # Pre-compute the test comparison so the model can't get the direction wrong.
+    # Past bug: AI said "ACT 35 falls below mid-range 32-34" when 35 is actually
+    # above 34. Now we hand the comparison to the model as a string.
+    test_str = "none submitted"
+    test_compare = "Student did not submit a test score."
+    sat = profile.get("sat")
+    act = profile.get("act")
+    if sat:
+        test_str = f"SAT {sat}"
+        if sat >= school["sat_75"]:
+            test_compare = f"SAT {sat} is AT OR ABOVE the 75th percentile ({school['sat_75']}) of admits — top of the range."
+        elif sat >= school["sat_25"]:
+            test_compare = f"SAT {sat} is INSIDE the mid-50% range ({school['sat_25']}-{school['sat_75']}) of admits."
+        else:
+            gap = school["sat_25"] - sat
+            test_compare = f"SAT {sat} is BELOW the 25th percentile ({school['sat_25']}) of admits — gap of {gap} points."
+    elif act:
+        test_str = f"ACT {act}"
+        if act >= school["act_75"]:
+            test_compare = f"ACT {act} is AT OR ABOVE the 75th percentile ({school['act_75']}) of admits — top of the range."
+        elif act >= school["act_25"]:
+            test_compare = f"ACT {act} is INSIDE the mid-50% range ({school['act_25']}-{school['act_75']}) of admits."
+        else:
+            gap = school["act_25"] - act
+            test_compare = f"ACT {act} is BELOW the 25th percentile ({school['act_25']}) of admits — gap of {gap} points."
+    # Same idea for GPA.
+    gpa = profile.get("uw_gpa")
+    gpa_compare = "GPA not submitted."
+    if gpa:
+        mid = round((school["gpa_lo"] + school["gpa_hi"]) / 2, 2)
+        if gpa >= school["gpa_hi"]:
+            gpa_compare = f"GPA {gpa} is AT OR ABOVE the typical 75th percentile ({school['gpa_hi']})."
+        elif gpa >= mid:
+            gpa_compare = f"GPA {gpa} is ABOVE midpoint ({mid}), upper half of admits."
+        elif gpa >= school["gpa_lo"]:
+            gpa_compare = f"GPA {gpa} is BELOW midpoint ({mid}) but inside the typical range ({school['gpa_lo']}-{school['gpa_hi']})."
+        else:
+            gpa_compare = f"GPA {gpa} is BELOW the typical 25th percentile ({school['gpa_lo']}) — academic gap."
+
     user = f"""Student profile:
 - Unweighted GPA: {profile.get('uw_gpa')}
 - Test: {test_str}
@@ -2190,7 +2425,15 @@ def generate_bullets(profile, school, fit, components, tier, odds):
 Target: {school['name']} (acceptance {round(school['accept']*100,1)}%, GPA midpoint ~{round((school['gpa_lo']+school['gpa_hi'])/2,2)}, SAT mid-50% {school['sat_25']}-{school['sat_75']}, ACT mid-50% {school['act_25']}-{school['act_75']}).
 Computed fit: {fit}/100. Tier: {tier}. Odds: {odds[0]}-{odds[1]}%.
 
-CRITICAL: Use ONLY the numbers given above. Do not invent percentile rankings or stats not provided. If the student submitted ACT, compare to the ACT range; if SAT, compare to the SAT range. Don't compare an ACT score to an SAT range.
+PRE-COMPUTED COMPARISONS (use these exactly, do NOT recompute):
+- {test_compare}
+- {gpa_compare}
+
+CRITICAL RULES:
+- Use ONLY the numbers and comparisons given above.
+- DO NOT compute test/GPA percentiles yourself — use the pre-computed comparisons.
+- DO NOT invent percentile rankings or stats not provided.
+- If the student submitted ACT, only reference the ACT range — never compare ACT to SAT.
 
 Output exactly three lines:
 STRENGTH: <one-sentence biggest advantage, citing a specific number/item>
@@ -2359,6 +2602,11 @@ def init_db():
             body TEXT NOT NULL,
             generated_at TEXT DEFAULT CURRENT_TIMESTAMP
         )""")
+        conn.execute("""CREATE TABLE IF NOT EXISTS school_feeders (
+            college_slug TEXT PRIMARY KEY,
+            body TEXT NOT NULL,
+            generated_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )""")
         conn.execute("""CREATE TABLE IF NOT EXISTS school_strategies (
             college_slug TEXT PRIMARY KEY,
             school_values TEXT NOT NULL,
@@ -2418,7 +2666,8 @@ def init_db():
         # AP courses (free-text, comma-separated) + flag for schools that
         # don't offer APs. When the flag is set, course rigor is treated as
         # neutral rather than penalized.
-        for col, default in (("aps", "''"), ("no_aps_offered", "0"), ("aps_offered_not_taken", "0")):
+        for col, default in (("aps", "''"), ("no_aps_offered", "0"), ("aps_offered_not_taken", "0"),
+                              ("ibs", "''"), ("no_ibs_offered", "0"), ("ibs_offered_not_taken", "0")):
             try:
                 conn.execute(f"ALTER TABLE profiles ADD COLUMN {col} TEXT DEFAULT {default}" if col == "aps"
                              else f"ALTER TABLE profiles ADD COLUMN {col} INTEGER DEFAULT {default}")
@@ -2518,11 +2767,12 @@ def save_profile(user_id, p):
         conn.execute("""INSERT INTO profiles
             (user_id, uw_gpa, weighted_gpa, sat, act, major, state, school_type, ecs, leadership, awards,
              legacy, first_gen, athlete, is_international, legacy_schools, aps, no_aps_offered, aps_offered_not_taken,
+             ibs, no_ibs_offered, ibs_offered_not_taken,
              pref_weather, pref_setting, pref_size, pref_greek, pref_sports, pref_major_strength,
              pref_class_size, pref_prestige, pref_cost,
              pref_diversity, pref_party, pref_research, pref_career_intensity,
              pref_weights, updated_at)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)
             ON CONFLICT(user_id) DO UPDATE SET
                 uw_gpa=excluded.uw_gpa, weighted_gpa=excluded.weighted_gpa, sat=excluded.sat, act=excluded.act,
                 major=excluded.major, state=excluded.state, school_type=excluded.school_type,
@@ -2531,6 +2781,7 @@ def save_profile(user_id, p):
                 is_international=excluded.is_international,
                 legacy_schools=excluded.legacy_schools,
                 aps=excluded.aps, no_aps_offered=excluded.no_aps_offered, aps_offered_not_taken=excluded.aps_offered_not_taken,
+                ibs=excluded.ibs, no_ibs_offered=excluded.no_ibs_offered, ibs_offered_not_taken=excluded.ibs_offered_not_taken,
                 pref_weather=excluded.pref_weather, pref_setting=excluded.pref_setting,
                 pref_size=excluded.pref_size, pref_greek=excluded.pref_greek,
                 pref_sports=excluded.pref_sports, pref_major_strength=excluded.pref_major_strength,
@@ -2547,6 +2798,8 @@ def save_profile(user_id, p):
              1 if p.get("is_international") else 0,
              legacy_schools, p.get("aps") or "", 1 if p.get("no_aps_offered") else 0,
              1 if p.get("aps_offered_not_taken") else 0,
+             p.get("ibs") or "", 1 if p.get("no_ibs_offered") else 0,
+             1 if p.get("ibs_offered_not_taken") else 0,
              p.get("pref_weather") or "any", p.get("pref_setting") or "any",
              p.get("pref_size") or "any", p.get("pref_greek") or "any",
              p.get("pref_sports") or "any", p.get("pref_major_strength") or "any",
@@ -2945,6 +3198,51 @@ hr{border:0;border-top:1px solid var(--border);margin:24px 0}
 .stat-card .delta{font-size:.78em;color:var(--text-2);margin-top:4px}
 .pick-pill:hover{background:var(--surface-hover)!important;border-color:rgba(94,234,212,.3)!important}
 .pick-pill:has(input:checked){background:rgba(94,234,212,.12)!important;border-color:rgba(94,234,212,.45)!important;color:var(--teal)!important}
+/* ───────── MOBILE ───────── */
+@media (max-width: 720px){
+  .wrap{padding:0 16px 60px}
+  .nav{padding:12px 14px;gap:14px;flex-wrap:wrap}
+  .nav .brand{font-size:1em;width:100%;margin-bottom:2px}
+  .nav .sp{display:none}
+  .nav a{font-size:.85em}
+  h1{font-size:1.45em}
+  h2{font-size:1.1em}
+  .card{padding:16px;border-radius:12px}
+  .grid{grid-template-columns:1fr;gap:12px}
+  .school-card{padding:14px}
+  .stat-card .value{font-size:1.6em}
+  .odds{font-size:1.85em}
+  .rank-table{font-size:.78em}
+  .rank-table th,.rank-table td{padding:8px 6px}
+  .rank-table th:nth-child(5),.rank-table td:nth-child(5){display:none}  /* hide ACT col */
+  .rank-table th:nth-child(7),.rank-table td:nth-child(7){display:none}  /* hide class size */
+  .pick-pill{font-size:.78em!important;padding:5px 9px!important}
+  .pill{font-size:.65em;padding:3px 8px}
+  /* iOS auto-zooms inputs with font-size <16px. Keep at 16 to prevent that. */
+  input,select,textarea{font-size:16px}
+  .btn{padding:10px 18px;font-size:.92em}
+  .btn-sm{padding:7px 12px}
+  /* Tap targets */
+  .checks label{padding:8px 0;min-height:44px}
+  .pick-pill{min-height:36px}
+  /* Tables that overflow get a scroll container */
+  table{display:block;overflow-x:auto}
+  /* Action plan items stack tighter */
+  .action-item{flex-direction:column;gap:8px;padding:14px 0}
+  .action-num{margin-bottom:4px}
+}
+@media (max-width: 480px){
+  .wrap{padding:0 12px 50px}
+  .nav{gap:10px}
+  .nav a{font-size:.8em}
+  h1{font-size:1.3em;letter-spacing:-.4px}
+  .card{padding:14px}
+  .stat-card .value{font-size:1.4em}
+  .odds{font-size:1.6em}
+  /* Real Profiles header on mobile */
+  .rank-row{flex-wrap:wrap;padding:12px}
+  .rank-row .num{min-width:24px;font-size:1.1em}
+}
 /* Action plan items */
 .action-item{display:flex;gap:14px;padding:14px 0;border-top:1px solid var(--border)}
 .action-item:first-child{border-top:0;padding-top:6px}
@@ -3039,10 +3337,15 @@ def _page(body_html, title="Candor"):
                '<rect x=%2231%22 y=%2228%22 width=%225.5%22 height=%2218%22 fill=%22url(%23g)%22 rx=%221.2%22/>'
                '<rect x=%2240%22 y=%2220%22 width=%225.5%22 height=%2226%22 fill=%22url(%23g)%22 rx=%221.2%22/>'
                '</svg>">')
+    footer = """<div style="max-width:1180px;margin:60px auto 30px;padding:24px;color:var(--text-3);font-size:.84em;text-align:center;border-top:1px solid var(--border)">
+made by a high school junior. found a bug? something looks wrong? tell me on the
+<a href="https://www.reddit.com/user/Zestyclose_Tower_380" style="color:var(--text-2)">reddit</a>.
+candor is free. the AI advisor costs $5/mo only because the api isn't.
+</div>"""
     return f"""<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 {favicon}
 {csrf_meta}<title>{title}</title><style>{BASE_CSS}</style></head>
-<body>{_nav()}<div class="wrap">{_flash()}{body_html}</div></body></html>"""
+<body>{_nav()}<div class="wrap">{_flash()}{body_html}</div>{footer}</body></html>"""
 
 
 # ─── PAGE BUILDERS ────────────────────────────────────────
@@ -3202,6 +3505,7 @@ def college_detail_html(slug):
     <div class="muted" style="font-size:.82em">middle 50% admitted ACT score</div>
   </div>
 </div>
+{render_school_feeders(c)}
 {_match_card(c)}
 <div class="card">
   <h3 style="margin-top:0">Quick facts</h3>
@@ -3360,6 +3664,9 @@ def my_fit_html():
         "aps": profile.get("aps") or "",
         "no_aps_offered": bool(profile.get("no_aps_offered")),
         "aps_offered_not_taken": bool(profile.get("aps_offered_not_taken")),
+        "ibs": profile.get("ibs") or "",
+        "no_ibs_offered": bool(profile.get("no_ibs_offered")),
+        "ibs_offered_not_taken": bool(profile.get("ibs_offered_not_taken")),
         "pref_weather": profile.get("pref_weather"), "pref_setting": profile.get("pref_setting"),
         "pref_size": profile.get("pref_size"), "pref_greek": profile.get("pref_greek"),
         "pref_sports": profile.get("pref_sports"), "pref_major_strength": profile.get("pref_major_strength"),
@@ -3609,6 +3916,69 @@ def _render_ap_picker(saved_aps_str):
     return out
 
 
+# IB picker — HL/SL distinction matters. Most common subjects per group;
+# users at IB schools take 6 subjects (3 HL + 3 SL typically).
+IB_PICKER_GROUPS = [
+    ("Math (pick one HL or one SL)", [
+        ("Math AA HL","Math AA HL"), ("Math AA SL","Math AA SL"),
+        ("Math AI HL","Math AI HL"), ("Math AI SL","Math AI SL"),
+    ]),
+    ("Sciences", [
+        ("Biology HL","Biology HL"),("Biology SL","Biology SL"),
+        ("Chemistry HL","Chemistry HL"),("Chemistry SL","Chemistry SL"),
+        ("Physics HL","Physics HL"),("Physics SL","Physics SL"),
+        ("Computer Science HL","Computer Science HL"),("Computer Science SL","Computer Science SL"),
+        ("Environmental Systems HL","Environmental Systems HL"),("Environmental Systems SL","Environmental Systems SL"),
+        ("Design Technology HL","Design Tech HL"),
+    ]),
+    ("Individuals & Societies", [
+        ("History HL","History HL"),("History SL","History SL"),
+        ("Economics HL","Economics HL"),("Economics SL","Economics SL"),
+        ("Psychology HL","Psychology HL"),("Psychology SL","Psychology SL"),
+        ("Geography HL","Geography HL"),("Geography SL","Geography SL"),
+        ("Global Politics HL","Global Politics HL"),("Global Politics SL","Global Politics SL"),
+        ("Business Management HL","Business Mgmt HL"),("Business Management SL","Business Mgmt SL"),
+    ]),
+    ("Languages & Literature", [
+        ("English Lit HL","English Lit HL"),("English Lit SL","English Lit SL"),
+        ("English Language and Literature HL","Eng Lang & Lit HL"),
+        ("English Language and Literature SL","Eng Lang & Lit SL"),
+        ("Spanish HL","Spanish HL"),("Spanish SL","Spanish SL"),
+        ("French HL","French HL"),("French SL","French SL"),
+        ("German HL","German HL"),("Mandarin HL","Mandarin HL"),("Japanese HL","Japanese HL"),
+    ]),
+    ("Arts", [
+        ("Visual Arts HL","Visual Arts HL"),("Visual Arts SL","Visual Arts SL"),
+        ("Music HL","Music HL"),("Music SL","Music SL"),
+        ("Theatre HL","Theatre HL"),("Film HL","Film HL"),
+    ]),
+    ("Core (everyone in IB diploma takes these)", [
+        ("TOK","Theory of Knowledge"),("Extended Essay","Extended Essay"),
+    ]),
+]
+
+
+def _render_ib_picker(saved_ibs_str):
+    saved = (saved_ibs_str or "").lower()
+    out = ""
+    for group_label, items in IB_PICKER_GROUPS:
+        boxes = ""
+        for canonical, display in items:
+            checked = "checked" if canonical.lower() in saved else ""
+            boxes += (
+                f'<label class="pick-pill" style="display:inline-flex;align-items:center;gap:7px;'
+                f'background:var(--surface-2);border:1px solid var(--border-strong);'
+                f'border-radius:8px;padding:6px 11px;font-weight:500;color:var(--text);'
+                f'cursor:pointer;font-size:.83em;margin:0;transition:all .15s">'
+                f'<input type="checkbox" name="ib_pick" value="{canonical}" {checked} style="width:auto;margin:0">'
+                f'{display}</label>'
+            )
+        out += (f'<div style="margin:10px 0 6px"><div class="muted" style="font-size:.78em;font-weight:600;'
+                f'text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">{group_label}</div>'
+                f'<div style="display:flex;flex-wrap:wrap;gap:5px">{boxes}</div></div>')
+    return out
+
+
 def profile_html():
     p = get_profile(current_user()["id"]) or {}
     def v(k): return (p.get(k) if p.get(k) is not None else "")
@@ -3664,6 +4034,20 @@ def profile_html():
   </div>
   <p class="muted" style="font-size:.78em;margin:4px 0 0">Pick whichever applies. Top schools care a lot about course rigor — taking no APs at a school that offers them is a small negative; not having APs available isn't your fault and won't be counted against you.</p>
 
+  <label style="margin-top:18px">IB courses <span class="muted">(if you're in an IB program — click HL/SL subjects you're taking)</span></label>
+  {_render_ib_picker(v('ibs'))}
+  <div style="margin-top:10px;display:flex;flex-direction:column;gap:6px">
+    <label style="display:flex;align-items:center;gap:8px;font-weight:500">
+      <input type="checkbox" name="no_ibs_offered" {checked('no_ibs_offered')} style="width:auto;margin:0">
+      My school doesn't offer IB
+    </label>
+    <label style="display:flex;align-items:center;gap:8px;font-weight:500">
+      <input type="checkbox" name="ibs_offered_not_taken" {checked('ibs_offered_not_taken')} style="width:auto;margin:0">
+      My school offers IB but I haven't taken any
+    </label>
+  </div>
+  <p class="muted" style="font-size:.78em;margin:4px 0 0">HL classes count for more than SL. Most schools that have IB don't have APs, so picking neither is fine if you're at one of them.</p>
+
   <h3>Activities</h3>
   <label>Extracurriculars</label>
   <textarea name="ecs" placeholder="Robotics team (4 yrs, 10 hrs/wk, FRC regional finalist 2024). ML research with Prof X.">{v('ecs')}</textarea>
@@ -3683,7 +4067,7 @@ def profile_html():
   </div>
 
   <h3>Preferences</h3>
-  <p class="muted" style="font-size:.85em;margin:-2px 0 8px">Pick everything you'd be happy with for each preference (multi-select), and dial in how much each one matters (1-10, where 5 is neutral). <b>Set importance to 10 to make a preference a deal-breaker</b> — schools that mismatch will be removed from your My Fit ranking.</p>
+  <p class="muted" style="font-size:.85em;margin:-2px 0 8px">Check anything you'd be happy with. The 1-10 dial says how much it matters. 5 is neutral. <b>10 is a deal-breaker</b>: schools that miss get removed from My Fit.</p>
   {_pref_form_fields(p)}
 
   <p style="margin-top:18px"><button class="btn btn-primary" type="submit">Save profile</button></p>
@@ -3856,18 +4240,18 @@ def _render_action_plan(items):
 
 
 def _render_competitions(major_filter):
-    rows = ""
+    """Show only competitions relevant to the user's major when filter is set.
+    Past UX bug: a 'show N more' collapsible included unrelated competitions
+    (coding/bio shown to a poli-sci student) and confused users."""
     matches = []
-    other = []
     mf = major_filter.lower().strip() if major_filter else ""
     for c in COMPETITIONS:
-        applicable = (not c.get("majors")) or any(mf in m.lower() or m.lower() in mf for m in c["majors"]) if mf else False
-        if mf and applicable:
-            matches.append(c)
-        elif not mf:
-            matches.append(c)
+        if mf:
+            applicable = (not c.get("majors")) or any(mf in m.lower() or m.lower() in mf for m in c["majors"])
+            if applicable:
+                matches.append(c)
         else:
-            other.append(c)
+            matches.append(c)
     def render_one(c):
         majors = ", ".join(c["majors"]) if c.get("majors") else "Any major"
         return f"""<div class="comp-row">
@@ -3878,23 +4262,19 @@ def _render_competitions(major_filter):
           <div class="comp-meta"><span class="meta-label">Deadline:</span> {c.get('deadline','—')} · <span class="meta-label">Best for:</span> {majors}</div>
           <div class="comp-note">{c['note']}</div>
         </div>"""
-    if mf:
-        rows += "".join(render_one(c) for c in matches)
-        if other:
-            rows += f'<details style="margin-top:14px"><summary class="muted" style="cursor:pointer;font-size:.88em">Show {len(other)} more competitions (not specific to your major)</summary><div style="margin-top:10px">' + "".join(render_one(c) for c in other) + '</div></details>'
-    else:
-        rows = "".join(render_one(c) for c in matches)
-    return rows
+    if not matches:
+        return '<p class="muted">No competitions specifically tagged for that major. Try clearing the filter to see general competitions.</p>'
+    return "".join(render_one(c) for c in matches)
 
 
 def _render_summer_programs(major_filter):
     matches = []
-    other = []
     mf = major_filter.lower().strip() if major_filter else ""
     for s in SUMMER_PROGRAMS:
         if mf:
             applicable = (not s.get("majors")) or any(mf in m.lower() or m.lower() in mf for m in s["majors"])
-            (matches if applicable else other).append(s)
+            if applicable:
+                matches.append(s)
         else:
             matches.append(s)
     def render_one(s):
@@ -3907,10 +4287,9 @@ def _render_summer_programs(major_filter):
           <div class="comp-meta"><span class="meta-label">Cost:</span> {s.get('cost','—')} · <span class="meta-label">Grade:</span> {s.get('grade','—')} · <span class="meta-label">Best for:</span> {majors}</div>
           <div class="comp-note">{s['note']}</div>
         </div>"""
-    rows = "".join(render_one(s) for s in matches)
-    if mf and other:
-        rows += f'<details style="margin-top:14px"><summary class="muted" style="cursor:pointer;font-size:.88em">Show {len(other)} more programs (not specific to your major)</summary><div style="margin-top:10px">' + "".join(render_one(s) for s in other) + '</div></details>'
-    return rows
+    if not matches:
+        return '<p class="muted">No summer programs specifically tagged for that major. Try clearing the filter.</p>'
+    return "".join(render_one(s) for s in matches)
 
 
 def improve_html():
@@ -3923,7 +4302,7 @@ def improve_html():
     if action_items:
         action_html = f"""<div class="card">
           <h2 style="margin-top:0">Your action plan</h2>
-          <p class="muted" style="margin:0 0 16px">Personalized to your profile. Each item has a concrete target, deadline, and expected impact. Do these in order.</p>
+          <p class="muted" style="margin:0 0 16px">Built from your profile. Each item has a target, a deadline, and how much it actually moves your odds. Do these in order.</p>
           {_render_action_plan(action_items)}
         </div>"""
     elif profile:
@@ -3998,6 +4377,9 @@ def school_improve_html(slug):
         "aps": profile.get("aps") or "",
         "no_aps_offered": bool(profile.get("no_aps_offered")),
         "aps_offered_not_taken": bool(profile.get("aps_offered_not_taken")),
+        "ibs": profile.get("ibs") or "",
+        "no_ibs_offered": bool(profile.get("no_ibs_offered")),
+        "ibs_offered_not_taken": bool(profile.get("ibs_offered_not_taken")),
         }
         fit, components = compute_fit(prof, school)
         action_lines = []
@@ -4232,15 +4614,18 @@ def get_school_summary(c, force=False):
                 f"Acceptance rate: {round(c['accept']*100,1)}%\n"
                 f"Popular majors: {', '.join(c.get('majors',[]))}\n"
                 f"Existing 1-line description: {c.get('desc','')}\n\n"
-                f"Write a rich 2-3 paragraph overview of {c['name']} — what it's known for, who thrives there, the campus culture, the specific academic strengths, the social scene, and what the location adds (or detracts). "
-                f"Be concrete: name specific programs, traditions, or quirks if known. "
-                f"Avoid marketing copy — write like a knowledgeable friend describing the school to someone considering applying. "
-                f"~250-300 words total. No headers, no bullets — flowing prose."
+                f"Write 2-3 paragraphs about {c['name']}. Cover: what the school is actually known for, who thrives there, what the social scene looks like, what the location adds or doesn't, real academic strengths.\n\n"
+                f"Hard rules:\n"
+                f"- Write like a knowledgeable older friend, not marketing copy\n"
+                f"- No words like 'renowned', 'esteemed', 'boasts', 'vibrant', 'rigorous' (real talk only)\n"
+                f"- No em-dashes (use commas, periods, parens)\n"
+                f"- Be specific: name programs, traditions, recruiting pipelines, real downsides\n"
+                f"- 200-280 words. No headers, no bullets, no superlatives."
             )
             response = _claude_client.messages.create(
                 model="claude-haiku-4-5-20251001",
                 max_tokens=600,
-                system=f"You write substantive, honest college overviews. Specific, knowledgeable, opinionated where useful. No marketing fluff.\n\n{_date_context()}",
+                system=f"You write substantive, honest college overviews like a knowledgeable older sibling explaining a school to a high schooler. Specific, slightly opinionated, acknowledges downsides. No marketing language. No em-dashes.\n\n{_date_context()}",
                 messages=[{"role":"user","content": user_msg}],
             )
             body = response.content[0].text.strip()
@@ -4721,6 +5106,9 @@ def school_plan_html(slug):
         "aps": profile.get("aps") or "",
         "no_aps_offered": bool(profile.get("no_aps_offered")),
         "aps_offered_not_taken": bool(profile.get("aps_offered_not_taken")),
+        "ibs": profile.get("ibs") or "",
+        "no_ibs_offered": bool(profile.get("no_ibs_offered")),
+        "ibs_offered_not_taken": bool(profile.get("ibs_offered_not_taken")),
         "pref_weather": profile.get("pref_weather"), "pref_setting": profile.get("pref_setting"),
         "pref_size": profile.get("pref_size"), "pref_greek": profile.get("pref_greek"),
         "pref_sports": profile.get("pref_sports"), "pref_major_strength": profile.get("pref_major_strength"),
@@ -5170,7 +5558,7 @@ def general_chat_html():
     else:
         rem = usage["free_remaining"]
         usage_pill = f'<span id="usage-pill" style="font-size:.74em;background:var(--surface-2);color:var(--text-2);padding:3px 10px;border-radius:999px;border:1px solid var(--border-strong);margin-left:10px">FREE · {rem} of {FREE_TRIAL_MESSAGES} left · <a href="/upgrade" style="color:var(--teal)">Upgrade</a></span>'
-    header = f'<h1 style="display:flex;align-items:center;flex-wrap:wrap">AI advisor {usage_pill}</h1><p class="muted">Personalized to your profile. Conversation history saved between visits.</p>'
+    header = f'<h1 style="display:flex;align-items:center;flex-wrap:wrap">AI advisor {usage_pill}</h1><p class="muted">Knows your profile. Asks back if it needs more. History saved.</p>'
     page = (CHAT_PAGE_HTML
             .replace("__HEADER__", header)
             .replace("__MESSAGES__", msgs_html)
@@ -5311,11 +5699,17 @@ def _read_profile_form(form):
         "is_international": form.get("is_international") in ("yes","on","true","1"),
         "no_aps_offered": form.get("no_aps_offered") in ("yes","on","true","1"),
         "aps_offered_not_taken": form.get("aps_offered_not_taken") in ("yes","on","true","1"),
+        "no_ibs_offered": form.get("no_ibs_offered") in ("yes","on","true","1"),
+        "ibs_offered_not_taken": form.get("ibs_offered_not_taken") in ("yes","on","true","1"),
     }
     # Merge picker selections into the aps string
     picked = form.getlist("ap_pick") if hasattr(form, "getlist") else []
     parts = [p.strip() for p in picked if p.strip()]
     result["aps"] = ", ".join(parts)
+    # Same for IBs
+    ib_picked = form.getlist("ib_pick") if hasattr(form, "getlist") else []
+    ib_parts = [p.strip() for p in ib_picked if p.strip()]
+    result["ibs"] = ", ".join(ib_parts)
     # Legacy boolean is derived from whether they listed any legacy schools.
     result["legacy"] = bool(result["legacy_schools"])
     # Multi-select prefs: getlist returns all checked values. Stored as
