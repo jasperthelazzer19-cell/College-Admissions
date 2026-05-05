@@ -886,8 +886,8 @@ def get_school_feeders(school):
                 conn.execute("INSERT OR REPLACE INTO school_feeders (college_slug, body) VALUES (?, ?)",
                              (school["slug"], json.dumps(bullets)))
                 conn.commit()
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"feeders cache write failed for {school['slug']}: {e}")
     return bullets
 
 
@@ -3879,20 +3879,6 @@ AP_PICKER_GROUPS = [
 ]
 
 
-def _compute_aps_other(saved_aps_str):
-    """Return the items in saved AP string that DON'T match any picker
-    canonical name — i.e. user-typed extras to show in the 'Other' box."""
-    if not saved_aps_str:
-        return ""
-    canonicals = {c.lower() for _, items in AP_PICKER_GROUPS for c, _ in items}
-    others = []
-    for part in saved_aps_str.split(","):
-        p = part.strip()
-        if p and p.lower() not in canonicals:
-            others.append(p)
-    return ", ".join(others)
-
-
 def _render_ap_picker(saved_aps_str):
     """Render the AP-picker checkbox grid. Pre-checks anything already saved
     that substring-matches one of the canonical names."""
@@ -5664,22 +5650,34 @@ def _read_profile_form(form):
     # risk: ECs, leadership, awards, etc. get echoed back when rendering
     # the profile and can show up in AI prompts. Using bleach.clean with
     # tags=[] strips every tag, leaving plain text.
+    # Length caps per field. Prevents abuse (a malicious user pasting 1MB
+    # of text into ECs would balloon AI prompts and our API costs). Caps
+    # are generous — well above what any honest user would write.
+    LIMITS = {
+        "ecs": 4000, "leadership": 2000, "awards": 2000,
+        "legacy_schools": 500, "major": 200, "state": 100,
+        "aps": 2000, "ibs": 2000,
+    }
     try:
         from bleach import clean as _bleach
-        def s(v):
+        def s(v, k=None):
             if not isinstance(v, str): return v
-            return _bleach(v, tags=[], strip=True).strip()
+            cleaned = _bleach(v, tags=[], strip=True).strip()
+            cap = LIMITS.get(k)
+            return cleaned[:cap] if cap else cleaned
     except Exception:
         # Bleach not installed; fall back to a minimal HTML stripper.
         import html as _html
-        def s(v):
+        def s(v, k=None):
             if not isinstance(v, str): return v
-            return re.sub(r"<[^>]*>", "", _html.unescape(v)).strip()
+            cleaned = re.sub(r"<[^>]*>", "", _html.unescape(v)).strip()
+            cap = LIMITS.get(k)
+            return cleaned[:cap] if cap else cleaned
 
     def f(k, cast=str, default=None):
         v = form.get(k)
         if v is None or v == "": return default
-        if cast is str: v = s(v)
+        if cast is str: v = s(v, k)
         try: return cast(v)
         except (TypeError, ValueError): return default
     result = {
@@ -5705,11 +5703,11 @@ def _read_profile_form(form):
     # Merge picker selections into the aps string
     picked = form.getlist("ap_pick") if hasattr(form, "getlist") else []
     parts = [p.strip() for p in picked if p.strip()]
-    result["aps"] = ", ".join(parts)
+    result["aps"] = ", ".join(parts)[:LIMITS["aps"]]
     # Same for IBs
     ib_picked = form.getlist("ib_pick") if hasattr(form, "getlist") else []
     ib_parts = [p.strip() for p in ib_picked if p.strip()]
-    result["ibs"] = ", ".join(ib_parts)
+    result["ibs"] = ", ".join(ib_parts)[:LIMITS["ibs"]]
     # Legacy boolean is derived from whether they listed any legacy schools.
     result["legacy"] = bool(result["legacy_schools"])
     # Multi-select prefs: getlist returns all checked values. Stored as
@@ -6142,7 +6140,8 @@ def stripe_webhook():
             expected = _hmac.new(STRIPE_WEBHOOK_SECRET.encode(), signed, _hashlib.sha256).hexdigest()
             if not any(_hmac.compare_digest(expected, s) for s in sigs):
                 return ("invalid signature", 400)
-        except Exception:
+        except Exception as e:
+            print(f"stripe webhook signature error: {e}")
             return ("signature error", 400)
     try:
         event = json.loads(payload)
