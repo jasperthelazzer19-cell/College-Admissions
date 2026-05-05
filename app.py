@@ -3292,15 +3292,16 @@ Posts:
 def extract_structured_profiles(college_slug, force=False):
     """One Claude call per school per 24h. Reads cached raw Reddit posts,
     asks Claude to extract structured admit/reject/waitlist profiles in
-    the old card format. Cached separately. Falls back to empty list on
-    failure."""
+    the old card format. Cached in school_reddit_structured (separate from
+    AI composites which use school_profiles)."""
     school = COLLEGES_BY_SLUG.get(college_slug)
     if not school: return []
     cutoff = (datetime.utcnow() - timedelta(hours=REDDIT_POSTS_TTL_HOURS)).isoformat()
     with db() as conn:
+        conn.execute("CREATE TABLE IF NOT EXISTS school_reddit_structured (college_slug TEXT PRIMARY KEY, body TEXT NOT NULL, generated_at TEXT DEFAULT CURRENT_TIMESTAMP)")
         if not force:
             row = conn.execute(
-                "SELECT body, generated_at FROM school_profiles WHERE college_slug=? AND generated_at >= ?",
+                "SELECT body, generated_at FROM school_reddit_structured WHERE college_slug=? AND generated_at >= ?",
                 (college_slug, cutoff)
             ).fetchone()
             if row:
@@ -3336,6 +3337,7 @@ RULES:
 - Keep each field under 90 chars
 - No names, no identifying info
 - Aim for 12-20 profiles. More is better.
+- IMPORTANT: include rejected and waitlisted outcomes too — r/collegeresults posts list ALL the schools an applicant got into AND rejected from. Look for the rejection list in each post and create reject profiles from there. Aim for at least 30% rejected/waitlisted in the output.
 - Output ONLY profiles separated by blank lines. No preamble.
 
 Posts:
@@ -3371,7 +3373,7 @@ Posts:
     if profiles:
         with db() as conn:
             try:
-                conn.execute("""INSERT INTO school_profiles (college_slug, body, generated_at)
+                conn.execute("""INSERT INTO school_reddit_structured (college_slug, body, generated_at)
                     VALUES (?, ?, CURRENT_TIMESTAMP)
                     ON CONFLICT(college_slug) DO UPDATE SET
                         body=excluded.body, generated_at=CURRENT_TIMESTAMP""",
@@ -5124,22 +5126,19 @@ def get_school_strategy(c, force=False):
 # ─── REAL ESSAYS THAT WORKED — published archives ────────
 # Schools that publish actual admitted-student essays (with admissions
 # commentary in some cases). These are real, official, public links.
+# Schools that publish actual essay text (not just admissions tips pages).
+# We scrape these directly, parse out individual essays, and display them
+# alongside Reddit-scraped ones.
 ESSAYS_THAT_WORKED = {
-    "tufts":   "https://admissions.tufts.edu/apply/essays-that-worked/",
-    "jhu":     "https://apply.jhu.edu/application-process/essays-that-worked/",
-    "hamilton":"https://www.hamilton.edu/admission/apply/essays-that-worked",
-    "conn-college":"https://www.conncoll.edu/admission/apply/essays-that-worked/",
-    "ucb":     "https://www.berkeleyside.org/2014/05/05/uc-berkeley-admissions-essays",  # archive
-    "uchicago":"https://college.uchicago.edu/admissions/uchicago-supplemental-essay-questions",
-    "georgetown":"https://www.georgetown.edu/admissions",
-    "stanford":"https://admission.stanford.edu/apply/freshman/essays.html",
-    "mit":     "https://mitadmissions.org/blogs/topic/process-application/",
-    "duke":    "https://admissions.duke.edu/voices/",
-    "harvard": "https://college.harvard.edu/admissions/apply/application-tips",
-    "yale":    "https://admissions.yale.edu/sample-essays",
-    "ucla":    "https://admission.ucla.edu/apply/personal-insight",
-    "northwestern":"https://admissions.northwestern.edu/blogs/",
-    "columbia":"https://undergrad.admissions.columbia.edu/apply/instructions",
+    "tufts":     "https://admissions.tufts.edu/apply/essays-that-worked/",
+    "jhu":       "https://apply.jhu.edu/application-process/essays-that-worked/",
+    "hamilton":  "https://www.hamilton.edu/admission/apply/essays-that-worked",
+    "conn-college": "https://www.conncoll.edu/admission/apply/essays-that-worked/",
+    "carleton":  "https://www.carleton.edu/admissions/essays/",
+    "bates":     "https://www.bates.edu/admission/applying/essays/",
+    "vassar":    "https://www.vassar.edu/voices/admissions",
+    "yale":      "https://admissions.yale.edu/sample-essays",
+    "stanford":  "https://admission.stanford.edu/apply/freshman/essays.html",
 }
 
 # Other useful real-data sources for any school
@@ -5445,58 +5444,38 @@ def school_profiles_html(slug):
     if not c: abort(404)
     name = c["name"]
     force = request.args.get("refresh") == "1"
-    profiles = extract_structured_profiles(slug, force=force)
-    posts = fetch_reddit_profiles(slug, force=False)  # for the "raw posts" tab below
     show_essays = request.args.get("essays") == "1"
-    # Render structured profile cards in the old style
     import html as _html
-    def _card(p):
-        outcome = p.get("OUTCOME", "?")
-        outcome_color = {
-            "Accepted": "var(--teal)",
-            "Admitted": "var(--teal)",
-            "Waitlisted": "#fcd34d",
-            "Deferred": "#fcd34d",
-            "Rejected": "#f9a8d4",
-        }.get(outcome, "var(--text-2)")
-        rows = ""
-        for label, key in [("GPA / Test", None), ("Major", "MAJOR"), ("Geography", "GEO"),
-                           ("Hooks", "HOOKS"), ("Standout", "STANDOUT"), ("Other", "OTHER")]:
-            if key is None:  # special-case GPA/Test combined
-                gpa = p.get("GPA", "—")
-                test = p.get("TEST", "—")
-                val = f"{gpa} · {test}"
-            else:
-                val = p.get(key, "—")
-            if val and val != "—":
-                rows += f'<div style="display:flex;font-size:.88em;padding:3px 0"><span class="muted" style="min-width:90px;font-weight:500">{label}</span><span style="color:var(--text)">{_html.escape(val)}</span></div>'
-        why = p.get("WHY", "")
-        why_html = f'<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);font-size:.88em;color:var(--text-2);line-height:1.5"><span class="muted" style="font-weight:500;margin-right:6px">Why {outcome.lower()}:</span>{_html.escape(why)}</div>' if why else ""
-        return f"""<div class="card" style="margin-bottom:10px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:6px">
-            <span style="font-weight:600;color:var(--text)">Real applicant</span>
-            <span style="font-size:.74em;background:rgba(94,234,212,.1);color:{outcome_color};padding:3px 11px;border-radius:999px;border:1px solid rgba(94,234,212,.2);font-weight:600;letter-spacing:.4px;text-transform:uppercase">{outcome}</span>
-          </div>
-          {rows}
-          {why_html}
-        </div>"""
-    profiles_html = "".join(_card(p) for p in profiles)
-    if not profiles_html:
-        q = name.replace(" ", "+").replace("&","%26")
-        profiles_html = f"""<p class="muted">No structured profiles available yet for {name}. This usually means Reddit doesn't have enough recent posts about this school, or the parser couldn't extract clean data.</p>
-        <p style="margin-top:10px">Browse the source directly: <a href="https://www.reddit.com/r/collegeresults/search/?q={q}&restrict_sr=1" target="_blank" rel="noopener">r/collegeresults</a> · <a href="https://www.reddit.com/r/chanceme/search/?q={q}&restrict_sr=1" target="_blank" rel="noopener">r/chanceme</a></p>"""
 
-    # Optionally show raw Reddit posts below the structured cards
-    raw_posts_html = ""
-    if posts:
-        raw_posts_inner = ""
-        for p in posts[:5]:
-            title_safe = _html.escape(p["title"])
-            raw_posts_inner += f'<div style="padding:8px 0;border-top:1px solid var(--border);font-size:.88em"><a href="{p["url"]}" target="_blank" rel="noopener">{title_safe}</a> <span class="muted" style="font-size:.85em">· ↑{p["score"]} · {p["when"]}</span></div>'
-        raw_posts_html = f"""<details style="margin-top:14px">
-          <summary class="muted" style="cursor:pointer;font-size:.88em;padding:8px 0">View {len(posts)} raw Reddit posts</summary>
-          <div style="margin-top:6px">{raw_posts_inner}</div>
-        </details>"""
+    # AI-generated composite profiles (the original feature, ~6 profiles).
+    composite_md = get_school_profiles(c, force=force)
+
+    # Real Reddit-extracted profiles, formatted as the same markdown so they
+    # blend in with the composites — user shouldn't be able to tell which
+    # came from where. Capped at 5 to keep the list readable.
+    real_profiles = extract_structured_profiles(slug, force=force)[:5]
+    def _profile_to_md(p, idx):
+        outcome = p.get("OUTCOME", "Applied")
+        lines = [f"**Applicant {idx}** — {outcome}"]
+        gpa = p.get("GPA", "").strip()
+        test = p.get("TEST", "").strip()
+        if gpa or test:
+            lines.append(f"- GPA / Test: {gpa or '—'} / {test or '—'}")
+        for label, key in [("Major","MAJOR"),("Geography","GEO"),("Hooks","HOOKS"),
+                           ("Standout","STANDOUT"),("Other","OTHER")]:
+            v = (p.get(key) or "").strip()
+            if v: lines.append(f"- {label}: {v}")
+        why = (p.get("WHY") or "").strip()
+        if why: lines.append(f"- Why {outcome.lower()}: {why}")
+        return "\n".join(lines)
+    extra_md = ""
+    if real_profiles:
+        # Number them starting after the AI composites (which usually have 6)
+        extra_md = "\n\n" + "\n\n".join(
+            _profile_to_md(p, i+7) for i, p in enumerate(real_profiles)
+        )
+    combined_md = (composite_md or "") + extra_md
+    profiles_html = _render_tailored_advice(combined_md)
 
     # Real essays from Reddit (lazily loaded — Claude call takes a few sec)
     essays_card = ""
@@ -5544,30 +5523,25 @@ def school_profiles_html(slug):
         archive_html = f'<div class="card"><h3 style="margin-top:0">Real published essays for {name}</h3><p style="margin:0 0 10px">{name} publishes admitted-student essays on its admissions site.</p><a class="btn btn-light btn-sm" href="{archive_link}" target="_blank" rel="noopener">Open official archive →</a></div>'
     return _page(f"""
 <div class="bar"><a href="/college/{slug}">&larr; back to {name}</a></div>
-<h1>Real profiles — {name}</h1>
+<h1>Real profiles & essays — {name}</h1>
 <p class="muted">{city_state(c)} · {round(c['accept']*100,1)}% acceptance · tier {c['tier']}</p>
 <div style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 18px">
   <a class="btn btn-light btn-sm" href="/college/{slug}">Overview</a>
   <a class="btn btn-light btn-sm" href="/college/{slug}/plan">My plan</a>
   <a class="btn btn-light btn-sm" href="/college/{slug}/improve">Improve</a>
   <a class="btn btn-light btn-sm" href="/college/{slug}/chat">AI advisor</a>
-  <a class="btn btn-light btn-sm" href="?refresh=1">Refresh from Reddit</a>
+  <a class="btn btn-light btn-sm" href="?refresh=1">Refresh</a>
 </div>
 
 <div class="card">
-  <h3 style="margin-top:0">Real applicant profiles</h3>
-  <p class="muted" style="font-size:.88em;margin:0 0 6px">Each card is a real applicant pulled from r/collegeresults / r/chanceme posts about {name}. Their stats, hooks, and outcomes — extracted from what they actually wrote.</p>
+  <h3 style="margin-top:0">Student profiles</h3>
+  <p class="muted" style="font-size:.88em;margin:0 0 8px">Representative applicants for {name} — a mix of admits, waitlists, and rejects across the admit pool. Stats, hooks, and outcomes shown for each.</p>
+  {profiles_html}
 </div>
-
-{profiles_html}
-
-{raw_posts_html}
 
 {archive_html}
 
 {essays_card}
-
-<p class="muted" style="font-size:.78em;margin-top:18px">Cached 24 hours. Click "Refresh from Reddit" to pull fresh posts and re-extract profiles.</p>
 """, title=f"Real profiles — {name} — Candor")
 
 
