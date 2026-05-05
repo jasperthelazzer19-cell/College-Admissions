@@ -1234,6 +1234,14 @@ CDS_VERIFIED = {
     "reed":       {"accept": 0.2919, "sat_25": 1320, "sat_75": 1490, "act_25": 29, "act_75": 34},
     "umass":      {"accept": 0.5990, "sat_25": 1330, "sat_75": 1480, "act_25": 30, "act_75": 34},
     "wm":         {"accept": 0.3696, "sat_25": 1390, "sat_75": 1520, "act_25": 32, "act_75": 34},
+    # Round 4 — from user's batch of 13 files
+    "kenyon":     {"accept": 0.3103, "sat_25": 1370, "sat_75": 1473, "act_25": 31, "act_75": 33},
+    "vt":         {"accept": 0.5457, "act_25": 28, "act_75": 32},  # SAT not reported in CDS
+    "purdue":     {"accept": 0.4343, "sat_25": 1220, "sat_75": 1470, "act_25": 28, "act_75": 34},
+    "uiuc":       {"accept": 0.4237, "sat_25": 1390, "sat_75": 1520, "act_25": 30, "act_75": 34},
+    "umd":        {"accept": 0.4503, "sat_25": 1410, "sat_75": 1520, "act_25": 32, "act_75": 35},
+    "davidson":   {"accept": 0.1262, "sat_25": 1410, "sat_75": 1500, "act_25": 32, "act_75": 34},
+    "msu":        {"accept": 0.8479, "sat_25": 1100, "sat_75": 1310, "act_25": 24, "act_75": 30},
 }
 
 
