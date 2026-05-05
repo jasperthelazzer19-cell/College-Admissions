@@ -99,6 +99,7 @@ COLLEGES = [
     {"name":"Georgetown","slug":"georgetown","accept":0.110,"gpa_lo":3.80,"gpa_hi":4.00,"sat_25":1410,"sat_75":1530,"act_25":32,"act_75":35,"tier":2,"type":"private","state":"District of Columbia","size":7500,"tuition":63000,"desc":"Jesuit, DC location, dominant in international relations and government careers. McDonough is a strong undergrad business program.","majors":["International Politics","Finance","Economics","Government","Biology"]},
     {"name":"UC Berkeley","slug":"ucb","accept":0.115,"gpa_lo":3.86,"gpa_hi":4.00,"sat_25":1340,"sat_75":1530,"act_25":30,"act_75":35,"tier":2,"type":"public","state":"California","size":33000,"tuition":15000,"desc":"Top public university in the country. Engineering, CS, and business (Haas) are powerhouses. In-state tuition is a steal; out-of-state is full freight.","majors":["Computer Science","Economics","Business Administration","Cognitive Science","Political Science"]},
     {"name":"UCLA","slug":"ucla","accept":0.086,"gpa_lo":3.90,"gpa_hi":4.00,"sat_25":1370,"sat_75":1540,"act_25":31,"act_75":35,"tier":2,"type":"public","state":"California","size":33000,"tuition":15000,"desc":"Most-applied-to college in the US. Strong across the board; particularly notable for film, basketball, biology, and engineering.","majors":["Biology","Psychology","Business Economics","Political Science","Engineering"]},
+    {"name":"UC San Diego","slug":"ucsd","accept":0.286,"gpa_lo":3.85,"gpa_hi":4.00,"sat_25":1300,"sat_75":1490,"act_25":29,"act_75":34,"tier":3,"type":"public","state":"California","size":33000,"tuition":15000,"desc":"Strong R1 research university. CS, bioengineering, and oceanography are standouts. Test-blind admissions for the 24-25 cycle.","majors":["Biology","Computer Science","Engineering","Cognitive Science","Economics"]},
     {"name":"University of Michigan","slug":"umich","accept":0.177,"gpa_lo":3.83,"gpa_hi":4.00,"sat_25":1370,"sat_75":1530,"act_25":31,"act_75":34,"tier":2,"type":"public","state":"Michigan","size":33000,"tuition":17000,"desc":"Public Ivy with one of the strongest undergrad business programs (Ross), top engineering, and a college-sports culture.","majors":["Business Administration","Computer Science","Engineering","Economics","Psychology"]},
     {"name":"UVA","slug":"uva","accept":0.166,"gpa_lo":3.85,"gpa_hi":4.00,"sat_25":1410,"sat_75":1520,"act_25":32,"act_75":35,"tier":2,"type":"public","state":"Virginia","size":17500,"tuition":21000,"desc":"Jefferson-founded public flagship. McIntire commerce school, strong politics/foreign affairs, traditional honor code.","majors":["Economics","Commerce","Computer Science","Biology","Political Science"]},
     {"name":"Georgia Tech","slug":"gatech","accept":0.160,"gpa_lo":3.83,"gpa_hi":4.00,"sat_25":1430,"sat_75":1530,"act_25":32,"act_75":35,"tier":2,"type":"public","state":"Georgia","size":18000,"tuition":12000,"desc":"Engineering and CS-dominant public. Atlanta location and co-op program drive strong industry pipelines.","majors":["Computer Science","Mechanical Engineering","Industrial Engineering","Business","Aerospace Engineering"]},
@@ -998,6 +999,62 @@ def _get_overrides(slug):
 # beat federal Scorecard data on the accept rate, since IPEDS lags 12-18
 # months. Scorecard still wins on the more-stable stats (SAT/ACT/size/
 # tuition) where its current data is fine.
+# Hand-verified Common Data Set figures (24-25 cycle). Highest precedence:
+# overrides BOTH the hardcoded COLLEGES values AND the federal Scorecard
+# overrides. Source: independent educational consultant who manually
+# pulled CDS PDFs (Burgess Workshop). Use sparingly — only entries here
+# come from a trusted human-verified source.
+# Schema: slug -> {accept, sat_25, sat_75, act_25, act_75}.
+# `None` for SAT/ACT means the school is test-blind for that cycle.
+CDS_VERIFIED = {
+    # Ivy League
+    "princeton":  {"accept": 0.0462, "sat_25": 1500, "sat_75": 1560, "act_25": 34, "act_75": 35},
+    "harvard":    {"accept": 0.0364, "sat_25": 1510, "sat_75": 1550, "act_25": 34, "act_75": 36},
+    "yale":       {"accept": 0.0387, "sat_25": 1480, "sat_75": 1560, "act_25": 33, "act_75": 35},
+    "upenn":      {"accept": 0.054,  "sat_25": 1510, "sat_75": 1550, "act_25": 34, "act_75": 36},
+    "brown":      {"accept": 0.054,  "sat_25": 1500, "sat_75": 1560, "act_25": 34, "act_75": 35},
+    "columbia":   {"accept": 0.04,   "sat_25": 1500, "sat_75": 1560, "act_25": 34, "act_75": 35},
+    "dartmouth":  {"accept": 0.054},
+    "cornell":    {"accept": 0.0841, "sat_25": 1510, "sat_75": 1560, "act_25": 33, "act_75": 35},
+    # Ivy Plus
+    "mit":        {"accept": 0.0455, "sat_25": 1520, "sat_75": 1570, "act_25": 34, "act_75": 36},
+    "stanford":   {"accept": 0.0361, "sat_25": 1510, "sat_75": 1570, "act_25": 34, "act_75": 35},
+    "uchicago":   {"accept": 0.0448, "sat_25": 1510, "sat_75": 1560, "act_25": 34, "act_75": 35},
+    "duke":       {"accept": 0.0571, "sat_25": 1500, "sat_75": 1570, "act_25": 34, "act_75": 35},
+    "jhu":        {"accept": 0.0644, "sat_25": 1530, "sat_75": 1560, "act_25": 34, "act_75": 36},
+    "northwestern":{"accept": 0.0769, "sat_25": 1510, "sat_75": 1560, "act_25": 34, "act_75": 35},
+    "caltech":    {"accept": 0.0257},
+    "rice":       {"accept": 0.08,   "sat_25": 1510, "sat_75": 1560, "act_25": 34, "act_75": 35},
+    "vanderbilt": {"accept": 0.0586, "sat_25": 1500, "sat_75": 1560, "act_25": 34, "act_75": 35},
+    "washu":      {"accept": 0.1206, "sat_25": 1500, "sat_75": 1570, "act_25": 33, "act_75": 35},
+    "notre-dame": {"accept": 0.1127, "sat_25": 1470, "sat_75": 1540, "act_25": 33, "act_75": 35},
+    # Elite publics + high-prestige privates
+    "ucb":        {"accept": 0.1132, "sat_25": None, "sat_75": None, "act_25": None, "act_75": None},
+    "ucla":       {"accept": 0.0942, "sat_25": None, "sat_75": None, "act_25": None, "act_75": None},
+    "cmu":        {"accept": 0.1167, "sat_25": 1510, "sat_75": 1560, "act_25": 34, "act_75": 35},
+    "umich":      {"accept": 0.1564, "sat_25": 1360, "sat_75": 1530, "act_25": 31, "act_75": 34},
+    "emory":      {"accept": 0.1029, "sat_25": 1480, "sat_75": 1540, "act_25": 32, "act_75": 35},
+    "georgetown": {"accept": 0.1291, "sat_25": 1400, "sat_75": 1540, "act_25": 31, "act_75": 35},
+    "uva":        {"accept": 0.168,  "sat_25": 1410, "sat_75": 1520, "act_25": 32, "act_75": 35},
+    "unc":        {"accept": 0.1534, "sat_25": 1400, "sat_75": 1530, "act_25": 28, "act_75": 34},
+    "usc":        {"accept": 0.0981, "sat_25": 1450, "sat_75": 1550, "act_25": 32, "act_75": 35},
+    "uf":         {"accept": 0.242,  "sat_25": 1330, "sat_75": 1470, "act_25": 29, "act_75": 33},
+    "ut-austin":  {"accept": 0.2664},
+    "ucsd":       {"accept": 0.2856},  # test-blind
+    # Top liberal arts
+    "williams":   {"accept": 0.0825, "sat_25": 1500, "sat_75": 1560, "act_25": 34, "act_75": 35},
+    "amherst":    {"accept": 0.0901, "sat_25": 1500, "sat_75": 1560, "act_25": 33, "act_75": 35},
+    "swarthmore": {"accept": 0.0746, "sat_25": 1500, "sat_75": 1550, "act_25": 33, "act_75": 35},
+    "pomona":     {"accept": 0.0708, "sat_25": 1500, "sat_75": 1550, "act_25": 33, "act_75": 35},
+    "wellesley":  {"accept": 0.1405, "sat_25": 1470, "sat_75": 1550, "act_25": 33, "act_75": 35},
+    "bowdoin":    {"accept": 0.0713, "sat_25": 1470, "sat_75": 1540, "act_25": 33, "act_75": 35},
+    "carleton":   {"accept": 0.2041, "sat_25": 1470, "sat_75": 1540, "act_25": 32, "act_75": 35},
+    "middlebury": {"accept": 0.1075, "sat_25": 1450, "sat_75": 1530, "act_25": 33, "act_75": 35},
+    "cmc":        {"accept": 0.0959, "sat_25": 1490, "sat_75": 1550, "act_25": 33, "act_75": 35},
+    "hamilton":   {"accept": 0.1362, "sat_25": 1460, "sat_75": 1530, "act_25": 33, "act_75": 35},
+}
+
+
 MANUAL_FRESH_ACCEPT = {
     "harvard","yale","princeton","stanford","mit","caltech","columbia",
     "upenn","brown","dartmouth","duke","northwestern","uchicago","cornell",
@@ -1014,27 +1071,46 @@ MANUAL_FRESH_ACCEPT = {
 
 def merged_school(c):
     """Return a copy of the college dict with overrides applied. Precedence:
-    1. Hand-typed 2024-25/2025-26 cycle data on `accept` for schools in
+    1. CDS_VERIFIED — hand-verified Common Data Set figures (24-25 cycle)
+       supplied by an industry consultant. Highest authority for any field
+       it specifies.
+    2. Hand-typed 2024-25/2025-26 cycle data on `accept` for schools in
        MANUAL_FRESH_ACCEPT (since federal Scorecard lags 12-18 months).
-    2. Scorecard's federal IPEDS data on all other fields.
-    3. Hardcoded COLLEGES value as final fallback.
+    3. Scorecard's federal IPEDS data on all other fields.
+    4. Hardcoded COLLEGES value as final fallback.
     """
+    cds = CDS_VERIFIED.get(c["slug"])
     over = _get_overrides(c["slug"])
-    if not over:
+    if not cds and not over:
         return c
     out = dict(c)
-    for k in ("accept", "sat_25", "sat_75", "act_25", "act_75", "size", "tuition"):
-        if k == "accept" and c["slug"] in MANUAL_FRESH_ACCEPT:
-            continue  # keep hand-typed fresher rate
-        v = over.get(k)
-        if v is not None:
-            out[k] = v
+    if over:
+        for k in ("accept", "sat_25", "sat_75", "act_25", "act_75", "size", "tuition"):
+            if k == "accept" and c["slug"] in MANUAL_FRESH_ACCEPT:
+                continue  # keep hand-typed fresher rate
+            v = over.get(k)
+            if v is not None:
+                out[k] = v
+    if cds:
+        # CDS wins over everything for fields it specifies. Only the keys
+        # present in the CDS dict are touched — partial entries (e.g. just
+        # accept) leave other fields untouched.
+        for k in ("accept", "sat_25", "sat_75", "act_25", "act_75"):
+            if k in cds and cds[k] is not None:
+                out[k] = cds[k]
     return out
+
+
+def is_cds_verified(slug):
+    """True if this school's stats come from the hand-verified CDS dict
+    (24-25 cycle), so we can show a 'verified' badge on its page."""
+    return slug in CDS_VERIFIED
 
 
 # Map our slug → Scorecard "name" search term. For most schools the school
 # name works directly; the trickier ones get an explicit override.
 SCORECARD_NAME_OVERRIDES = {
+    "cornell": "Cornell University",  # else Scorecard finds Cornell College in IA
     "unc": "University of North Carolina at Chapel Hill",
     "parsons": "The New School",
     "ucb": "University of California-Berkeley",
@@ -3906,7 +3982,9 @@ def college_detail_html(slug):
         save_btn = f'<a class="btn btn-light" href="/login">☆ Save to my list</a>'
     over = _get_overrides(slug)
     verified_badge = ""
-    if slug in MANUAL_FRESH_ACCEPT:
+    if is_cds_verified(slug):
+        verified_badge = '<span style="font-size:.74em;background:rgba(94,234,212,.18);color:var(--teal);padding:3px 10px;border-radius:999px;margin-left:8px;border:1px solid rgba(94,234,212,.35);font-weight:600;letter-spacing:.3px" title="Stats hand-verified against the school\'s 2024-25 Common Data Set">CDS VERIFIED · 24-25</span>'
+    elif slug in MANUAL_FRESH_ACCEPT:
         verified_badge = '<span style="font-size:.74em;background:rgba(94,234,212,.12);color:var(--teal);padding:3px 10px;border-radius:999px;margin-left:8px;border:1px solid rgba(94,234,212,.25);font-weight:500;letter-spacing:.3px">2024-25 CYCLE</span>'
     elif over and over.get("source"):
         verified_badge = f'<span style="font-size:.74em;background:rgba(94,234,212,.10);color:var(--teal);padding:3px 10px;border-radius:999px;margin-left:8px;border:1px solid rgba(94,234,212,.22);font-weight:500;letter-spacing:.3px">VERIFIED · federal data</span>'
