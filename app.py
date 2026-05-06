@@ -7510,19 +7510,24 @@ def admin_stats():
     """Live activity dashboard. Pulls from existing DB tables."""
     if not ADMIN_KEY or request.args.get("key") != ADMIN_KEY:
         return ("<h1>401 Unauthorized</h1>", 401)
+    # Use Pacific time for "today" counters since Railway runs in UTC
+    # but the operator (jasper) is on the West Coast — without this offset
+    # "today" rolls over at 5pm local which makes the dashboard look like
+    # signups stopped when in fact a new UTC day just started.
+    TZ_OFFSET_HOURS = -7  # PT (UTC-7 during DST; -8 in winter — adjust manually)
     with db() as conn:
         total_users = conn.execute("SELECT COUNT(*) c FROM users").fetchone()["c"]
         users_today = conn.execute(
-            "SELECT COUNT(*) c FROM users WHERE date(created_at) = date('now')"
+            f"SELECT COUNT(*) c FROM users WHERE date(created_at, '{TZ_OFFSET_HOURS} hours') = date('now', '{TZ_OFFSET_HOURS} hours')"
         ).fetchone()["c"]
         users_week = conn.execute(
-            "SELECT COUNT(*) c FROM users WHERE created_at >= date('now','-7 days')"
+            f"SELECT COUNT(*) c FROM users WHERE date(created_at, '{TZ_OFFSET_HOURS} hours') >= date('now', '{TZ_OFFSET_HOURS} hours', '-7 days')"
         ).fetchone()["c"]
         profiles_done = conn.execute(
             "SELECT COUNT(*) c FROM profiles WHERE uw_gpa IS NOT NULL"
         ).fetchone()["c"]
         chat_msgs_today = conn.execute(
-            "SELECT COUNT(*) c FROM messages WHERE date(created_at)=date('now') AND role='user'"
+            f"SELECT COUNT(*) c FROM messages WHERE date(created_at, '{TZ_OFFSET_HOURS} hours')=date('now', '{TZ_OFFSET_HOURS} hours') AND role='user'"
         ).fetchone()["c"]
         chat_msgs_total = conn.execute(
             "SELECT COUNT(*) c FROM messages WHERE role='user'"
