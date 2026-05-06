@@ -1151,6 +1151,20 @@ def _get_overrides(slug):
 # beat federal Scorecard data on the accept rate, since IPEDS lags 12-18
 # months. Scorecard still wins on the more-stable stats (SAT/ACT/size/
 # tuition) where its current data is fine.
+# Schools that are test-blind / test-free for the current cycle. We hide
+# their SAT/ACT mid-50% on the detail page, rankings, and compare table —
+# it's misleading to show test scores for schools that explicitly don't
+# consider them in admissions. UCs went test-free in 2021 and have stayed
+# that way through the 25-26 cycle.
+TEST_BLIND_SCHOOLS = {
+    "ucb", "ucla", "ucsd", "uci", "ucsb", "ucsc", "ucdavis", "ucr", "ucmerced",
+}
+
+def is_test_blind(school_or_slug):
+    slug = school_or_slug if isinstance(school_or_slug, str) else school_or_slug.get("slug")
+    return slug in TEST_BLIND_SCHOOLS
+
+
 # Hand-verified Common Data Set figures (24-25 cycle). Highest precedence:
 # overrides BOTH the hardcoded COLLEGES values AND the federal Scorecard
 # overrides. Source: independent educational consultant who manually
@@ -4102,7 +4116,7 @@ def colleges_html():
             </div>
             <div class="muted" style="font-size:.82em;margin-top:2px">{c['state']} · {tier_pill}</div>
             <div class="stat-row"><span>Accept</span><span>{round(c['accept']*100,1)}%</span></div>
-            <div class="stat-row"><span>SAT mid-50%</span><span>{c['sat_25']}-{c['sat_75']}</span></div>
+            <div class="stat-row"><span>SAT mid-50%</span><span>{('Test-blind' if is_test_blind(c) else f"{c['sat_25']}-{c['sat_75']}")}</span></div>
             <div class="stat-row"><span>GPA range</span><span>{c['gpa_lo']}-{c['gpa_hi']}</span></div>
         </a></div>"""
     state_options = "".join(f'<option value="{s}" {"selected" if s==state else ""}>{s}</option>' for s in STATES)
@@ -4241,13 +4255,13 @@ def college_detail_html(slug):
   </div>
   <div class="card">
     <h3 style="margin-top:0">SAT mid-50%</h3>
-    <div class="odds">{c['sat_25']}–{c['sat_75']}</div>
-    <div class="muted" style="font-size:.82em">middle 50% admitted SAT score</div>
+    <div class="odds" style="font-size:{('1.4em' if is_test_blind(c) else 'inherit')}">{('Test-blind' if is_test_blind(c) else f"{c['sat_25']}–{c['sat_75']}")}</div>
+    <div class="muted" style="font-size:.82em">{('does not consider SAT/ACT' if is_test_blind(c) else 'middle 50% admitted SAT score')}</div>
   </div>
   <div class="card">
     <h3 style="margin-top:0">ACT mid-50%</h3>
-    <div class="odds">{c['act_25']}–{c['act_75']}</div>
-    <div class="muted" style="font-size:.82em">middle 50% admitted ACT score</div>
+    <div class="odds" style="font-size:{('1.4em' if is_test_blind(c) else 'inherit')}">{('Test-blind' if is_test_blind(c) else f"{c['act_25']}–{c['act_75']}")}</div>
+    <div class="muted" style="font-size:.82em">{('does not consider SAT/ACT' if is_test_blind(c) else 'middle 50% admitted ACT score')}</div>
   </div>
 </div>
 {render_school_feeders(c)}
@@ -4350,8 +4364,8 @@ def _ranking_table(rows_data, show_stars=False):
           <td class="name"><a href="/college/{c['slug']}">{c['name']}</a></td>
           <td class="hide-sm num-col">{loc}</td>
           <td class="num-col">{metric_col}</td>
-          <td class="hide-sm num-col">{c['sat_25']}-{c['sat_75']}</td>
-          <td class="hide-sm num-col">{c['act_25']}-{c['act_75']}</td>
+          <td class="hide-sm num-col">{('—' if is_test_blind(c) else f"{c['sat_25']}-{c['sat_75']}")}</td>
+          <td class="hide-sm num-col">{('—' if is_test_blind(c) else f"{c['act_25']}-{c['act_75']}")}</td>
           <td class="hide-sm num-col">{size_str}</td>
           <td class="hide-sm num-col">{avg_cs}</td>
           <td class="hide-sm">{type_pill}</td>
@@ -7017,8 +7031,8 @@ def compare_page():
         return f"<tr><td class='muted' style='font-weight:500'>{label}</td>{cells}</tr>"
     rows.append(row("Acceptance rate", lambda c: f"{round(c['accept']*100,1)}%"))
     rows.append(row("GPA mid-50%", lambda c: f"{c['gpa_lo']}–{c['gpa_hi']}"))
-    rows.append(row("SAT mid-50%", lambda c: f"{c['sat_25']}–{c['sat_75']}"))
-    rows.append(row("ACT mid-50%", lambda c: f"{c['act_25']}–{c['act_75']}"))
+    rows.append(row("SAT mid-50%", lambda c: "Test-blind" if is_test_blind(c) else f"{c['sat_25']}–{c['sat_75']}"))
+    rows.append(row("ACT mid-50%", lambda c: "Test-blind" if is_test_blind(c) else f"{c['act_25']}–{c['act_75']}"))
     rows.append(row("Undergrads", lambda c: f"{c.get('size','?'):,}"))
     rows.append(row("S/F ratio", lambda c: f"{sf_ratio(c)}:1"))
     rows.append(row("Tuition (sticker)", lambda c: f"${c.get('tuition',0):,}"))
