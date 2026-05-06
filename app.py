@@ -4496,11 +4496,80 @@ def my_fit_html():
 """, title="My Fit — Candor")
 
 
+def _auth_hook_html():
+    """Build contextual messaging for the login/signup pages based on
+    where the user was redirected from. Without this, the auth pages
+    are bland and high-bounce — telling someone exactly what's behind
+    the wall (calibrated odds at the school THEY just clicked) makes
+    the signup feel worth it instead of arbitrary."""
+    nxt = session.get("next_url") or ""
+    school_name = None
+    intent = None  # 'chances', 'plan', 'improve', 'profiles', 'chat', 'save', 'plans', 'compare', 'predictor', 'timeline'
+    m = re.match(r"^/chances/([\w-]+)", nxt)
+    if m:
+        intent = "chances"
+        c = COLLEGES_BY_SLUG.get(m.group(1))
+        school_name = c["name"] if c else None
+    else:
+        m = re.match(r"^/college/([\w-]+)/(plan|improve|profiles|chat)", nxt)
+        if m:
+            intent = m.group(2)
+            c = COLLEGES_BY_SLUG.get(m.group(1))
+            school_name = c["name"] if c else None
+    if not intent:
+        if nxt.startswith("/save/") or nxt.startswith("/unsave/"):
+            intent = "save"
+            m = re.match(r"^/(save|unsave)/([\w-]+)", nxt)
+            if m:
+                c = COLLEGES_BY_SLUG.get(m.group(2))
+                school_name = c["name"] if c else None
+        elif nxt.startswith("/plans"):
+            intent = "plans"
+        elif nxt.startswith("/compare"):
+            intent = "compare"
+        elif nxt.startswith("/predictor"):
+            intent = "predictor"
+        elif nxt.startswith("/timeline"):
+            intent = "timeline"
+    if not intent:
+        return ""
+    headline_map = {
+        "chances":  f"You'll see your calibrated odds at {school_name}" if school_name else "You'll see your calibrated odds",
+        "plan":     f"You'll see a personalized plan for {school_name}" if school_name else "You'll see a personalized plan",
+        "improve":  f"You'll see what to fix for {school_name}" if school_name else "You'll see what to fix",
+        "profiles": f"You'll see real applicant profiles for {school_name}" if school_name else "You'll see real applicant profiles",
+        "chat":     f"You'll chat with the AI advisor about {school_name}" if school_name else "You'll chat with the AI advisor",
+        "save":     f"You'll add {school_name} to your saved list" if school_name else "You'll save schools to your list",
+        "plans":    "You'll see all your saved schools and chances",
+        "compare":  "You'll compare schools side-by-side with your fit + odds",
+        "predictor":"You'll simulate how raising your scores changes your odds",
+        "timeline": "You'll see month-by-month deadlines for your list",
+    }
+    detail_map = {
+        "chances":  "30 seconds. Then you get: real CDS data (not federal lag), calibrated odds (capped at sub-15% for elites because that's reality), and a fit breakdown showing where you're strong vs weak.",
+        "plan":     "Personalized to your stats and the school's priorities. AI-generated 6-8 specific actions, not generic 'improve your essay' advice.",
+        "improve":  "School-specific guidance: what they actually weight, where you're behind, the round strategy that maximizes your odds.",
+        "profiles": "Real Reddit applicant data — accepted/rejected/waitlisted profiles with stats and what stood out, so you can calibrate against people who actually got in.",
+        "chat":     "Ask anything about the school, your odds, the supplemental, ED vs RD strategy. Tailored to your profile.",
+        "save":     "Once saved, the school shows up on your plans page with quick-access to chances, compare, and timeline.",
+        "plans":    "Every school you've chanced or saved, in one view with odds + fit + tier.",
+        "compare":  "Up to 4 schools at once with verified CDS stats, your fit, and your odds.",
+        "predictor":"What-if simulator — see how SAT +60 or ACT +2 moves your odds at each saved school.",
+        "timeline": "Application + financial aid + decision deadlines, grouped by month, calibrated to the schools you care about.",
+    }
+    return f"""<div class="card" style="max-width:440px;background:rgba(94,234,212,.08);border-color:rgba(94,234,212,.25);margin-bottom:14px">
+  <div style="font-weight:600;color:var(--teal);margin-bottom:6px">{headline_map[intent]}</div>
+  <p class="muted" style="margin:0;font-size:.85em;line-height:1.5">{detail_map[intent]}</p>
+</div>"""
+
+
 def signup_html():
+    hook = _auth_hook_html()
     return _page(f"""
 <div class="bar"><a href="/">&larr; back</a></div>
 <h1>Create your account</h1>
 <p class="muted">Saves your profile so you can come back without re-entering everything.</p>
+{hook}
 <form method="post" action="/signup" class="card" style="max-width:440px">
   {csrf_input()}
   <label style="margin-top:0">Email</label>
@@ -4515,9 +4584,11 @@ def signup_html():
 
 
 def login_html():
+    hook = _auth_hook_html()
     return _page(f"""
 <div class="bar"><a href="/">&larr; back</a></div>
 <h1>Log in</h1>
+{hook}
 <form method="post" action="/login" class="card" style="max-width:440px">
   {csrf_input()}
   <label style="margin-top:0">Email</label>
