@@ -1160,6 +1160,29 @@ TEST_BLIND_SCHOOLS = {
     "ucb", "ucla", "ucsd", "uci", "ucsb", "ucsc", "ucdavis", "ucr", "ucmerced",
 }
 
+# Schools where a portfolio / audition / research supplement is a primary
+# admissions gatekeeper (not just nice-to-have). When the user has a
+# portfolio listed in their profile, odds at these schools get a modest
+# 1.15x lift. Doesn't apply to schools where portfolios are optional /
+# don't materially change admit odds.
+PORTFOLIO_GATEKEEPER_SCHOOLS = {
+    "usc",          # Roski, Iovine, SCA, Thornton (audition), Kaufman (audition)
+    "nyu",          # Tisch (multiple programs, audition + portfolio)
+    "cmu",          # School of Drama (audition), School of Art (portfolio), Architecture
+    "cornell",      # AAP — Architecture, Art programs
+    "northwestern", # School of Communication portfolio tracks, Bienen audition
+    "umich",        # Stamps (portfolio), MTD (audition)
+    "rice",         # Architecture, Shepherd Music
+    "barnard",      # Architecture, Visual Arts
+    "risd",         # Portfolio is THE primary admissions criterion
+    "parsons",      # Portfolio + Parsons Challenge
+    "berklee",      # Audition + interview required
+    "juilliard",    # Audition is primary criterion
+    "cooper",       # Cooper Union — Architecture/Art portfolio
+    "saic",         # Art Institute of Chicago — portfolio
+    "pratt",        # Pratt Institute — portfolio
+}
+
 def is_test_blind(school_or_slug):
     slug = school_or_slug if isinstance(school_or_slug, str) else school_or_slug.get("slug")
     return slug in TEST_BLIND_SCHOOLS
@@ -2732,6 +2755,11 @@ def estimate_odds(school, fit, profile):
     # Demonstrated interest (only applies at tier 2-3 schools that track it)
     di_level = profile.get("_di_level") or "none"
     hook_mult *= _di_multiplier(di_level, school.get("tier", 5))
+    # Portfolio bonus — only at schools where portfolio is the actual gatekeeper.
+    # Modest 1.15x lift; the user still has to be otherwise qualified, but a
+    # portfolio at Roski/Tisch/RISD/etc. is meaningfully a hook.
+    if (profile.get("portfolio") or "").strip() and school.get("slug") in PORTFOLIO_GATEKEEPER_SCHOOLS:
+        hook_mult *= 1.15
     center = a * fit_mult * hook_mult
     # Pick caps based on whether this profile has been flagged as exceptional.
     # Standard caps assume a typical strong applicant; exceptional profiles
@@ -3078,6 +3106,7 @@ def init_db():
             "is_exceptional INTEGER DEFAULT 0",
             "exceptional_reason TEXT DEFAULT ''",
             "exceptional_evaluated_at TEXT",
+            "portfolio TEXT DEFAULT ''",
         ):
             try:
                 conn.execute(f"ALTER TABLE profiles ADD COLUMN {col_def}")
@@ -3209,8 +3238,8 @@ def save_profile(user_id, p):
              pref_weather, pref_setting, pref_size, pref_greek, pref_sports, pref_major_strength,
              pref_class_size, pref_prestige, pref_cost,
              pref_diversity, pref_party, pref_research, pref_career_intensity,
-             pref_weights, updated_at)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)
+             pref_weights, portfolio, updated_at)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)
             ON CONFLICT(user_id) DO UPDATE SET
                 uw_gpa=excluded.uw_gpa, weighted_gpa=excluded.weighted_gpa, sat=excluded.sat, act=excluded.act,
                 major=excluded.major, state=excluded.state, school_type=excluded.school_type,
@@ -3228,6 +3257,7 @@ def save_profile(user_id, p):
                 pref_diversity=excluded.pref_diversity, pref_party=excluded.pref_party,
                 pref_research=excluded.pref_research, pref_career_intensity=excluded.pref_career_intensity,
                 pref_weights=excluded.pref_weights,
+                portfolio=excluded.portfolio,
                 updated_at=CURRENT_TIMESTAMP""",
             (user_id, p.get("uw_gpa"), p.get("weighted_gpa"), p.get("sat"), p.get("act"),
              p.get("major"), p.get("state"), p.get("school_type"), p.get("ecs"),
@@ -3245,7 +3275,7 @@ def save_profile(user_id, p):
              p.get("pref_cost") or "any",
              p.get("pref_diversity") or "any", p.get("pref_party") or "any",
              p.get("pref_research") or "any", p.get("pref_career_intensity") or "any",
-             pref_weights))
+             pref_weights, p.get("portfolio") or ""))
         conn.commit()
 
 
@@ -5013,6 +5043,11 @@ def profile_html():
     <label><input type="checkbox" name="is_international" value="yes" {checked('is_international')}> International applicant (not a US citizen / permanent resident)</label>
   </div>
 
+  <h3>Portfolio / supplemental materials</h3>
+  <p class="muted" style="font-size:.85em;margin:-2px 0 8px">Schools like USC Roski, NYU Tisch, Berklee, RISD, and others use portfolios or auditions as primary admissions criteria. STEM-focused schools (MIT, Caltech) sometimes weight optional research/maker portfolios heavily. If you have one, list it — used both for odds calc at portfolio-required schools and for tailored advice.</p>
+  <label>Portfolio / research / audition materials <span class="muted">(brief description)</span></label>
+  <textarea name="portfolio" rows="2" placeholder="e.g. Studio art portfolio (15 pieces, mixed media); jazz piano audition tape; published research on CRISPR delivery">{v('portfolio')}</textarea>
+
   <h3>Preferences</h3>
   <p class="muted" style="font-size:.85em;margin:-2px 0 8px">Check anything you'd be happy with. The 1-10 dial says how much it matters. 5 is neutral. <b>10 is a deal-breaker</b>: schools that miss get removed from My Fit.</p>
   {_pref_form_fields(p)}
@@ -5047,6 +5082,7 @@ def chances_html(slug):
         "_di_level": get_demonstrated_interest(uid, slug),
         "is_exceptional": is_exc,
         "exceptional_reason": exc_reason,
+        "portfolio": p.get("portfolio") or "",
     }
     r = analyze_school(profile, slug)
     if not r: abort(404)
@@ -6052,6 +6088,7 @@ def get_tailored_advice(user_id, school, profile, force=False):
 - Extracurriculars: {profile.get('ecs') or '(blank)'}
 - Leadership: {profile.get('leadership') or '(blank)'}
 - Awards: {profile.get('awards') or '(blank)'}
+- Portfolio / supplemental materials: {profile.get('portfolio') or '(none)'}
 - Hooks for THIS school: legacy_generations={legacy_generations_at(profile, school)} (0 = no legacy here), first_gen={bool(profile.get('first_gen'))}, athlete={bool(profile.get('athlete'))}
 - Preferences: {prefs_line}
 
@@ -6080,6 +6117,13 @@ TASK: Write 6-8 SPECIFIC, ACTIONABLE bullets advising this exact student on appl
 2. Acknowledge the student's actual profile (their GPA/test/ECs) — what they already have, what's missing for THIS school.
 3. Speak directly to fit/mismatch when relevant (e.g. "you preferred warm but X is cold — here's how to evaluate that tradeoff").
 4. Be concrete: name the program, the threshold, the action, the deadline.
+
+CRITICAL ACCURACY RULES — DO NOT VIOLATE:
+- When citing a gap, USE THE ACTUAL NUMBERS. Don't say "0.2 below median" — say "your 3.7 UW vs the school's 3.93 admit median (0.23 below)". Always show the math.
+- Don't sugarcoat. A 3.7 GPA is a meaningful gap at a school where the median is 3.95+, not "marginal." For elite schools (sub-10% accept), even small gaps matter a lot.
+- If the student's stats are clearly below the typical admit range, say so directly. "Your test score is below the 25th percentile (which means most admits scored higher than you)" — not euphemisms like "compensable" or "marginal".
+- If the student lists a portfolio/research/audition and the VERIFIED FACTS show this school weights it heavily, the bullet about the application MUST acknowledge how their portfolio compares (strong evidence vs unclear quality).
+- Never claim a hook the student doesn't have. They are first_gen={bool(profile.get('first_gen'))}, athlete={bool(profile.get('athlete'))}, and have legacy_generations={legacy_generations_at(profile, school)} at THIS school. Don't reference hooks they don't have.
 
 5. If the student's intended major requires a portfolio/audition (per the VERIFIED FACTS above), the bullet about the application MUST mention that requirement and the work needed to satisfy it. Never claim a portfolio isn't required when the verified facts say it is.
 
@@ -6913,7 +6957,7 @@ def _read_profile_form(form):
     LIMITS = {
         "ecs": 4000, "leadership": 2000, "awards": 2000,
         "legacy_schools": 500, "major": 200, "state": 100,
-        "aps": 2000, "ibs": 2000,
+        "aps": 2000, "ibs": 2000, "portfolio": 1500,
     }
     try:
         from bleach import clean as _bleach
@@ -6948,6 +6992,7 @@ def _read_profile_form(form):
         "ecs": f("ecs") or "",
         "leadership": f("leadership") or "",
         "awards": f("awards") or "",
+        "portfolio": f("portfolio") or "",
         "legacy_schools": (f("legacy_schools") or "").strip(),
         "first_gen": form.get("first_gen") in ("yes","on","true","1"),
         "athlete": form.get("athlete") in ("yes","on","true","1"),
