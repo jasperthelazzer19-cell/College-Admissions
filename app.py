@@ -5807,12 +5807,17 @@ TAILORED_ADVICE_TTL_DAYS = 7
 # so it can't override these.
 SCHOOL_VERIFIED_FACTS = {
     "usc": [
-        "Roski School of Art and Design requires portfolios for ALL undergraduate majors (including Studio Art, Design, Animation, Fine Arts) — this is non-negotiable.",
-        "Iovine and Young Academy requires a portfolio + supplemental application separate from the main USC app.",
-        "Thornton School of Music requires auditions for performance majors and a portfolio for music production.",
-        "School of Cinematic Arts requires a written supplement + creative materials portfolio (varies by program — Film & TV Production, Writing for Screen & TV, etc.).",
-        "Kaufman School of Dance requires an audition.",
-        "USC has multiple distinct undergrad schools (Dornsife, Marshall, Viterbi, Annenberg, Roski, SCA, Thornton, Iovine & Young, Kaufman) — admit rates and processes differ significantly between them.",
+        "USC admits to specific undergrad colleges, not USC at large. Each has its own admit rate, supplements, and (for portfolio-based programs) creative requirements. Always specify which USC college the student is applying to.",
+        "Roski School of Art and Design requires portfolios for ALL undergraduate majors — Studio Art, Design, Communication Design, Animation & Digital Arts, Fine Arts. This is non-negotiable.",
+        "Iovine and Young Academy (full name: Iovine and Young Academy for Arts, Technology and the Business of Innovation) is one of the MOST selective programs at USC — admit rate is in the single digits, far below USC overall. It admits ~30 students per cohort. Requires portfolio + supplemental written responses + often video submission, sometimes interview. It offers a single hybrid B.S. degree (no double majors). Founded by Jimmy Iovine and Dr. Dre. Site: iovine-young.usc.edu.",
+        "Marshall School of Business has its own admit process and admit rate (typically lower than USC overall). Strong feeder to West Coast finance, accounting, real estate, entrepreneurship.",
+        "Viterbi School of Engineering admits separately; Viterbi has 9 engineering departments. Computer Science direct-admit is highly competitive (single-digit admit rate); CS+other is somewhat easier.",
+        "Annenberg School for Communication and Journalism admits separately; Communication, Journalism, PR programs.",
+        "School of Cinematic Arts (SCA) is the most prestigious film school in the world. ALL programs require creative supplements: Film & TV Production wants visual portfolio + writing samples; Writing for Screen & TV wants written portfolio; Animation & Digital Arts wants visual portfolio. Admit rates 1-5% depending on program.",
+        "Thornton School of Music requires auditions for performance majors; music industry / music production / popular music tracks may use portfolios instead of auditions.",
+        "Kaufman School of Dance requires auditions (in-person or video).",
+        "Dornsife College of Letters, Arts and Sciences is the largest USC undergrad school and the typical 'general admit' path — humanities, sciences, social sciences.",
+        "USC's overall admit rate masks huge variation — SCA / Iovine / direct-admit Viterbi CS are ~1-5%; Dornsife is closer to USC's headline rate.",
     ],
     "nyu": [
         "Tisch requires portfolios + auditions for most programs (Film & TV, Drama, Dance, etc.) — separate from main NYU application.",
