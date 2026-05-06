@@ -4192,7 +4192,7 @@ CANDOR_LOGO_SVG = """<svg viewBox="0 0 64 64" width="22" height="22" xmlns="http
   <rect x="40" y="20" width="5.5" height="26" fill="url(#cdr-g)" rx="1.2"/>
 </svg>"""
 
-NAV = """<div class="nav"><a class="brand" href="/colleges">""" + CANDOR_LOGO_SVG + """Candor</a>
+NAV = """<div class="nav"><a class="brand" href="/">""" + CANDOR_LOGO_SVG + """Candor</a>
 <a href="/colleges">Browse</a>
 <a href="/rankings">Rankings</a>
 <a href="/compare">Compare</a>
