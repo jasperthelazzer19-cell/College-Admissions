@@ -7083,31 +7083,61 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
   body { overflow-x:hidden; background: transparent !important; }
   .wrap { max-width: none !important; padding: 0 !important; margin: 0 !important; }
 
-  /* Aurora is wrapped — wrapper does mouse-reactive translation, inner does the autonomous drift animation */
+  /* Aurora is 3 separate blobs that traverse the full screen on different paths.
+     Wrapper handles mouse-reactive translation; blobs handle autonomous travel. */
   .aurora-wrapper {
-    position:fixed; inset:-20vh -10vw; pointer-events:none; z-index:0;
-    transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+    position:fixed; inset:0; pointer-events:none; z-index:0;
     will-change: transform;
   }
-  .aurora {
-    position: absolute; inset: 0;
-    background:
-      radial-gradient(ellipse 50vw 60vh at 18% 28%, rgba(94,234,212,.55), transparent 55%),
-      radial-gradient(ellipse 45vw 50vh at 82% 72%, rgba(56,189,248,.40), transparent 55%),
-      radial-gradient(ellipse 40vw 45vh at 65% 18%, rgba(45,212,191,.35), transparent 55%);
-    filter: blur(60px);
-    animation: aurora-drift 20s ease-in-out infinite, aurora-pulse 7s ease-in-out infinite;
-    will-change: transform, opacity;
+  .blob {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    will-change: transform;
+    pointer-events: none;
   }
-  @keyframes aurora-drift {
-    0%,100% { transform: translate3d(0,0,0) rotate(0deg) scale(1); }
-    25% { transform: translate3d(-12vw, 7vh, 0) rotate(15deg) scale(1.18); }
-    50% { transform: translate3d(8vw, -4vh, 0) rotate(-10deg) scale(0.88); }
-    75% { transform: translate3d(-5vw, -8vh, 0) rotate(20deg) scale(1.10); }
+  .blob-1 {
+    width: 60vw; height: 60vw;
+    background: radial-gradient(circle, rgba(94,234,212,.55), transparent 60%);
+    animation: blob1-travel 22s linear infinite, blob-pulse 8s ease-in-out infinite;
+    top: -10vh; left: -20vw;
   }
-  @keyframes aurora-pulse {
+  .blob-2 {
+    width: 55vw; height: 55vw;
+    background: radial-gradient(circle, rgba(56,189,248,.42), transparent 60%);
+    animation: blob2-travel 28s linear infinite, blob-pulse 11s ease-in-out infinite reverse;
+    top: 30vh; left: 80vw;
+  }
+  .blob-3 {
+    width: 50vw; height: 50vw;
+    background: radial-gradient(circle, rgba(45,212,191,.38), transparent 60%);
+    animation: blob3-travel 25s linear infinite, blob-pulse 9s ease-in-out infinite;
+    top: 60vh; left: 30vw;
+  }
+  @keyframes blob1-travel {
+    0%   { transform: translate(0vw, 0vh); }
+    25%  { transform: translate(110vw, 30vh); }
+    50%  { transform: translate(80vw, 90vh); }
+    75%  { transform: translate(-10vw, 70vh); }
+    100% { transform: translate(0vw, 0vh); }
+  }
+  @keyframes blob2-travel {
+    0%   { transform: translate(0vw, 0vh); }
+    25%  { transform: translate(-90vw, 20vh); }
+    50%  { transform: translate(-110vw, -40vh); }
+    75%  { transform: translate(20vw, -50vh); }
+    100% { transform: translate(0vw, 0vh); }
+  }
+  @keyframes blob3-travel {
+    0%   { transform: translate(0vw, 0vh); }
+    25%  { transform: translate(40vw, -60vh); }
+    50%  { transform: translate(-50vw, -30vh); }
+    75%  { transform: translate(-70vw, 30vh); }
+    100% { transform: translate(0vw, 0vh); }
+  }
+  @keyframes blob-pulse {
     0%,100% { opacity: 1; }
-    50% { opacity: 0.62; }
+    50% { opacity: 0.5; }
   }
   .lp-wrap { max-width:1080px; margin:0 auto; padding:0 28px; position: relative; z-index: 2; }
   .hero { padding:80px 0 100px; text-align:left; max-width:780px; }
@@ -7176,7 +7206,11 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
 </style>
 """
     body = f"""
-<div class="aurora-wrapper"><div class="aurora"></div></div>
+<div class="aurora-wrapper">
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <div class="blob blob-3"></div>
+</div>
 {_nav()}
 
 <main class="lp-wrap">
