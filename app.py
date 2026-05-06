@@ -3670,8 +3670,12 @@ Posts:
     return profiles
 
 
+_NEWSAPI_429_UNTIL = None  # global circuit breaker — when set, skip NewsAPI calls until this timestamp
+
+
 def fetch_articles(college_slug):
     """Return cached articles if fresh; else fetch from NewsAPI and cache."""
+    global _NEWSAPI_429_UNTIL
     school = COLLEGES_BY_SLUG.get(college_slug)
     if not school: return []
     cutoff = (datetime.utcnow() - timedelta(hours=ARTICLE_TTL_HOURS)).isoformat()
@@ -3682,6 +3686,13 @@ def fetch_articles(college_slug):
             return [dict(r) for r in rows]
     # Fetch fresh
     if not NEWSAPI_KEY:
+        return []
+    # If we recently hit the daily quota, skip the API call entirely until
+    # the cooldown expires. NewsAPI's developer tier is 100 requests/24h —
+    # once we've blown it, hammering them just spams 429s in the logs and
+    # adds latency to every page load. 6-hour cooldown gives the quota
+    # window time to roll forward.
+    if _NEWSAPI_429_UNTIL and datetime.utcnow() < _NEWSAPI_429_UNTIL:
         return []
     try:
         # NewsAPI's qInTitle + q combo behaves erratically (it OR's them),
@@ -3708,6 +3719,10 @@ def fetch_articles(college_slug):
                          timeout=8)
         if r.status_code != 200:
             print(f"NewsAPI status {r.status_code} for {college_slug}: {r.text[:200]}")
+            if r.status_code == 429:
+                # Trip the circuit breaker — skip API calls for 6 hours
+                _NEWSAPI_429_UNTIL = datetime.utcnow() + timedelta(hours=6)
+                print(f"NewsAPI 429: cooling down until {_NEWSAPI_429_UNTIL.isoformat()}")
             return []
         articles = (r.json() or {}).get("articles", [])
     except Exception as e:
