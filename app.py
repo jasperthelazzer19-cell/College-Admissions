@@ -2595,11 +2595,116 @@ def _international_pct(school):
     return 0.05  # most US colleges land here
 
 
+def evaluate_profile_exceptionality(profile):
+    """Use Claude to detect truly exceptional applicants (USAMO/IMO medalists,
+    ISEF top, RSI alums, recruited D1 athletes, published researchers, etc.)
+    so the odds model can lift caps for them. Default NO — only flags clear,
+    nationally/internationally recognized credentials. Never lowers odds; only
+    used to remove the cap that's appropriate for typical strong applicants
+    but undersells extraordinary ones.
+
+    Returns (is_exceptional: bool, reason: str). Reason is a short human-
+    readable explanation of what triggered the flag (or why it didn't)."""
+    if not _claude_client:
+        return False, "AI evaluation unavailable"
+    awards = (profile.get("awards") or "").strip()
+    ecs = (profile.get("ecs") or "").strip()
+    leadership = (profile.get("leadership") or "").strip()
+    is_athlete = bool(profile.get("athlete"))
+    if not (awards or ecs or leadership):
+        return False, "No awards/ECs/leadership submitted"
+    user_msg = f"""STUDENT PROFILE:
+- Awards: {awards or '(blank)'}
+- Extracurriculars: {ecs or '(blank)'}
+- Leadership: {leadership or '(blank)'}
+- Self-reported recruited athlete: {is_athlete}
+
+TASK: Decide if this student is TRULY EXCEPTIONAL — clear evidence of national/international level achievement that would meaningfully change their admission odds at top-7 schools.
+
+Default to NO. Only return YES if there is unambiguous evidence of:
+- USAMO/USAJMO/USACO Platinum / IMO / IBO / IPhO / IOI / IChO medal or qualifier
+- ISEF Top 3, Best of Category, Grand Award, or Regeneron STS / Intel STS finalist
+- RSI alum (Research Science Institute at MIT)
+- Putnam top 200 (very rare in HS)
+- Published research as first author in a peer-reviewed journal (not high school journal)
+- Recruited D1 athlete (says "recruited", "verbal", "scholarship", "committed")
+- Founded a company with documented revenue or 10k+ users
+- Olympic medalist or international competition winner
+- Top national arts/writing awards: Scholastic Art & Writing GOLD MEDAL (national), national YoungArts winner, Carnegie Hall debut
+- Nationally recognized in their field (verifiable name recognition)
+
+Do NOT flag YES for any of these (these are strong but not exceptional):
+- Class valedictorian alone
+- 1500+ SAT alone
+- Multiple AP 5s
+- Captain of varsity sport (not recruited)
+- Founded a club at school
+- State-level award
+- Regional / county awards
+- "Hundreds of community service hours"
+- Local honor society
+- "Founded a nonprofit" without clear scale
+- "Started a business" without clear revenue/users
+- Scholastic Gold Key (regional) — only Gold Medal (national) qualifies
+
+Output EXACTLY one line in this format:
+EXCEPTIONAL: YES|NO
+REASON: <one short sentence — if YES, name the credential; if NO, briefly explain why not>"""
+    try:
+        response = _claude_client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=200,
+            system="You are a strict college admissions evaluator. Default to NO. Only flag truly exceptional, nationally/internationally recognized credentials. Be skeptical — students often inflate. Look for specific verifiable accomplishments.",
+            messages=[{"role":"user","content": user_msg}],
+        )
+        text = (response.content[0].text or "").strip()
+    except Exception as e:
+        print(f"Exceptionality eval error: {e}")
+        return False, "evaluation failed"
+    is_exc = "EXCEPTIONAL: YES" in text.upper()
+    reason = ""
+    for line in text.splitlines():
+        if line.strip().upper().startswith("REASON:"):
+            reason = line.split(":", 1)[1].strip()
+            break
+    return is_exc, reason or ("flagged exceptional" if is_exc else "standard profile")
+
+
+def get_or_evaluate_exceptionality(user_id, profile):
+    """Cached wrapper. Recomputes only when the cached value is missing or
+    older than 30 days."""
+    if not user_id or not profile:
+        return False, ""
+    # If we already have a cached result and the profile hasn't been edited
+    # since the evaluation, use the cache.
+    eval_at = profile.get("exceptional_evaluated_at")
+    updated_at = profile.get("updated_at")
+    if eval_at and updated_at and eval_at >= updated_at:
+        return bool(profile.get("is_exceptional")), profile.get("exceptional_reason") or ""
+    # Otherwise recompute and persist
+    is_exc, reason = evaluate_profile_exceptionality(profile)
+    try:
+        with db() as conn:
+            conn.execute(
+                "UPDATE profiles SET is_exceptional=?, exceptional_reason=?, exceptional_evaluated_at=CURRENT_TIMESTAMP WHERE user_id=?",
+                (1 if is_exc else 0, reason[:500], user_id)
+            )
+            conn.commit()
+    except Exception as e:
+        print(f"Exceptionality persist error: {e}")
+    return is_exc, reason
+
+
 def estimate_odds(school, fit, profile):
     """Harsher version. Markets and admissions are noisy; previous curve was
     over-generous in the middle of the fit range. Tighter slope + lower caps
     on elite schools so the headline numbers don't promise a Stanford that
-    isn't there."""
+    isn't there.
+
+    Exceptional-applicant override: when profile.is_exceptional is set,
+    the caps lift dramatically because USAMO golds, recruited athletes, etc.
+    legitimately have 50%+ odds at hyper-elites. The override only LIFTS
+    caps; it never lowers odds."""
     a = school["accept"]
     # International / domestic pool adjustment. The published acceptance rate
     # is overall (intl + domestic combined). At schools with a large intl
@@ -2628,13 +2733,26 @@ def estimate_odds(school, fit, profile):
     di_level = profile.get("_di_level") or "none"
     hook_mult *= _di_multiplier(di_level, school.get("tier", 5))
     center = a * fit_mult * hook_mult
-    # Caps tightened — even strong applicants almost never crack 18% at sub-10%
-    # accept schools.
-    if a < 0.07:  center = min(center, 0.14)
-    elif a < 0.10: center = min(center, 0.18)
-    elif a < 0.20: center = min(center, 0.30)
-    elif a < 0.40: center = min(center, 0.55)
-    else: center = min(center, 0.85)
+    # Pick caps based on whether this profile has been flagged as exceptional.
+    # Standard caps assume a typical strong applicant; exceptional profiles
+    # (USAMO golds, recruited D1 athletes, ISEF top, etc.) get raised caps
+    # because flat caps undersell them. Caps only LIFT — never lower odds.
+    if bool(profile.get("is_exceptional")):
+        # Lift caps significantly. A USAMO gold + recruited athlete legitimately
+        # has 60-80% odds at MIT. Even unhooked extraordinary kids cross 30%.
+        if a < 0.07:  center = min(center * 1.5 + 0.08, 0.65)
+        elif a < 0.10: center = min(center * 1.5 + 0.06, 0.72)
+        elif a < 0.20: center = min(center * 1.4 + 0.05, 0.80)
+        elif a < 0.40: center = min(center * 1.3 + 0.03, 0.88)
+        else:           center = min(center * 1.2, 0.93)
+    else:
+        # Standard caps — tightened so headline numbers don't promise a Stanford
+        # that isn't there for a typical strong applicant.
+        if a < 0.07:  center = min(center, 0.14)
+        elif a < 0.10: center = min(center, 0.18)
+        elif a < 0.20: center = min(center, 0.30)
+        elif a < 0.40: center = min(center, 0.55)
+        else: center = min(center, 0.85)
     spread = max(0.04, center * 0.35)
     low = max(1, int(round((center - spread / 2) * 100)))
     high = min(95, int(round((center + spread / 2) * 100)))
@@ -2950,6 +3068,19 @@ def init_db():
         for col in ("pref_diversity","pref_party","pref_research","pref_career_intensity"):
             try:
                 conn.execute(f"ALTER TABLE profiles ADD COLUMN {col} TEXT DEFAULT 'any'")
+            except sqlite3.OperationalError:
+                pass
+        # Exceptional-applicant flag (May 2026). When true, the odds model
+        # lifts caps significantly because flat caps undersell USAMO golds,
+        # recruited athletes, ISEF winners, etc. Evaluated by Claude on
+        # profile save; never auto-set, never lowers odds.
+        for col_def in (
+            "is_exceptional INTEGER DEFAULT 0",
+            "exceptional_reason TEXT DEFAULT ''",
+            "exceptional_evaluated_at TEXT",
+        ):
+            try:
+                conn.execute(f"ALTER TABLE profiles ADD COLUMN {col_def}")
             except sqlite3.OperationalError:
                 pass
         # AI Advisor paywall — usage tracking + paid status on users.
@@ -4892,11 +5023,15 @@ def profile_html():
 
 
 def chances_html(slug):
-    p = get_profile(current_user()["id"])
+    uid = current_user()["id"]
+    p = get_profile(uid)
     if not p:
         flash("Create your profile first so we can calculate your chances.", "error")
         session["next_url"] = f"/chances/{slug}"
         return redirect(url_for("profile_page"))
+    # Lazily run the exceptional-applicant evaluation if it hasn't run for
+    # this profile yet. Cached after the first call.
+    is_exc, exc_reason = get_or_evaluate_exceptionality(uid, p)
     profile = {
         "uw_gpa": p.get("uw_gpa"), "weighted_gpa": p.get("weighted_gpa"),
         "sat": p.get("sat"), "act": p.get("act"), "major": p.get("major"),
@@ -4909,7 +5044,9 @@ def chances_html(slug):
         "aps": p.get("aps") or "",
         "no_aps_offered": bool(p.get("no_aps_offered")),
         "aps_offered_not_taken": bool(p.get("aps_offered_not_taken")),
-        "_di_level": get_demonstrated_interest(current_user()["id"], slug),
+        "_di_level": get_demonstrated_interest(uid, slug),
+        "is_exceptional": is_exc,
+        "exceptional_reason": exc_reason,
     }
     r = analyze_school(profile, slug)
     if not r: abort(404)
@@ -4939,6 +5076,7 @@ def chances_html(slug):
   </div>
   <div class="odds" style="color:#2b6cff">{r['odds_low']}–{r['odds_high']}%</div>
   <div class="muted" style="font-size:.82em">your estimated chances</div>
+  {(f'<div style="margin-top:14px;padding:10px 14px;background:rgba(94,234,212,.08);border:1px solid rgba(94,234,212,.25);border-radius:8px;font-size:.88em"><b style="color:var(--teal)">★ Exceptional applicant override</b><div class="muted" style="margin-top:4px">{exc_reason or "Flagged exceptional based on your profile."} Your odds reflect this above the standard cap.</div></div>' if profile.get('is_exceptional') else '')}
   {render_admissions_breakdown(COLLEGES_BY_SLUG.get(r['slug']), admissions_detail(COLLEGES_BY_SLUG.get(r['slug'])))}
   <ul style="padding-left:18px;margin:18px 0 0">
     <li><b>Strength —</b> {r['strength']}</li>
@@ -6948,10 +7086,20 @@ def profile_page():
         save_profile(uid, p)
         # Profile changed — invalidate any cached advice/chances that were
         # generated against the old profile so the next view regenerates.
+        # Also recompute the exceptional flag on the new profile.
         with db() as conn:
             conn.execute("DELETE FROM tailored_advice WHERE user_id=?", (uid,))
             conn.execute("DELETE FROM saved_chances WHERE user_id=?", (uid,))
+            # Force re-evaluation by clearing the eval timestamp.
+            conn.execute("UPDATE profiles SET exceptional_evaluated_at=NULL WHERE user_id=?", (uid,))
             conn.commit()
+        # Trigger evaluation now (lazily — uses cache if it ran less than 30d ago)
+        fresh_profile = get_profile(uid)
+        if fresh_profile:
+            try:
+                get_or_evaluate_exceptionality(uid, fresh_profile)
+            except Exception as e:
+                print(f"exceptionality eval on save failed: {e}")
         flash("Profile saved.", "success")
         nxt = session.pop("next_url", None)
         if nxt: return redirect(nxt)
