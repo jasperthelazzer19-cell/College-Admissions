@@ -7167,17 +7167,9 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
   }
 </style>
 """
-    brand_svg = CANDOR_LOGO_SVG if "CANDOR_LOGO_SVG" in globals() else ""
     body = f"""
 <div class="aurora"></div>
-<nav class="lp-nav">
-  <a class="brand" href="/">{brand_svg}<span>Candor</span></a>
-  <div class="links">
-    <a href="/colleges">Browse schools</a>
-    <a href="/login">Log in</a>
-    <a href="/signup" class="btn-primary">Sign up free</a>
-  </div>
-</nav>
+{_nav()}
 
 <main class="lp-wrap">
   <section class="hero">
@@ -7293,7 +7285,14 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Candor — College admissions chances, calibrated</title>
 <meta name="description" content="College chances calculator with verified Common Data Set figures from {cds_count}+ schools. Built by a HS junior to be honest, not optimistic.">
-{css}</head><body>{body}</body></html>"""
+<style>{BASE_CSS}</style>
+{css}
+<style>
+  /* Tweaks so the regular site nav sits cleanly on top of the landing page */
+  .nav {{ position:relative; z-index:5; }}
+  .lp-wrap {{ position:relative; z-index:1; }}
+</style>
+</head><body>{body}</body></html>"""
 
 
 @app.route("/colleges")
