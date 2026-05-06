@@ -7083,19 +7083,31 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
   body { overflow-x:hidden; background: transparent !important; }
   .wrap { max-width: none !important; padding: 0 !important; margin: 0 !important; }
 
-  .aurora { position:fixed; inset:-20vh -10vw; pointer-events:none; z-index:0;
-    background:
-      radial-gradient(ellipse 50vw 60vh at 18% 28%, rgba(94,234,212,.45), transparent 55%),
-      radial-gradient(ellipse 45vw 50vh at 82% 72%, rgba(56,189,248,.32), transparent 55%),
-      radial-gradient(ellipse 40vw 45vh at 65% 18%, rgba(45,212,191,.28), transparent 55%);
-    filter: blur(70px);
-    animation: aurora-drift 38s ease-in-out infinite;
+  /* Aurora is wrapped — wrapper does mouse-reactive translation, inner does the autonomous drift animation */
+  .aurora-wrapper {
+    position:fixed; inset:-20vh -10vw; pointer-events:none; z-index:0;
+    transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
     will-change: transform;
+  }
+  .aurora {
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(ellipse 50vw 60vh at 18% 28%, rgba(94,234,212,.55), transparent 55%),
+      radial-gradient(ellipse 45vw 50vh at 82% 72%, rgba(56,189,248,.40), transparent 55%),
+      radial-gradient(ellipse 40vw 45vh at 65% 18%, rgba(45,212,191,.35), transparent 55%);
+    filter: blur(60px);
+    animation: aurora-drift 20s ease-in-out infinite, aurora-pulse 7s ease-in-out infinite;
+    will-change: transform, opacity;
   }
   @keyframes aurora-drift {
     0%,100% { transform: translate3d(0,0,0) rotate(0deg) scale(1); }
-    33% { transform: translate3d(-6vw, 4vh, 0) rotate(8deg) scale(1.08); }
-    66% { transform: translate3d(5vw, -3vh, 0) rotate(-5deg) scale(.96); }
+    25% { transform: translate3d(-12vw, 7vh, 0) rotate(15deg) scale(1.18); }
+    50% { transform: translate3d(8vw, -4vh, 0) rotate(-10deg) scale(0.88); }
+    75% { transform: translate3d(-5vw, -8vh, 0) rotate(20deg) scale(1.10); }
+  }
+  @keyframes aurora-pulse {
+    0%,100% { opacity: 1; }
+    50% { opacity: 0.62; }
   }
   .lp-wrap { max-width:1080px; margin:0 auto; padding:0 28px; position: relative; z-index: 2; }
   .hero { padding:80px 0 100px; text-align:left; max-width:780px; }
@@ -7164,7 +7176,7 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
 </style>
 """
     body = f"""
-<div class="aurora"></div>
+<div class="aurora-wrapper"><div class="aurora"></div></div>
 {_nav()}
 
 <main class="lp-wrap">
@@ -7274,6 +7286,30 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
       }});
     }}, {{ threshold: 0.12 }});
     document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+  }})();
+
+  // Mouse-reactive aurora — wrapper translates subtly toward cursor.
+  // Smoothed via lerp + rAF so movement feels like the page is breathing
+  // toward the cursor, not snapping. Disabled on touch devices where
+  // mousemove fires erratically.
+  (function(){{
+    const wrap = document.querySelector('.aurora-wrapper');
+    if (!wrap) return;
+    if (window.matchMedia('(pointer: coarse)').matches) return; // skip on touch
+    let targetX = 0, targetY = 0, currentX = 0, currentY = 0;
+    document.addEventListener('mousemove', (e) => {{
+      // Map cursor to ±40px offset
+      targetX = (e.clientX / window.innerWidth - 0.5) * 80;
+      targetY = (e.clientY / window.innerHeight - 0.5) * 80;
+    }}, {{ passive: true }});
+    function tick() {{
+      // Lerp toward target — 0.04 = soft, 0.1 = snappier
+      currentX += (targetX - currentX) * 0.06;
+      currentY += (targetY - currentY) * 0.06;
+      wrap.style.transform = `translate3d(${{currentX.toFixed(2)}}px, ${{currentY.toFixed(2)}}px, 0)`;
+      requestAnimationFrame(tick);
+    }}
+    tick();
   }})();
 </script>
 """
