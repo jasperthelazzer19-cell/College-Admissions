@@ -7055,9 +7055,8 @@ def pref_set(profile, key):
 # ─── ROUTES ───────────────────────────────────────────────
 @app.route("/")
 def landing():
-    # Logged-in users skip the marketing page and go straight to browsing
-    if current_user():
-        return redirect("/colleges")
+    # Show the landing page to everyone, including logged-in users.
+    # They can click any of the nav links to get to the product.
     # Pull live numbers so the social proof on the page is honest
     try:
         with db() as conn:
