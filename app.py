@@ -7078,12 +7078,16 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
     gradients animated with keyframes, no JS dependency."""
     css = """
 <style>
-  body { background:#070d14; color:#e6edf3; margin:0; font-family:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',sans-serif; line-height:1.55; -webkit-font-smoothing:antialiased; overflow-x:hidden; }
-  .aurora { position:fixed; inset:-20vh -10vw; pointer-events:none; z-index:-1;
+  /* Override BASE_CSS body background to make aurora visible */
+  html, body { background: #070d14 !important; }
+  body { overflow-x:hidden; background: transparent !important; }
+  .wrap { max-width: none !important; padding: 0 !important; margin: 0 !important; }
+
+  .aurora { position:fixed; inset:-20vh -10vw; pointer-events:none; z-index:0;
     background:
-      radial-gradient(ellipse 50vw 60vh at 18% 28%, rgba(94,234,212,.30), transparent 55%),
-      radial-gradient(ellipse 45vw 50vh at 82% 72%, rgba(56,189,248,.22), transparent 55%),
-      radial-gradient(ellipse 40vw 45vh at 65% 18%, rgba(45,212,191,.18), transparent 55%);
+      radial-gradient(ellipse 50vw 60vh at 18% 28%, rgba(94,234,212,.45), transparent 55%),
+      radial-gradient(ellipse 45vw 50vh at 82% 72%, rgba(56,189,248,.32), transparent 55%),
+      radial-gradient(ellipse 40vw 45vh at 65% 18%, rgba(45,212,191,.28), transparent 55%);
     filter: blur(70px);
     animation: aurora-drift 38s ease-in-out infinite;
     will-change: transform;
@@ -7093,15 +7097,7 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
     33% { transform: translate3d(-6vw, 4vh, 0) rotate(8deg) scale(1.08); }
     66% { transform: translate3d(5vw, -3vh, 0) rotate(-5deg) scale(.96); }
   }
-  .lp-nav { display:flex; justify-content:space-between; align-items:center; padding:22px 36px; max-width:1280px; margin:0 auto; }
-  .lp-nav .brand { display:flex; align-items:center; gap:10px; font-weight:700; font-size:1.1em; letter-spacing:-.3px; color:#e6edf3; text-decoration:none; }
-  .lp-nav .brand-mark { width:30px; height:30px; }
-  .lp-nav .links { display:flex; gap:22px; align-items:center; }
-  .lp-nav a { color:#9aa6b6; font-size:.92em; font-weight:500; text-decoration:none; transition:color .15s; }
-  .lp-nav a:hover { color:#5eead4; }
-  .btn-primary { background:linear-gradient(135deg,#5eead4 0%,#2dd4bf 100%); color:#070d14 !important; font-weight:600; padding:9px 18px; border-radius:8px; box-shadow:0 4px 18px rgba(94,234,212,.25); }
-  .btn-primary:hover { color:#070d14 !important; transform:translateY(-1px); box-shadow:0 6px 22px rgba(94,234,212,.35); }
-  .lp-wrap { max-width:1080px; margin:0 auto; padding:0 28px; }
+  .lp-wrap { max-width:1080px; margin:0 auto; padding:0 28px; position: relative; z-index: 2; }
   .hero { padding:80px 0 100px; text-align:left; max-width:780px; }
   .hero .eyebrow { display:inline-block; font-size:.78em; font-weight:600; letter-spacing:.8px; text-transform:uppercase; color:#5eead4; padding:5px 12px; border:1px solid rgba(94,234,212,.25); border-radius:999px; background:rgba(94,234,212,.06); margin-bottom:22px; }
   .hero h1 { font-size:clamp(2.4em,5vw,3.6em); font-weight:700; letter-spacing:-1.5px; line-height:1.06; margin:0 0 22px; color:#e6edf3; }
@@ -7181,7 +7177,7 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
       <a href="/colleges" class="secondary">Browse schools</a>
     </div>
     <div class="stats">
-      <div class="stat"><span class="num">{user_count}+</span>active users</div>
+      <div class="stat"><span class="num">100+</span>active users</div>
       <div class="stat"><span class="num">{cds_count}</span>CDS-verified schools</div>
       <div class="stat"><span class="num"><span class="accent">{activation_pct}%</span></span>complete their profile</div>
     </div>
