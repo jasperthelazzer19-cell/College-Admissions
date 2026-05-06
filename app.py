@@ -5100,6 +5100,11 @@ def chances_html(slug):
         conn.commit()
     tier_class = {"Dream": "pill-dream", "Reach": "pill-reach", "Target": "pill-target", "Safety": "pill-safety"}[r["tier"]]
     conf_class = {"low": "pill-conf-low", "medium": "pill-conf-medium", "high": "pill-conf-high"}[r["confidence"]]
+    conf_tooltip = {
+        "high": "Your profile has GPA, test score, and clear strengths/weaknesses — model has solid signal to work with.",
+        "medium": "You submitted some stats but something's missing (test-optional, or your stats are at the school's median which makes the outcome coin-flippy).",
+        "low": "Sparse profile (missing test/GPA or very few ECs) — model can't be precise. Add more details to your profile for a sharper estimate.",
+    }[r["confidence"]]
     return _page(f"""
 <div class="bar"><a href="/college/{r['slug']}">&larr; back to {r['school']}</a></div>
 <div class="card">
@@ -5108,7 +5113,7 @@ def chances_html(slug):
       <h1 style="margin:0">{r['school']}</h1>
       <div class="muted" style="font-size:.85em">Acceptance {r['accept_rate_pct']}% · profile fit {r['fit']}/100</div>
     </div>
-    <div><span class="pill {tier_class}">{r['tier']}</span> <span class="pill {conf_class}" style="margin-left:4px">{r['confidence']} confidence</span></div>
+    <div><span class="pill {tier_class}">{r['tier']}</span> <span class="pill {conf_class}" style="margin-left:4px" title="{conf_tooltip}">{r['confidence']} confidence</span></div>
   </div>
   <div class="odds" style="color:#2b6cff">{r['odds_low']}–{r['odds_high']}%</div>
   <div class="muted" style="font-size:.82em">your estimated chances</div>
@@ -5121,6 +5126,16 @@ def chances_html(slug):
   </ul>
 </div>
 {_render_di_card(r['slug'], r['school'], profile.get('_di_level','none'))}
+<details class="card" style="margin-top:18px">
+  <summary style="cursor:pointer;font-weight:600">What does "{r['confidence']} confidence" mean?</summary>
+  <p class="muted" style="font-size:.88em;margin-top:10px">Confidence is how reliable the prediction itself is — <b>not</b> your chances of getting in. It reflects how much usable signal your profile has.</p>
+  <ul style="padding-left:18px;margin:6px 0 0;font-size:.9em;line-height:1.7">
+    <li><b style="color:var(--teal)">High</b> — full GPA + test score submitted, profile has clear strengths/weaknesses for the model to read. Trust the number.</li>
+    <li><b style="color:#7dd3fc">Medium</b> — some signal but mixed (test-optional submission, or stats right at the school's median making the outcome more coin-flippy).</li>
+    <li><b style="color:var(--text-3)">Low</b> — missing test/GPA or sparse profile. Range will be wider; add more profile details for a sharper estimate.</li>
+  </ul>
+  <p class="muted" style="font-size:.82em;margin-top:8px"><i>tldr: a high-confidence "5-12%" means probably 5-12%. A low-confidence "5-12%" means the real range could be 2-25%.</i></p>
+</details>
 <p style="margin-top:18px"><a class="btn btn-light" href="/profile">Edit profile</a> <a class="btn btn-light" href="/college/{r['slug']}/improve">Get tailored advice for {r['school']} &rarr;</a></p>
 """, title=f"Your chances at {r['school']} — Candor")
 
@@ -6392,6 +6407,11 @@ def school_plan_html(slug):
         conn.commit()
     tier_class = {"Dream":"pill-dream","Reach":"pill-reach","Target":"pill-target","Safety":"pill-safety"}[r["tier"]]
     conf_class = {"low":"pill-conf-low","medium":"pill-conf-medium","high":"pill-conf-high"}[r["confidence"]]
+    conf_tooltip = {
+        "high": "Your profile has GPA, test score, and clear strengths/weaknesses — model has solid signal.",
+        "medium": "You submitted some stats but something's missing (test-optional, or stats at the median).",
+        "low": "Sparse profile — add more details to your profile for a sharper estimate.",
+    }[r["confidence"]]
 
     # 2) My Fit — same composite score the ranking uses, with the per-pref
     # breakdown beneath it.
@@ -6456,7 +6476,7 @@ def school_plan_html(slug):
       <h3 style="margin:0;color:#fff">Your chances</h3>
       <div class="muted" style="color:#bdbdbd;font-size:.82em">profile fit {r['fit']}/100</div>
     </div>
-    <div><span class="pill {tier_class}">{r['tier']}</span> <span class="pill {conf_class}" style="margin-left:4px">{r['confidence']} confidence</span></div>
+    <div><span class="pill {tier_class}">{r['tier']}</span> <span class="pill {conf_class}" style="margin-left:4px" title="{conf_tooltip}">{r['confidence']} confidence</span></div>
   </div>
   <div style="font-size:1.8em;font-weight:800;letter-spacing:-.5px;margin:10px 0 4px;color:#9bf">{r['odds_low']}–{r['odds_high']}%</div>
   {render_round_breakdown_dark(school, admissions_detail(school))}
