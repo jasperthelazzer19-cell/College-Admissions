@@ -2781,7 +2781,20 @@ def estimate_odds(school, fit, profile):
         elif a < 0.20: center = min(center, 0.30)
         elif a < 0.40: center = min(center, 0.55)
         else: center = min(center, 0.85)
-    spread = max(0.04, center * 0.35)
+    # Spread (uncertainty band) is wider at low-accept schools where the outcome
+    # is genuinely more uncertain, and narrower at high-accept schools where
+    # the prediction is more confident. Previous formula (center * 0.35) was
+    # creating absurd ~28-point ranges at safety schools (e.g. TAMU center
+    # 0.81 → spread 0.285 → 68-95% range, which is wider than useful).
+    # Now: use a flatter spread that caps at ±9 points absolute.
+    if center < 0.10:
+        spread = max(0.04, center * 0.50)   # wider for elite uncertainty
+    elif center < 0.30:
+        spread = max(0.05, center * 0.32)   # standard for reach/target
+    elif center < 0.60:
+        spread = max(0.06, center * 0.22)   # tighter for target/safety
+    else:
+        spread = max(0.06, min(0.18, center * 0.18))  # tightest for safety, capped at ±9 pts
     low = max(1, int(round((center - spread / 2) * 100)))
     high = min(95, int(round((center + spread / 2) * 100)))
     if high <= low: high = low + 3
