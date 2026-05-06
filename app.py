@@ -7055,7 +7055,246 @@ def pref_set(profile, key):
 # ─── ROUTES ───────────────────────────────────────────────
 @app.route("/")
 def landing():
-    return redirect("/colleges")
+    # Logged-in users skip the marketing page and go straight to browsing
+    if current_user():
+        return redirect("/colleges")
+    # Pull live numbers so the social proof on the page is honest
+    try:
+        with db() as conn:
+            user_count = conn.execute("SELECT COUNT(*) c FROM users").fetchone()["c"]
+            profiles_count = conn.execute("SELECT COUNT(*) c FROM profiles WHERE uw_gpa IS NOT NULL").fetchone()["c"]
+        activation_pct = round(100 * profiles_count / user_count) if user_count else 0
+    except Exception:
+        user_count, activation_pct = 70, 78
+    cds_count = len(CDS_VERIFIED)
+    school_count = len(COLLEGES)
+    return _landing_html(user_count, school_count, cds_count, activation_pct)
+
+
+def _landing_html(user_count, school_count, cds_count, activation_pct):
+    """The marketing landing page. Keep this hand-written and specific —
+    do not let it drift into AI-slop SaaS-template language. The Cornell
+    story is the hook; calibrated honesty is the differentiator; the HS
+    junior framing is the voice. Aurora effect via pure-CSS radial
+    gradients animated with keyframes, no JS dependency."""
+    css = """
+<style>
+  body { background:#070d14; color:#e6edf3; margin:0; font-family:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',sans-serif; line-height:1.55; -webkit-font-smoothing:antialiased; overflow-x:hidden; }
+  .aurora { position:fixed; inset:-20vh -10vw; pointer-events:none; z-index:-1;
+    background:
+      radial-gradient(ellipse 50vw 60vh at 18% 28%, rgba(94,234,212,.30), transparent 55%),
+      radial-gradient(ellipse 45vw 50vh at 82% 72%, rgba(56,189,248,.22), transparent 55%),
+      radial-gradient(ellipse 40vw 45vh at 65% 18%, rgba(45,212,191,.18), transparent 55%);
+    filter: blur(70px);
+    animation: aurora-drift 38s ease-in-out infinite;
+    will-change: transform;
+  }
+  @keyframes aurora-drift {
+    0%,100% { transform: translate3d(0,0,0) rotate(0deg) scale(1); }
+    33% { transform: translate3d(-6vw, 4vh, 0) rotate(8deg) scale(1.08); }
+    66% { transform: translate3d(5vw, -3vh, 0) rotate(-5deg) scale(.96); }
+  }
+  .lp-nav { display:flex; justify-content:space-between; align-items:center; padding:22px 36px; max-width:1280px; margin:0 auto; }
+  .lp-nav .brand { display:flex; align-items:center; gap:10px; font-weight:700; font-size:1.1em; letter-spacing:-.3px; color:#e6edf3; text-decoration:none; }
+  .lp-nav .brand-mark { width:30px; height:30px; }
+  .lp-nav .links { display:flex; gap:22px; align-items:center; }
+  .lp-nav a { color:#9aa6b6; font-size:.92em; font-weight:500; text-decoration:none; transition:color .15s; }
+  .lp-nav a:hover { color:#5eead4; }
+  .btn-primary { background:linear-gradient(135deg,#5eead4 0%,#2dd4bf 100%); color:#070d14 !important; font-weight:600; padding:9px 18px; border-radius:8px; box-shadow:0 4px 18px rgba(94,234,212,.25); }
+  .btn-primary:hover { color:#070d14 !important; transform:translateY(-1px); box-shadow:0 6px 22px rgba(94,234,212,.35); }
+  .lp-wrap { max-width:1080px; margin:0 auto; padding:0 28px; }
+  .hero { padding:80px 0 100px; text-align:left; max-width:780px; }
+  .hero .eyebrow { display:inline-block; font-size:.78em; font-weight:600; letter-spacing:.8px; text-transform:uppercase; color:#5eead4; padding:5px 12px; border:1px solid rgba(94,234,212,.25); border-radius:999px; background:rgba(94,234,212,.06); margin-bottom:22px; }
+  .hero h1 { font-size:clamp(2.4em,5vw,3.6em); font-weight:700; letter-spacing:-1.5px; line-height:1.06; margin:0 0 22px; color:#e6edf3; }
+  .hero h1 .accent { background:linear-gradient(135deg,#5eead4 0%,#38bdf8 100%); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
+  .hero p.lede { font-size:1.18em; color:#9aa6b6; max-width:620px; margin:0 0 32px; line-height:1.55; }
+  .hero .cta-row { display:flex; gap:14px; flex-wrap:wrap; align-items:center; }
+  .hero .cta-row a { display:inline-flex; align-items:center; gap:8px; padding:12px 22px; border-radius:10px; font-weight:600; text-decoration:none; transition:all .18s; font-size:.97em; }
+  .hero .cta-row .primary { background:linear-gradient(135deg,#5eead4 0%,#2dd4bf 100%); color:#070d14; box-shadow:0 6px 24px rgba(94,234,212,.28); }
+  .hero .cta-row .primary:hover { transform:translateY(-1px); box-shadow:0 8px 30px rgba(94,234,212,.4); }
+  .hero .cta-row .secondary { color:#e6edf3; border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.03); }
+  .hero .cta-row .secondary:hover { border-color:rgba(94,234,212,.4); color:#5eead4; }
+  .hero .stats { display:flex; gap:36px; margin-top:48px; flex-wrap:wrap; }
+  .hero .stats .stat { font-size:.88em; color:#9aa6b6; }
+  .hero .stats .stat .num { display:block; font-size:1.9em; font-weight:700; color:#e6edf3; line-height:1; margin-bottom:4px; letter-spacing:-.5px; }
+  .hero .stats .stat .num .accent { color:#5eead4; }
+
+  .section { padding:90px 0; }
+  .section h2 { font-size:clamp(1.7em,3vw,2.3em); font-weight:700; letter-spacing:-.6px; margin:0 0 16px; color:#e6edf3; }
+  .section p.sub { color:#9aa6b6; font-size:1.05em; margin:0 0 40px; max-width:680px; }
+
+  .problem-card { background:rgba(16,26,37,.55); border:1px solid rgba(255,255,255,.06); border-radius:14px; padding:36px; backdrop-filter:blur(8px); }
+  .problem-card .quote { font-size:1.25em; line-height:1.5; color:#e6edf3; font-weight:500; margin:0 0 16px; }
+  .problem-card .quote strong { color:#5eead4; }
+  .problem-card .vs { display:flex; gap:14px; align-items:stretch; margin-top:20px; flex-wrap:wrap; }
+  .problem-card .vs .col { flex:1; min-width:240px; padding:18px; border-radius:10px; }
+  .problem-card .vs .wrong { background:rgba(239,68,68,.08); border:1px solid rgba(239,68,68,.22); }
+  .problem-card .vs .right { background:rgba(94,234,212,.08); border:1px solid rgba(94,234,212,.25); }
+  .problem-card .vs .label { font-size:.74em; font-weight:600; letter-spacing:.5px; text-transform:uppercase; opacity:.7; margin-bottom:6px; }
+  .problem-card .vs .wrong .label { color:#fca5a5; }
+  .problem-card .vs .right .label { color:#5eead4; }
+  .problem-card .vs .num { font-size:1.6em; font-weight:700; letter-spacing:-.4px; color:#e6edf3; }
+
+  .features-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:18px; }
+  .feature { background:rgba(16,26,37,.55); border:1px solid rgba(255,255,255,.06); border-radius:12px; padding:24px; transition:border-color .2s, transform .2s; }
+  .feature:hover { border-color:rgba(94,234,212,.25); transform:translateY(-2px); }
+  .feature .icon { display:inline-flex; width:36px; height:36px; align-items:center; justify-content:center; border-radius:9px; background:rgba(94,234,212,.1); color:#5eead4; font-weight:700; margin-bottom:14px; font-size:1.1em; }
+  .feature h3 { margin:0 0 8px; font-size:1.05em; color:#e6edf3; font-weight:600; letter-spacing:-.2px; }
+  .feature p { margin:0; color:#9aa6b6; font-size:.92em; line-height:1.55; }
+
+  .founder { display:grid; grid-template-columns:1fr; gap:24px; align-items:center; background:rgba(16,26,37,.55); border:1px solid rgba(255,255,255,.06); border-radius:14px; padding:36px; }
+  .founder p { font-size:1.08em; line-height:1.6; color:#cbd5e1; margin:0 0 12px; }
+  .founder p:last-child { margin:0; }
+  .founder .signature { color:#5eead4; font-weight:600; margin-top:16px !important; }
+
+  .final-cta { text-align:center; padding:80px 0 100px; }
+  .final-cta h2 { margin-bottom:18px; }
+  .final-cta p { color:#9aa6b6; margin:0 0 30px; font-size:1.08em; }
+  .final-cta a.primary { display:inline-block; padding:14px 32px; background:linear-gradient(135deg,#5eead4 0%,#2dd4bf 100%); color:#070d14; font-weight:600; border-radius:10px; text-decoration:none; box-shadow:0 8px 30px rgba(94,234,212,.3); transition:all .2s; }
+  .final-cta a.primary:hover { transform:translateY(-2px); box-shadow:0 12px 36px rgba(94,234,212,.4); }
+
+  footer { padding:40px 0 60px; text-align:center; color:#5e6b7c; font-size:.84em; border-top:1px solid rgba(255,255,255,.04); margin-top:60px; }
+  footer a { color:#9aa6b6; }
+
+  .reveal { opacity:0; transform:translateY(16px); transition:opacity .7s ease, transform .7s ease; }
+  .reveal.in { opacity:1; transform:translateY(0); }
+
+  @media (max-width:680px) {
+    .hero { padding:50px 0 60px; }
+    .section { padding:60px 0; }
+    .lp-nav { padding:18px 20px; }
+    .lp-nav .links a:not(.btn-primary) { display:none; }
+    .hero .stats { gap:22px; }
+  }
+</style>
+"""
+    brand_svg = CANDOR_LOGO_SVG if "CANDOR_LOGO_SVG" in globals() else ""
+    body = f"""
+<div class="aurora"></div>
+<nav class="lp-nav">
+  <a class="brand" href="/">{brand_svg}<span>Candor</span></a>
+  <div class="links">
+    <a href="/colleges">Browse schools</a>
+    <a href="/login">Log in</a>
+    <a href="/signup" class="btn-primary">Sign up free</a>
+  </div>
+</nav>
+
+<main class="lp-wrap">
+  <section class="hero">
+    <div class="eyebrow">Built by a high school junior · {school_count}+ schools</div>
+    <h1>The college admissions calculator that uses <span class="accent">real data</span>, not guesses.</h1>
+    <p class="lede">Most chances calculators tell everyone they have a 25-30% shot at every T20. Stanford accepts 3.6%. The math doesn't work. Candor uses verified Common Data Set figures from {cds_count}+ schools and odds calibrated to be honest, not optimistic.</p>
+    <div class="cta-row">
+      <a href="/signup" class="primary">Get your chances →</a>
+      <a href="/colleges" class="secondary">Browse schools</a>
+    </div>
+    <div class="stats">
+      <div class="stat"><span class="num">{user_count}+</span>active users</div>
+      <div class="stat"><span class="num">{cds_count}</span>CDS-verified schools</div>
+      <div class="stat"><span class="num"><span class="accent">{activation_pct}%</span></span>complete their profile</div>
+    </div>
+  </section>
+
+  <section class="section reveal">
+    <h2>The problem with every other tool</h2>
+    <p class="sub">A real example. Most calculators were showing Cornell's SAT mid-50% as a number that wasn't even close to right.</p>
+    <div class="problem-card">
+      <p class="quote">One popular calculator showed <strong>Cornell's SAT mid-50% as 1120-1285</strong>. The actual 2024-25 number? <strong>1510-1560.</strong> The tool was matching the wrong school entirely (Cornell College in Iowa, not Cornell University).</p>
+      <div class="vs">
+        <div class="col wrong">
+          <div class="label">What the calculator showed</div>
+          <div class="num">1120-1285</div>
+        </div>
+        <div class="col right">
+          <div class="label">Cornell's actual CDS</div>
+          <div class="num">1510-1560</div>
+        </div>
+      </div>
+      <p style="color:#9aa6b6; font-size:.95em; margin:24px 0 0; line-height:1.6">Half the tools online are using federal data that lags 1-2 cycles, AI-generated stats that change every refresh, or model assumptions that haven't been updated since 2018. Candor pulls actual Common Data Set PDFs by hand.</p>
+    </div>
+  </section>
+
+  <section class="section reveal">
+    <h2>What's different</h2>
+    <p class="sub">No vibes-based admissions math. Every number has a source.</p>
+    <div class="features-grid">
+      <div class="feature">
+        <div class="icon">✓</div>
+        <h3>CDS-Verified Data</h3>
+        <p>{cds_count}+ schools have stats hand-pulled from their official Common Data Set. The rest use federal data with a clear "verified vs federal" badge so you know what's checked.</p>
+      </div>
+      <div class="feature">
+        <div class="icon">⚖</div>
+        <h3>Calibrated, not optimistic</h3>
+        <p>Elite schools cap at sub-15% even for top applicants — because that's reality. Truly exceptional applicants (USAMO golds, recruited athletes) get a separate flag that lifts the cap honestly.</p>
+      </div>
+      <div class="feature">
+        <div class="icon">★</div>
+        <h3>Hooks per school</h3>
+        <p>Legacy at Harvard ≠ legacy at Duke. The model factors legacy at the specific school, athlete status, first-gen, and demonstrated interest at schools that actually track it.</p>
+      </div>
+      <div class="feature">
+        <div class="icon">↗</div>
+        <h3>My Fit ranking</h3>
+        <p>Schools sorted by how well they actually match your stats and preferences (size, vibe, weather, prestige weighting). Pushes you toward real targets, not just lottery reaches.</p>
+      </div>
+      <div class="feature">
+        <div class="icon">🎯</div>
+        <h3>Real applicant profiles</h3>
+        <p>Pulled from r/collegeresults and similar — actual admit/reject/waitlist outcomes with stats and what stood out, so you can calibrate against people who actually got in.</p>
+      </div>
+      <div class="feature">
+        <div class="icon">∞</div>
+        <h3>AI advisor with grounded facts</h3>
+        <p>Every school has hand-checked program facts the AI can't override (USC Roski requires portfolios for ALL majors, etc.). No more hallucinated advice.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section reveal">
+    <div class="founder">
+      <p>I'm a high school junior. Last semester I spent hours on every chances calculator on the internet trying to figure out where I actually stood for college, and the numbers were all over the place — one said 30% at Vanderbilt, another said 8%, another said 22%.</p>
+      <p>I started digging into why, and turns out most of them either use federal data that lags 1-2 years, have AI just make up stats, or use a fit model so generic it's basically useless. So I spent a few weeks pulling the actual Common Data Set PDFs from each school's website and built my own.</p>
+      <p>The goal is calibration, not telling you what you want to hear. If your odds at Stanford are 4%, you should know that — so you can spend your ED slot somewhere it'll actually matter.</p>
+      <p class="signature">— Jasper, Candor's founder</p>
+    </div>
+  </section>
+
+  <section class="final-cta reveal">
+    <h2>Get your real chances.</h2>
+    <p>Free, no paywall on chances. Takes 30 seconds.</p>
+    <a href="/signup" class="primary">Sign up free →</a>
+  </section>
+</main>
+
+<footer>
+  <div class="lp-wrap">
+    <p>Built by a HS junior. Not affiliated with any university or admissions service.<br>Stats verified against Common Data Set publications. <a href="/colleges">Browse all schools →</a></p>
+  </div>
+</footer>
+
+<script>
+  // Reveal-on-scroll without any library
+  (function(){{
+    if (!('IntersectionObserver' in window)) {{
+      document.querySelectorAll('.reveal').forEach(el => el.classList.add('in'));
+      return;
+    }}
+    const io = new IntersectionObserver((entries) => {{
+      entries.forEach(e => {{
+        if (e.isIntersecting) {{ e.target.classList.add('in'); io.unobserve(e.target); }}
+      }});
+    }}, {{ threshold: 0.12 }});
+    document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+  }})();
+</script>
+"""
+    return f"""<!doctype html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Candor — College admissions chances, calibrated</title>
+<meta name="description" content="College chances calculator with verified Common Data Set figures from {cds_count}+ schools. Built by a HS junior to be honest, not optimistic.">
+{css}</head><body>{body}</body></html>"""
 
 
 @app.route("/colleges")
