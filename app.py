@@ -5799,6 +5799,74 @@ No preamble, just the two samples."""
 # ─── TAILORED ADVICE (Claude-generated, cached 7 days) ────
 TAILORED_ADVICE_TTL_DAYS = 7
 
+# Per-school facts that AI tailored advice must use as ground truth
+# rather than guessing from training data. The AI was hallucinating
+# things like "USC doesn't require a portfolio for studio art" when
+# Roski actually requires portfolios for ALL undergrad majors. Add a
+# slug → fact-bullets dict; injected verbatim into the Claude prompt
+# so it can't override these.
+SCHOOL_VERIFIED_FACTS = {
+    "usc": [
+        "Roski School of Art and Design requires portfolios for ALL undergraduate majors (including Studio Art, Design, Animation, Fine Arts) — this is non-negotiable.",
+        "Iovine and Young Academy requires a portfolio + supplemental application separate from the main USC app.",
+        "Thornton School of Music requires auditions for performance majors and a portfolio for music production.",
+        "School of Cinematic Arts requires a written supplement + creative materials portfolio (varies by program — Film & TV Production, Writing for Screen & TV, etc.).",
+        "Kaufman School of Dance requires an audition.",
+        "USC has multiple distinct undergrad schools (Dornsife, Marshall, Viterbi, Annenberg, Roski, SCA, Thornton, Iovine & Young, Kaufman) — admit rates and processes differ significantly between them.",
+    ],
+    "nyu": [
+        "Tisch requires portfolios + auditions for most programs (Film & TV, Drama, Dance, etc.) — separate from main NYU application.",
+        "Stern is a separate undergrad business school with its own admit rate (typically lower than NYU overall).",
+        "NYU is a multi-school university — admit rates differ between Stern, Tisch, CAS, Steinhardt, Tandon, Gallatin.",
+    ],
+    "cmu": [
+        "School of Drama requires auditions; School of Art requires portfolios; Architecture requires a portfolio.",
+        "CMU has 7 colleges (CIT, MCS, Dietrich, Tepper, CFA, SCS, Heinz) — admit rates vary dramatically (SCS is ~5%, others 15-25%).",
+    ],
+    "cornell": [
+        "Cornell has 8 distinct undergrad colleges (CALS, A&S, AAP, Engineering, Hotel, Human Ecology, ILR, Dyson) with separate admissions.",
+        "AAP (Architecture, Art, and Planning) requires portfolios for Architecture and Art programs.",
+        "Hotel School (Nolan) has a separate application requiring leadership and service experience demonstration.",
+    ],
+    "northwestern": [
+        "School of Communication requires portfolios for Theatre, Radio/TV/Film production tracks.",
+        "Bienen School of Music requires auditions.",
+    ],
+    "umich": [
+        "Stamps School of Art & Design requires a portfolio.",
+        "School of Music, Theatre & Dance requires auditions/portfolios.",
+        "Ross School of Business is preferred admit; LSA-then-transfer is common.",
+    ],
+    "upenn": [
+        "Wharton has a separate, more competitive admit process; M&T (Management & Technology) and Huntsman are dual-degree programs with their own applications.",
+        "Penn has 4 undergrad schools (Wharton, CAS, SEAS, Nursing) — admit rates and weights differ.",
+    ],
+    "rice": [
+        "Architecture program requires a portfolio.",
+        "Shepherd School of Music requires auditions.",
+    ],
+    "yale": [
+        "Yale has one undergrad college; specific majors (Art, Architecture, Music) may require portfolios but admission is to Yale College generally.",
+    ],
+    "barnard": [
+        "Architecture and Visual Arts majors require portfolios; portfolio is recommended for Theatre and Dance.",
+    ],
+    "risd": [
+        "RISD requires a comprehensive portfolio for all undergraduate majors — this is the primary admissions criterion.",
+        "RISD also requires the 'Bicycle' drawing assignment as part of the application.",
+    ],
+    "parsons": [
+        "Parsons requires a portfolio for all undergraduate design majors plus the 'Parsons Challenge' creative response.",
+    ],
+    "berklee": [
+        "Berklee requires an audition + interview for all undergraduate music programs.",
+    ],
+    "juilliard": [
+        "Juilliard requires auditions for all programs (Music, Drama, Dance) — auditions are the primary admissions criterion.",
+    ],
+}
+
+
 def get_tailored_advice(user_id, school, profile, force=False):
     """Return Claude-generated, profile-specific advice for this school.
     Cached 7 days. Falls back to a templated bullet list if no key."""
@@ -5861,11 +5929,16 @@ COMPUTED FIT: academic={fit_acad}/100, odds={low}-{high}%
 PREFERENCE MATCH:
 {match_lines if match_lines else '(no preferences set)'}
 
+VERIFIED FACTS YOU MUST USE (do NOT contradict these — they're hand-checked):
+{chr(10).join(f"- {f}" for f in SCHOOL_VERIFIED_FACTS.get(school['slug'], [])) or "(none specific to this school)"}
+
 TASK: Write 6-8 SPECIFIC, ACTIONABLE bullets advising this exact student on applying to {school['name']}. Each bullet must:
 1. Reference a specific number, program, deadline, course, professor, or activity from the data above (no generic advice).
 2. Acknowledge the student's actual profile (their GPA/test/ECs) — what they already have, what's missing for THIS school.
 3. Speak directly to fit/mismatch when relevant (e.g. "you preferred warm but X is cold — here's how to evaluate that tradeoff").
 4. Be concrete: name the program, the threshold, the action, the deadline.
+
+5. If the student's intended major requires a portfolio/audition (per the VERIFIED FACTS above), the bullet about the application MUST mention that requirement and the work needed to satisfy it. Never claim a portfolio isn't required when the verified facts say it is.
 
 Output 6-8 bullets, each one short and standalone. Format:
 - <bullet 1>
