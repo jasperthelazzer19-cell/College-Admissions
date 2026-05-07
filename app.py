@@ -9136,13 +9136,27 @@ def landing():
 
 
 _ORBIT_SCHOOLS = [
-    ("umich", "Michigan"), ("harvard", "Harvard"), ("stanford", "Stanford"),
-    ("princeton", "Princeton"), ("cornell", "Cornell"), ("ucb", "UC Berkeley"),
-    ("ucla", "UCLA"), ("usc", "USC"), ("mit", "MIT"), ("yale", "Yale"),
-    ("duke", "Duke"), ("upenn", "UPenn"), ("columbia", "Columbia"),
-    ("vanderbilt", "Vanderbilt"), ("uva", "UVA"), ("unc", "UNC"),
-    ("dartmouth", "Dartmouth"), ("brown", "Brown"), ("notre-dame", "Notre Dame"),
-    ("nyu", "NYU"),
+    # (slug, display name, domain for favicon)
+    ("umich",      "Michigan",     "umich.edu"),
+    ("harvard",    "Harvard",      "harvard.edu"),
+    ("stanford",   "Stanford",     "stanford.edu"),
+    ("princeton",  "Princeton",    "princeton.edu"),
+    ("cornell",    "Cornell",      "cornell.edu"),
+    ("ucb",        "UC Berkeley",  "berkeley.edu"),
+    ("ucla",       "UCLA",         "ucla.edu"),
+    ("usc",        "USC",          "usc.edu"),
+    ("mit",        "MIT",          "mit.edu"),
+    ("yale",       "Yale",         "yale.edu"),
+    ("duke",       "Duke",         "duke.edu"),
+    ("upenn",      "UPenn",        "upenn.edu"),
+    ("columbia",   "Columbia",     "columbia.edu"),
+    ("vanderbilt", "Vanderbilt",   "vanderbilt.edu"),
+    ("uva",        "UVA",          "virginia.edu"),
+    ("unc",        "UNC",          "unc.edu"),
+    ("dartmouth",  "Dartmouth",    "dartmouth.edu"),
+    ("brown",      "Brown",        "brown.edu"),
+    ("notre-dame", "Notre Dame",   "nd.edu"),
+    ("nyu",        "NYU",          "nyu.edu"),
 ]
 
 def _landing_html(user_count, school_count, cds_count, activation_pct):
@@ -9152,11 +9166,25 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
     junior framing is the voice. Aurora effect via pure-CSS radial
     gradients animated with keyframes, no JS dependency."""
     n_orbit = len(_ORBIT_SCHOOLS)
-    orbit_items = "".join(
-        f'<a class="orbit-item" href="/college/{slug}" style="--angle:{i*360/n_orbit:.2f}deg">'
-        f'<span class="orbit-text">{name}</span></a>'
-        for i, (slug, name) in enumerate(_ORBIT_SCHOOLS)
-    )
+    orbit_items = ""
+    orbit_keyframes = ""  # one counter-rotation animation per item
+    for i, (slug, name, domain) in enumerate(_ORBIT_SCHOOLS):
+        angle = i * 360 / n_orbit
+        favicon = f"https://www.google.com/s2/favicons?domain={domain}&sz=128"
+        orbit_items += (
+            f'<a class="orbit-item" href="/college/{slug}" '
+            f'style="--angle:{angle:.2f}deg;">'
+            f'<div class="orbit-tile" style="animation:orbit-counter-{i} 80s linear infinite;">'
+            f'<img class="orbit-logo" src="{favicon}" alt="" loading="lazy">'
+            f'<span class="orbit-name">{name}</span>'
+            f'</div></a>'
+        )
+        orbit_keyframes += (
+            f"@keyframes orbit-counter-{i} {{"
+            f"from{{transform:rotate({-angle:.2f}deg);}}"
+            f"to{{transform:rotate({-angle - 360:.2f}deg);}}"
+            f"}}"
+        )
     css = """
 <style>
   /* Override BASE_CSS body background to make aurora visible */
@@ -9309,15 +9337,11 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
     grid-template-columns: repeat(4, 1fr);
     gap:10px;
   }
-  /* Orbital logo wall — schools rotate slowly around a center 'Candor'
-     puck. Each label counter-rotates so it stays upright while the ring
-     spins. Custom property --angle is per-item; @property declares it as
-     an <angle> so calc() interpolation works smoothly in keyframes. */
-  @property --angle {
-    syntax: '<angle>';
-    inherits: false;
-    initial-value: 0deg;
-  }
+  /* Orbital logo wall — schools rotate around a Candor center. Each
+     orbit-tile has a per-item counter-rotation animation (defined inline
+     below the static styles) so the tile stays upright as the ring
+     rotates. We pre-generate one keyframe per item to avoid relying on
+     @property/custom-prop interpolation, which has spotty support. */
   .logo-orbit {
     position:relative; width:100%; aspect-ratio:1/1;
     max-width:540px; margin:0 auto;
@@ -9325,17 +9349,15 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
   .orbit-center {
     position:absolute; top:50%; left:50%;
     transform:translate(-50%, -50%);
-    width:104px; height:104px;
+    width:120px; height:120px;
     display:flex; align-items:center; justify-content:center;
-    background:rgba(94,234,212,.07);
+    background:rgba(94,234,212,.06);
     border:1px solid rgba(94,234,212,.32);
     border-radius:50%;
-    font-family:'Newsreader', Georgia, serif;
-    font-weight:600; font-size:1.35em;
-    color:#5eead4; letter-spacing:-.3px;
     z-index:2;
-    box-shadow:0 0 60px rgba(94,234,212,.18), inset 0 0 24px rgba(94,234,212,.06);
+    box-shadow:0 0 60px rgba(94,234,212,.16), inset 0 0 28px rgba(94,234,212,.05);
   }
+  .orbit-center svg { width:64px; height:64px; }
   .orbit-ring {
     position:absolute; inset:0;
     animation:orbit-spin 80s linear infinite;
@@ -9344,53 +9366,57 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
   .orbit-item {
     position:absolute;
     top:50%; left:50%;
-    width:118px; height:38px;
-    margin:-19px -59px;
-    transform:rotate(var(--angle)) translateY(-220px);
-    display:flex; align-items:center; justify-content:center;
-    text-decoration:none;
+    width:0; height:0;
+    transform:rotate(var(--angle, 0deg)) translateY(var(--orbit-radius, -230px));
   }
-  .orbit-text {
-    display:inline-block;
-    padding:6px 14px;
+  .orbit-tile {
+    display:flex; flex-direction:row; align-items:center; gap:7px;
+    padding:6px 11px 6px 7px;
     background:rgba(255,255,255,.03);
     border:1px solid rgba(255,255,255,.08);
     border-radius:99px;
+    transform:translate(-50%, -50%);
+    /* per-item animation: orbit-counter-N — defined in the keyframes
+       block injected below, one per orbit position. */
+    transition:background .15s, border-color .15s, transform .15s;
+    will-change:transform;
+  }
+  .orbit-logo {
+    width:22px; height:22px; border-radius:4px;
+    object-fit:contain; flex-shrink:0;
+    background:rgba(255,255,255,.04);
+  }
+  .orbit-name {
     color:#cbd5e1;
-    font-size:.8em;
+    font-size:.78em;
     font-weight:500;
     letter-spacing:.2px;
     white-space:nowrap;
-    transition:background .15s, border-color .15s, color .15s;
-    animation:orbit-counter 80s linear infinite;
   }
-  .orbit-item:hover .orbit-text {
+  .orbit-item:hover .orbit-tile {
     background:rgba(94,234,212,.1);
     border-color:rgba(94,234,212,.32);
-    color:#e6edf3;
   }
+  .orbit-item:hover .orbit-name { color:#e6edf3; }
   @keyframes orbit-spin { to { transform:rotate(360deg); } }
-  @keyframes orbit-counter {
-    from { transform:rotate(calc(-1 * var(--angle, 0deg))); }
-    to   { transform:rotate(calc(-1 * var(--angle, 0deg) - 360deg)); }
-  }
   @media (prefers-reduced-motion: reduce) {
     .orbit-ring { animation:none; }
-    .orbit-text { animation:none; transform:rotate(calc(-1 * var(--angle, 0deg))); }
+    .orbit-tile { animation:none !important; }
   }
   @media (max-width:980px) {
     .logo-orbit { max-width:460px; }
-    .orbit-item { transform:rotate(var(--angle)) translateY(-185px); }
-    .orbit-center { width:90px; height:90px; font-size:1.2em; }
+    .logo-orbit { --orbit-radius: -195px; }
+    .orbit-center { width:96px; height:96px; }
+    .orbit-center svg { width:52px; height:52px; }
   }
   @media (max-width:600px) {
     .logo-orbit { max-width:340px; }
-    .orbit-item {
-      width:96px; height:32px; margin:-16px -48px;
-      transform:rotate(var(--angle)) translateY(-138px);
-    }
-    .orbit-text { font-size:.7em; padding:4px 10px; }
-    .orbit-center { width:70px; height:70px; font-size:1em; }
+    .logo-orbit { --orbit-radius: -145px; }
+    .orbit-tile { padding:4px 9px 4px 5px; gap:5px; }
+    .orbit-logo { width:18px; height:18px; }
+    .orbit-name { font-size:.7em; }
+    .orbit-center { width:74px; height:74px; }
+    .orbit-center svg { width:40px; height:40px; }
   }
   @media (max-width:980px) {
     .hero-logos-grid { grid-template-columns: repeat(5, 1fr); }
@@ -9547,20 +9573,6 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
 <main class="lp-wrap">
   <section class="hero hero-grid">
    <div class="hero-text">
-    <div class="hero-text-above">
-      <div class="eyebrow">Built by a high school junior · {school_count}+ schools</div>
-      <h1>The college admissions calculator that uses <span class="accent">real data</span>, not guesses.</h1>
-      <p class="lede">Most chances calculators tell everyone they have a 25-30% shot at every T20. Stanford accepts 3.6%. The math doesn't work. Candor uses verified Common Data Set figures from {cds_count}+ schools and odds calibrated to be honest, not optimistic.</p>
-      <div class="cta-row">
-        <a href="/signup" class="primary">Get your chances →</a>
-        <a href="/colleges" class="secondary">Browse schools</a>
-      </div>
-      <div class="stats">
-        <div class="stat"><span class="num">100+</span>active users</div>
-        <div class="stat"><span class="num">{cds_count}</span>CDS-verified schools</div>
-        <div class="stat"><span class="num"><span class="accent">{activation_pct}%</span></span>complete their profile</div>
-      </div>
-    </div>
     <div class="demo-eyebrow">Try it · no signup needed</div>
     <div class="demo-card">
       <div class="demo-controls">
@@ -9613,13 +9625,38 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
         <a href="/signup" class="demo-cta">Sign up free to run this on your full profile →</a>
       </div>
     </div>
-
+    <div class="hero-text-below">
+      <div class="eyebrow">Built by a high school junior · {school_count}+ schools</div>
+      <h1>The college admissions calculator that uses <span class="accent">real data</span>, not guesses.</h1>
+      <p class="lede">Most chances calculators tell everyone they have a 25-30% shot at every T20. Stanford accepts 3.6%. The math doesn't work. Candor uses verified Common Data Set figures from {cds_count}+ schools and odds calibrated to be honest, not optimistic.</p>
+      <div class="cta-row">
+        <a href="/signup" class="primary">Get your chances →</a>
+        <a href="/colleges" class="secondary">Browse schools</a>
+      </div>
+      <div class="stats">
+        <div class="stat"><span class="num">100+</span>active users</div>
+        <div class="stat"><span class="num">{cds_count}</span>CDS-verified schools</div>
+        <div class="stat"><span class="num"><span class="accent">{activation_pct}%</span></span>complete their profile</div>
+      </div>
     </div>
    </div>
    <div class="hero-logos">
     <div class="hero-logos-label">Verified data for {cds_count}+ schools, including:</div>
     <div class="logo-orbit">
-      <div class="orbit-center">Candor</div>
+      <div class="orbit-center">
+        <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="orbit-cdr-g" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#38bdf8"/>
+              <stop offset="100%" stop-color="#5eead4"/>
+            </linearGradient>
+          </defs>
+          <path d="M 52 16 A 22 22 0 1 0 52 48" stroke="url(#orbit-cdr-g)" stroke-width="6" fill="none" stroke-linecap="round"/>
+          <rect x="22" y="36" width="5.5" height="10" fill="url(#orbit-cdr-g)" rx="1.2"/>
+          <rect x="31" y="28" width="5.5" height="18" fill="url(#orbit-cdr-g)" rx="1.2"/>
+          <rect x="40" y="20" width="5.5" height="26" fill="url(#orbit-cdr-g)" rx="1.2"/>
+        </svg>
+      </div>
       <div class="orbit-ring">
         {orbit_items}
       </div>
@@ -9752,6 +9789,7 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
 <meta name="description" content="College chances calculator with verified Common Data Set figures from {cds_count}+ schools. Built by a HS junior to be honest, not optimistic.">
 <style>{BASE_CSS}</style>
 {css}
+<style>{orbit_keyframes}</style>
 <style>
   /* Tweaks so the regular site nav sits cleanly on top of the landing page */
   .nav {{ position:relative; z-index:5; }}
