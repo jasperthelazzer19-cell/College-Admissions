@@ -1171,7 +1171,7 @@ def render_round_breakdown_dark(school, detail, scale=1.0, personalized_rates=No
 # Bump this when the personalize_round_odds prompt logic changes —
 # auto-invalidates all cached round breakdowns on the next request so
 # users immediately see results from the new prompt.
-ROUND_PROMPT_VERSION = "v5"
+ROUND_PROMPT_VERSION = "v6"
 
 
 def _profile_version_hash(profile):
@@ -1280,11 +1280,16 @@ The translation from published pool rates to individual applicant rates:
 
 Per-round rules of thumb:
 - RD: should land approximately at the applicant's overall personalized midpoint, since RD is the bulk of the pool the personalized number was calibrated against.
-- ED: take their RD estimate × (0.5-0.7 × the school's published ED:RD pool ratio). At yield-obsessed schools (Tulane, Northeastern, Tufts ED2, NYU), use the higher end (0.7). At elite schools (Ivies, Stanford, MIT, UChicago, Duke), use the lower end (0.5).
+
+- ED LIFT — three regimes:
+  (a) ELITE schools (Ivies, Stanford, MIT, Caltech, UChicago, Duke, JHU, Northwestern, Vandy): individual lift is ~0.4-0.55 × the pool ED:RD ratio. The pool ratio is inflated heavily by athletes/legacy/dev cases that an individual can't replicate. So if Penn pool ratio is 3.1× (ED 14% / RD 4.5%), an unhooked individual gets ~1.5-1.7× lift.
+  (b) YIELD-EXTREMIST schools — places that aggressively use ED as a yield lever and give a REAL bump to non-hooked ED applicants. THESE include: Tulane, Tufts (ED1+ED2), Northeastern (EA AND ED), Boston University, Lehigh, Villanova, George Washington, American, Case Western, Brandeis, Wake Forest, Miami, SMU, Pepperdine, BC, Fordham (when binding). Individual lift here is ~0.75-0.95 × the pool ratio. Tulane pool ratio is ~5-6× and an unhooked applicant genuinely gets ~4-5× lift.
+  (c) STANDARD yield-conscious privates and LACs not in (a) or (b): individual lift is ~0.55-0.75 × the pool ratio.
+
 - ED2: ~70-85% of the ED1 lift (still committal, but pool is weaker than ED1).
-- EA at non-binding schools (Georgetown, Notre Dame, BC EA, MIT, Caltech): take RD × (0.3-0.5 × the published EA:RD ratio). Less committal = smaller bump.
-- REA / single-choice EA at HYPS: minimal lift for unhooked applicants (1.05-1.3× RD). The pool is self-selected so the bump is mostly structural.
-- Demonstrated-interest schools (BU, Northeastern, Tulane, GWU, American, Syracuse, Marist): if user shows engagement, add +10-15% on top of the base lift.
+- EA at non-binding schools (Georgetown, Notre Dame, BC EA, MIT, Caltech, UNC EA, UVA EA): take RD × (0.3-0.5 × the published EA:RD ratio). Less committal = smaller bump. EXCEPT for the demo-interest schools below.
+- REA / single-choice EA at HYPS: minimal lift for unhooked applicants (1.05-1.3× RD).
+- Demonstrated-interest extremist EA (Northeastern EA, BU EA, Tulane EA equivalents): ~0.7-0.9 × pool ratio because these schools care a LOT about EA as an interest signal.
 - For TRULY exceptional applicants (recruited athlete, USAMO/IMO gold, national-level distinction, dev case): odds stay HIGH across all rounds (60-85%), round matters less.
 
 Critical:
