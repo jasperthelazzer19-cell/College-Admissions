@@ -1737,7 +1737,7 @@ ROUND_LABELS = {
 }
 
 
-def render_admissions_breakdown(school, detail, dark=False, scale=1.0, personalized_rates=None):
+def render_admissions_breakdown(school, detail, dark=False, scale=1.0, personalized_rates=None, sub_school=None):
     """HTML block showing round-by-round acceptance rates + in/out-of-state
     where available. Empty string if no curated data.
 
@@ -1745,12 +1745,27 @@ def render_admissions_breakdown(school, detail, dark=False, scale=1.0, personali
         rates for the current viewer. If provided, displays these and shows
         the school's published rate in muted parens for context. Header
         becomes "By application round (your odds)".
+    sub_school: dict with "accept" — when the user's major matches a curated
+        sub-school (e.g. Kelley at IU), scale the displayed published rates
+        by (sub_school_accept / school_accept) so the "school: X%" reference
+        reflects the sub-college's selectivity, not the university overall.
+        Most universities don't publish separate round rates per sub-college,
+        so this is a proportional estimate.
     scale: legacy fallback multiplier — applied uniformly to each round if
         personalized_rates is not provided. Scale==1.0 means show published.
     """
     if not detail:
         return ""
     rates = detail.get("rates", {})
+    # Sub-school scale: if user's major matches a sub-college with a different
+    # accept rate, scale the displayed rates so they're sub-college-equivalent.
+    sub_ratio = 1.0
+    sub_label = ""
+    if sub_school and sub_school.get("accept") and school and school.get("accept"):
+        sub_ratio = sub_school["accept"] / school["accept"]
+        sub_short = sub_school["name"].split("(")[0].strip()
+        sub_label = f" — estimated for {sub_short}"
+    rates = {k: v * sub_ratio for k, v in rates.items()}
     border = "#333" if dark else "#f0f0f0"
     label_color = "#bdbdbd" if dark else "#666"
     try:
@@ -1786,11 +1801,12 @@ def render_admissions_breakdown(school, detail, dark=False, scale=1.0, personali
             state_rows += f'<div style="display:flex;justify-content:space-between;padding:5px 0;border-top:1px solid {border};font-size:.9em"><span>Out-of-state</span><span style="font-weight:600">{round(out_r*100,1)}%</span></div>'
         state_block = f'<div style="margin-top:10px"><div style="font-weight:600;font-size:.85em;color:{label_color};margin-bottom:2px">State residency</div>{state_rows}</div>'
     header = "By application round (your odds)" if personalized else "By application round"
+    header += sub_label
     return f'<div style="margin-top:12px"><div style="font-weight:600;font-size:.85em;color:{label_color};margin-bottom:2px">{header}</div>{rows}{state_block}</div>'
 
 
-def render_round_breakdown_dark(school, detail, scale=1.0, personalized_rates=None):
-    return render_admissions_breakdown(school, detail, dark=True, scale=scale, personalized_rates=personalized_rates)
+def render_round_breakdown_dark(school, detail, scale=1.0, personalized_rates=None, sub_school=None):
+    return render_admissions_breakdown(school, detail, dark=True, scale=scale, personalized_rates=personalized_rates, sub_school=sub_school)
 
 
 # Bump this when the personalize_round_odds prompt logic changes —
@@ -7919,7 +7935,7 @@ def school_plan_html(slug):
     <div><span class="pill {tier_class}">{r['tier']}</span> <span class="pill {conf_class}" style="margin-left:4px" title="{conf_tooltip}">{r['confidence']} confidence</span></div>
   </div>
   <div style="font-size:1.8em;font-weight:800;letter-spacing:-.5px;margin:10px 0 4px;color:#9bf">{r['odds_low']}–{r['odds_high']}%</div>
-  {(lambda _det: render_round_breakdown_dark(school, _det, personalized_rates=personalize_round_odds(user['id'], school, _det, profile, r['odds_low'], r['odds_high']), scale=(((r.get('odds_low',0)+r.get('odds_high',0))/2.0) / (round(school['accept']*100,1) or 1.0))))(admissions_detail(school))}
+  {(lambda _det: render_round_breakdown_dark(school, _det, personalized_rates=personalize_round_odds(user['id'], school, _det, profile, r['odds_low'], r['odds_high']), scale=(((r.get('odds_low',0)+r.get('odds_high',0))/2.0) / (round(school['accept']*100,1) or 1.0)), sub_school=sub_match))(admissions_detail(school))}
   <ul style="padding-left:18px;margin:14px 0 0;color:#e8e8e8">
     <li><b>Strength —</b> {r['strength']}</li>
     <li><b>Weakness —</b> {r['weakness']}</li>
