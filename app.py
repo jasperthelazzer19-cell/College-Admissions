@@ -981,6 +981,234 @@ def admissions_detail(school):
     return ADMISSIONS_DETAIL.get(school["slug"])
 
 
+# Sub-school (a.k.a. undergraduate college) accept rates. Many large
+# universities admit by college rather than university-wide, with very
+# different rates per college. Cornell Engineering vs Cornell Hotel is
+# 10% vs 27%; USC SCA vs USC LAS is 4% vs 13%; Penn Wharton vs Penn CAS
+# vs Penn Nursing all differ.
+#
+# Structure: each entry is a list of dicts with:
+#   name      — display name of the college/school within the university
+#   accept    — recent-cycle accept rate as float 0-1
+#   keywords  — lowercase substrings; when the user's major matches one,
+#               this sub-school is used in chances + advice. List the
+#               common majors per college.
+#   note      — optional one-line context (e.g. "transfer admit at 2nd yr")
+#
+# Order matters: more specific sub-schools first (Hotel before LAS so a
+# Hotel Management major lands on Hotel, not on the catch-all LAS).
+SUB_SCHOOL_RATES = {
+    "cornell": [
+        {"name": "Hotel Administration (SHA)", "accept": 0.27,
+         "keywords": ["hotel","hospitality"]},
+        {"name": "Architecture, Art, and Planning (AAP)", "accept": 0.07,
+         "keywords": ["architecture","fine art","urban planning","city planning"],
+         "note":"AAP architecture sub-program is sub-5%"},
+        {"name": "College of Engineering", "accept": 0.10,
+         "keywords": ["engineering","computer science","cs ","operations research","biomedical","mechanical","electrical","civil","chemical","materials","aerospace"]},
+        {"name": "Industrial & Labor Relations (ILR)", "accept": 0.16,
+         "keywords": ["labor","ilr","industrial relations","hr","human resources"]},
+        {"name": "Charles H. Dyson School (Applied Economics)", "accept": 0.04,
+         "keywords": ["dyson","applied economics","aem","business"]},
+        {"name": "College of Agriculture & Life Sciences (CALS)", "accept": 0.14,
+         "keywords": ["biology","agriculture","food science","environmental","animal science","plant","biological"]},
+        {"name": "College of Human Ecology", "accept": 0.16,
+         "keywords": ["human ecology","nutrition","design","fiber","fashion","apparel","health"]},
+        {"name": "College of Arts & Sciences (CAS)", "accept": 0.10,
+         "keywords": ["arts","sciences","humanities","english","history","economics","philosophy","math","physics","chemistry"]},
+    ],
+    "upenn": [
+        {"name": "Wharton School", "accept": 0.06,
+         "keywords": ["wharton","finance","business","economics","accounting","management"],
+         "note":"M&T (engineering+wharton) and Huntsman are sub-5%"},
+        {"name": "School of Engineering & Applied Science (SEAS)", "accept": 0.065,
+         "keywords": ["engineering","computer science","cs ","biomedical","mechanical","electrical","chemical","materials","systems"]},
+        {"name": "School of Nursing", "accept": 0.10,
+         "keywords": ["nursing"]},
+        {"name": "College of Arts & Sciences (CAS)", "accept": 0.07,
+         "keywords": ["arts","sciences","humanities","english","history","biology","chemistry","political science","psychology","math","physics"]},
+    ],
+    "usc": [
+        {"name": "School of Cinematic Arts (SCA)", "accept": 0.04,
+         "keywords": ["cinema","film","screenwriting","animation","interactive media","game design"],
+         "note":"Film Production: ~3%, Screenwriting: ~5-7%"},
+        {"name": "Iovine and Young Academy", "accept": 0.05,
+         "keywords": ["iovine","arts technology and the business of innovation"]},
+        {"name": "Annenberg School (Communication)", "accept": 0.08,
+         "keywords": ["communication","journalism","public relations"]},
+        {"name": "Marshall School of Business", "accept": 0.10,
+         "keywords": ["marshall","business","finance","accounting","entrepreneurship","global"]},
+        {"name": "Roski School of Art & Design", "accept": 0.10,
+         "keywords": ["roski","fine art","design","art history"],
+         "note":"Portfolio required for ALL majors"},
+        {"name": "Thornton School of Music", "accept": 0.12,
+         "keywords": ["thornton","music","jazz","composition","music industry"]},
+        {"name": "Viterbi School of Engineering", "accept": 0.13,
+         "keywords": ["viterbi","engineering","computer science","cs ","electrical","mechanical","biomedical","aerospace"]},
+        {"name": "Dornsife College of Letters, Arts & Sciences", "accept": 0.15,
+         "keywords": ["dornsife","arts","sciences","biology","economics","political science","international relations","psychology","math"]},
+    ],
+    "northwestern": [
+        {"name": "Medill School of Journalism", "accept": 0.05,
+         "keywords": ["medill","journalism","communication studies"]},
+        {"name": "School of Communication", "accept": 0.06,
+         "keywords": ["theater","performance","radio","tv","film","communication studies"]},
+        {"name": "McCormick School of Engineering", "accept": 0.075,
+         "keywords": ["mccormick","engineering","computer science","cs ","industrial engineering"]},
+        {"name": "Bienen School of Music", "accept": 0.25,
+         "keywords": ["bienen","music","jazz","composition"]},
+        {"name": "Weinberg College of Arts & Sciences", "accept": 0.075,
+         "keywords": ["weinberg","arts","sciences","economics","biology","math","physics","political science","psychology","english"]},
+    ],
+    "cmu": [
+        {"name": "School of Computer Science (SCS)", "accept": 0.06,
+         "keywords": ["computer science","cs ","ai","artificial intelligence","computational","machine learning"],
+         "note":"AI major + CS specifically — among hardest CS admits in US"},
+        {"name": "College of Fine Arts (CFA)", "accept": 0.06,
+         "keywords": ["drama","music","art","design","architecture"],
+         "note":"Audition/portfolio per program; Drama and Architecture are very competitive"},
+        {"name": "Tepper School of Business", "accept": 0.13,
+         "keywords": ["tepper","business administration","finance"]},
+        {"name": "College of Engineering (CIT)", "accept": 0.13,
+         "keywords": ["engineering","mechanical","electrical","biomedical","civil","chemical","materials"]},
+        {"name": "Mellon College of Science (MCS)", "accept": 0.15,
+         "keywords": ["physics","chemistry","math","biology","biological"]},
+        {"name": "Dietrich College of Humanities & Social Sciences", "accept": 0.17,
+         "keywords": ["humanities","social sciences","english","history","psychology","statistics","economics","information systems"]},
+    ],
+    "umich": [
+        {"name": "Stephen M. Ross School of Business", "accept": 0.13,
+         "keywords": ["ross","business","finance","accounting","marketing"],
+         "note":"Preferred admission for HS seniors; transfer at sophomore yr"},
+        {"name": "College of Engineering", "accept": 0.20,
+         "keywords": ["engineering","computer science","cs ","biomedical","mechanical","electrical"]},
+        {"name": "School of Music, Theatre & Dance", "accept": 0.30,
+         "keywords": ["music","theatre","dance","performing arts"]},
+        {"name": "College of Literature, Science, and the Arts (LSA)", "accept": 0.18,
+         "keywords": ["lsa","arts","sciences","economics","biology","political science","psychology","math","english"]},
+    ],
+    "uva": [
+        {"name": "School of Architecture", "accept": 0.20,
+         "keywords": ["architecture","urban planning","landscape"]},
+        {"name": "School of Engineering & Applied Science (SEAS)", "accept": 0.22,
+         "keywords": ["engineering","computer science","cs ","biomedical","mechanical","aerospace"]},
+        {"name": "McIntire School of Commerce", "accept": 0.30,
+         "keywords": ["mcintire","commerce","business","finance"],
+         "note":"3rd-year admission only; need to enter via CAS first"},
+        {"name": "School of Nursing", "accept": 0.30,
+         "keywords": ["nursing"]},
+        {"name": "College of Arts & Sciences", "accept": 0.17,
+         "keywords": ["arts","sciences","economics","biology","political science","psychology","english","math"]},
+    ],
+    "utexas": [
+        {"name": "McCombs School of Business", "accept": 0.12,
+         "keywords": ["mccombs","business","finance","accounting","mis"]},
+        {"name": "College of Natural Sciences (CS major)", "accept": 0.05,
+         "keywords": ["computer science","cs "],
+         "note":"UT CS is one of the hardest in the US for non-Texas residents"},
+        {"name": "Cockrell School of Engineering", "accept": 0.18,
+         "keywords": ["engineering","aerospace","biomedical","civil","mechanical","electrical","chemical"]},
+        {"name": "Moody College of Communication", "accept": 0.22,
+         "keywords": ["moody","communication","journalism","radio","tv","film"]},
+        {"name": "College of Liberal Arts", "accept": 0.32,
+         "keywords": ["liberal arts","english","history","economics","political science","psychology","sociology"]},
+    ],
+    "gtech": [
+        {"name": "College of Computing", "accept": 0.10,
+         "keywords": ["computer science","cs ","computational","information science"]},
+        {"name": "College of Engineering", "accept": 0.16,
+         "keywords": ["engineering","mechanical","electrical","biomedical","aerospace","industrial","chemical","civil","materials"]},
+        {"name": "Scheller College of Business", "accept": 0.22,
+         "keywords": ["scheller","business","management"]},
+        {"name": "College of Sciences", "accept": 0.22,
+         "keywords": ["physics","chemistry","math","biology","earth sciences","psychology"]},
+    ],
+    "nyu": [
+        {"name": "Stern School of Business", "accept": 0.08,
+         "keywords": ["stern","business","finance","accounting","marketing","economics"]},
+        {"name": "Tisch School of the Arts", "accept": 0.18,
+         "keywords": ["tisch","film","drama","photography","dance","theater"],
+         "note":"Audition/portfolio per program; Film Production ~25%, Drama ~5%"},
+        {"name": "College of Arts & Sciences (CAS)", "accept": 0.10,
+         "keywords": ["arts","sciences","economics","biology","politics","psychology","math","english","history"]},
+        {"name": "Steinhardt School", "accept": 0.20,
+         "keywords": ["steinhardt","education","music","applied psychology","occupational therapy"]},
+        {"name": "Tandon School of Engineering", "accept": 0.28,
+         "keywords": ["tandon","engineering","computer science","cs "]},
+    ],
+    "ucb": [
+        {"name": "EECS (Electrical Eng & CS)", "accept": 0.04,
+         "keywords": ["eecs","computer science","cs "],
+         "note":"Direct CS admit at Berkeley is sub-5%"},
+        {"name": "College of Engineering", "accept": 0.085,
+         "keywords": ["engineering","mechanical","civil","biomedical","industrial","chemical","aerospace","materials","nuclear"]},
+        {"name": "Haas School of Business", "accept": 0.10,
+         "keywords": ["haas","business"],
+         "note":"Junior-year transfer admit; need to enter via L&S first"},
+        {"name": "College of Letters & Science (CDSS data sci)", "accept": 0.06,
+         "keywords": ["data science","cdss"]},
+        {"name": "College of Letters & Science", "accept": 0.115,
+         "keywords": ["arts","letters","economics","political science","psychology","sociology","math","biology"]},
+        {"name": "College of Environmental Design", "accept": 0.16,
+         "keywords": ["architecture","urban studies","landscape"]},
+    ],
+}
+
+
+def _render_sub_school_block(slug, highlight_keywords=None):
+    """Display the per-college sub-school accept rates on the school detail
+    page. If highlight_keywords is provided (typically the user's major),
+    bolds the matching sub-school so users see which one applies to them.
+    Returns empty string if no curated data for this school."""
+    subs = SUB_SCHOOL_RATES.get(slug)
+    if not subs:
+        return ""
+    matched_idx = None
+    if highlight_keywords:
+        m = highlight_keywords.lower().strip()
+        for i, e in enumerate(subs):
+            for kw in e.get("keywords", []):
+                if kw in m:
+                    matched_idx = i; break
+            if matched_idx is not None: break
+    rows = ""
+    for i, e in enumerate(subs):
+        is_match = (i == matched_idx)
+        bg = "background:rgba(94,234,212,.06);border-left:2px solid var(--teal);padding-left:10px;margin-left:-12px;" if is_match else ""
+        match_pill = ' <span style="font-size:.7em;color:var(--teal);font-weight:600;letter-spacing:.3px">YOUR MAJOR</span>' if is_match else ""
+        note = e.get("note","")
+        note_html = f'<div class="muted" style="font-size:.78em;line-height:1.4">{note}</div>' if note else ""
+        rows += (
+            f'<div style="display:flex;justify-content:space-between;padding:6px 0;border-top:1px solid #f0f0f0;font-size:.9em;{bg}">'
+            f'<div><span>{e["name"]}</span>{match_pill}{note_html}</div>'
+            f'<span style="font-weight:600">{round(e["accept"]*100,1)}%</span>'
+            f'</div>'
+        )
+    return f'<div style="margin-top:14px"><div style="font-weight:600;font-size:.85em;color:#666;margin-bottom:2px">By college within the university</div>{rows}</div>'
+
+
+def sub_school_for_major(school_slug, major):
+    """Returns the (best-match) sub-school dict for a given school+major,
+    or None if no curated data exists or no keyword matches.
+
+    Used both for display ("you'd be applying to Cornell Engineering, ~10%
+    accept") and for chances scoring (use the sub-school's accept rate
+    instead of the university-wide one when computing odds)."""
+    subs = SUB_SCHOOL_RATES.get(school_slug)
+    if not subs or not major:
+        return None
+    m = major.lower().strip()
+    if not m:
+        return None
+    # First exact phrase / longest-keyword match wins (we ordered the
+    # entries with most-specific first, so first match is best)
+    for entry in subs:
+        for kw in entry.get("keywords", []):
+            if kw in m:
+                return entry
+    return None
+
+
 # Where this leads — career feeders / industry pipelines / geographic
 # advantages per school. Structure: list of short bullets, 2-5 per school.
 # AI-generated for schools not in the curated dict (cached forever in DB).
@@ -3003,8 +3231,17 @@ def compute_fit(profile, school):
     return max(0, min(100, round(score, 1))), components
 
 
-def assign_tier(school, fit):
+def assign_tier(school, fit, profile=None):
     a = school["accept"]
+    # If user has a major that matches a sub-school at this university,
+    # use the sub-school's accept rate for tier classification too — so a
+    # CS applicant at Cornell sees Cornell as a Reach (Engineering ~10%),
+    # not a Target (overall ~7% — wait, Engineering IS lower than overall).
+    # The point: tier should reflect the specific college they'd apply to.
+    if profile:
+        sub = sub_school_for_major(school.get("slug"), profile.get("major") or "")
+        if sub and sub.get("accept"):
+            a = sub["accept"]
     if a < 0.10: return "Dream" if fit < 70 else "Reach"
     if a < 0.20: return "Reach" if fit < 65 else "Target"
     if a < 0.40: return "Reach" if fit < 50 else ("Target" if fit < 75 else "Safety")
@@ -3191,8 +3428,20 @@ def estimate_odds(school, fit, profile):
     Exceptional-applicant override: when profile.is_exceptional is set,
     the caps lift dramatically because USAMO golds, recruited athletes, etc.
     legitimately have 50%+ odds at hyper-elites. The override only LIFTS
-    caps; it never lowers odds."""
+    caps; it never lowers odds.
+
+    Sub-school adjustment: many large universities admit by college (Cornell
+    Engineering ~10% vs Cornell Hotel ~27%). When the user's intended major
+    matches a curated sub-school, we use that sub-school's accept rate as
+    the base rather than the university-wide rate. Substantial impact on
+    the odds at schools where the sub-schools differ a lot."""
     a = school["accept"]
+    # Sub-school override: if the user's major matches a curated sub-school
+    # at this university, use the sub-school's accept rate as our anchor.
+    # Falls back to the university-wide rate when no match exists.
+    sub = sub_school_for_major(school.get("slug"), profile.get("major") or "")
+    if sub and sub.get("accept"):
+        a = sub["accept"]
     # International / domestic pool adjustment. The published acceptance rate
     # is overall (intl + domestic combined). At schools with a large intl
     # admit pool, domestic applicants are competing for fewer effective
@@ -3431,7 +3680,7 @@ def analyze_school(profile, slug):
     school = COLLEGES_BY_SLUG.get(slug)
     if not school: return None
     fit, components = compute_fit(profile, school)
-    tier = assign_tier(school, fit)
+    tier = assign_tier(school, fit, profile)
     low, high = estimate_odds(school, fit, profile)
     bullets = generate_bullets(profile, school, fit, components, tier, (low, high))
     return {
@@ -4911,6 +5160,11 @@ def college_detail_html(slug):
     c = merged_school(raw)
     user = current_user()
     saved = is_saved(user["id"], slug) if user else False
+    # If logged in, highlight the sub-school matching the user's major
+    user_major = ""
+    if user:
+        prof = get_profile(user["id"])
+        if prof: user_major = prof.get("major") or ""
     if user:
         save_btn = (f'<form method="post" action="/{("unsave" if saved else "save")}/{slug}" style="display:inline">'
                     f'{csrf_input()}'
@@ -4957,6 +5211,7 @@ def college_detail_html(slug):
     <div class="odds" style="color:#2b6cff">{round(c['accept']*100,1)}%</div>
     <div class="muted" style="font-size:.82em">most recent reported cycle</div>
     {render_admissions_breakdown(c, admissions_detail(c))}
+    {_render_sub_school_block(c['slug'], highlight_keywords=user_major)}
   </div>
   <div class="card">
     <h3 style="margin-top:0">GPA range</h3>
