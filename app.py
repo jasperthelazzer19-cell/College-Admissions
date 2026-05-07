@@ -1168,6 +1168,12 @@ def render_round_breakdown_dark(school, detail, scale=1.0, personalized_rates=No
     return render_admissions_breakdown(school, detail, dark=True, scale=scale, personalized_rates=personalized_rates)
 
 
+# Bump this when the personalize_round_odds prompt logic changes —
+# auto-invalidates all cached round breakdowns on the next request so
+# users immediately see results from the new prompt.
+ROUND_PROMPT_VERSION = "v2"
+
+
 def _profile_version_hash(profile):
     """Compact hash of the profile fields that affect personalized round
     odds. Used as a cache key — when relevant fields change, the cache
@@ -1178,7 +1184,7 @@ def _profile_version_hash(profile):
             'state','household_income','intended_major','is_exceptional',
             'extracurriculars','awards','legacy_schools']
     payload = json.dumps({k: profile.get(k) for k in keys}, sort_keys=True, default=str)
-    return hashlib.sha1(payload.encode()).hexdigest()[:12]
+    return f"{ROUND_PROMPT_VERSION}:{hashlib.sha1(payload.encode()).hexdigest()[:12]}"
 
 
 def personalize_round_odds(user_id, school, detail, profile, user_low_pct, user_high_pct):
@@ -1263,32 +1269,41 @@ Published rates by round:
 Applicant profile: {profile_summary}
 This applicant's overall personalized chances: {user_low_pct}-{user_high_pct}% (midpoint {user_mid}%)
 
-Estimate this applicant's chances IN EACH ROUND, accounting for:
-- How much THIS school weights early-decision binding commitment (some schools give 3-4x ED lift, some give ~1.5x)
-- Whether REA/EA gives a real lift at this school (REA at HYPSM barely moves the needle for unhooked applicants)
-- Demonstrated interest at schools that track it (BU, Northeastern, Tulane care; Harvard doesn't)
-- ED2 typically gives less lift than ED1 (smaller pool, but still committal)
-- Athletes/recruited/legacy/first-gen/dev cases at schools that weight these specifically
-- For exceptional applicants, the round shouldn't matter as much (they're getting in if they apply right)
+Estimate this applicant's chances IN EACH ROUND. Be REALISTIC about how rounds shift odds in real admissions, not artificially conservative.
+
+How rounds actually move odds:
+- BINDING ED at yield-conscious privates (Penn, Duke, Cornell, NW, Vandy, JHU, Brown, WashU, Emory, Tufts, NYU): typically 2-4× lift over the user's RD odds. A user who'd be ~10% RD might be 25-35% ED.
+- ED at smaller LACs (Williams, Amherst, Bowdoin, Middlebury, Wesleyan): ~2-2.5× lift. ED is a major signal at these schools.
+- REA at HYPS / single-choice EA: small lift (~1.2-1.5×) for unhooked applicants. Bigger only with real hooks.
+- EA at non-binding schools (Georgetown, Notre Dame, BC): modest lift (~1.1-1.4×) — less commitment so smaller bump.
+- ED2 at binding-ED schools: ~1.7-2.5× lift, slightly less than ED1.
+- Demonstrated-interest schools (BU, Northeastern, Tulane, GWU): EA/ED lift is amplified for users who've engaged.
+- RD at any school: should land near the user's overall midpoint, since RD is the bulk of the pool.
+- For EXCEPTIONAL applicants (recruited athlete, USAMO/IMO, dev case): odds stay HIGH across all rounds. They're getting in if they apply right, ~70-90% in any round.
+
+Common mistakes to avoid:
+- Don't make ED < published ED rate for any half-decent applicant. If published ED is 25%, our user with average odds at this school should be AT LEAST 25% in ED.
+- Don't bunch all rounds near the user's midpoint — there should be meaningful spread between ED and RD at most schools.
+- Don't undershoot ED at obvious yield-conscious schools just to seem "calibrated."
 
 Return ONLY valid JSON (no markdown, no preamble) with this exact shape:
 {{
   "rates": {{ {", ".join(f'"{r}": <float 0-1>' for r in rounds)} }},
-  "reasoning": "<one sentence explaining why ED/REA gives the lift it does AT THIS SPECIFIC SCHOOL for this applicant>"
+  "reasoning": "<one sentence on how this school weights ED/EA for this specific applicant>"
 }}
 
 Hard rules:
-- Each rate is the applicant's actual chance in that round (0.0-0.95), not a percentage
-- The applicant's RD chance should usually be ≤ their overall personalized midpoint
-- The applicant's ED chance can exceed published ED rate at schools where ED gives big lift
-- Cap any single round at 0.95 even for exceptional applicants
-- Keep reasoning under 30 words"""
+- Each rate is the applicant's actual chance (0.0-0.95), not a percentage.
+- For most schools, the applicant's ED rate should be at least 1.4× their RD rate.
+- For schools with big ED lifts (yield-conscious privates), 2-4× is normal.
+- Cap any single round at 0.95.
+- Keep reasoning under 30 words."""
 
     try:
         resp = _claude_client.messages.create(
             model="claude-haiku-4-5-20251001",
             max_tokens=400,
-            system="You are an admissions calibration model. Return only the requested JSON. Be school-specific and honest, not generic.",
+            system="You are a college admissions analyst who knows exactly how each school's specific admissions process moves the odds round-by-round. Use your real knowledge of ED/EA dynamics — don't be artificially conservative. Return only the requested JSON.",
             messages=[{"role":"user","content": prompt}],
         )
         text = resp.content[0].text.strip()
