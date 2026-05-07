@@ -9135,12 +9135,27 @@ def landing():
     return _landing_html(user_count, school_count, cds_count, activation_pct)
 
 
+_ORBIT_SCHOOLS = [
+    ("umich", "Michigan"), ("harvard", "Harvard"), ("stanford", "Stanford"),
+    ("princeton", "Princeton"), ("cornell", "Cornell"), ("ucb", "UC Berkeley"),
+    ("ucla", "UCLA"), ("usc", "USC"), ("mit", "MIT"), ("yale", "Yale"),
+    ("duke", "Duke"), ("upenn", "UPenn"), ("columbia", "Columbia"),
+    ("vanderbilt", "Vanderbilt"), ("uva", "UVA"), ("unc", "UNC"),
+    ("dartmouth", "Dartmouth"), ("brown", "Brown"), ("notre-dame", "Notre Dame"),
+]
+
 def _landing_html(user_count, school_count, cds_count, activation_pct):
     """The marketing landing page. Keep this hand-written and specific —
     do not let it drift into AI-slop SaaS-template language. The Cornell
     story is the hook; calibrated honesty is the differentiator; the HS
     junior framing is the voice. Aurora effect via pure-CSS radial
     gradients animated with keyframes, no JS dependency."""
+    n_orbit = len(_ORBIT_SCHOOLS)
+    orbit_items = "".join(
+        f'<a class="orbit-item" href="/college/{slug}" style="--angle:{i*360/n_orbit:.2f}deg">'
+        f'<span class="orbit-text">{name}</span></a>'
+        for i, (slug, name) in enumerate(_ORBIT_SCHOOLS)
+    )
     css = """
 <style>
   /* Override BASE_CSS body background to make aurora visible */
@@ -9293,35 +9308,89 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
     grid-template-columns: repeat(4, 1fr);
     gap:10px;
   }
-  .logo-tile {
-    aspect-ratio: 1.4 / 1;
+  /* Orbital logo wall — schools rotate slowly around a center 'Candor'
+     puck. Each label counter-rotates so it stays upright while the ring
+     spins. Custom property --angle is per-item; @property declares it as
+     an <angle> so calc() interpolation works smoothly in keyframes. */
+  @property --angle {
+    syntax: '<angle>';
+    inherits: false;
+    initial-value: 0deg;
+  }
+  .logo-orbit {
+    position:relative; width:100%; aspect-ratio:1/1;
+    max-width:540px; margin:0 auto;
+  }
+  .orbit-center {
+    position:absolute; top:50%; left:50%;
+    transform:translate(-50%, -50%);
+    width:104px; height:104px;
     display:flex; align-items:center; justify-content:center;
-    background:rgba(255,255,255,.025);
-    border:1px solid rgba(255,255,255,.06);
-    border-radius:6px;
-    padding:10px;
-    text-align:center;
+    background:rgba(94,234,212,.07);
+    border:1px solid rgba(94,234,212,.32);
+    border-radius:50%;
+    font-family:'Newsreader', Georgia, serif;
+    font-weight:600; font-size:1.35em;
+    color:#5eead4; letter-spacing:-.3px;
+    z-index:2;
+    box-shadow:0 0 60px rgba(94,234,212,.18), inset 0 0 24px rgba(94,234,212,.06);
+  }
+  .orbit-ring {
+    position:absolute; inset:0;
+    animation:orbit-spin 80s linear infinite;
+    transform-origin:center;
+  }
+  .orbit-item {
+    position:absolute;
+    top:50%; left:50%;
+    width:118px; height:38px;
+    margin:-19px -59px;
+    transform:rotate(var(--angle)) translateY(-220px);
+    display:flex; align-items:center; justify-content:center;
     text-decoration:none;
+  }
+  .orbit-text {
+    display:inline-block;
+    padding:6px 14px;
+    background:rgba(255,255,255,.03);
+    border:1px solid rgba(255,255,255,.08);
+    border-radius:99px;
     color:#cbd5e1;
-    font-size:.92em;
+    font-size:.8em;
     font-weight:500;
     letter-spacing:.2px;
-    transition:background .15s, border-color .15s, transform .15s, color .15s;
+    white-space:nowrap;
+    transition:background .15s, border-color .15s, color .15s;
+    animation:orbit-counter 80s linear infinite;
   }
-  .logo-tile:hover {
-    background:rgba(94,234,212,.06);
-    border-color:rgba(94,234,212,.22);
+  .orbit-item:hover .orbit-text {
+    background:rgba(94,234,212,.1);
+    border-color:rgba(94,234,212,.32);
     color:#e6edf3;
-    transform:translateY(-2px);
-    text-decoration:none;
   }
-  .logo-tile-more {
-    color:#5eead4;
-    background:rgba(94,234,212,.04);
-    border-color:rgba(94,234,212,.18);
-    font-size:.86em; font-weight:600;
+  @keyframes orbit-spin { to { transform:rotate(360deg); } }
+  @keyframes orbit-counter {
+    from { transform:rotate(calc(-1 * var(--angle, 0deg))); }
+    to   { transform:rotate(calc(-1 * var(--angle, 0deg) - 360deg)); }
   }
-  .logo-tile-more:hover { color:#7ff7df; }
+  @media (prefers-reduced-motion: reduce) {
+    .orbit-ring { animation:none; }
+    .orbit-text { animation:none; transform:rotate(calc(-1 * var(--angle, 0deg))); }
+  }
+  @media (max-width:980px) {
+    .logo-orbit { max-width:460px; }
+    .orbit-item { transform:rotate(var(--angle)) translateY(-185px); }
+    .orbit-center { width:90px; height:90px; font-size:1.2em; }
+  }
+  @media (max-width:600px) {
+    .logo-orbit { max-width:340px; }
+    .orbit-item {
+      width:96px; height:32px; margin:-16px -48px;
+      transform:rotate(var(--angle)) translateY(-138px);
+    }
+    .orbit-text { font-size:.7em; padding:4px 10px; }
+    .orbit-center { width:70px; height:70px; font-size:1em; }
+  }
   @media (max-width:980px) {
     .hero-logos-grid { grid-template-columns: repeat(5, 1fr); }
   }
@@ -9548,27 +9617,11 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
    </div>
    <div class="hero-logos">
     <div class="hero-logos-label">Verified data for {cds_count}+ schools, including:</div>
-    <div class="hero-logos-grid">
-      <a href="/college/harvard"      class="logo-tile">Harvard</a>
-      <a href="/college/mit"          class="logo-tile">MIT</a>
-      <a href="/college/stanford"     class="logo-tile">Stanford</a>
-      <a href="/college/yale"         class="logo-tile">Yale</a>
-      <a href="/college/princeton"    class="logo-tile">Princeton</a>
-      <a href="/college/upenn"        class="logo-tile">UPenn</a>
-      <a href="/college/brown"        class="logo-tile">Brown</a>
-      <a href="/college/cornell"      class="logo-tile">Cornell</a>
-      <a href="/college/columbia"     class="logo-tile">Columbia</a>
-      <a href="/college/dartmouth"    class="logo-tile">Dartmouth</a>
-      <a href="/college/duke"         class="logo-tile">Duke</a>
-      <a href="/college/uchicago"     class="logo-tile">UChicago</a>
-      <a href="/college/northwestern" class="logo-tile">Northwestern</a>
-      <a href="/college/vanderbilt"   class="logo-tile">Vanderbilt</a>
-      <a href="/college/notre-dame"   class="logo-tile">Notre Dame</a>
-      <a href="/college/rice"         class="logo-tile">Rice</a>
-      <a href="/college/ucb"          class="logo-tile">UC Berkeley</a>
-      <a href="/college/ucla"         class="logo-tile">UCLA</a>
-      <a href="/college/georgetown"   class="logo-tile">Georgetown</a>
-      <a href="/colleges" class="logo-tile logo-tile-more">+ {max(0, school_count - 19)} more →</a>
+    <div class="logo-orbit">
+      <div class="orbit-center">Candor</div>
+      <div class="orbit-ring">
+        {orbit_items}
+      </div>
     </div>
    </div>
   </section>
