@@ -1112,19 +1112,43 @@ ROUND_LABELS = {
 }
 
 
-def render_admissions_breakdown(school, detail, dark=False):
+def render_admissions_breakdown(school, detail, dark=False, scale=1.0, personalized_rates=None):
     """HTML block showing round-by-round acceptance rates + in/out-of-state
-    where available. Empty string if no curated data. dark=True styles for
-    the black chances card on the plan page."""
+    where available. Empty string if no curated data.
+
+    personalized_rates: dict {round_code: rate_0_to_1} — AI-derived per-round
+        rates for the current viewer. If provided, displays these and shows
+        the school's published rate in muted parens for context. Header
+        becomes "By application round (your odds)".
+    scale: legacy fallback multiplier — applied uniformly to each round if
+        personalized_rates is not provided. Scale==1.0 means show published.
+    """
     if not detail:
         return ""
     rates = detail.get("rates", {})
     border = "#333" if dark else "#f0f0f0"
     label_color = "#bdbdbd" if dark else "#666"
+    try:
+        scale_f = float(scale) if scale else 1.0
+    except (TypeError, ValueError):
+        scale_f = 1.0
+    use_ai = bool(personalized_rates)
+    personalized = use_ai or abs(scale_f - 1.0) > 0.05
     rows = ""
     for r in detail.get("rounds", []):
-        rate = rates.get(r)
-        rate_str = f"{round(rate*100,1)}%" if rate is not None else "—"
+        pub_rate = rates.get(r)
+        adj = None
+        if use_ai and personalized_rates.get(r) is not None:
+            adj = max(0.005, min(0.95, float(personalized_rates[r])))
+        elif pub_rate is not None:
+            adj = max(0.005, min(0.95, pub_rate * scale_f))
+        if adj is not None:
+            rate_str = f"{round(adj*100,1)}%"
+            if personalized and pub_rate is not None:
+                pub = round(pub_rate*100,1)
+                rate_str = f'{round(adj*100,1)}% <span style="color:{label_color};font-weight:400;font-size:.82em">(school: {pub}%)</span>'
+        else:
+            rate_str = "—"
         rows += f'<div style="display:flex;justify-content:space-between;padding:5px 0;border-top:1px solid {border};font-size:.9em"><span>{ROUND_LABELS.get(r, r)}</span><span style="font-weight:600">{rate_str}</span></div>'
     state_block = ""
     in_r = detail.get("in_state_rate")
@@ -1136,11 +1160,169 @@ def render_admissions_breakdown(school, detail, dark=False):
         if out_r is not None:
             state_rows += f'<div style="display:flex;justify-content:space-between;padding:5px 0;border-top:1px solid {border};font-size:.9em"><span>Out-of-state</span><span style="font-weight:600">{round(out_r*100,1)}%</span></div>'
         state_block = f'<div style="margin-top:10px"><div style="font-weight:600;font-size:.85em;color:{label_color};margin-bottom:2px">State residency</div>{state_rows}</div>'
-    return f'<div style="margin-top:12px"><div style="font-weight:600;font-size:.85em;color:{label_color};margin-bottom:2px">By application round</div>{rows}{state_block}</div>'
+    header = "By application round (your odds)" if personalized else "By application round"
+    return f'<div style="margin-top:12px"><div style="font-weight:600;font-size:.85em;color:{label_color};margin-bottom:2px">{header}</div>{rows}{state_block}</div>'
 
 
-def render_round_breakdown_dark(school, detail):
-    return render_admissions_breakdown(school, detail, dark=True)
+def render_round_breakdown_dark(school, detail, scale=1.0, personalized_rates=None):
+    return render_admissions_breakdown(school, detail, dark=True, scale=scale, personalized_rates=personalized_rates)
+
+
+def _profile_version_hash(profile):
+    """Compact hash of the profile fields that affect personalized round
+    odds. Used as a cache key — when relevant fields change, the cache
+    invalidates automatically."""
+    import hashlib
+    # Only the fields that actually move chances per round
+    keys = ['gpa','gpa_scale','sat','act','rigor','race','first_gen',
+            'state','household_income','intended_major','is_exceptional',
+            'extracurriculars','awards','legacy_schools']
+    payload = json.dumps({k: profile.get(k) for k in keys}, sort_keys=True, default=str)
+    return hashlib.sha1(payload.encode()).hexdigest()[:12]
+
+
+def personalize_round_odds(user_id, school, detail, profile, user_low_pct, user_high_pct):
+    """Use Claude to compute the user's personalized rate for each round
+    (ED, ED2, EA, REA, RD), accounting for school-specific dynamics —
+    e.g. UPenn ED gives ~3-4× lift, Stanford REA barely moves for unhooked,
+    schools that track demonstrated interest weight EA differently, etc.
+
+    Returns a dict {round_code: rate_as_float_0_to_1} or None on failure
+    (caller should fall back to linear scaling).
+
+    Cached in DB by (user_id, college_slug, profile_version)."""
+    if not detail or not detail.get("rates"):
+        return None
+    rounds = detail.get("rounds", [])
+    pub_rates = detail.get("rates", {})
+    if not rounds:
+        return None
+    # If only one round (RD-only schools like UCs), no point personalizing breakdown
+    if len(rounds) == 1:
+        return None
+
+    pv = _profile_version_hash(profile or {})
+
+    # Cache lookup
+    try:
+        with db() as conn:
+            row = conn.execute(
+                "SELECT body FROM personalized_rounds WHERE user_id=? AND college_slug=? AND profile_version=?",
+                (user_id, school["slug"], pv),
+            ).fetchone()
+            if row:
+                try:
+                    return json.loads(row["body"])
+                except Exception:
+                    pass
+    except Exception:
+        pass
+
+    if not _claude_client:
+        return None
+
+    # Build a compact profile summary for the prompt
+    parts = []
+    if profile.get("gpa"): parts.append(f"GPA: {profile.get('gpa')} ({profile.get('gpa_scale','4.0')})")
+    if profile.get("sat"): parts.append(f"SAT: {profile.get('sat')}")
+    if profile.get("act"): parts.append(f"ACT: {profile.get('act')}")
+    if profile.get("rigor"): parts.append(f"Rigor: {profile.get('rigor')}")
+    if profile.get("race"): parts.append(f"Race: {profile.get('race')}")
+    if profile.get("first_gen"): parts.append("First-gen")
+    if profile.get("state"): parts.append(f"State: {profile.get('state')}")
+    if profile.get("intended_major"): parts.append(f"Major: {profile.get('intended_major')}")
+    if profile.get("is_exceptional"): parts.append("EXCEPTIONAL APPLICANT (top 1-2% nationally)")
+    legacies = profile.get("legacy_schools") or []
+    if legacies:
+        parts.append(f"Legacy at: {', '.join(legacies)}")
+    ecs = profile.get("extracurriculars") or ""
+    if isinstance(ecs, list): ecs = "; ".join(ecs)
+    if ecs:
+        parts.append(f"ECs: {str(ecs)[:400]}")
+    awards = profile.get("awards") or ""
+    if isinstance(awards, list): awards = "; ".join(awards)
+    if awards:
+        parts.append(f"Awards: {str(awards)[:300]}")
+
+    profile_summary = " | ".join(parts) if parts else "Minimal profile data."
+
+    # Build round rates description
+    rate_lines = "\n".join(
+        f"  - {ROUND_LABELS.get(r, r)} ({r}): published rate {round(pub_rates.get(r,0)*100,1)}%"
+        for r in rounds
+    )
+
+    overall_pub_pct = round(school.get("accept", 0) * 100, 1)
+    user_mid = round((user_low_pct + user_high_pct) / 2.0, 1)
+
+    prompt = f"""School: {school['name']}
+Published overall acceptance: {overall_pub_pct}%
+Published rates by round:
+{rate_lines}
+
+Applicant profile: {profile_summary}
+This applicant's overall personalized chances: {user_low_pct}-{user_high_pct}% (midpoint {user_mid}%)
+
+Estimate this applicant's chances IN EACH ROUND, accounting for:
+- How much THIS school weights early-decision binding commitment (some schools give 3-4x ED lift, some give ~1.5x)
+- Whether REA/EA gives a real lift at this school (REA at HYPSM barely moves the needle for unhooked applicants)
+- Demonstrated interest at schools that track it (BU, Northeastern, Tulane care; Harvard doesn't)
+- ED2 typically gives less lift than ED1 (smaller pool, but still committal)
+- Athletes/recruited/legacy/first-gen/dev cases at schools that weight these specifically
+- For exceptional applicants, the round shouldn't matter as much (they're getting in if they apply right)
+
+Return ONLY valid JSON (no markdown, no preamble) with this exact shape:
+{{
+  "rates": {{ {", ".join(f'"{r}": <float 0-1>' for r in rounds)} }},
+  "reasoning": "<one sentence explaining why ED/REA gives the lift it does AT THIS SPECIFIC SCHOOL for this applicant>"
+}}
+
+Hard rules:
+- Each rate is the applicant's actual chance in that round (0.0-0.95), not a percentage
+- The applicant's RD chance should usually be ≤ their overall personalized midpoint
+- The applicant's ED chance can exceed published ED rate at schools where ED gives big lift
+- Cap any single round at 0.95 even for exceptional applicants
+- Keep reasoning under 30 words"""
+
+    try:
+        resp = _claude_client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=400,
+            system="You are an admissions calibration model. Return only the requested JSON. Be school-specific and honest, not generic.",
+            messages=[{"role":"user","content": prompt}],
+        )
+        text = resp.content[0].text.strip()
+        # Strip code-fences if Haiku added them despite instructions
+        if text.startswith("```"):
+            text = text.strip("`").lstrip("json").strip()
+        data = json.loads(text)
+        rates_out = data.get("rates", {})
+        # Sanity check + clamp
+        clean = {}
+        for r in rounds:
+            v = rates_out.get(r)
+            try:
+                v = float(v)
+                if 0.0 <= v <= 0.99:
+                    clean[r] = round(min(0.95, max(0.005, v)), 4)
+            except (TypeError, ValueError):
+                continue
+        if not clean:
+            return None
+        # Cache
+        try:
+            with db() as conn:
+                conn.execute(
+                    "INSERT OR REPLACE INTO personalized_rounds (user_id, college_slug, profile_version, body) VALUES (?,?,?,?)",
+                    (user_id, school["slug"], pv, json.dumps(clean)),
+                )
+                conn.commit()
+        except Exception as e:
+            print(f"personalized_rounds cache write failed: {e}")
+        return clean
+    except Exception as e:
+        print(f"personalize_round_odds error for {school['slug']}: {e}")
+        return None
 
 
 def sf_ratio(c):
@@ -3238,6 +3420,19 @@ def init_db():
             body TEXT NOT NULL,
             generated_at TEXT DEFAULT CURRENT_TIMESTAMP
         )""")
+        # AI-personalized round rates (ED/EA/RD odds adjusted for the user's
+        # specific profile vs the school's specific dynamics). Cached per
+        # (user, school, profile_version). Profile version is a hash of the
+        # profile fields that affect chances; bumping it busts the cache.
+        conn.execute("""CREATE TABLE IF NOT EXISTS personalized_rounds (
+            user_id INTEGER NOT NULL,
+            college_slug TEXT NOT NULL,
+            profile_version TEXT NOT NULL,
+            body TEXT NOT NULL,
+            generated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (user_id, college_slug, profile_version),
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        )""")
         # User shortlist — schools the user has explicitly saved as targets.
         # Independent of saved_chances (which auto-saves on chances calc).
         # Lets users build a target list before/without running chances.
@@ -5316,7 +5511,7 @@ def chances_html(slug):
   <div class="odds" style="color:#2b6cff">{r['odds_low']}–{r['odds_high']}%</div>
   <div class="muted" style="font-size:.82em">your estimated chances</div>
   {(f'<div style="margin-top:14px;padding:10px 14px;background:rgba(94,234,212,.08);border:1px solid rgba(94,234,212,.25);border-radius:4px;font-size:.88em"><b style="color:var(--teal)">★ Exceptional applicant override</b><div class="muted" style="margin-top:4px">{exc_reason or "Flagged exceptional based on your profile."} Your odds reflect this above the standard cap.</div></div>' if profile.get('is_exceptional') else '')}
-  {render_admissions_breakdown(COLLEGES_BY_SLUG.get(r['slug']), admissions_detail(COLLEGES_BY_SLUG.get(r['slug'])))}
+  {(lambda _sch, _det: render_admissions_breakdown(_sch, _det, personalized_rates=personalize_round_odds(uid, _sch, _det, profile, r['odds_low'], r['odds_high']), scale=(((r.get('odds_low',0)+r.get('odds_high',0))/2.0) / r['accept_rate_pct']) if r.get('accept_rate_pct') else 1.0))(COLLEGES_BY_SLUG.get(r['slug']), admissions_detail(COLLEGES_BY_SLUG.get(r['slug'])))}
   <ul style="padding-left:18px;margin:18px 0 0">
     <li><b>Strength —</b> {r['strength']}</li>
     <li><b>Weakness —</b> {r['weakness']}</li>
@@ -6677,7 +6872,7 @@ def school_plan_html(slug):
     <div><span class="pill {tier_class}">{r['tier']}</span> <span class="pill {conf_class}" style="margin-left:4px" title="{conf_tooltip}">{r['confidence']} confidence</span></div>
   </div>
   <div style="font-size:1.8em;font-weight:800;letter-spacing:-.5px;margin:10px 0 4px;color:#9bf">{r['odds_low']}–{r['odds_high']}%</div>
-  {render_round_breakdown_dark(school, admissions_detail(school))}
+  {(lambda _det: render_round_breakdown_dark(school, _det, personalized_rates=personalize_round_odds(user['id'], school, _det, profile, r['odds_low'], r['odds_high']), scale=(((r.get('odds_low',0)+r.get('odds_high',0))/2.0) / (round(school['accept']*100,1) or 1.0))))(admissions_detail(school))}
   <ul style="padding-left:18px;margin:14px 0 0;color:#e8e8e8">
     <li><b>Strength —</b> {r['strength']}</li>
     <li><b>Weakness —</b> {r['weakness']}</li>
