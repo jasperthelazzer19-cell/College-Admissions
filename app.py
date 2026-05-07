@@ -4323,6 +4323,15 @@ def init_db():
                 conn.execute(f"ALTER TABLE profiles ADD COLUMN {col} REAL")
             except sqlite3.OperationalError:
                 pass
+        # SAT/ACT subscores (optional). Used as context for AI advice — a
+        # low math subscore at a STEM-focused school (MIT, Caltech, CMU CS)
+        # matters more than a low verbal subscore. Composite stays the
+        # primary fit input.
+        for col in ("sat_math","sat_ebrw","act_math","act_english","act_reading","act_science"):
+            try:
+                conn.execute(f"ALTER TABLE profiles ADD COLUMN {col} INTEGER")
+            except sqlite3.OperationalError:
+                pass
         # Application round on each saved school. NULL = undecided.
         # Values: 'ED1','ED2','EA','REA','RD'. Used for the simulator and for
         # categorizing the My Plans page.
@@ -4507,6 +4516,15 @@ def save_profile(user_id, p):
             )
         except Exception as e:
             print(f"year-by-year GPA save failed: {e}")
+        try:
+            conn.execute(
+                "UPDATE profiles SET sat_math=?, sat_ebrw=?, act_math=?, act_english=?, act_reading=?, act_science=? WHERE user_id=?",
+                (p.get("sat_math"), p.get("sat_ebrw"),
+                 p.get("act_math"), p.get("act_english"), p.get("act_reading"), p.get("act_science"),
+                 user_id),
+            )
+        except Exception as e:
+            print(f"subscore save failed: {e}")
         conn.commit()
 
 
@@ -6231,11 +6249,33 @@ def profile_html():
     </div>
   </details>
   <div class="row">
-    <div><label>SAT</label>
+    <div><label>SAT <span class="muted">(composite)</span></label>
       <input type="number" min="400" max="1600" step="10" name="sat" value="{v('sat')}"></div>
-    <div><label>ACT</label>
+    <div><label>ACT <span class="muted">(composite)</span></label>
       <input type="number" min="1" max="36" name="act" value="{v('act')}"></div>
   </div>
+  <details style="margin:6px 0 14px">
+    <summary style="cursor:pointer;font-size:.92em;color:var(--text-2)">Section subscores <span class="muted">(optional — helps STEM-focused schools)</span></summary>
+    <p class="muted" style="font-size:.84em;margin:8px 0 10px">A composite score hides imbalance. A 1450 SAT with 800 EBRW and 650 Math reads very differently at MIT/Caltech/CMU CS than a 1450 with 730/720. Same for ACT — a 33 with weak math hurts more at engineering schools.</p>
+    <div class="row">
+      <div><label>SAT EBRW <span class="muted">(reading + writing)</span></label>
+        <input type="number" min="200" max="800" step="10" name="sat_ebrw" value="{v('sat_ebrw')}"></div>
+      <div><label>SAT Math</label>
+        <input type="number" min="200" max="800" step="10" name="sat_math" value="{v('sat_math')}"></div>
+    </div>
+    <div class="row">
+      <div><label>ACT Math</label>
+        <input type="number" min="1" max="36" name="act_math" value="{v('act_math')}"></div>
+      <div><label>ACT English</label>
+        <input type="number" min="1" max="36" name="act_english" value="{v('act_english')}"></div>
+    </div>
+    <div class="row">
+      <div><label>ACT Reading</label>
+        <input type="number" min="1" max="36" name="act_reading" value="{v('act_reading')}"></div>
+      <div><label>ACT Science</label>
+        <input type="number" min="1" max="36" name="act_science" value="{v('act_science')}"></div>
+    </div>
+  </details>
 
   <h3>About you</h3>
   <div class="row">
@@ -6329,7 +6369,11 @@ def chances_html(slug):
         "uw_gpa": p.get("uw_gpa"), "weighted_gpa": p.get("weighted_gpa"),
         "gpa_freshman": p.get("gpa_freshman"), "gpa_sophomore": p.get("gpa_sophomore"),
         "gpa_junior": p.get("gpa_junior"), "gpa_senior": p.get("gpa_senior"),
-        "sat": p.get("sat"), "act": p.get("act"), "major": p.get("major"),
+        "sat": p.get("sat"), "act": p.get("act"),
+        "sat_math": p.get("sat_math"), "sat_ebrw": p.get("sat_ebrw"),
+        "act_math": p.get("act_math"), "act_english": p.get("act_english"),
+        "act_reading": p.get("act_reading"), "act_science": p.get("act_science"),
+        "major": p.get("major"),
         "state": p.get("state"), "school_type": p.get("school_type"),
         "ecs": p.get("ecs"), "leadership": p.get("leadership"), "awards": p.get("awards"),
         "legacy": bool(p.get("legacy")), "first_gen": bool(p.get("first_gen")),
@@ -7287,7 +7331,7 @@ TAILORED_ADVICE_TTL_DAYS = 7
 # Bump this whenever the tailored-advice prompt changes — anything cached
 # before this timestamp is treated as stale and regenerated. Saves us from
 # manually clearing the table when we fix prompt bugs.
-TAILORED_ADVICE_MIN_VALID_AT = "2026-05-07T08:30:00"
+TAILORED_ADVICE_MIN_VALID_AT = "2026-05-07T08:45:00"
 
 # Per-school facts that AI tailored advice must use as ground truth
 # rather than guessing from training data. The AI was hallucinating
@@ -7383,6 +7427,17 @@ def get_tailored_advice(user_id, school, profile, force=False):
     m = school_match(profile, school)
     note = get_school_strategy(school)
     test_str = f"SAT {profile['sat']}" if profile.get("sat") else (f"ACT {profile['act']}" if profile.get("act") else "no test score submitted")
+    # If subscores are provided, append them so the AI can flag imbalance
+    # (e.g. low math at a STEM-heavy school).
+    sub_str = []
+    if profile.get("sat_math") or profile.get("sat_ebrw"):
+        if profile.get("sat_ebrw"): sub_str.append(f"SAT EBRW {profile['sat_ebrw']}")
+        if profile.get("sat_math"): sub_str.append(f"SAT Math {profile['sat_math']}")
+    if profile.get("act_math") or profile.get("act_english") or profile.get("act_reading") or profile.get("act_science"):
+        for k, label in [("act_english","English"),("act_math","Math"),("act_reading","Reading"),("act_science","Science")]:
+            if profile.get(k): sub_str.append(f"ACT {label} {profile[k]}")
+    if sub_str:
+        test_str += f" (subscores: {', '.join(sub_str)})"
     # Pre-compute test + GPA comparisons so Claude doesn't do the math
     # (and get it wrong — we've seen it write "ACT 33 below 31-34 range").
     sat = profile.get("sat")
@@ -7491,6 +7546,8 @@ TASK: Write 6-8 SPECIFIC, ACTIONABLE bullets advising this exact student on appl
 
 CRITICAL ACCURACY RULES — DO NOT VIOLATE:
 - USE THE PRE-COMPUTED COMPARISONS ABOVE. If they say the test score is AT or ABOVE the 75th percentile, do NOT call it a gap or below the range. If they say it's INSIDE the mid-50% range, do NOT call it below the range. Verbatim quote the comparison framing — these are correct, your math is not.
+- DO NOT INVENT TIGHTER SUB-POOL RANGES. Specifically: do NOT write things like "business school applicants score 1420-1490" or "engineering admits cluster at 33-35" unless those exact numbers appear in the data above. Fabricating a sub-pool range to make a strong stat look weak is the #1 source of wrong advice and will get this output discarded. If you don't KNOW a school publishes sub-major test ranges, do NOT make them up.
+- When the school's published mid-50% includes the student's score, the score is fine. Stop. You can say "you're competing against business-track admits who tend to be on the higher end" if relevant, but you CANNOT recharacterize the score as below the range or "at the 25th percentile" when the pre-computed comparison says otherwise.
 - When citing a gap, USE THE ACTUAL NUMBERS. Don't say "0.2 below median" — say "your 3.7 UW vs the school's 3.93 admit median (0.23 below)". Always show the math.
 - Don't sugarcoat. A 3.7 GPA is a meaningful gap at a school where the median is 3.95+, not "marginal." For elite schools (sub-10% accept), even small gaps matter a lot.
 - If the student's stats are clearly below the typical admit range, say so directly. "Your test score is below the 25th percentile (which means most admits scored higher than you)" — not euphemisms like "compensable" or "marginal".
@@ -8526,7 +8583,13 @@ def _read_profile_form(form):
         "gpa_junior": f("gpa_junior", float),
         "gpa_senior": f("gpa_senior", float),
         "sat": f("sat", int),
+        "sat_math": f("sat_math", int),
+        "sat_ebrw": f("sat_ebrw", int),
         "act": f("act", int),
+        "act_math": f("act_math", int),
+        "act_english": f("act_english", int),
+        "act_reading": f("act_reading", int),
+        "act_science": f("act_science", int),
         "major": f("major") or "",
         "state": f("state") or "",
         "school_type": f("school_type") or "public",
