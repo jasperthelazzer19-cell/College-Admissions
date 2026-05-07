@@ -9156,7 +9156,7 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
     0%,100% { opacity: 1; }
     50% { opacity: 0.5; }
   }
-  .lp-wrap { max-width:1080px; margin:0 auto; padding:0 28px; position: relative; z-index: 2; }
+  .lp-wrap { max-width:1320px; margin:0 auto; padding:0 32px; position: relative; z-index: 2; }
   .hero { padding:80px 0 100px; text-align:left; max-width:780px; }
   .hero .eyebrow { display:inline-block; font-size:.78em; font-weight:600; letter-spacing:.8px; text-transform:uppercase; color:#5eead4; padding:5px 12px; border:1px solid rgba(94,234,212,.25); border-radius:999px; background:rgba(94,234,212,.06); margin-bottom:22px; }
   .hero h1 { font-size:clamp(2.4em,5vw,3.6em); font-weight:700; letter-spacing:-1.5px; line-height:1.06; margin:0 0 22px; color:#e6edf3; }
@@ -9213,22 +9213,27 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
   .reveal { opacity:0; transform:translateY(16px); transition:opacity .7s ease, transform .7s ease; }
   .reveal.in { opacity:1; transform:translateY(0); }
 
-  /* Two-column hero: text left, demo+logos right. Right column is wider
-     than the text column so the demo can sit comfortably + a 4-col logo
-     wall fits below it. */
+  /* Two-column hero: text left, demo+logos right. Text column is narrower
+     so the demo+logos column gets more horizontal room. Hero text shifts
+     to the left edge of the page via the wider lp-wrap. */
   .hero.hero-grid {
     display:grid;
-    grid-template-columns: minmax(0, 480px) minmax(0, 1fr);
-    gap:48px;
+    grid-template-columns: minmax(0, 440px) minmax(0, 1fr);
+    gap:40px;
     align-items:start;
     max-width:none;
   }
-  .hero.hero-grid .hero-text { max-width:480px; }
-  .hero.hero-grid h1 { font-size:clamp(2em, 3.8vw, 2.8em); }
-  .hero.hero-grid p.lede { font-size:1.04em; }
-  .hero.hero-grid .stats { margin-top:28px; gap:24px; }
-  .hero.hero-grid .stats .stat .num { font-size:1.5em; }
-  .hero.hero-grid .hero-demo { display:flex; flex-direction:column; gap:24px; }
+  .hero.hero-grid .hero-text { max-width:440px; }
+  .hero.hero-grid h1 { font-size:clamp(2em, 3.6vw, 2.7em); margin:14px 0 18px; }
+  .hero.hero-grid p.lede { font-size:1.02em; margin-bottom:24px; }
+  .hero.hero-grid .stats { margin-top:24px; gap:22px; }
+  .hero.hero-grid .stats .stat .num { font-size:1.45em; }
+  .hero-data-label {
+    font-size:.78em; font-weight:600; letter-spacing:.6px;
+    text-transform:uppercase; color:#9aa6b6;
+    margin:14px 0 0;
+  }
+  .hero.hero-grid .hero-demo { display:flex; flex-direction:column; gap:18px; }
   @media (max-width:980px) {
     .hero.hero-grid { grid-template-columns:1fr; gap:36px; }
     .hero.hero-grid .hero-text { max-width:none; }
@@ -9304,8 +9309,8 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
     overflow:hidden;
   }
   .demo-controls {
-    padding:20px 22px; border-right:1px solid rgba(255,255,255,.06);
-    display:flex; flex-direction:column; gap:14px;
+    padding:18px 20px; border-right:1px solid rgba(255,255,255,.06);
+    display:flex; flex-direction:column; gap:11px;
   }
   @media (max-width:560px) {
     .demo-card { grid-template-columns:1fr; }
@@ -9355,10 +9360,10 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
     background:#5eead4; border:2px solid #0d1620;
   }
   .demo-result {
-    padding:20px 22px; display:flex; flex-direction:column; gap:12px;
+    padding:18px 20px; display:flex; flex-direction:column; gap:10px;
     background:linear-gradient(180deg, rgba(94,234,212,.04) 0%, transparent 60%);
   }
-  .demo-result-row { display:flex; gap:16px; flex-wrap:wrap; }
+  .demo-result-row { display:flex; gap:14px; flex-wrap:wrap; }
   .demo-result-block { flex:1; min-width:120px; }
   .demo-result-label {
     font-size:.72em; font-weight:600; letter-spacing:.6px;
@@ -9374,8 +9379,8 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
   }
   .demo-tier { font-size:1em; font-weight:600; }
   .demo-context {
-    color:#9aa6b6; font-size:.86em; line-height:1.5;
-    border-top:1px solid rgba(255,255,255,.06); padding-top:14px;
+    color:#9aa6b6; font-size:.82em; line-height:1.45;
+    border-top:1px solid rgba(255,255,255,.06); padding-top:10px;
   }
   .demo-cta {
     margin-top:6px; display:inline-block;
@@ -9425,6 +9430,7 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
   <section class="hero hero-grid">
    <div class="hero-text">
     <div class="eyebrow">Built by a high school junior · {school_count}+ schools</div>
+    <div class="hero-data-label">Verified data for {cds_count}+ schools, including:</div>
     <h1>The college admissions calculator that uses <span class="accent">real data</span>, not guesses.</h1>
     <p class="lede">Most chances calculators tell everyone they have a 25-30% shot at every T20. Stanford accepts 3.6%. The math doesn't work. Candor uses verified Common Data Set figures from {cds_count}+ schools and odds calibrated to be honest, not optimistic.</p>
     <div class="cta-row">
@@ -9492,7 +9498,6 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
     </div>
 
     <div class="logo-wall">
-      <div class="logo-wall-label">Verified data for {cds_count}+ schools, including:</div>
       <div class="logo-wall-grid">
         <a href="/college/harvard"      class="logo-cell">Harvard</a>
         <a href="/college/mit"          class="logo-cell">MIT</a>
