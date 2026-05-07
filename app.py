@@ -1552,6 +1552,110 @@ SUB_SCHOOL_RATES = {
 SUB_SCHOOL_RATES = {k: v for k, v in SUB_SCHOOL_RATES.items() if v}
 
 
+def _render_counterfactual_card(profile, school, current_low, current_high):
+    """Show 'what would change my odds' scenarios on the chances page.
+    For each major lever (GPA, test score, hook), compute the user's
+    chances under that hypothetical and show the lift.
+
+    Returns empty string if no actionable scenarios exist (e.g., user
+    is already at the cap or has minimal profile)."""
+    if not school: return ""
+    cur_mid = (current_low + current_high) / 2
+    scenarios = []  # (label, new_low, new_high, delta_str)
+
+    raw_gpa = profile.get("uw_gpa")
+    sat = profile.get("sat")
+    act = profile.get("act")
+
+    # Scenario 1: raise GPA toward the school's 75th percentile
+    if raw_gpa is not None and raw_gpa < school["gpa_hi"]:
+        target_gpa = round(min(4.0, max(raw_gpa + 0.10, school.get("gpa_lo", 3.0) + 0.05)), 2)
+        if target_gpa > raw_gpa:
+            new_low, new_high = counterfactual_lift(profile, school, gpa=target_gpa)
+            scenarios.append((
+                f"Raise GPA from {raw_gpa} to {target_gpa}",
+                new_low, new_high
+            ))
+
+    # Scenario 2: raise SAT (or ACT) toward the school's 75th percentile
+    if sat is not None and sat < school["sat_75"]:
+        target_sat = min(1600, sat + 50)
+        new_low, new_high = counterfactual_lift(profile, school, sat=target_sat)
+        scenarios.append((
+            f"Raise SAT from {sat} to {target_sat} (+50)",
+            new_low, new_high
+        ))
+    elif act is not None and act < school["act_75"]:
+        target_act = min(36, act + 2)
+        new_low, new_high = counterfactual_lift(profile, school, act=target_act)
+        scenarios.append((
+            f"Raise ACT from {act} to {target_act} (+2)",
+            new_low, new_high
+        ))
+
+    # Scenario 3: combined GPA + test
+    if raw_gpa is not None and (sat or act):
+        target_gpa = round(min(4.0, raw_gpa + 0.10), 2)
+        if sat:
+            target_sat = min(1600, sat + 50)
+            new_low, new_high = counterfactual_lift(profile, school, gpa=target_gpa, sat=target_sat)
+            scenarios.append((
+                f"Raise both: GPA {raw_gpa}→{target_gpa} AND SAT {sat}→{target_sat}",
+                new_low, new_high
+            ))
+        elif act:
+            target_act = min(36, act + 2)
+            new_low, new_high = counterfactual_lift(profile, school, gpa=target_gpa, act=target_act)
+            scenarios.append((
+                f"Raise both: GPA {raw_gpa}→{target_gpa} AND ACT {act}→{target_act}",
+                new_low, new_high
+            ))
+
+    # Scenario 4: hook scenarios (only if user doesn't already have them)
+    if not profile.get("athlete"):
+        new_low, new_high = counterfactual_lift(profile, school, hook_athlete=True)
+        if (new_low + new_high)/2 - cur_mid >= 3:
+            scenarios.append((
+                "If you were a recruited athlete here",
+                new_low, new_high
+            ))
+    if not profile.get("is_exceptional"):
+        new_low, new_high = counterfactual_lift(profile, school, is_exceptional=True)
+        if (new_low + new_high)/2 - cur_mid >= 5:
+            scenarios.append((
+                "If you had a national-level distinction (USAMO gold / ISEF / etc.)",
+                new_low, new_high
+            ))
+
+    if not scenarios:
+        return ""
+
+    rows = ""
+    for label, lo, hi in scenarios:
+        new_mid = (lo + hi) / 2
+        delta = new_mid - cur_mid
+        if delta < 0.5:
+            color = "var(--text-3)"
+            arrow = "→"
+        elif delta < 5:
+            color = "#fbbf24"
+            arrow = "↗"
+        else:
+            color = "#5eead4"
+            arrow = "↑"
+        rows += f'''<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-top:1px solid var(--border);font-size:.92em;gap:12px">
+  <div style="flex:1">{label}</div>
+  <div style="white-space:nowrap"><span class="muted">{int(current_low)}–{int(current_high)}%</span> <span style="color:{color};font-weight:700;margin:0 4px">{arrow}</span> <b style="color:{color}">{int(lo)}–{int(hi)}%</b> <span style="color:{color};font-size:.85em">(+{delta:.0f})</span></div>
+</div>'''
+
+    return f'''<div class="card" style="margin-top:18px">
+  <h3 style="margin-top:0">What would actually move your odds?</h3>
+  <p class="muted" style="font-size:.88em;margin:0 0 4px">Specific changes and what they'd do to your chances at this school. Useful for prioritizing what to focus on.</p>
+  {rows}
+  <p class="muted" style="font-size:.78em;margin:14px 0 0">Note: these are model estimates, not promises. Real admissions has more variance than the model can capture.</p>
+</div>'''
+
+
 def median_earnings_10yr(school):
     """Return federal-data median earnings 10 years post-entry, or None.
     Pulled from College Scorecard / IPEDS via the overrides table."""
@@ -3926,6 +4030,38 @@ def get_or_evaluate_exceptionality(user_id, profile):
     except Exception as e:
         print(f"Exceptionality persist error: {e}")
     return is_exc, reason
+
+
+def counterfactual_lift(profile, school, *, gpa=None, sat=None, act=None,
+                        ec_boost=0, hook_athlete=False, hook_legacy_at=None,
+                        is_exceptional=False):
+    """Compute the user's chances at this school under a HYPOTHETICAL
+    modification to their profile. Used for "what-if" / counterfactual
+    analysis on the chances page: 'if you raised your GPA from 3.65 to
+    3.85, your odds at Penn would be X% instead of Y%.'
+
+    Each kwarg overrides a profile field for this calculation only —
+    the user's actual profile isn't mutated.
+
+    Returns (low_pct, high_pct) tuple as integers.
+    """
+    sim = dict(profile)
+    if gpa is not None:        sim["uw_gpa"] = gpa
+    if sat is not None:        sim["sat"] = sat
+    if act is not None:        sim["act"] = act
+    if hook_athlete:           sim["athlete"] = True
+    if hook_legacy_at:
+        existing = sim.get("legacy_schools","") or ""
+        if hook_legacy_at not in existing:
+            sim["legacy_schools"] = (existing + ", " if existing else "") + hook_legacy_at
+    if is_exceptional:         sim["is_exceptional"] = True
+    if ec_boost:
+        # Append a stronger-EC marker so _keyword_strength picks it up.
+        sim["ecs"] = (sim.get("ecs","") or "") + " " + (
+            "national finalist research published founder award winner"[:200] * max(1, ec_boost)
+        )
+    fit, _ = compute_fit(sim, school)
+    return estimate_odds(school, fit, sim)
 
 
 def estimate_odds(school, fit, profile):
@@ -6662,6 +6798,7 @@ def chances_html(slug):
     <li><b>Differentiator —</b> {r['differentiator']}</li>
   </ul>
 </div>
+{_render_counterfactual_card(profile, COLLEGES_BY_SLUG.get(r['slug']), r['odds_low'], r['odds_high'])}
 {_render_di_card(r['slug'], r['school'], profile.get('_di_level','none'))}
 <details class="card" style="margin-top:18px">
   <summary style="cursor:pointer;font-weight:600">What does "{r['confidence']} confidence" mean?</summary>
