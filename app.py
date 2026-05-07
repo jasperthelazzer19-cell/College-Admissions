@@ -9213,6 +9213,116 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
   .reveal { opacity:0; transform:translateY(16px); transition:opacity .7s ease, transform .7s ease; }
   .reveal.in { opacity:1; transform:translateY(0); }
 
+  /* Interactive demo section */
+  .demo-section {
+    padding: 60px 0 90px;
+    border-top: 1px solid rgba(255,255,255,.06);
+  }
+  .demo-eyebrow {
+    display:inline-block; font-size:.74em; font-weight:600;
+    letter-spacing:.8px; text-transform:uppercase; color:#5eead4;
+    padding:5px 12px; border:1px solid rgba(94,234,212,.25); border-radius:999px;
+    background:rgba(94,234,212,.06); margin-bottom:18px;
+  }
+  .demo-title {
+    font-size:clamp(1.8em, 3.4vw, 2.6em); font-weight:700;
+    letter-spacing:-.6px; margin:0 0 12px; color:#e6edf3;
+  }
+  .demo-sub {
+    color:#9aa6b6; font-size:1.02em; margin:0 0 28px; max-width:620px; line-height:1.55;
+  }
+  .demo-card {
+    display:grid; grid-template-columns: minmax(280px, 380px) 1fr; gap:0;
+    background:#0d1620; border:1px solid rgba(255,255,255,.08); border-radius:8px;
+    overflow:hidden;
+  }
+  .demo-controls {
+    padding:28px 28px; border-right:1px solid rgba(255,255,255,.06);
+    display:flex; flex-direction:column; gap:22px;
+  }
+  .demo-field { display:flex; flex-direction:column; gap:8px; }
+  .demo-label {
+    font-size:.78em; font-weight:600; letter-spacing:.4px;
+    text-transform:uppercase; color:#9aa6b6;
+    display:flex; justify-content:space-between; align-items:baseline;
+  }
+  .demo-readout {
+    color:#5eead4; font-weight:700; font-size:1.05em;
+    text-transform:none; letter-spacing:0;
+    font-variant-numeric:tabular-nums;
+  }
+  .demo-field select, .demo-field input[type=range] { width:100%; }
+  .demo-field select {
+    background:#0a121a; color:#e6edf3; border:1px solid rgba(255,255,255,.12);
+    border-radius:5px; padding:10px 12px; font-size:.95em; font-weight:500;
+    cursor:pointer; appearance:none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'><path fill='%239aa6b6' d='M6 8L0 0h12z'/></svg>");
+    background-repeat:no-repeat; background-position:right 12px center; background-size:10px;
+    padding-right:36px;
+  }
+  .demo-field select:focus { outline:none; border-color:rgba(94,234,212,.5); }
+  .demo-field input[type=range] {
+    -webkit-appearance:none; appearance:none; background:transparent; height:24px;
+    cursor:pointer;
+  }
+  .demo-field input[type=range]::-webkit-slider-runnable-track {
+    height:4px; background:rgba(255,255,255,.08); border-radius:2px;
+  }
+  .demo-field input[type=range]::-moz-range-track {
+    height:4px; background:rgba(255,255,255,.08); border-radius:2px;
+  }
+  .demo-field input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance:none; appearance:none;
+    width:18px; height:18px; border-radius:50%;
+    background:#5eead4; border:2px solid #0d1620; margin-top:-7px;
+    box-shadow:0 0 0 1px rgba(94,234,212,.4);
+    transition: transform .12s ease;
+  }
+  .demo-field input[type=range]::-webkit-slider-thumb:hover { transform:scale(1.15); }
+  .demo-field input[type=range]::-moz-range-thumb {
+    width:18px; height:18px; border-radius:50%;
+    background:#5eead4; border:2px solid #0d1620;
+  }
+  .demo-result {
+    padding:28px 32px; display:flex; flex-direction:column; gap:18px;
+    background:linear-gradient(180deg, rgba(94,234,212,.04) 0%, transparent 60%);
+  }
+  .demo-result-row { display:flex; gap:24px; flex-wrap:wrap; }
+  .demo-result-block { flex:1; min-width:120px; }
+  .demo-result-label {
+    font-size:.72em; font-weight:600; letter-spacing:.6px;
+    text-transform:uppercase; color:#9aa6b6; margin-bottom:6px;
+  }
+  .demo-odds {
+    font-size:2.4em; font-weight:800; letter-spacing:-1px; line-height:1;
+    color:#5eead4; font-variant-numeric:tabular-nums;
+  }
+  .demo-fit, .demo-tier {
+    font-size:1.5em; font-weight:700; letter-spacing:-.4px; color:#e6edf3;
+    font-variant-numeric:tabular-nums;
+  }
+  .demo-tier { font-size:1.1em; font-weight:600; }
+  .demo-context {
+    color:#9aa6b6; font-size:.86em; line-height:1.5;
+    border-top:1px solid rgba(255,255,255,.06); padding-top:14px;
+  }
+  .demo-cta {
+    margin-top:6px; display:inline-block;
+    color:#5eead4; font-weight:600; font-size:.95em; text-decoration:none;
+    align-self:flex-start;
+    border-bottom:1px solid rgba(94,234,212,.3);
+    padding-bottom:2px; transition:border-color .15s, color .15s;
+  }
+  .demo-cta:hover { color:#7ff7df; border-color:#5eead4; }
+
+  @media (max-width:680px) {
+    .demo-card { grid-template-columns: 1fr; }
+    .demo-controls { border-right:none; border-bottom:1px solid rgba(255,255,255,.06); padding:22px; }
+    .demo-result { padding:22px; }
+    .demo-odds { font-size:2em; }
+    .demo-fit { font-size:1.3em; }
+  }
+
   @media (max-width:680px) {
     .lp-wrap { padding:0 18px; }
     .hero { padding:50px 0 60px; }
@@ -9241,11 +9351,6 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
 </style>
 """
     body = f"""
-<div class="aurora-wrapper">
-  <div class="blob blob-1"></div>
-  <div class="blob blob-2"></div>
-  <div class="blob blob-3"></div>
-</div>
 {_nav()}
 
 <main class="lp-wrap">
@@ -9261,6 +9366,63 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
       <div class="stat"><span class="num">100+</span>active users</div>
       <div class="stat"><span class="num">{cds_count}</span>CDS-verified schools</div>
       <div class="stat"><span class="num"><span class="accent">{activation_pct}%</span></span>complete their profile</div>
+    </div>
+  </section>
+
+  <section class="demo-section reveal">
+    <div class="demo-eyebrow">Try it · no signup needed</div>
+    <h2 class="demo-title">See your odds in real time.</h2>
+    <p class="demo-sub">Pick a school, set your stats. Real numbers from our actual model — same one that powers the full tool.</p>
+    <div class="demo-card">
+      <div class="demo-controls">
+        <label class="demo-field">
+          <span class="demo-label">School</span>
+          <select id="demo-school">
+            <option value="cornell">Cornell</option>
+            <option value="harvard">Harvard</option>
+            <option value="mit">MIT</option>
+            <option value="stanford">Stanford</option>
+            <option value="yale">Yale</option>
+            <option value="princeton">Princeton</option>
+            <option value="upenn">UPenn</option>
+            <option value="brown">Brown</option>
+            <option value="columbia">Columbia</option>
+            <option value="duke">Duke</option>
+            <option value="uchicago">UChicago</option>
+            <option value="ucb">UC Berkeley</option>
+            <option value="northwestern">Northwestern</option>
+            <option value="vanderbilt">Vanderbilt</option>
+            <option value="rice">Rice</option>
+            <option value="notre-dame">Notre Dame</option>
+          </select>
+        </label>
+        <label class="demo-field">
+          <span class="demo-label">Unweighted GPA <span class="demo-readout" id="demo-gpa-out">3.90</span></span>
+          <input type="range" id="demo-gpa" min="2.5" max="4.0" step="0.01" value="3.90">
+        </label>
+        <label class="demo-field">
+          <span class="demo-label">SAT <span class="demo-readout" id="demo-sat-out">1500</span></span>
+          <input type="range" id="demo-sat" min="1100" max="1600" step="10" value="1500">
+        </label>
+      </div>
+      <div class="demo-result">
+        <div class="demo-result-row">
+          <div class="demo-result-block">
+            <div class="demo-result-label">Your odds</div>
+            <div class="demo-odds" id="demo-odds">—</div>
+          </div>
+          <div class="demo-result-block">
+            <div class="demo-result-label">Profile fit</div>
+            <div class="demo-fit" id="demo-fit">—</div>
+          </div>
+          <div class="demo-result-block">
+            <div class="demo-result-label">Tier</div>
+            <div class="demo-tier" id="demo-tier">—</div>
+          </div>
+        </div>
+        <div class="demo-context" id="demo-context">School mid-50%: —</div>
+        <a href="/signup" class="demo-cta">Sign up free to run this on your full profile →</a>
+      </div>
     </div>
   </section>
 
@@ -9338,28 +9500,48 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
     document.querySelectorAll('.reveal').forEach(el => io.observe(el));
   }})();
 
-  // Mouse-reactive aurora — wrapper translates subtly toward cursor.
-  // Smoothed via lerp + rAF so movement feels like the page is breathing
-  // toward the cursor, not snapping. Disabled on touch devices where
-  // mousemove fires erratically.
+  // Interactive demo on the landing — calls /api/demo-odds on input change
+  // (debounced) and animates the odds/fit/tier into place.
   (function(){{
-    const wrap = document.querySelector('.aurora-wrapper');
-    if (!wrap) return;
-    if (window.matchMedia('(pointer: coarse)').matches) return; // skip on touch
-    let targetX = 0, targetY = 0, currentX = 0, currentY = 0;
-    document.addEventListener('mousemove', (e) => {{
-      // Map cursor to ±40px offset
-      targetX = (e.clientX / window.innerWidth - 0.5) * 80;
-      targetY = (e.clientY / window.innerHeight - 0.5) * 80;
-    }}, {{ passive: true }});
-    function tick() {{
-      // Lerp toward target — 0.04 = soft, 0.1 = snappier
-      currentX += (targetX - currentX) * 0.06;
-      currentY += (targetY - currentY) * 0.06;
-      wrap.style.transform = `translate3d(${{currentX.toFixed(2)}}px, ${{currentY.toFixed(2)}}px, 0)`;
-      requestAnimationFrame(tick);
+    const slug = document.getElementById('demo-school');
+    const gpa  = document.getElementById('demo-gpa');
+    const sat  = document.getElementById('demo-sat');
+    const gpaOut = document.getElementById('demo-gpa-out');
+    const satOut = document.getElementById('demo-sat-out');
+    const oddsEl = document.getElementById('demo-odds');
+    const fitEl  = document.getElementById('demo-fit');
+    const tierEl = document.getElementById('demo-tier');
+    const ctxEl  = document.getElementById('demo-context');
+    if (!slug || !gpa || !sat) return;
+
+    const TIER_COLORS = {{
+      "Dream":"#f9a8d4", "Reach":"#fcd34d",
+      "Target":"#7dd3fc", "Safety":"#5eead4"
+    }};
+
+    let timer;
+    function fetchOdds(){{
+      const params = new URLSearchParams({{slug:slug.value, gpa:gpa.value, sat:sat.value}});
+      fetch('/api/demo-odds?' + params.toString())
+        .then(r => r.ok ? r.json() : null)
+        .then(d => {{
+          if (!d) return;
+          oddsEl.textContent = `${{d.low}}–${{d.high}}%`;
+          fitEl.textContent  = `${{d.fit}}/100`;
+          tierEl.textContent = d.tier;
+          tierEl.style.color = TIER_COLORS[d.tier] || '#e6edf3';
+          const satRange = (d.school_sat_lo && d.school_sat_hi) ? `${{d.school_sat_lo}}–${{d.school_sat_hi}}` : '—';
+          const gpaRange = (d.school_gpa_lo && d.school_gpa_hi) ? `${{d.school_gpa_lo}}–${{d.school_gpa_hi}}` : '—';
+          ctxEl.textContent = `${{d.school_name}} · ${{d.school_accept}}% accept · SAT mid-50% ${{satRange}} · GPA mid-50% ${{gpaRange}}`;
+        }})
+        .catch(() => {{}});
     }}
-    tick();
+    function schedule(){{ clearTimeout(timer); timer = setTimeout(fetchOdds, 200); }}
+
+    slug.addEventListener('change', schedule);
+    gpa.addEventListener('input', () => {{ gpaOut.textContent = parseFloat(gpa.value).toFixed(2); schedule(); }});
+    sat.addEventListener('input', () => {{ satOut.textContent = sat.value; schedule(); }});
+    fetchOdds(); // initial render
   }})();
 </script>
 """
@@ -9529,6 +9711,51 @@ def api_college_facts(slug):
     c = COLLEGES_BY_SLUG.get(slug)
     if not c: abort(404)
     return jsonify({"html": _render_facts(get_school_facts(c, force=request.args.get("refresh")=="1"))})
+
+
+_DEMO_RATE = {}  # ip -> deque of timestamps; in-memory rate limit for /api/demo-odds
+_DEMO_SLUGS = [
+    "harvard","mit","stanford","yale","princeton","upenn","brown","cornell",
+    "columbia","duke","uchicago","ucb","northwestern","vanderbilt","rice","notre-dame",
+]
+
+@app.route("/api/demo-odds")
+def api_demo_odds():
+    """No-auth interactive demo on the landing page. Computes a fast odds
+    estimate from (slug, gpa, sat) — a stripped subset of the real model
+    just for marketing/preview. Rate-limited per IP."""
+    from collections import deque
+    ip = request.headers.get("X-Forwarded-For", request.remote_addr or "?").split(",")[0].strip()
+    now = time.time()
+    dq = _DEMO_RATE.setdefault(ip, deque())
+    while dq and now - dq[0] > 60:
+        dq.popleft()
+    if len(dq) > 30:
+        return jsonify({"error":"slow down"}), 429
+    dq.append(now)
+    slug = (request.args.get("slug") or "").strip().lower()
+    if slug not in _DEMO_SLUGS:
+        return jsonify({"error":"bad school"}), 400
+    school = merged_school(COLLEGES_BY_SLUG.get(slug))
+    try:
+        gpa = float(request.args.get("gpa") or 0)
+        sat = int(request.args.get("sat") or 0)
+    except ValueError:
+        return jsonify({"error":"bad input"}), 400
+    gpa = max(2.0, min(4.5, gpa))
+    sat = max(1000, min(1600, sat))
+    profile = {"uw_gpa": gpa, "sat": sat, "act": 0, "ecs":"", "leadership":"",
+               "awards":"", "aps":"", "major":"", "state":"", "school_type":"public"}
+    fit, _ = compute_fit(profile, school)
+    low, high = estimate_odds(school, fit, profile)
+    tier = assign_tier(school, fit, profile)
+    return jsonify({
+        "low": low, "high": high, "fit": int(round(fit)), "tier": tier,
+        "school_name": school["name"],
+        "school_accept": round(school["accept"]*100, 1),
+        "school_sat_lo": school.get("sat_25"), "school_sat_hi": school.get("sat_75"),
+        "school_gpa_lo": school.get("gpa_lo"), "school_gpa_hi": school.get("gpa_hi"),
+    })
 
 
 @app.route("/api/college/<slug>/articles")
