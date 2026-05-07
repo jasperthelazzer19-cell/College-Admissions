@@ -2861,11 +2861,70 @@ def _is_test_focused_school(school):
     return school.get("tier", 5) == 1
 
 
+UC_SLUGS = {"ucb","ucla","ucsd","uci","ucsb","ucsc","ucr","ucdavis","ucmerced"}
+
+
+def effective_gpa(profile, school):
+    """Returns the GPA value to use for chances at THIS school, accounting
+    for year-by-year grades when the user has provided them.
+
+    - UCs literally don't look at 9th-grade grades at all (per UC policy).
+      Effective GPA = average of sophomore + junior (+ senior if avail).
+    - Most other schools weight upper years more heavily. We use a weighted
+      average: 9th=0.5, 10th=1.0, 11th=1.5, 12th=1.0. Reflects the reality
+      that admissions readers care most about 10th-11th and especially the
+      junior trajectory.
+    - Upward trend gets a small +0.05 bonus (caps the GPA model at 4.05)
+      because admissions readers explicitly look for trajectory.
+    - Downward trend gets a small -0.05 penalty.
+
+    If year-by-year grades aren't provided, returns the regular uw_gpa.
+    Bounded to 0.0-4.0 (or 4.05 with trend bonus).
+    """
+    base = profile.get("uw_gpa")
+    fr = profile.get("gpa_freshman")
+    so = profile.get("gpa_sophomore")
+    ju = profile.get("gpa_junior")
+    sr = profile.get("gpa_senior")
+    years = [(y, g) for y, g in [("fr",fr),("so",so),("ju",ju),("sr",sr)] if g is not None]
+    # Need at least 2 years for any year-aware computation
+    if len(years) < 2:
+        return base
+
+    is_uc = school and school.get("slug") in UC_SLUGS
+
+    # UC rule: drop freshman entirely
+    if is_uc:
+        scoped = [(y, g) for y, g in years if y != "fr"]
+        if not scoped:
+            return base
+        gpa = sum(g for _, g in scoped) / len(scoped)
+    else:
+        # Weighted average — upper years count more
+        weights = {"fr": 0.5, "so": 1.0, "ju": 1.5, "sr": 1.0}
+        num = sum(weights[y] * g for y, g in years)
+        den = sum(weights[y] for y, g in years)
+        gpa = num / den if den else (base or 0.0)
+
+    # Trend detection — only if we have at least 3 sequential years
+    seq = [g for y, g in [("fr",fr),("so",so),("ju",ju),("sr",sr)] if g is not None]
+    if len(seq) >= 3:
+        # Strictly improving by at least 0.15 per year on average → upward
+        diffs = [seq[i+1] - seq[i] for i in range(len(seq)-1)]
+        avg_diff = sum(diffs) / len(diffs)
+        if avg_diff >= 0.15 and all(d >= -0.05 for d in diffs):
+            gpa += 0.05  # upward-trend bonus
+        elif avg_diff <= -0.15 and all(d <= 0.05 for d in diffs):
+            gpa -= 0.05  # downward-trend penalty
+
+    return round(min(4.05, max(0.0, gpa)), 3)
+
+
 def compute_fit(profile, school):
     score = 50.0
     components = {}
     has_test = bool(profile.get("sat") or profile.get("act"))
-    gpa = profile.get("uw_gpa")
+    gpa = effective_gpa(profile, school)
     if gpa is not None:
         midpoint = (school["gpa_lo"] + school["gpa_hi"]) / 2
         delta = max(-18, min(18, (gpa - midpoint) * 50))
@@ -3557,6 +3616,14 @@ def init_db():
                              else f"ALTER TABLE profiles ADD COLUMN {col} INTEGER DEFAULT {default}")
             except sqlite3.OperationalError:
                 pass
+        # Year-by-year unweighted GPAs (optional). Used for trend detection
+        # and UC-policy weighting (UCs ignore freshman year). When provided,
+        # supersedes flat uw_gpa for chances calc on a per-school basis.
+        for col in ("gpa_freshman", "gpa_sophomore", "gpa_junior", "gpa_senior"):
+            try:
+                conn.execute(f"ALTER TABLE profiles ADD COLUMN {col} REAL")
+            except sqlite3.OperationalError:
+                pass
         # Federal-data overrides for each school's stats (College Scorecard).
         # Hardcoded COLLEGES values are fallback; this table takes precedence.
         conn.execute("""CREATE TABLE IF NOT EXISTS school_stats_overrides (
@@ -3693,6 +3760,16 @@ def save_profile(user_id, p):
              p.get("pref_diversity") or "any", p.get("pref_party") or "any",
              p.get("pref_research") or "any", p.get("pref_career_intensity") or "any",
              pref_weights, p.get("portfolio") or ""))
+        # Year-by-year GPA — separate UPDATE to keep the giant INSERT above
+        # untouched. Stored as REAL nullables so empty inputs don't pollute
+        # the chances calc with zeros.
+        try:
+            conn.execute(
+                "UPDATE profiles SET gpa_freshman=?, gpa_sophomore=?, gpa_junior=?, gpa_senior=? WHERE user_id=?",
+                (p.get("gpa_freshman"), p.get("gpa_sophomore"), p.get("gpa_junior"), p.get("gpa_senior"), user_id),
+            )
+        except Exception as e:
+            print(f"year-by-year GPA save failed: {e}")
         conn.commit()
 
 
@@ -5391,6 +5468,22 @@ def profile_html():
     <div><label>Weighted GPA <span class="muted">(optional)</span></label>
       <input type="number" step="0.01" min="0" max="6" name="weighted_gpa" value="{v('weighted_gpa')}"></div>
   </div>
+  <details style="margin:6px 0 14px">
+    <summary style="cursor:pointer;font-size:.92em;color:var(--text-2)">Year-by-year GPA <span class="muted">(optional, but more accurate)</span></summary>
+    <p class="muted" style="font-size:.84em;margin:8px 0 10px">Most schools weight upper years more heavily than freshman year. UCs literally don't see freshman grades at all. Filling these in lets the chances model reflect your actual trajectory — an upward trend (e.g., 3.2 → 3.8 → 3.95) reads very differently from a flat 3.65.</p>
+    <div class="row">
+      <div><label>Freshman <span class="muted">(unweighted)</span></label>
+        <input type="number" step="0.01" min="0" max="4.5" name="gpa_freshman" value="{v('gpa_freshman')}"></div>
+      <div><label>Sophomore</label>
+        <input type="number" step="0.01" min="0" max="4.5" name="gpa_sophomore" value="{v('gpa_sophomore')}"></div>
+    </div>
+    <div class="row">
+      <div><label>Junior <span class="muted">(or junior so far)</span></label>
+        <input type="number" step="0.01" min="0" max="4.5" name="gpa_junior" value="{v('gpa_junior')}"></div>
+      <div><label>Senior <span class="muted">(if applicable)</span></label>
+        <input type="number" step="0.01" min="0" max="4.5" name="gpa_senior" value="{v('gpa_senior')}"></div>
+    </div>
+  </details>
   <div class="row">
     <div><label>SAT</label>
       <input type="number" min="400" max="1600" step="10" name="sat" value="{v('sat')}"></div>
@@ -7423,6 +7516,10 @@ def _read_profile_form(form):
     result = {
         "uw_gpa": f("uw_gpa", float),
         "weighted_gpa": f("weighted_gpa", float),
+        "gpa_freshman": f("gpa_freshman", float),
+        "gpa_sophomore": f("gpa_sophomore", float),
+        "gpa_junior": f("gpa_junior", float),
+        "gpa_senior": f("gpa_senior", float),
         "sat": f("sat", int),
         "act": f("act", int),
         "major": f("major") or "",
