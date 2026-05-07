@@ -3024,8 +3024,8 @@ RANKINGS = [
     {
         "slug": "best-business",
         "title": "Best Undergraduate Business",
-        "blurb": "US News 2026 undergraduate business ranking. Wharton remains #1; methodology updates have pushed public business schools up.",
-        "order": ["upenn","mit","umich","ucb","nyu","cmu","unc","notre-dame","uva","ut-austin","iu","cornell","usc","emory","bc","washu","georgetown","penn-state","wisc","osu","umn","uiuc","umd","msu","uf","sc","villanova","wake-forest","babson","uw","bentley","fordham","drexel","sjsu","american","gwu","temple","scu","lmu","fsu","auburn","tcu","uga","ohio-state"],
+        "blurb": "US News 2024 undergraduate business ranking. Wharton remains #1; the top 15 are mostly unchanged year-over-year aside from UVA McIntire pushing higher.",
+        "order": ["upenn","mit","ucb","umich","nyu","uva","cmu","ut-austin","cornell","unc","iu","washu","notre-dame","usc","georgetown","emory","ucla","bc","wisc","uf","penn-state","ohio-state","umn","tamu","umd","villanova","wake-forest","babson","bentley","tcu","uw","sjsu","sc","fsu","auburn","uga","scu","american","fordham","gwu","drexel","temple","lmu"],
     },
     {
         "slug": "best-engineering",
