@@ -9213,76 +9213,78 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
   .reveal { opacity:0; transform:translateY(16px); transition:opacity .7s ease, transform .7s ease; }
   .reveal.in { opacity:1; transform:translateY(0); }
 
-  /* Two-column hero: text left, demo+logos right. Text column is narrower
-     so the demo+logos column gets more horizontal room. Hero text shifts
-     to the left edge of the page via the wider lp-wrap. */
+  /* Two-column hero: demo + marketing text on left, logo wall on right. */
   .hero.hero-grid {
     display:grid;
-    grid-template-columns: minmax(0, 440px) minmax(0, 1fr);
-    gap:40px;
+    grid-template-columns: minmax(0, 580px) minmax(0, 1fr);
+    gap:48px;
     align-items:start;
     max-width:none;
   }
-  .hero.hero-grid .hero-text { max-width:440px; }
-  .hero.hero-grid h1 { font-size:clamp(2em, 3.6vw, 2.7em); margin:14px 0 18px; }
-  .hero.hero-grid p.lede { font-size:1.02em; margin-bottom:24px; }
-  .hero.hero-grid .stats { margin-top:24px; gap:22px; }
-  .hero.hero-grid .stats .stat .num { font-size:1.45em; }
-  .hero-data-label {
-    font-size:.78em; font-weight:600; letter-spacing:.6px;
-    text-transform:uppercase; color:#9aa6b6;
-    margin:14px 0 0;
-  }
-  .hero.hero-grid .hero-demo { display:flex; flex-direction:column; gap:18px; }
+  .hero.hero-grid .hero-text { max-width:580px; display:flex; flex-direction:column; gap:20px; }
+  .hero.hero-grid .hero-text-below { margin-top:8px; }
+  .hero.hero-grid h1 { font-size:clamp(1.9em, 3.4vw, 2.5em); margin:14px 0 14px; }
+  .hero.hero-grid p.lede { font-size:1em; margin-bottom:20px; }
+  .hero.hero-grid .stats { margin-top:22px; gap:22px; }
+  .hero.hero-grid .stats .stat .num { font-size:1.4em; }
   @media (max-width:980px) {
     .hero.hero-grid { grid-template-columns:1fr; gap:36px; }
     .hero.hero-grid .hero-text { max-width:none; }
   }
 
-  /* Logo wall — sits inside the right-column hero panel, under the demo.
-     Text cells are placeholders until SVGs drop in. */
-  .logo-wall {
-    padding:0;
-  }
-  .logo-wall-label {
+  /* Right-column logo wall (image-based via Clearbit). Tiles are uniform
+     dark cards; the source PNGs are filtered to white so different schools
+     read as a single unified grid rather than a colorful jumble. */
+  .hero-logos { display:flex; flex-direction:column; gap:14px; }
+  .hero-logos-label {
     font-size:.74em; font-weight:600; letter-spacing:.6px;
     text-transform:uppercase; color:#9aa6b6;
-    margin-bottom:14px;
   }
-  .logo-wall-grid {
+  .hero-logos-grid {
     display:grid;
-    grid-template-columns:repeat(4, 1fr);
-    gap:8px;
+    grid-template-columns: repeat(4, 1fr);
+    gap:10px;
   }
-  .logo-cell {
-    padding:11px 10px;
+  .logo-tile {
+    aspect-ratio: 1.4 / 1;
+    display:flex; align-items:center; justify-content:center;
     background:rgba(255,255,255,.025);
     border:1px solid rgba(255,255,255,.06);
-    border-radius:5px;
-    color:#cbd5e1;
-    text-align:center;
-    font-size:.84em;
-    font-weight:500;
-    letter-spacing:.2px;
+    border-radius:6px;
+    padding:14px;
     text-decoration:none;
-    transition:background .15s, border-color .15s, color .15s;
+    transition:background .15s, border-color .15s, transform .15s;
   }
-  .logo-cell:hover {
-    background:rgba(94,234,212,.06);
+  .logo-tile:hover {
+    background:rgba(94,234,212,.05);
     border-color:rgba(94,234,212,.22);
-    color:#e6edf3;
+    transform:translateY(-2px);
     text-decoration:none;
   }
-  .logo-cell-more {
+  .logo-tile img {
+    max-width:100%; max-height:100%; object-fit:contain;
+    /* Push colored logos toward unified white-on-dark */
+    filter: brightness(0) invert(1);
+    opacity:.85;
+    transition:opacity .15s, filter .15s;
+  }
+  .logo-tile:hover img { opacity:1; }
+  .logo-tile-more {
     color:#5eead4;
     background:rgba(94,234,212,.04);
     border-color:rgba(94,234,212,.18);
+    font-size:.88em; font-weight:600;
   }
-  @media (max-width:520px) {
-    .logo-wall-grid { grid-template-columns:repeat(3, 1fr); }
+  .logo-tile-more:hover { color:#7ff7df; }
+  @media (max-width:980px) {
+    .hero-logos-grid { grid-template-columns: repeat(5, 1fr); }
   }
-  @media (max-width:380px) {
-    .logo-wall-grid { grid-template-columns:repeat(2, 1fr); }
+  @media (max-width:600px) {
+    .hero-logos-grid { grid-template-columns: repeat(4, 1fr); }
+    .logo-tile { padding:10px; }
+  }
+  @media (max-width:420px) {
+    .hero-logos-grid { grid-template-columns: repeat(3, 1fr); }
   }
 
   /* Interactive demo (used inside hero-demo column) */
@@ -9429,21 +9431,6 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
 <main class="lp-wrap">
   <section class="hero hero-grid">
    <div class="hero-text">
-    <div class="eyebrow">Built by a high school junior · {school_count}+ schools</div>
-    <div class="hero-data-label">Verified data for {cds_count}+ schools, including:</div>
-    <h1>The college admissions calculator that uses <span class="accent">real data</span>, not guesses.</h1>
-    <p class="lede">Most chances calculators tell everyone they have a 25-30% shot at every T20. Stanford accepts 3.6%. The math doesn't work. Candor uses verified Common Data Set figures from {cds_count}+ schools and odds calibrated to be honest, not optimistic.</p>
-    <div class="cta-row">
-      <a href="/signup" class="primary">Get your chances →</a>
-      <a href="/colleges" class="secondary">Browse schools</a>
-    </div>
-    <div class="stats">
-      <div class="stat"><span class="num">100+</span>active users</div>
-      <div class="stat"><span class="num">{cds_count}</span>CDS-verified schools</div>
-      <div class="stat"><span class="num"><span class="accent">{activation_pct}%</span></span>complete their profile</div>
-    </div>
-   </div>
-   <div class="hero-demo">
     <div class="demo-eyebrow">Try it · no signup needed</div>
     <div class="demo-card">
       <div class="demo-controls">
@@ -9497,29 +9484,44 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
       </div>
     </div>
 
-    <div class="logo-wall">
-      <div class="logo-wall-grid">
-        <a href="/college/harvard"      class="logo-cell">Harvard</a>
-        <a href="/college/mit"          class="logo-cell">MIT</a>
-        <a href="/college/stanford"     class="logo-cell">Stanford</a>
-        <a href="/college/yale"         class="logo-cell">Yale</a>
-        <a href="/college/princeton"    class="logo-cell">Princeton</a>
-        <a href="/college/upenn"        class="logo-cell">UPenn</a>
-        <a href="/college/brown"        class="logo-cell">Brown</a>
-        <a href="/college/cornell"      class="logo-cell">Cornell</a>
-        <a href="/college/columbia"     class="logo-cell">Columbia</a>
-        <a href="/college/dartmouth"    class="logo-cell">Dartmouth</a>
-        <a href="/college/duke"         class="logo-cell">Duke</a>
-        <a href="/college/uchicago"     class="logo-cell">UChicago</a>
-        <a href="/college/northwestern" class="logo-cell">Northwestern</a>
-        <a href="/college/vanderbilt"   class="logo-cell">Vanderbilt</a>
-        <a href="/college/notre-dame"   class="logo-cell">Notre Dame</a>
-        <a href="/college/rice"         class="logo-cell">Rice</a>
-        <a href="/college/ucb"          class="logo-cell">UC Berkeley</a>
-        <a href="/college/ucla"         class="logo-cell">UCLA</a>
-        <a href="/college/georgetown"   class="logo-cell">Georgetown</a>
-        <a href="/colleges"             class="logo-cell logo-cell-more">+ {max(0, school_count - 19)} more →</a>
+    <div class="hero-text-below">
+      <div class="eyebrow">Built by a high school junior · {school_count}+ schools</div>
+      <h1>The college admissions calculator that uses <span class="accent">real data</span>, not guesses.</h1>
+      <p class="lede">Most chances calculators tell everyone they have a 25-30% shot at every T20. Stanford accepts 3.6%. The math doesn't work. Candor uses verified Common Data Set figures from {cds_count}+ schools and odds calibrated to be honest, not optimistic.</p>
+      <div class="cta-row">
+        <a href="/signup" class="primary">Get your chances →</a>
+        <a href="/colleges" class="secondary">Browse schools</a>
       </div>
+      <div class="stats">
+        <div class="stat"><span class="num">100+</span>active users</div>
+        <div class="stat"><span class="num">{cds_count}</span>CDS-verified schools</div>
+        <div class="stat"><span class="num"><span class="accent">{activation_pct}%</span></span>complete their profile</div>
+      </div>
+    </div>
+   </div>
+   <div class="hero-logos">
+    <div class="hero-logos-label">Verified data for {cds_count}+ schools, including:</div>
+    <div class="hero-logos-grid">
+      <a href="/college/harvard"      class="logo-tile" title="Harvard"><img src="https://logo.clearbit.com/harvard.edu"      alt="Harvard"      loading="lazy"></a>
+      <a href="/college/mit"          class="logo-tile" title="MIT"><img src="https://logo.clearbit.com/mit.edu"          alt="MIT"          loading="lazy"></a>
+      <a href="/college/stanford"     class="logo-tile" title="Stanford"><img src="https://logo.clearbit.com/stanford.edu"     alt="Stanford"     loading="lazy"></a>
+      <a href="/college/yale"         class="logo-tile" title="Yale"><img src="https://logo.clearbit.com/yale.edu"         alt="Yale"         loading="lazy"></a>
+      <a href="/college/princeton"    class="logo-tile" title="Princeton"><img src="https://logo.clearbit.com/princeton.edu"    alt="Princeton"    loading="lazy"></a>
+      <a href="/college/upenn"        class="logo-tile" title="UPenn"><img src="https://logo.clearbit.com/upenn.edu"        alt="UPenn"        loading="lazy"></a>
+      <a href="/college/brown"        class="logo-tile" title="Brown"><img src="https://logo.clearbit.com/brown.edu"        alt="Brown"        loading="lazy"></a>
+      <a href="/college/cornell"      class="logo-tile" title="Cornell"><img src="https://logo.clearbit.com/cornell.edu"      alt="Cornell"      loading="lazy"></a>
+      <a href="/college/columbia"     class="logo-tile" title="Columbia"><img src="https://logo.clearbit.com/columbia.edu"     alt="Columbia"     loading="lazy"></a>
+      <a href="/college/dartmouth"    class="logo-tile" title="Dartmouth"><img src="https://logo.clearbit.com/dartmouth.edu"    alt="Dartmouth"    loading="lazy"></a>
+      <a href="/college/duke"         class="logo-tile" title="Duke"><img src="https://logo.clearbit.com/duke.edu"         alt="Duke"         loading="lazy"></a>
+      <a href="/college/uchicago"     class="logo-tile" title="UChicago"><img src="https://logo.clearbit.com/uchicago.edu"     alt="UChicago"     loading="lazy"></a>
+      <a href="/college/northwestern" class="logo-tile" title="Northwestern"><img src="https://logo.clearbit.com/northwestern.edu" alt="Northwestern" loading="lazy"></a>
+      <a href="/college/vanderbilt"   class="logo-tile" title="Vanderbilt"><img src="https://logo.clearbit.com/vanderbilt.edu"   alt="Vanderbilt"   loading="lazy"></a>
+      <a href="/college/notre-dame"   class="logo-tile" title="Notre Dame"><img src="https://logo.clearbit.com/nd.edu"           alt="Notre Dame"   loading="lazy"></a>
+      <a href="/college/rice"         class="logo-tile" title="Rice"><img src="https://logo.clearbit.com/rice.edu"         alt="Rice"         loading="lazy"></a>
+      <a href="/college/ucb"          class="logo-tile" title="UC Berkeley"><img src="https://logo.clearbit.com/berkeley.edu"     alt="UC Berkeley"  loading="lazy"></a>
+      <a href="/college/ucla"         class="logo-tile" title="UCLA"><img src="https://logo.clearbit.com/ucla.edu"         alt="UCLA"         loading="lazy"></a>
+      <a href="/college/georgetown"   class="logo-tile" title="Georgetown"><img src="https://logo.clearbit.com/georgetown.edu"   alt="Georgetown"   loading="lazy"></a>
+      <a href="/colleges" class="logo-tile logo-tile-more"><span>+ {max(0, school_count - 19)} more →</span></a>
     </div>
    </div>
   </section>
