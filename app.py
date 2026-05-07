@@ -1100,7 +1100,7 @@ SUB_SCHOOL_RATES = {
         {"name": "College of Arts & Sciences", "accept": 0.17,
          "keywords": ["arts","sciences","economics","biology","political science","psychology","english","math"]},
     ],
-    "utexas": [
+    "ut-austin": [
         {"name": "McCombs School of Business", "accept": 0.12,
          "keywords": ["mccombs","business","finance","accounting","mis"]},
         {"name": "College of Natural Sciences (CS major)", "accept": 0.05,
@@ -1113,7 +1113,7 @@ SUB_SCHOOL_RATES = {
         {"name": "College of Liberal Arts", "accept": 0.32,
          "keywords": ["liberal arts","english","history","economics","political science","psychology","sociology"]},
     ],
-    "gtech": [
+    "gatech": [
         {"name": "College of Computing", "accept": 0.10,
          "keywords": ["computer science","cs ","computational","information science"]},
         {"name": "College of Engineering", "accept": 0.16,
@@ -1396,9 +1396,6 @@ SUB_SCHOOL_RATES = {
          "keywords": ["lynch","education","applied psychology","human development"]},
         {"name": "Morrissey College of Arts & Sciences", "accept": 0.16,
          "keywords": ["morrissey","mcas","arts","sciences","economics","biology","english","history","political science","psychology","math","computer science","cs "]},
-    ],
-    "umich-music": [
-        # placeholder for specific UMich audition programs (already in umich entry)
     ],
     "uw": [
         {"name": "Paul G. Allen School of Computer Science", "accept": 0.13,
@@ -3030,14 +3027,14 @@ RANKINGS = [
     {
         "slug": "best-engineering",
         "title": "Best Engineering",
-        "blurb": "US News 2026 undergraduate engineering ranking. Top entries are highly competitive; CS overlap is significant.",
-        "order": ["mit","stanford","ucb","caltech","cmu","gatech","umich","uiuc","cornell","purdue","columbia","princeton","ut-austin","ucla","northwestern","wisc","umd","jhu","upenn","case","duke","vt","penn-state","rice","uw","tamu","rpi","usc","wpi","stevens","drexel","binghamton","umn","ohio-state","brown","harvard","yale","cooper","olin","harvey-mudd","calpoly-slo","tufts","dartmouth","uconn","clemson","lehigh"],
+        "blurb": "US News 2024 undergraduate engineering ranking. Top entries are extremely competitive — and CS at most of these schools is even harder than overall engineering admission.",
+        "order": ["mit","stanford","ucb","caltech","cmu","gatech","umich","uiuc","cornell","purdue","princeton","columbia","ut-austin","ucla","northwestern","wisc","jhu","umd","upenn","case","duke","northeastern","vt","penn-state","rice","uw","ncsu","tamu","ucsd","rpi","usc","wpi","stevens","harvey-mudd","cooper","olin","calpoly-slo","drexel","tufts","dartmouth","uconn","clemson","lehigh","binghamton","umn","ohio-state","brown","harvard","yale"],
     },
     {
         "slug": "best-cs",
         "title": "Best Computer Science",
-        "blurb": "US News 2026 undergraduate CS ranking. Many of these schools have separate (lower) admit rates for CS.",
-        "order": ["mit","stanford","cmu","ucb","cornell","gatech","princeton","caltech","uiuc","ut-austin","ucla","umich","uw","wisc","umd","columbia","harvard","upenn","brown","uchicago","yale","duke","rice","jhu","usc","nyu","vt","case","scu","sjsu","stevens","drexel","wpi","rpi","binghamton","calpoly-slo","umn","ohio-state","gmu","stony-brook","rutgers","udel","tufts","penn-state","uconn","sc"],
+        "blurb": "US News 2024 undergraduate CS ranking. Most top schools have separate (much lower) admit rates for direct CS admission than the university overall.",
+        "order": ["mit","stanford","cmu","ucb","cornell","uiuc","gatech","uw","princeton","ut-austin","caltech","ucla","umich","ucsd","wisc","columbia","umd","upenn","harvard","brown","duke","jhu","yale","uchicago","rice","usc","nyu","vt","northwestern","northeastern","case","umn","ohio-state","scu","stony-brook","stevens","drexel","wpi","rpi","binghamton","gmu","rutgers","udel","tufts","penn-state","uconn","sc","calpoly-slo","sjsu"],
     },
     {
         "slug": "best-liberal-arts",
