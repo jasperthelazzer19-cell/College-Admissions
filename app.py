@@ -1812,7 +1812,7 @@ def render_round_breakdown_dark(school, detail, scale=1.0, personalized_rates=No
 # Bump this when the personalize_round_odds prompt logic changes —
 # auto-invalidates all cached round breakdowns on the next request so
 # users immediately see results from the new prompt.
-ROUND_PROMPT_VERSION = "v7"
+ROUND_PROMPT_VERSION = "v8"
 
 
 def _profile_version_hash(profile):
@@ -1830,7 +1830,7 @@ def _profile_version_hash(profile):
     return f"{ROUND_PROMPT_VERSION}:{hashlib.sha1(payload.encode()).hexdigest()[:12]}"
 
 
-def personalize_round_odds(user_id, school, detail, profile, user_low_pct, user_high_pct):
+def personalize_round_odds(user_id, school, detail, profile, user_low_pct, user_high_pct, sub_school=None):
     """Use Claude to compute the user's personalized rate for each round
     (ED, ED2, EA, REA, RD), accounting for school-specific dynamics —
     e.g. UPenn ED gives ~3-4× lift, Stanford REA barely moves for unhooked,
@@ -1851,13 +1851,17 @@ def personalize_round_odds(user_id, school, detail, profile, user_low_pct, user_
         return None
 
     pv = _profile_version_hash(profile or {})
+    # Sub-school slug also goes in the cache key so switching majors
+    # invalidates the cached round rates
+    sub_key = sub_school["name"][:40] if sub_school else "_none_"
+    cache_key = f"{pv}:{sub_key}"
 
     # Cache lookup
     try:
         with db() as conn:
             row = conn.execute(
                 "SELECT body FROM personalized_rounds WHERE user_id=? AND college_slug=? AND profile_version=?",
-                (user_id, school["slug"], pv),
+                (user_id, school["slug"], cache_key),
             ).fetchone()
             if row:
                 try:
@@ -1895,20 +1899,38 @@ def personalize_round_odds(user_id, school, detail, profile, user_low_pct, user_
 
     profile_summary = " | ".join(parts) if parts else "Minimal profile data."
 
-    # Build round rates description
+    # If applying to a specific sub-college (Kelley, Wharton, etc.), the
+    # round rates need to scale to that sub-college's selectivity since
+    # sub-colleges rarely publish their own round rates.
+    sub_ratio = 1.0
+    if sub_school and sub_school.get("accept") and school.get("accept"):
+        sub_ratio = sub_school["accept"] / school["accept"]
+    effective_pub_rates = {r: pub_rates.get(r, 0) * sub_ratio for r in rounds}
+
     rate_lines = "\n".join(
-        f"  - {ROUND_LABELS.get(r, r)} ({r}): published rate {round(pub_rates.get(r,0)*100,1)}%"
+        f"  - {ROUND_LABELS.get(r, r)} ({r}): rate {round(effective_pub_rates[r]*100,1)}%"
         for r in rounds
     )
 
-    overall_pub_pct = round(school.get("accept", 0) * 100, 1)
+    overall_pub_pct = round(((sub_school["accept"] if sub_school else school.get("accept", 0))) * 100, 1)
     user_mid = round((user_low_pct + user_high_pct) / 2.0, 1)
+    target_label = (
+        f"{school['name']} → {sub_school['name']}" if sub_school else school['name']
+    )
+    sub_school_note = ""
+    if sub_school:
+        sub_school_note = (
+            f"\n*** APPLYING TO SPECIFIC COLLEGE WITHIN {school['name'].upper()}: {sub_school['name']} ***\n"
+            f"Use {round(sub_school['accept']*100,1)}% as the SCHOOL'S accept rate (not the university overall). "
+            f"The round rates above have already been scaled proportionally to this sub-college's selectivity. "
+            f"Reason about ED/EA lift dynamics as you would for a school with that overall rate.\n"
+        )
 
-    prompt = f"""School: {school['name']}
-Published overall acceptance: {overall_pub_pct}%
-Published rates by round:
+    prompt = f"""School: {target_label}
+Published acceptance (use this, not the university overall): {overall_pub_pct}%
+Round rates (already adjusted for the relevant sub-college if applicable):
 {rate_lines}
-
+{sub_school_note}
 Applicant profile: {profile_summary}
 This applicant's overall personalized chances: {user_low_pct}-{user_high_pct}% (midpoint {user_mid}%)
 
@@ -1983,7 +2005,7 @@ Hard rules:
             with db() as conn:
                 conn.execute(
                     "INSERT OR REPLACE INTO personalized_rounds (user_id, college_slug, profile_version, body) VALUES (?,?,?,?)",
-                    (user_id, school["slug"], pv, json.dumps(clean)),
+                    (user_id, school["slug"], cache_key, json.dumps(clean)),
                 )
                 conn.commit()
         except Exception as e:
@@ -6481,7 +6503,7 @@ def chances_html(slug):
   <div class="odds" style="color:#2b6cff">{r['odds_low']}–{r['odds_high']}%</div>
   <div class="muted" style="font-size:.82em">your estimated chances</div>
   {(f'<div style="margin-top:14px;padding:10px 14px;background:rgba(94,234,212,.08);border:1px solid rgba(94,234,212,.25);border-radius:4px;font-size:.88em"><b style="color:var(--teal)">★ Exceptional applicant override</b><div class="muted" style="margin-top:4px">{exc_reason or "Flagged exceptional based on your profile."} Your odds reflect this above the standard cap.</div></div>' if profile.get('is_exceptional') else '')}
-  {(lambda _sch, _det: render_admissions_breakdown(_sch, _det, personalized_rates=personalize_round_odds(uid, _sch, _det, profile, r['odds_low'], r['odds_high']), scale=(((r.get('odds_low',0)+r.get('odds_high',0))/2.0) / r['accept_rate_pct']) if r.get('accept_rate_pct') else 1.0))(COLLEGES_BY_SLUG.get(r['slug']), admissions_detail(COLLEGES_BY_SLUG.get(r['slug'])))}
+  {(lambda _sch, _det: (lambda _sub: render_admissions_breakdown(_sch, _det, personalized_rates=personalize_round_odds(uid, _sch, _det, profile, r['odds_low'], r['odds_high'], sub_school=_sub), scale=(((r.get('odds_low',0)+r.get('odds_high',0))/2.0) / r['accept_rate_pct']) if r.get('accept_rate_pct') else 1.0, sub_school=_sub))(sub_school_for_major(r['slug'], profile.get('major') or '')))(COLLEGES_BY_SLUG.get(r['slug']), admissions_detail(COLLEGES_BY_SLUG.get(r['slug'])))}
   <ul style="padding-left:18px;margin:18px 0 0">
     <li><b>Strength —</b> {r['strength']}</li>
     <li><b>Weakness —</b> {r['weakness']}</li>
@@ -7935,7 +7957,7 @@ def school_plan_html(slug):
     <div><span class="pill {tier_class}">{r['tier']}</span> <span class="pill {conf_class}" style="margin-left:4px" title="{conf_tooltip}">{r['confidence']} confidence</span></div>
   </div>
   <div style="font-size:1.8em;font-weight:800;letter-spacing:-.5px;margin:10px 0 4px;color:#9bf">{r['odds_low']}–{r['odds_high']}%</div>
-  {(lambda _det: render_round_breakdown_dark(school, _det, personalized_rates=personalize_round_odds(user['id'], school, _det, profile, r['odds_low'], r['odds_high']), scale=(((r.get('odds_low',0)+r.get('odds_high',0))/2.0) / (round(school['accept']*100,1) or 1.0)), sub_school=sub_match))(admissions_detail(school))}
+  {(lambda _det: render_round_breakdown_dark(school, _det, personalized_rates=personalize_round_odds(user['id'], school, _det, profile, r['odds_low'], r['odds_high'], sub_school=sub_match), scale=(((r.get('odds_low',0)+r.get('odds_high',0))/2.0) / (round(school['accept']*100,1) or 1.0)), sub_school=sub_match))(admissions_detail(school))}
   <ul style="padding-left:18px;margin:14px 0 0;color:#e8e8e8">
     <li><b>Strength —</b> {r['strength']}</li>
     <li><b>Weakness —</b> {r['weakness']}</li>
