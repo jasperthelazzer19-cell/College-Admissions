@@ -3299,42 +3299,56 @@ def generate_bullets(profile, school, fit, components, tier, odds):
         else:
             gap = school["act_25"] - act
             test_compare = f"ACT {act} is BELOW the 25th percentile ({school['act_25']}) of admits — gap of {gap} points."
-    # Same idea for GPA. Use the year-by-year-aware effective GPA so the
-    # narrative reflects the model's actual input (UC drops freshman, weighted
-    # average for others, trend bonus). Show the raw flat GPA in parens for
-    # context when they differ.
+    # GPA narrative: show the FLAT GPA (the number on the user's transcript)
+    # but include trajectory context so the bullet explains why the gap
+    # matters less than it looks (or worse than it looks).
     raw_gpa = profile.get("uw_gpa")
     gpa = effective_gpa(profile, school)
     gpa_compare = "GPA not submitted."
-    if gpa:
-        mid = round((school["gpa_lo"] + school["gpa_hi"]) / 2, 2)
-        gpa_label = f"effective GPA {gpa}" if (raw_gpa is not None and abs(gpa - raw_gpa) > 0.02) else f"GPA {gpa}"
-        if gpa >= school["gpa_hi"]:
-            gpa_compare = f"{gpa_label} is AT OR ABOVE the typical 75th percentile ({school['gpa_hi']})."
-        elif gpa >= mid:
-            gpa_compare = f"{gpa_label} is ABOVE midpoint ({mid}), upper half of admits."
-        elif gpa >= school["gpa_lo"]:
-            gpa_compare = f"{gpa_label} is BELOW midpoint ({mid}) but inside the typical range ({school['gpa_lo']}-{school['gpa_hi']})."
-        else:
-            gpa_compare = f"{gpa_label} is BELOW the typical 25th percentile ({school['gpa_lo']}) — academic gap."
-
-    # Build a GPA-context line for the prompt that explains the year-by-year
-    # adjustment when present, so Claude doesn't write narrative pegged to
-    # the raw flat number.
-    gpa_lines = [f"- Unweighted GPA (flat): {raw_gpa}"]
-    if raw_gpa is not None and abs((gpa or 0) - raw_gpa) > 0.02:
-        breakdown = []
+    # Build the trajectory context phrase used both in display and the prompt
+    traj_context = ""
+    is_uc = school and school.get("slug") in UC_SLUGS
+    has_years = raw_gpa is not None and gpa is not None and abs(gpa - raw_gpa) > 0.02
+    if has_years:
+        years_seq = []
         for year_label, key in [("9th", "gpa_freshman"), ("10th", "gpa_sophomore"),
                                 ("11th", "gpa_junior"), ("12th", "gpa_senior")]:
             v = profile.get(key)
-            if v is not None: breakdown.append(f"{year_label}={v}")
-        is_uc = school and school.get("slug") in UC_SLUGS
-        gpa_lines.append(
-            f"- Year-by-year provided ({', '.join(breakdown)})"
-            + (" — UC policy ignores 9th-grade grades entirely" if is_uc else " — using upper-year-weighted average")
-        )
-        gpa_lines.append(f"- Effective GPA used by the model: {gpa}")
-        gpa_lines.append("- IMPORTANT: in your narrative, refer to the effective GPA, not the flat one. If the trajectory is upward (e.g. 3.2 → 3.8 → 3.95), call that out as a strength signal.")
+            if v is not None: years_seq.append((year_label, v))
+        seq_vals = [v for _, v in years_seq]
+        is_upward = len(seq_vals) >= 3 and all(seq_vals[i+1] > seq_vals[i] for i in range(len(seq_vals)-1))
+        is_downward = len(seq_vals) >= 3 and all(seq_vals[i+1] < seq_vals[i] for i in range(len(seq_vals)-1))
+        traj_str = " → ".join(str(v) for _, v in years_seq)
+        if is_uc:
+            traj_context = f" — but UCs ignore 9th grade entirely; your 10th-12th avg is {gpa}, which the model uses"
+        elif is_upward:
+            traj_context = f" — but trajectory is upward ({traj_str}), so the model weights your upper years more (effective {gpa})"
+        elif is_downward:
+            traj_context = f" — and trajectory is downward ({traj_str}), which the model penalizes (effective {gpa})"
+        else:
+            traj_context = f" — model uses an upper-year-weighted {gpa} since you provided year-by-year"
+    if raw_gpa:
+        mid = round((school["gpa_lo"] + school["gpa_hi"]) / 2, 2)
+        if raw_gpa >= school["gpa_hi"]:
+            gpa_compare = f"GPA {raw_gpa} is AT OR ABOVE the typical 75th percentile ({school['gpa_hi']}).{traj_context}"
+        elif raw_gpa >= mid:
+            gpa_compare = f"GPA {raw_gpa} is ABOVE midpoint ({mid}), upper half of admits.{traj_context}"
+        elif raw_gpa >= school["gpa_lo"]:
+            gpa_compare = f"GPA {raw_gpa} is BELOW midpoint ({mid}) but inside the typical range ({school['gpa_lo']}-{school['gpa_hi']}).{traj_context}"
+        else:
+            gpa_compare = f"GPA {raw_gpa} is BELOW the typical 25th percentile ({school['gpa_lo']}){' but the upward trajectory pulls some of that back' if has_years and 'upward' in traj_context else ' — academic gap'}.{traj_context}"
+
+    # Prompt context: still show flat as primary, with year-by-year context.
+    gpa_lines = [f"- Unweighted GPA: {raw_gpa}"]
+    if has_years:
+        breakdown_str = ", ".join(f"{lbl}={v}" for lbl, v in years_seq)
+        gpa_lines.append(f"- Year-by-year: {breakdown_str}")
+        if is_uc:
+            gpa_lines.append(f"- This is a UC. UC system ignores 9th-grade entirely. Effective GPA used by model: {gpa} (10th-12th average).")
+            gpa_lines.append("- IMPORTANT: in your narrative, refer to the user's GPA as the flat number ({}). When discussing whether they're competitive, you can say something like 'although your overall GPA is {}, the UCs only weight your 10th-12th grades, where you average {}.'".format(raw_gpa, raw_gpa, gpa))
+        else:
+            gpa_lines.append(f"- Model uses upper-year-weighted GPA: {gpa} (9th=0.5x, 10th=1.0x, 11th=1.5x, 12th=1.0x; +0.05 trend bonus if strictly upward, -0.05 if downward).")
+            gpa_lines.append("- IMPORTANT: in your narrative, refer to the user's GPA as the flat number ({}). If their trajectory is upward (e.g. 9th < 10th < 11th), explicitly call this out as a strength — colleges read trajectory heavily, especially upward trends from a weak 9th grade.".format(raw_gpa))
 
     user = f"""Student profile:
 {chr(10).join(gpa_lines)}
@@ -3376,7 +3390,9 @@ DIFFERENTIATOR: <one-sentence — what could make this applicant memorable, or w
 
 
 def _fallback_bullets(profile, school, fit, components, tier):
-    gpa = effective_gpa(profile, school) or profile.get("uw_gpa") or 0
+    # Show the flat GPA in narrative (what users have on their transcript)
+    # but the model already used effective_gpa for the components scoring.
+    gpa = profile.get("uw_gpa") or 0
     school_gpa_mid = round((school["gpa_lo"]+school["gpa_hi"])/2, 2)
     if components.get("gpa", 0) > 5:
         strength = f"Your GPA of {gpa} is meaningfully above {school['name']}'s typical midpoint of {school_gpa_mid}, the strongest signal in your favor."
@@ -6706,8 +6722,7 @@ No preamble, no closing line."""
         # Templated fallback
         bullets = []
         if components.get("gpa", 0) < -3:
-            _eg = effective_gpa(profile, school) or profile.get('uw_gpa')
-            bullets.append(f"GPA gap: yours is {_eg} vs admit range {school['gpa_lo']}-{school['gpa_hi']}. Target straight A's for the rest of high school — every 0.05 of unweighted matters here.")
+            bullets.append(f"GPA gap: yours is {profile.get('uw_gpa')} vs admit range {school['gpa_lo']}-{school['gpa_hi']}. Target straight A's for the rest of high school — every 0.05 of unweighted matters here.")
         if components.get("test", 0) < -5:
             bullets.append(f"Test gap: middle 50% is SAT {school['sat_25']}-{school['sat_75']}. A retake targeting +60 is the single highest-leverage thing you can do for this school.")
         bullets.append(f"On essays: {note['supplemental_strategy']}")
