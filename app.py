@@ -2863,7 +2863,19 @@ def _is_test_focused_school(school):
     return school.get("tier", 5) == 1
 
 
-UC_SLUGS = {"ucb","ucla","ucsd","uci","ucsb","ucsc","ucr","ucdavis","ucmerced"}
+# Schools that formally drop 9th grade in their GPA calculation.
+# UCs use the "a-g" framework (10-11 + summer between), CSUs use an
+# identical formula. Both publish official GPA recalculation rules that
+# ignore freshman year entirely. No other school system does this — most
+# others weight upper years informally but DO see 9th-grade grades.
+UC_SLUGS = {
+    # University of California
+    "ucb","ucla","ucsd","uci","ucsb","ucsc","ucr","ucdavis","ucmerced",
+    # California State University (same a-g formula as UCs)
+    "csulb","csu-la","csu-fullerton",
+    "sdsu","sjsu","sfsu",
+    "calpoly-slo","calpoly-pomona",
+}
 
 
 def effective_gpa(profile, school):
