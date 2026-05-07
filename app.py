@@ -9142,6 +9142,7 @@ _ORBIT_SCHOOLS = [
     ("duke", "Duke"), ("upenn", "UPenn"), ("columbia", "Columbia"),
     ("vanderbilt", "Vanderbilt"), ("uva", "UVA"), ("unc", "UNC"),
     ("dartmouth", "Dartmouth"), ("brown", "Brown"), ("notre-dame", "Notre Dame"),
+    ("nyu", "NYU"),
 ]
 
 def _landing_html(user_count, school_count, cds_count, activation_pct):
