@@ -9886,6 +9886,71 @@ def _poisson_binomial_pmf_zero(probs):
     return p
 
 
+@app.route("/plans/compute-all", methods=["POST"])
+@login_required
+def plans_compute_all():
+    """Run analyze_school for every school in the user's My Colleges that
+    doesn't currently have saved_chances. Lets users repopulate the
+    simulator after a profile update wiped the cache."""
+    uid = current_user()["id"]
+    p = get_profile(uid)
+    if not p:
+        flash("Add your profile first so we can compute chances.", "error")
+        return redirect("/profile")
+    is_exc, exc_reason = get_or_evaluate_exceptionality(uid, p)
+    profile = {
+        "uw_gpa": p.get("uw_gpa"), "weighted_gpa": p.get("weighted_gpa"),
+        "gpa_freshman": p.get("gpa_freshman"), "gpa_sophomore": p.get("gpa_sophomore"),
+        "gpa_junior": p.get("gpa_junior"), "gpa_senior": p.get("gpa_senior"),
+        "sat": p.get("sat"), "act": p.get("act"),
+        "sat_math": p.get("sat_math"), "sat_ebrw": p.get("sat_ebrw"),
+        "act_math": p.get("act_math"), "act_english": p.get("act_english"),
+        "act_reading": p.get("act_reading"), "act_science": p.get("act_science"),
+        "major": p.get("major"), "state": p.get("state"),
+        "school_type": p.get("school_type"),
+        "ecs": p.get("ecs"), "leadership": p.get("leadership"), "awards": p.get("awards"),
+        "legacy": bool(p.get("legacy")), "first_gen": bool(p.get("first_gen")),
+        "athlete": bool(p.get("athlete")),
+        "is_international": bool(p.get("is_international")),
+        "legacy_schools": p.get("legacy_schools") or "",
+        "aps": p.get("aps") or "",
+        "no_aps_offered": bool(p.get("no_aps_offered")),
+        "aps_offered_not_taken": bool(p.get("aps_offered_not_taken")),
+        "is_exceptional": is_exc, "exceptional_reason": exc_reason,
+        "portfolio": p.get("portfolio") or "",
+    }
+    # Get all saved-school slugs that lack a saved_chances row
+    with db() as conn:
+        saved = [r["college_slug"] for r in conn.execute(
+            "SELECT college_slug FROM saved_schools WHERE user_id=?", (uid,)).fetchall()]
+        with_chances = {r["college_slug"] for r in conn.execute(
+            "SELECT college_slug FROM saved_chances WHERE user_id=?", (uid,)).fetchall()}
+    todo = [s for s in saved if s not in with_chances]
+    n_done = 0
+    for slug in todo:
+        try:
+            profile_for_school = dict(profile)
+            profile_for_school["_di_level"] = get_demonstrated_interest(uid, slug)
+            r = analyze_school(profile_for_school, slug)
+            if not r: continue
+            with db() as conn:
+                conn.execute("""INSERT INTO saved_chances (user_id, college_slug, tier, odds_low, odds_high, fit, confidence, strength, weakness, differentiator, computed_at)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)
+                    ON CONFLICT(user_id, college_slug) DO UPDATE SET
+                      tier=excluded.tier, odds_low=excluded.odds_low, odds_high=excluded.odds_high,
+                      fit=excluded.fit, confidence=excluded.confidence,
+                      strength=excluded.strength, weakness=excluded.weakness, differentiator=excluded.differentiator,
+                      computed_at=CURRENT_TIMESTAMP""",
+                    (uid, r["slug"], r["tier"], r["odds_low"], r["odds_high"],
+                     r["fit"], r["confidence"], r["strength"], r["weakness"], r["differentiator"]))
+                conn.commit()
+            n_done += 1
+        except Exception as e:
+            print(f"compute-all failed for {slug}: {e}")
+    flash(f"Computed chances for {n_done} schools.", "success")
+    return redirect(request.form.get("return_to") or "/plans/simulate")
+
+
 @app.route("/plans/simulate")
 @login_required
 def plans_simulate_page():
@@ -9974,7 +10039,15 @@ def plans_simulate_page():
 
     note = ""
     if sim["n_uncomputed"] > 0:
-        note = f'<p class="muted" style="font-size:.88em">{sim["n_uncomputed"]} school{"" if sim["n_uncomputed"]==1 else "s"} in your list don\'t have computed chances yet. Run chances on each to include them in the simulation.</p>'
+        note = f'''<div class="card" style="background:rgba(251,191,36,.06);border:1px solid rgba(251,191,36,.25);padding:14px 18px;margin:10px 0">
+  <div style="font-weight:600;margin-bottom:6px">⚠️ {sim["n_uncomputed"]} school{"" if sim["n_uncomputed"]==1 else "s"} in your list need chances computed</div>
+  <p class="muted" style="font-size:.88em;margin:0 0 10px">They're excluded from the simulation until chances are run. This usually happens after a profile update wipes the cache. One click recomputes all of them ({"~"+str(int(sim["n_uncomputed"]*1.5))+" sec" if sim["n_uncomputed"]>0 else ""}):</p>
+  <form method="post" action="/plans/compute-all" style="display:inline">
+    {csrf_input()}
+    <input type="hidden" name="return_to" value="/plans/simulate">
+    <button class="btn btn-primary" type="submit">Compute all missing chances</button>
+  </form>
+</div>'''
 
     return _page(f"""
 <div class="bar"><a href="/plans">← Back to My colleges</a></div>
