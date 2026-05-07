@@ -6256,24 +6256,32 @@ def profile_html():
   </div>
   <details style="margin:6px 0 14px">
     <summary style="cursor:pointer;font-size:.92em;color:var(--text-2)">Section subscores <span class="muted">(optional — helps STEM-focused schools)</span></summary>
-    <p class="muted" style="font-size:.84em;margin:8px 0 10px">A composite score hides imbalance. A 1450 SAT with 800 EBRW and 650 Math reads very differently at MIT/Caltech/CMU CS than a 1450 with 730/720. Same for ACT — a 33 with weak math hurts more at engineering schools.</p>
-    <div class="row">
-      <div><label>SAT EBRW <span class="muted">(reading + writing)</span></label>
-        <input type="number" min="200" max="800" step="10" name="sat_ebrw" value="{v('sat_ebrw')}"></div>
-      <div><label>SAT Math</label>
-        <input type="number" min="200" max="800" step="10" name="sat_math" value="{v('sat_math')}"></div>
+    <p class="muted" style="font-size:.84em;margin:8px 0 14px">A composite score hides imbalance. A 1450 SAT split 800/650 reads very differently at MIT/Caltech/CMU CS than a balanced 730/720. Only fill in subscores for the test you actually took.</p>
+
+    <div style="border:1px solid var(--border);border-radius:6px;padding:14px 16px;margin-bottom:12px;background:rgba(94,234,212,.03)">
+      <div style="font-weight:700;font-size:.92em;color:var(--teal);margin-bottom:10px;letter-spacing:.3px">SAT subscores <span class="muted" style="font-weight:400;font-size:.85em">(scale: 200–800 each)</span></div>
+      <div class="row">
+        <div><label>SAT EBRW <span class="muted">(reading + writing)</span></label>
+          <input type="number" min="200" max="800" step="10" placeholder="e.g. 720" name="sat_ebrw" value="{v('sat_ebrw')}"></div>
+        <div><label>SAT Math</label>
+          <input type="number" min="200" max="800" step="10" placeholder="e.g. 750" name="sat_math" value="{v('sat_math')}"></div>
+      </div>
     </div>
-    <div class="row">
-      <div><label>ACT Math</label>
-        <input type="number" min="1" max="36" name="act_math" value="{v('act_math')}"></div>
-      <div><label>ACT English</label>
-        <input type="number" min="1" max="36" name="act_english" value="{v('act_english')}"></div>
-    </div>
-    <div class="row">
-      <div><label>ACT Reading</label>
-        <input type="number" min="1" max="36" name="act_reading" value="{v('act_reading')}"></div>
-      <div><label>ACT Science</label>
-        <input type="number" min="1" max="36" name="act_science" value="{v('act_science')}"></div>
+
+    <div style="border:1px solid var(--border);border-radius:6px;padding:14px 16px;background:rgba(125,211,252,.03)">
+      <div style="font-weight:700;font-size:.92em;color:#7dd3fc;margin-bottom:10px;letter-spacing:.3px">ACT subscores <span class="muted" style="font-weight:400;font-size:.85em">(scale: 1–36 each)</span></div>
+      <div class="row">
+        <div><label>ACT Math</label>
+          <input type="number" min="1" max="36" placeholder="e.g. 32" name="act_math" value="{v('act_math')}"></div>
+        <div><label>ACT English</label>
+          <input type="number" min="1" max="36" placeholder="e.g. 34" name="act_english" value="{v('act_english')}"></div>
+      </div>
+      <div class="row">
+        <div><label>ACT Reading</label>
+          <input type="number" min="1" max="36" placeholder="e.g. 33" name="act_reading" value="{v('act_reading')}"></div>
+        <div><label>ACT Science</label>
+          <input type="number" min="1" max="36" placeholder="e.g. 31" name="act_science" value="{v('act_science')}"></div>
+      </div>
     </div>
   </details>
 
