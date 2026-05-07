@@ -1171,7 +1171,7 @@ def render_round_breakdown_dark(school, detail, scale=1.0, personalized_rates=No
 # Bump this when the personalize_round_odds prompt logic changes —
 # auto-invalidates all cached round breakdowns on the next request so
 # users immediately see results from the new prompt.
-ROUND_PROMPT_VERSION = "v6"
+ROUND_PROMPT_VERSION = "v7"
 
 
 def _profile_version_hash(profile):
@@ -1180,7 +1180,9 @@ def _profile_version_hash(profile):
     invalidates automatically."""
     import hashlib
     # Only the fields that actually move chances per round
-    keys = ['gpa','gpa_scale','sat','act','rigor','race','first_gen',
+    keys = ['gpa','gpa_scale','uw_gpa','weighted_gpa',
+            'gpa_freshman','gpa_sophomore','gpa_junior','gpa_senior',
+            'sat','act','rigor','race','first_gen',
             'state','household_income','intended_major','is_exceptional',
             'extracurriculars','awards','legacy_schools']
     payload = json.dumps({k: profile.get(k) for k in keys}, sort_keys=True, default=str)
@@ -5072,6 +5074,8 @@ def my_fit_html():
 """, title="My Fit — Candor")
     prof = {
         "uw_gpa": profile.get("uw_gpa"), "weighted_gpa": profile.get("weighted_gpa"),
+        "gpa_freshman": profile.get("gpa_freshman"), "gpa_sophomore": profile.get("gpa_sophomore"),
+        "gpa_junior": profile.get("gpa_junior"), "gpa_senior": profile.get("gpa_senior"),
         "sat": profile.get("sat"), "act": profile.get("act"),
         "major": profile.get("major"), "state": profile.get("state"), "school_type": profile.get("school_type"),
         "ecs": profile.get("ecs"), "leadership": profile.get("leadership"), "awards": profile.get("awards"),
@@ -5581,6 +5585,8 @@ def chances_html(slug):
     is_exc, exc_reason = get_or_evaluate_exceptionality(uid, p)
     profile = {
         "uw_gpa": p.get("uw_gpa"), "weighted_gpa": p.get("weighted_gpa"),
+        "gpa_freshman": p.get("gpa_freshman"), "gpa_sophomore": p.get("gpa_sophomore"),
+        "gpa_junior": p.get("gpa_junior"), "gpa_senior": p.get("gpa_senior"),
         "sat": p.get("sat"), "act": p.get("act"), "major": p.get("major"),
         "state": p.get("state"), "school_type": p.get("school_type"),
         "ecs": p.get("ecs"), "leadership": p.get("leadership"), "awards": p.get("awards"),
@@ -5888,6 +5894,8 @@ def school_improve_html(slug):
         # personalized gap analysis for this specific school
         prof = {
             "uw_gpa": profile.get("uw_gpa"), "sat": profile.get("sat"), "act": profile.get("act"),
+            "gpa_freshman": profile.get("gpa_freshman"), "gpa_sophomore": profile.get("gpa_sophomore"),
+            "gpa_junior": profile.get("gpa_junior"), "gpa_senior": profile.get("gpa_senior"),
             "major": profile.get("major"), "state": profile.get("state"), "school_type": profile.get("school_type"),
             "ecs": profile.get("ecs"), "leadership": profile.get("leadership"), "awards": profile.get("awards"),
             "legacy": bool(profile.get("legacy")), "first_gen": bool(profile.get("first_gen")), "athlete": bool(profile.get("athlete")),
@@ -6878,6 +6886,8 @@ def school_plan_html(slug):
 
     prof = {
         "uw_gpa": profile.get("uw_gpa"), "weighted_gpa": profile.get("weighted_gpa"),
+        "gpa_freshman": profile.get("gpa_freshman"), "gpa_sophomore": profile.get("gpa_sophomore"),
+        "gpa_junior": profile.get("gpa_junior"), "gpa_senior": profile.get("gpa_senior"),
         "sat": profile.get("sat"), "act": profile.get("act"), "major": profile.get("major"),
         "state": profile.get("state"), "school_type": profile.get("school_type"),
         "ecs": profile.get("ecs"), "leadership": profile.get("leadership"), "awards": profile.get("awards"),
