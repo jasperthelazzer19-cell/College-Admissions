@@ -9248,7 +9248,7 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
     50% { opacity: 0.5; }
   }
   .lp-wrap { max-width:1320px; margin:0 auto; padding:0 32px; position: relative; z-index: 2; }
-  .hero { padding:80px 0 100px; text-align:left; max-width:780px; }
+  .hero { padding:40px 0 60px; text-align:left; max-width:780px; }
   .hero .eyebrow { display:inline-block; font-size:.78em; font-weight:600; letter-spacing:.8px; text-transform:uppercase; color:#5eead4; padding:5px 12px; border:1px solid rgba(94,234,212,.25); border-radius:999px; background:rgba(94,234,212,.06); margin-bottom:22px; }
   .hero h1 { font-size:clamp(2.4em,5vw,3.6em); font-weight:700; letter-spacing:-1.5px; line-height:1.06; margin:0 0 22px; color:#e6edf3; }
   .hero h1 .accent { color:#5eead4; }
@@ -9347,21 +9347,21 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
      @property/custom-prop interpolation, which has spotty support. */
   .logo-orbit {
     position:relative; width:100%; aspect-ratio:1/1;
-    max-width:720px; margin:0 auto;
-    --orbit-radius: -300px;
+    max-width:560px; margin:0 auto;
+    --orbit-radius: -228px;
   }
   .orbit-center {
     position:absolute; top:50%; left:50%;
     transform:translate(-50%, -50%);
-    width:160px; height:160px;
+    width:128px; height:128px;
     display:flex; align-items:center; justify-content:center;
     background:rgba(94,234,212,.06);
     border:1px solid rgba(94,234,212,.32);
     border-radius:50%;
     z-index:2;
-    box-shadow:0 0 80px rgba(94,234,212,.18), inset 0 0 36px rgba(94,234,212,.05);
+    box-shadow:0 0 60px rgba(94,234,212,.18), inset 0 0 28px rgba(94,234,212,.05);
   }
-  .orbit-center svg { width:88px; height:88px; }
+  .orbit-center svg { width:68px; height:68px; }
   .orbit-ring {
     position:absolute; inset:0;
     animation:orbit-spin 80s linear infinite;
@@ -9374,7 +9374,7 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
     transform:rotate(var(--angle, 0deg)) translateY(var(--orbit-radius, -230px));
   }
   .orbit-tile {
-    width:72px; height:72px;
+    width:60px; height:60px;
     display:flex; align-items:center; justify-content:center;
     background:rgba(255,255,255,.04);
     border:1px solid rgba(255,255,255,.08);
@@ -9387,9 +9387,9 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
     overflow:hidden;
   }
   .orbit-logo {
-    width:48px; height:48px;
+    width:40px; height:40px;
     object-fit:contain;
-    border-radius:6px;
+    border-radius:5px;
   }
   .orbit-item:hover .orbit-tile {
     background:rgba(94,234,212,.12);
@@ -9450,8 +9450,8 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
     overflow:hidden;
   }
   .demo-controls {
-    padding:18px 20px; border-right:1px solid rgba(255,255,255,.06);
-    display:flex; flex-direction:column; gap:11px;
+    padding:14px 16px; border-right:1px solid rgba(255,255,255,.06);
+    display:flex; flex-direction:column; gap:8px;
   }
   @media (max-width:560px) {
     .demo-card { grid-template-columns:1fr; }
@@ -9501,31 +9501,31 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
     background:#5eead4; border:2px solid #0d1620;
   }
   .demo-result {
-    padding:18px 20px; display:flex; flex-direction:column; gap:10px;
+    padding:14px 16px; display:flex; flex-direction:column; gap:8px;
     background:linear-gradient(180deg, rgba(94,234,212,.04) 0%, transparent 60%);
   }
-  .demo-result-row { display:flex; gap:14px; flex-wrap:wrap; }
+  .demo-result-row { display:flex; gap:12px; flex-wrap:wrap; }
   .demo-result-block { flex:1; min-width:120px; }
   .demo-result-label {
     font-size:.72em; font-weight:600; letter-spacing:.6px;
     text-transform:uppercase; color:#9aa6b6; margin-bottom:6px;
   }
   .demo-odds {
-    font-size:1.9em; font-weight:800; letter-spacing:-.8px; line-height:1;
+    font-size:1.55em; font-weight:800; letter-spacing:-.6px; line-height:1;
     color:#5eead4; font-variant-numeric:tabular-nums;
   }
   .demo-fit, .demo-tier {
-    font-size:1.2em; font-weight:700; letter-spacing:-.3px; color:#e6edf3;
+    font-size:1.05em; font-weight:700; letter-spacing:-.3px; color:#e6edf3;
     font-variant-numeric:tabular-nums;
   }
-  .demo-tier { font-size:1em; font-weight:600; }
+  .demo-tier { font-size:.92em; font-weight:600; }
   .demo-context {
-    color:#9aa6b6; font-size:.82em; line-height:1.45;
-    border-top:1px solid rgba(255,255,255,.06); padding-top:10px;
+    color:#9aa6b6; font-size:.76em; line-height:1.4;
+    border-top:1px solid rgba(255,255,255,.06); padding-top:8px;
   }
   .demo-cta {
-    margin-top:6px; display:inline-block;
-    color:#5eead4; font-weight:600; font-size:.95em; text-decoration:none;
+    margin-top:2px; display:inline-block;
+    color:#5eead4; font-weight:600; font-size:.86em; text-decoration:none;
     align-self:flex-start;
     border-bottom:1px solid rgba(94,234,212,.3);
     padding-bottom:2px; transition:border-color .15s, color .15s;
