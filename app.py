@@ -9309,7 +9309,7 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
     display:grid;
     grid-template-columns: minmax(0, 480px) minmax(0, 1fr);
     gap:40px;
-    align-items:center;
+    align-items:start;
     max-width:none;
   }
   .hero.hero-grid .hero-text { max-width:480px; display:flex; flex-direction:column; gap:14px; }
