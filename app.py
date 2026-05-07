@@ -4323,6 +4323,36 @@ def init_db():
                 conn.execute(f"ALTER TABLE profiles ADD COLUMN {col} REAL")
             except sqlite3.OperationalError:
                 pass
+        # Application round on each saved school. NULL = undecided.
+        # Values: 'ED1','ED2','EA','REA','RD'. Used for the simulator and for
+        # categorizing the My Plans page.
+        try:
+            conn.execute("ALTER TABLE saved_schools ADD COLUMN application_round TEXT")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            conn.execute("ALTER TABLE saved_chances ADD COLUMN application_round TEXT")
+        except sqlite3.OperationalError:
+            pass
+        # Premium subscription flag on users — gates the /plans page (My Plans
+        # dashboard with simulator + grader). Free users still get individual
+        # chances calc and college pages; premium adds the cross-list view.
+        try:
+            conn.execute("ALTER TABLE users ADD COLUMN is_premium INTEGER DEFAULT 0")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            conn.execute("ALTER TABLE users ADD COLUMN stripe_customer_id TEXT")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            conn.execute("ALTER TABLE users ADD COLUMN stripe_subscription_id TEXT")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            conn.execute("ALTER TABLE users ADD COLUMN premium_until TEXT")
+        except sqlite3.OperationalError:
+            pass
         # Federal-data overrides for each school's stats (College Scorecard).
         # Hardcoded COLLEGES values are fallback; this table takes precedence.
         conn.execute("""CREATE TABLE IF NOT EXISTS school_stats_overrides (
@@ -5391,7 +5421,7 @@ NAV = """<div class="nav"><a class="brand" href="/">""" + CANDOR_LOGO_SVG + """C
 <a href="/colleges">Browse</a>
 <a href="/rankings">Rankings</a>
 <a href="/compare">Compare</a>
-<a href="/plans">My Plans</a>
+<a href="/plans">My colleges</a>
 <a href="/improve">Improve</a>
 <a href="/chat">AI Advisor</a>
 <span class="sp"></span>
@@ -7738,92 +7768,232 @@ def school_plan_html(slug):
 """, title=f"Your plan for {school['name']} — Candor")
 
 
-def plans_index_html():
-    """List all schools the user has computed chances for, with summary cards.
-    Empty state explains how to populate."""
-    user = current_user()
+ROUND_DISPLAY = {
+    "ED1": "Early Decision",
+    "ED2": "Early Decision II",
+    "EA":  "Early Action",
+    "REA": "Restrictive EA",
+    "RD":  "Regular Decision",
+    None:  "Round undecided",
+}
+ROUND_GROUP_ORDER = ["ED1","ED2","EA","REA","RD",None]
+
+
+def _user_round_for(user_id, slug):
+    """Returns the user's selected application round for this school, or None."""
     with db() as conn:
-        rows = conn.execute("""
-            SELECT college_slug, tier, odds_low, odds_high, fit, confidence, computed_at
-            FROM saved_chances
-            WHERE user_id = ?
+        row = conn.execute(
+            "SELECT application_round FROM saved_chances WHERE user_id=? AND college_slug=? "
+            "UNION SELECT application_round FROM saved_schools WHERE user_id=? AND college_slug=? "
+            "LIMIT 1",
+            (user_id, slug, user_id, slug)
+        ).fetchone()
+    return row["application_round"] if row and row["application_round"] else None
+
+
+def _supported_rounds_for_slug(slug):
+    """Return the list of round codes this school actually offers (from
+    ADMISSIONS_DETAIL when curated, or a sensible default otherwise)."""
+    detail = ADMISSIONS_DETAIL.get(slug)
+    if detail:
+        rounds = list(detail.get("rounds", []))
+        # Some entries use 'ED' instead of 'ED1' — normalize for the picker
+        rounds = ["ED1" if r == "ED" else r for r in rounds]
+        return rounds
+    # Default: most schools offer at least RD; many offer EA. Conservative default.
+    return ["EA","RD"]
+
+
+def plans_index_html():
+    """List all schools the user has computed chances or saved, grouped by
+    application round. Round selector + remove button per card.
+
+    GATED: requires premium subscription. Free users see a preview + upgrade
+    CTA but cannot access the full grader/simulator/aggregated dashboard."""
+    user = current_user()
+    is_premium = bool(user.get("is_premium"))
+    with db() as conn:
+        chance_rows = conn.execute("""
+            SELECT college_slug, tier, odds_low, odds_high, fit, confidence,
+                   application_round, computed_at
+            FROM saved_chances WHERE user_id = ?
             ORDER BY computed_at DESC
         """, (user["id"],)).fetchall()
-    saved_slugs = get_saved_schools(user["id"])
-    if not rows and not saved_slugs:
+        saved_rows = conn.execute("""
+            SELECT college_slug, application_round
+            FROM saved_schools WHERE user_id = ?
+        """, (user["id"],)).fetchall()
+    saved_slugs = [r["college_slug"] for r in saved_rows]
+    saved_round_by_slug = {r["college_slug"]: r["application_round"] for r in saved_rows}
+    chance_round_by_slug = {r["college_slug"]: r["application_round"] for r in chance_rows}
+
+    if not chance_rows and not saved_slugs:
         return _page("""
-<h1>My Plans</h1>
-<p class="muted">Each school you've computed chances for shows up here as a personalized plan: chances, match, top gaps, and direct AI chat — all in one view.</p>
-<div class="card" style="background:#f4f4f4;border-color:#ddd">
+<h1>My colleges</h1>
+<p class="muted">Each school you've saved or computed chances for shows up here, grouped by application round, with a list grader and admissions simulator.</p>
+<div class="card" style="background:rgba(94,234,212,.06);border-color:rgba(94,234,212,.3)">
   <h3 style="margin-top:0">No plans yet</h3>
   <p>Pick a school to get started:</p>
   <a class="btn btn-primary" href="/colleges">Browse colleges</a>
   <a class="btn btn-light" href="/rankings/my-fit">My Fit ranking</a>
 </div>
-""", title="My Plans — Candor")
+""", title="My colleges — Candor")
+
+    # If not premium, render a gated preview with upgrade CTA
+    if not is_premium:
+        n_schools = len(set(saved_slugs) | {r["college_slug"] for r in chance_rows})
+        return _page(f"""
+<h1>My colleges</h1>
+<p class="muted">Strategic dashboard for your full college list — round assignments, list grader, and admissions simulator.</p>
+
+<div class="card" style="background:linear-gradient(135deg,#0f3a37 0%,#0a131c 100%);border:1px solid rgba(94,234,212,.3);padding:32px">
+  <div style="font-size:.78em;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#5eead4;margin-bottom:8px">Candor Premium · $5/month</div>
+  <h2 style="margin:0 0 14px">Unlock your full list strategy</h2>
+  <ul style="line-height:1.9;padding-left:18px;margin:0 0 18px">
+    <li><b>List grader (1–10 score)</b> — balance, realism, round strategy</li>
+    <li><b>Admissions simulator</b> — pick where you'd ED / EA / RD, see expected admits across your whole list</li>
+    <li><b>Round optimization</b> — "ED at Penn gives more lift than REA at Stanford"</li>
+    <li><b>Categorized dashboard</b> — schools grouped by round with one-click remove</li>
+    <li><b>Free chances calc stays free</b> — premium is for the strategic layer on top</li>
+  </ul>
+  <p class="muted" style="font-size:.88em">You currently have <b style="color:#e6edf3">{n_schools}</b> school{'' if n_schools==1 else 's'} in your list. Upgrade to organize and simulate.</p>
+  <form method="post" action="/upgrade" style="margin-top:18px">
+    {csrf_input()}
+    <button class="btn btn-primary" type="submit" style="font-size:1em;padding:12px 28px">Upgrade — $5/month</button>
+  </form>
+  <p class="muted" style="font-size:.78em;margin-top:12px">Cancel any time. Your saved schools and chances stay accessible on each college's page.</p>
+</div>
+
+<p style="margin-top:18px"><a class="btn btn-light" href="/colleges">+ Add another school</a></p>
+""", title="My colleges — Candor")
+
     profile = get_profile(user["id"])
-    chances_slugs = {row["college_slug"] for row in rows}
-    cards = ""
-    # Cards for chances-computed schools (full data)
-    for row in rows:
-        c = COLLEGES_BY_SLUG.get(row["college_slug"])
-        if not c: continue
-        tier_class = {"Dream":"pill-dream","Reach":"pill-reach","Target":"pill-target","Safety":"pill-safety"}.get(row["tier"], "pill-target")
-        match_score = ""
-        if profile:
-            prof_dict = {k: profile.get(k) for k in profile.keys()}
-            overall, _ = compute_my_fit(prof_dict, c)
-            col = "#1d6c2a" if overall >= 80 else ("#8a4a00" if overall >= 60 else "#9a1d1d")
-            match_score = f'<div class="muted" style="font-size:.85em;margin-top:4px">My Fit: <span style="color:{col};font-weight:700">{overall}/100</span></div>'
-        saved_star = ' <span style="color:var(--teal)" title="Saved">★</span>' if c["slug"] in saved_slugs else ""
-        cards += f"""<a href="/college/{c['slug']}/plan" class="school-card" style="display:block;color:inherit">
-          <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">
-            <div>
-              <div style="font-weight:700;font-size:1.05em">{c['name']}{saved_star}</div>
-              <div class="muted" style="font-size:.82em">{city_state(c)} · {round(c['accept']*100,1)}% accept · fit {row['fit']}/100</div>
-            </div>
-            <div><span class="pill {tier_class}">{row['tier']}</span></div>
-          </div>
-          <div style="font-size:1.4em;font-weight:800;color:#2b6cff;margin-top:8px">{row['odds_low']}–{row['odds_high']}%</div>
-          {match_score}
-        </a>"""
-    # Cards for saved-but-not-yet-chanced schools (no odds yet)
+    # Build a unified list of (slug, app_round, chance_row_or_None)
+    items = []
+    chance_slugs_seen = set()
+    for r in chance_rows:
+        slug = r["college_slug"]
+        chance_slugs_seen.add(slug)
+        items.append({
+            "slug": slug,
+            "round": r["application_round"],
+            "tier": r["tier"],
+            "odds_low": r["odds_low"], "odds_high": r["odds_high"],
+            "fit": r["fit"], "computed": True,
+        })
     for slug in saved_slugs:
-        if slug in chances_slugs: continue
-        c = COLLEGES_BY_SLUG.get(slug)
-        if not c: continue
-        cm = merged_school(c)
-        match_score = ""
-        if profile:
-            prof_dict = {k: profile.get(k) for k in profile.keys()}
-            overall, _ = compute_my_fit(prof_dict, cm)
-            col = "#1d6c2a" if overall >= 80 else ("#8a4a00" if overall >= 60 else "#9a1d1d")
-            match_score = f'<div class="muted" style="font-size:.85em;margin-top:4px">My Fit: <span style="color:{col};font-weight:700">{overall}/100</span></div>'
-        cards += f"""<a href="/college/{c['slug']}/plan" class="school-card" style="display:block;color:inherit">
-          <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">
-            <div>
-              <div style="font-weight:700;font-size:1.05em">{c['name']} <span style="color:var(--teal)" title="Saved">★</span></div>
-              <div class="muted" style="font-size:.82em">{city_state(c)} · {round(c['accept']*100,1)}% accept</div>
-            </div>
-          </div>
-          <div style="font-size:.95em;color:var(--teal);margin-top:8px">Compute chances →</div>
-          {match_score}
-        </a>"""
-    toolbar = ""
-    if saved_slugs:
-        cmp_link = f'/compare?schools={",".join(saved_slugs[:4])}' if len(saved_slugs) >= 2 else "/compare"
-        toolbar = f"""<div style="display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px">
-  <a class="btn btn-light btn-sm" href="{cmp_link}">Compare saved</a>
+        if slug in chance_slugs_seen: continue
+        items.append({
+            "slug": slug,
+            "round": saved_round_by_slug.get(slug),
+            "tier": None,
+            "odds_low": None, "odds_high": None,
+            "fit": None, "computed": False,
+        })
+
+    # Group by round
+    by_round = {r: [] for r in ROUND_GROUP_ORDER}
+    for it in items:
+        rnd = it["round"] if it["round"] in by_round else None
+        by_round[rnd].append(it)
+
+    section_html = ""
+    for rnd in ROUND_GROUP_ORDER:
+        bucket = by_round.get(rnd) or []
+        if not bucket:
+            continue
+        label = ROUND_DISPLAY.get(rnd, "Other")
+        section_html += f'<h3 style="margin:24px 0 10px;font-family:\'Newsreader\',Georgia,serif;font-weight:600">{label} <span class="muted" style="font-size:.7em;font-weight:400">({len(bucket)})</span></h3>\n<div class="grid">'
+        for it in bucket:
+            slug = it["slug"]
+            c = COLLEGES_BY_SLUG.get(slug)
+            if not c: continue
+            tier_class = {"Dream":"pill-dream","Reach":"pill-reach","Target":"pill-target","Safety":"pill-safety"}.get(it["tier"], "pill-target")
+            match_score = ""
+            if profile:
+                prof_dict = {k: profile.get(k) for k in profile.keys()}
+                cm = merged_school(c)
+                overall, _ = compute_my_fit(prof_dict, cm)
+                col = "#5eead4" if overall >= 80 else ("#fbbf24" if overall >= 60 else "#fca5a5")
+                match_score = f'<div class="muted" style="font-size:.82em;margin-top:4px">My Fit: <span style="color:{col};font-weight:700">{overall}/100</span></div>'
+            # Round selector
+            supported = _supported_rounds_for_slug(slug)
+            opts = ['<option value="">— Round —</option>']
+            for r_code in ["ED1","ED2","EA","REA","RD"]:
+                sel = " selected" if r_code == it["round"] else ""
+                disabled = "" if r_code in supported else " disabled"
+                label_short = ROUND_DISPLAY.get(r_code, r_code).replace("Restrictive EA","REA")
+                opts.append(f'<option value="{r_code}"{sel}{disabled}>{label_short}{"" if r_code in supported else " (n/a)"}</option>')
+            round_select = f'<select onchange="setRound(\'{slug}\',this.value)" style="font-size:.78em;padding:3px 6px;border-radius:4px;background:var(--surface-2);color:var(--text);border:1px solid var(--border-strong)">' + "".join(opts) + '</select>'
+            # Card body
+            if it["computed"]:
+                odds_html = f'<div style="font-size:1.4em;font-weight:800;color:#5eead4;margin-top:8px">{it["odds_low"]}–{it["odds_high"]}%</div>'
+                tier_pill = f'<span class="pill {tier_class}">{it["tier"]}</span>'
+            else:
+                odds_html = '<div style="font-size:.88em;color:#5eead4;margin-top:8px">Compute chances →</div>'
+                tier_pill = ""
+            section_html += f'''
+<div class="school-card" style="position:relative;padding:14px">
+  <button onclick="event.preventDefault();event.stopPropagation();removeSchool('{slug}')"
+          title="Remove from My Plans"
+          style="position:absolute;top:8px;right:8px;background:transparent;border:1px solid rgba(255,255,255,.15);color:var(--text-2);width:24px;height:24px;border-radius:50%;cursor:pointer;font-size:.85em;line-height:1;padding:0;display:flex;align-items:center;justify-content:center">×</button>
+  <a href="/college/{slug}/plan" style="display:block;color:inherit;padding-right:24px">
+    <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">
+      <div>
+        <div style="font-weight:700;font-size:1.05em">{c["name"]}</div>
+        <div class="muted" style="font-size:.82em">{city_state(c)} · {round(c["accept"]*100,1)}% accept{f" · fit {it['fit']}/100" if it["fit"] else ""}</div>
+      </div>
+      <div>{tier_pill}</div>
+    </div>
+    {odds_html}
+    {match_score}
+  </a>
+  <div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center;gap:6px">
+    <span class="muted" style="font-size:.78em">Round:</span>
+    {round_select}
+  </div>
+</div>'''
+        section_html += '</div>'
+
+    # Toolbar with strategic actions (premium)
+    toolbar = '''
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 8px">
+  <a class="btn btn-primary btn-sm" href="/plans/grade">Grade my list</a>
+  <a class="btn btn-primary btn-sm" href="/plans/simulate">Simulate admissions</a>
+  <a class="btn btn-light btn-sm" href="/compare">Compare saved</a>
   <a class="btn btn-light btn-sm" href="/timeline">Timeline</a>
   <a class="btn btn-light btn-sm" href="/predictor">Score predictor</a>
-</div>"""
+</div>'''
+
     return _page(f"""
-<h1>My Plans</h1>
-<p class="muted">Schools you've saved or computed chances for. Click any card for the full personalized plan — chances, match, gaps, school-specific advice.</p>
+<h1>My colleges</h1>
+<p class="muted">Schools grouped by application round. Click a card for the personalized plan; use the round dropdown to assign or change a round; click × to remove.</p>
 {toolbar}
-<div class="grid">{cards}</div>
+{section_html}
 <p style="margin-top:18px"><a class="btn btn-light" href="/colleges">+ Add another school</a></p>
-""", title="My Plans — Candor")
+
+<script>
+async function setRound(slug, round){{
+  try {{
+    const r = await fetch(`/plans/round/${{slug}}`, {{
+      method:'POST',
+      headers:{{'Content-Type':'application/x-www-form-urlencoded'}},
+      body:'round=' + encodeURIComponent(round)
+    }});
+    if (r.ok) location.reload();
+    else alert('Could not save round assignment.');
+  }} catch(e) {{ alert('Network error'); }}
+}}
+async function removeSchool(slug){{
+  if (!confirm('Remove this school from your plans?')) return;
+  try {{
+    const r = await fetch(`/plans/remove/${{slug}}`, {{ method:'POST' }});
+    if (r.ok) location.reload();
+    else alert('Could not remove.');
+  }} catch(e) {{ alert('Network error'); }}
+}}
+</script>
+""", title="My colleges — Candor")
 
 
 # ─── CHAT (AI advisor) ────────────────────────────────────
@@ -9105,6 +9275,470 @@ def unsave_school(slug):
 @login_required
 def plans_index_page():
     return plans_index_html()
+
+
+@app.route("/plans/round/<slug>", methods=["POST"])
+@login_required
+def plans_set_round(slug):
+    """Set or clear the application round for a school in My colleges."""
+    if slug not in COLLEGES_BY_SLUG:
+        abort(404)
+    rnd = (request.form.get("round") or "").strip().upper() or None
+    if rnd and rnd not in ("ED1","ED2","EA","REA","RD"):
+        return ("invalid round", 400)
+    uid = current_user()["id"]
+    with db() as conn:
+        # Update both tables (schools may be in saved_chances, saved_schools, or both)
+        conn.execute("UPDATE saved_chances SET application_round=? WHERE user_id=? AND college_slug=?",
+                     (rnd, uid, slug))
+        conn.execute("UPDATE saved_schools SET application_round=? WHERE user_id=? AND college_slug=?",
+                     (rnd, uid, slug))
+        # If neither row existed (user is assigning a round to a never-saved school),
+        # ensure it lands in saved_schools so it shows up.
+        existing = conn.execute(
+            "SELECT 1 FROM saved_chances WHERE user_id=? AND college_slug=? "
+            "UNION SELECT 1 FROM saved_schools WHERE user_id=? AND college_slug=? LIMIT 1",
+            (uid, slug, uid, slug)
+        ).fetchone()
+        if not existing:
+            conn.execute("INSERT OR IGNORE INTO saved_schools (user_id, college_slug, application_round) VALUES (?,?,?)",
+                         (uid, slug, rnd))
+        conn.commit()
+    return ("ok", 200)
+
+
+@app.route("/plans/remove/<slug>", methods=["POST"])
+@login_required
+def plans_remove_school(slug):
+    """Remove a school from My colleges (drops from saved_schools and
+    saved_chances). Cached AI advice for it gets cleared too."""
+    if slug not in COLLEGES_BY_SLUG:
+        abort(404)
+    uid = current_user()["id"]
+    with db() as conn:
+        conn.execute("DELETE FROM saved_schools WHERE user_id=? AND college_slug=?", (uid, slug))
+        conn.execute("DELETE FROM saved_chances WHERE user_id=? AND college_slug=?", (uid, slug))
+        conn.execute("DELETE FROM tailored_advice WHERE user_id=? AND college_slug=?", (uid, slug))
+        conn.execute("DELETE FROM personalized_rounds WHERE user_id=? AND college_slug=?", (uid, slug))
+        conn.commit()
+    return ("ok", 200)
+
+
+def _gate_premium():
+    """Helper: returns a flask response if user isn't premium, else None.
+    Use at the top of premium-gated routes."""
+    user = current_user()
+    if not user.get("is_premium"):
+        return redirect("/plans")
+    return None
+
+
+def grade_user_list(uid):
+    """Score the user's college list 1-10 on:
+      - Balance: dream/reach/target/safety mix
+      - Size: 6-15 schools optimal (under 6 = thin, over 15 = unfocused)
+      - Round strategy: ED used? EAs reasonable? RD-only is suboptimal
+      - Realism: too many dreams without targets = bad
+
+    Returns dict with score, breakdown, suggestions."""
+    with db() as conn:
+        chances = conn.execute(
+            "SELECT college_slug, tier, odds_low, odds_high, application_round "
+            "FROM saved_chances WHERE user_id=?", (uid,)
+        ).fetchall()
+        saved = conn.execute(
+            "SELECT college_slug, application_round FROM saved_schools WHERE user_id=?", (uid,)
+        ).fetchall()
+    # Merge: prefer chances row when both exist
+    chance_slugs = {r["college_slug"] for r in chances}
+    items = []
+    for r in chances:
+        items.append({"slug": r["college_slug"], "tier": r["tier"],
+                      "odds": (r["odds_low"]+r["odds_high"])/2.0 if r["odds_low"] is not None else None,
+                      "round": r["application_round"]})
+    for r in saved:
+        if r["college_slug"] in chance_slugs: continue
+        items.append({"slug": r["college_slug"], "tier": None, "odds": None, "round": r["application_round"]})
+    n = len(items)
+    if n == 0:
+        return {"score": 0, "breakdown": [], "suggestions": ["Add some schools to your list first."]}
+
+    # === Balance score (out of 4) ===
+    tiers = {"Dream": 0, "Reach": 0, "Target": 0, "Safety": 0, None: 0}
+    for it in items:
+        tiers[it["tier"]] = tiers.get(it["tier"], 0) + 1
+    has_safety = tiers["Safety"] > 0
+    has_target = tiers["Target"] > 0
+    has_reach  = tiers["Reach"] > 0
+    has_dream  = tiers["Dream"] > 0
+    balance_score = 0
+    if has_safety: balance_score += 1
+    if has_target: balance_score += 1
+    if has_reach:  balance_score += 1
+    if has_dream:  balance_score += 1
+    # Penalize lopsided lists
+    if tiers["Dream"] >= n * 0.5 and n >= 4:
+        balance_score = max(0, balance_score - 1)  # too top-heavy
+
+    # === Size score (out of 2) ===
+    if 6 <= n <= 15: size_score = 2
+    elif 4 <= n <= 18: size_score = 1
+    else: size_score = 0
+
+    # === Round strategy (out of 2) ===
+    rounds = [it["round"] for it in items if it["round"]]
+    has_ed = any(r in ("ED1","ED2") for r in rounds)
+    n_ed = sum(1 for r in rounds if r in ("ED1","ED2"))
+    has_ea = any(r in ("EA","REA") for r in rounds)
+    rd_only = len(rounds) > 0 and all(r == "RD" for r in rounds)
+    round_score = 0
+    if rounds:
+        if has_ed and n_ed <= 2: round_score += 1  # used ED but not multiple ED1s (impossible anyway)
+        elif has_ed and n_ed > 2: round_score += 0  # bug: applied ED1 to multiple
+        elif has_ea: round_score += 1  # at least using EA somewhere
+        if has_ed and has_ea: round_score += 1
+        elif has_ea and not rd_only: round_score += 1
+        elif rd_only: round_score += 0
+    else:
+        # No rounds assigned yet → neutral
+        round_score = 0
+
+    # === Realism (out of 2) ===
+    # Realism penalizes dream-only lists, rewards balanced odds distribution
+    avg_odds = None
+    odds_known = [it["odds"] for it in items if it["odds"] is not None]
+    if odds_known:
+        avg_odds = sum(odds_known) / len(odds_known)
+    realism_score = 0
+    if avg_odds is not None:
+        if 25 <= avg_odds <= 50: realism_score = 2  # well-distributed
+        elif 15 <= avg_odds < 25 or 50 < avg_odds <= 70: realism_score = 1
+        elif avg_odds < 15: realism_score = 0  # all reaches
+        else: realism_score = 1
+    else:
+        realism_score = 1  # no chances run yet → neutral
+
+    raw = balance_score + size_score + round_score + realism_score  # max 10
+    score = min(10, max(1, raw))
+
+    # === Suggestions ===
+    sugs = []
+    if not has_safety:
+        sugs.append("Add at least one **safety** (acceptance > 60% AND your fit > 60). Right now you have zero — that's risky.")
+    if not has_target:
+        sugs.append("You're missing **target** schools (where odds are 25-50%). These are where most of your acceptances are likely to come from.")
+    if tiers["Dream"] >= n * 0.5 and n >= 4:
+        sugs.append(f"Your list is top-heavy: {tiers['Dream']} dream schools out of {n}. Add more targets/safeties so you're not betting everything on long shots.")
+    if not has_ed and rounds:
+        sugs.append("Consider using **Early Decision** at one school where you'd genuinely commit. ED gives a meaningful odds bump at most schools.")
+    if rd_only:
+        sugs.append("You're applying RD-only — you're leaving Early Action / Early Decision lifts on the table. EA is non-binding so there's no downside.")
+    if n < 6:
+        sugs.append(f"List is small ({n} schools). Most strong applicants apply to 8-12. Adding a couple more well-fit schools improves your overall admit probability.")
+    elif n > 15:
+        sugs.append(f"List is large ({n} schools). 8-12 is typical; over 15 spreads your essay/supplement effort thin.")
+    if not items:
+        sugs.append("No schools yet — start by browsing colleges and saving 8-12 you're interested in.")
+    if not sugs:
+        sugs.append("Solid list — strategic balance, reasonable size, and rounds make sense for your profile.")
+
+    return {
+        "score": score,
+        "n": n,
+        "tiers": {k: v for k, v in tiers.items() if k},
+        "rounds_used": dict.fromkeys(rounds, 0),
+        "breakdown": [
+            {"label": "Balance (mix of dream/reach/target/safety)", "score": balance_score, "out_of": 4},
+            {"label": "Size (6-15 optimal)",                          "score": size_score,    "out_of": 2},
+            {"label": "Round strategy (ED+EA usage)",                  "score": round_score,   "out_of": 2},
+            {"label": "Realism (avg odds in healthy range)",           "score": realism_score, "out_of": 2},
+        ],
+        "suggestions": sugs,
+        "avg_odds": round(avg_odds, 1) if avg_odds is not None else None,
+    }
+
+
+@app.route("/plans/grade")
+@login_required
+def plans_grade_page():
+    gate = _gate_premium()
+    if gate: return gate
+    uid = current_user()["id"]
+    g = grade_user_list(uid)
+    score = g["score"]
+    score_color = "#5eead4" if score >= 8 else ("#fbbf24" if score >= 5 else "#fca5a5")
+    breakdown_html = "".join(
+        f'<div style="display:flex;justify-content:space-between;padding:8px 0;border-top:1px solid var(--border)">'
+        f'<span>{b["label"]}</span><span style="font-weight:700">{b["score"]}/{b["out_of"]}</span></div>'
+        for b in g["breakdown"]
+    )
+    # Tiny inline markdown: just bold (**text**) → <b>
+    def _bold(s):
+        import re as _re
+        from html import escape as _esc
+        s = _esc(s)
+        return _re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', s)
+    sug_html = "".join(f'<li style="margin:8px 0;line-height:1.6">{_bold(s)}</li>' for s in g["suggestions"])
+    tiers_html = ""
+    if g.get("tiers"):
+        for tier_name in ["Dream","Reach","Target","Safety"]:
+            n = g["tiers"].get(tier_name, 0)
+            color = {"Dream":"#fca5a5","Reach":"#fbbf24","Target":"#5eead4","Safety":"#86efac"}[tier_name]
+            tiers_html += f'<div style="display:inline-block;margin:0 14px 6px 0"><span style="color:{color};font-weight:700;font-size:1.4em">{n}</span> <span class="muted" style="font-size:.88em">{tier_name}</span></div>'
+
+    return _page(f"""
+<div class="bar"><a href="/plans">← Back to My colleges</a></div>
+<h1>List grade</h1>
+<p class="muted">A 1-10 score on whether your list is strategically balanced, realistic, and uses application rounds well.</p>
+
+<div class="card" style="text-align:center;padding:32px">
+  <div style="font-size:5em;font-weight:800;color:{score_color};line-height:1;letter-spacing:-2px">{score}<span class="muted" style="font-size:.4em;font-weight:400">/10</span></div>
+  <div class="muted" style="margin-top:6px">{g["n"]} school{'s' if g["n"] != 1 else ''} in your list{f' · avg odds {g["avg_odds"]}%' if g.get("avg_odds") is not None else ''}</div>
+</div>
+
+<h2 style="margin-top:24px">By tier</h2>
+<div class="card">{tiers_html or '<p class="muted">No chances computed yet — run chances on at least a few schools so we can classify them.</p>'}</div>
+
+<h2 style="margin-top:24px">Score breakdown</h2>
+<div class="card">{breakdown_html}</div>
+
+<h2 style="margin-top:24px">Suggestions</h2>
+<div class="card"><ul style="padding-left:18px;margin:0">{sug_html}</ul></div>
+
+<p style="margin-top:24px"><a class="btn btn-light" href="/plans">← Back to My colleges</a> <a class="btn btn-primary" href="/plans/simulate">Run admissions simulator →</a></p>
+""", title="List grade — Candor")
+
+
+def _poisson_binomial_at_least(probs, k):
+    """P(at least k successes) when each trial i has probability probs[i].
+    Uses dynamic programming on the PMF — O(N*K) which is fine for N<50.
+    Returns float in [0,1]."""
+    if not probs:
+        return 0.0
+    # dp[j] = P(exactly j successes so far)
+    dp = [0.0] * (len(probs) + 1)
+    dp[0] = 1.0
+    for p in probs:
+        new = [0.0] * (len(probs) + 1)
+        for j in range(len(probs) + 1):
+            if dp[j] == 0: continue
+            new[j] += dp[j] * (1 - p)
+            if j + 1 <= len(probs):
+                new[j+1] += dp[j] * p
+        dp = new
+    return sum(dp[k:])
+
+
+def simulate_admissions(uid):
+    """For each school in user's list, get the round-specific personalized
+    odds. Sum to get expected admits. Compute P(>=1), P(>=3) via Poisson
+    binomial. Identify strategic suggestions for round swaps."""
+    with db() as conn:
+        chances = conn.execute(
+            "SELECT college_slug, tier, odds_low, odds_high, application_round "
+            "FROM saved_chances WHERE user_id=?", (uid,)
+        ).fetchall()
+        saved = conn.execute(
+            "SELECT college_slug, application_round FROM saved_schools WHERE user_id=?", (uid,)
+        ).fetchall()
+    chance_slugs = {r["college_slug"] for r in chances}
+    items = []
+    for r in chances:
+        items.append({
+            "slug": r["college_slug"],
+            "tier": r["tier"],
+            "odds_low": r["odds_low"], "odds_high": r["odds_high"],
+            "round": r["application_round"],
+            "computed": True,
+        })
+    for r in saved:
+        if r["college_slug"] in chance_slugs: continue
+        items.append({
+            "slug": r["college_slug"], "tier": None, "odds_low": None, "odds_high": None,
+            "round": r["application_round"], "computed": False,
+        })
+
+    profile = get_profile(uid)
+
+    # Compute the per-round adjusted odds for each school
+    sim_rows = []
+    probs = []
+    for it in items:
+        slug = it["slug"]
+        c = COLLEGES_BY_SLUG.get(slug)
+        if not c: continue
+        if not it["computed"] or it["odds_low"] is None:
+            # Skip schools where chances haven't been computed
+            sim_rows.append({**it, "name": c["name"], "p_round": None, "p_overall": None,
+                             "round_label": ROUND_DISPLAY.get(it["round"], "Round undecided")})
+            continue
+        # Use round-specific personalized odds when available
+        detail = ADMISSIONS_DETAIL.get(slug)
+        p_overall = (it["odds_low"] + it["odds_high"]) / 200.0  # midpoint as float 0-1
+        p_round = p_overall  # default if no round selected or no detail
+        if it["round"] and detail:
+            personal_rounds = personalize_round_odds(uid, c, detail, profile or {}, it["odds_low"], it["odds_high"])
+            # Map ED1 → ED for the personalized rounds dict (which uses ED key)
+            r_key = "ED" if it["round"] == "ED1" else it["round"]
+            if personal_rounds and r_key in personal_rounds:
+                p_round = personal_rounds[r_key]
+            elif personal_rounds and it["round"] in personal_rounds:
+                p_round = personal_rounds[it["round"]]
+        probs.append(p_round)
+        sim_rows.append({**it, "name": c["name"], "p_round": p_round, "p_overall": p_overall,
+                         "round_label": ROUND_DISPLAY.get(it["round"], "Round undecided")})
+
+    expected = sum(probs) if probs else 0.0
+    p_at_least_1 = 1.0 - _poisson_binomial_at_least(probs, 0) if not probs else (1.0 - _poisson_binomial_pmf_zero(probs))
+    # Compute via the dp directly:
+    p_at_least_1 = _poisson_binomial_at_least(probs, 1)
+    p_at_least_3 = _poisson_binomial_at_least(probs, 3)
+
+    return {
+        "rows": sim_rows,
+        "expected": round(expected, 2),
+        "p_at_least_1": round(p_at_least_1 * 100, 1),
+        "p_at_least_3": round(p_at_least_3 * 100, 1),
+        "n_with_round": sum(1 for r in sim_rows if r.get("round")),
+        "n_total": len([r for r in sim_rows if r["computed"]]),
+        "n_uncomputed": sum(1 for r in sim_rows if not r["computed"]),
+    }
+
+
+def _poisson_binomial_pmf_zero(probs):
+    """P(zero successes) — equivalent to product of (1-p_i)."""
+    p = 1.0
+    for x in probs: p *= (1 - x)
+    return p
+
+
+@app.route("/plans/simulate")
+@login_required
+def plans_simulate_page():
+    gate = _gate_premium()
+    if gate: return gate
+    uid = current_user()["id"]
+    sim = simulate_admissions(uid)
+
+    rows_html = ""
+    for r in sim["rows"]:
+        if not r["computed"]:
+            rows_html += f'''<tr>
+              <td>{r["name"]}</td>
+              <td class="muted">{r["round_label"]}</td>
+              <td colspan="3" class="muted" style="font-style:italic">No chances computed — <a href="/chances/{r["slug"]}">run now →</a></td>
+            </tr>'''
+            continue
+        p_round_str = f'{round(r["p_round"]*100,1)}%' if r["p_round"] is not None else "—"
+        p_overall_str = f'{round(r["p_overall"]*100,1)}%' if r["p_overall"] is not None else "—"
+        diff = ""
+        if r["p_round"] is not None and r["p_overall"] is not None and abs(r["p_round"] - r["p_overall"]) > 0.005:
+            delta = (r["p_round"] - r["p_overall"]) * 100
+            sign = "+" if delta > 0 else ""
+            color = "#5eead4" if delta > 0 else "#fca5a5"
+            diff = f' <span style="color:{color};font-size:.85em">({sign}{round(delta,1)}%)</span>'
+        round_pill = ""
+        if r["round"]:
+            rcol = "#5eead4" if r["round"] in ("ED1","ED2") else ("#7dd3fc" if r["round"] in ("EA","REA") else "#9aa6b6")
+            round_pill = f'<span style="background:rgba(94,234,212,.08);color:{rcol};padding:2px 8px;border-radius:4px;font-size:.78em;font-weight:600">{r["round_label"]}</span>'
+        else:
+            round_pill = '<span class="muted" style="font-size:.82em">undecided</span>'
+        rows_html += f'''<tr>
+          <td><b>{r["name"]}</b></td>
+          <td>{round_pill}</td>
+          <td style="font-weight:700">{p_round_str}{diff}</td>
+          <td class="muted">{p_overall_str}</td>
+          <td><a href="/college/{r["slug"]}/plan" class="muted" style="font-size:.85em">plan →</a></td>
+        </tr>'''
+
+    expected_color = "#5eead4" if sim["expected"] >= 2 else ("#fbbf24" if sim["expected"] >= 1 else "#fca5a5")
+    p1_color = "#5eead4" if sim["p_at_least_1"] >= 80 else ("#fbbf24" if sim["p_at_least_1"] >= 50 else "#fca5a5")
+
+    note = ""
+    if sim["n_uncomputed"] > 0:
+        note = f'<p class="muted" style="font-size:.88em">{sim["n_uncomputed"]} school{"" if sim["n_uncomputed"]==1 else "s"} in your list don\'t have computed chances yet. Run chances on each to include them in the simulation.</p>'
+
+    return _page(f"""
+<div class="bar"><a href="/plans">← Back to My colleges</a></div>
+<h1>Admissions simulator</h1>
+<p class="muted">Expected outcomes across your full list, using your personalized round-specific odds. Math: each school is an independent trial; we sum up your probabilities.</p>
+
+<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px">
+  <div class="card" style="text-align:center;padding:22px">
+    <div style="font-size:.78em;letter-spacing:.5px;color:#9aa6b6;text-transform:uppercase">Expected admits</div>
+    <div style="font-size:3em;font-weight:800;color:{expected_color};line-height:1;margin-top:6px;letter-spacing:-1px">{sim["expected"]}</div>
+    <div class="muted" style="font-size:.85em;margin-top:6px">out of {sim["n_total"]} school{"s" if sim["n_total"] != 1 else ""}</div>
+  </div>
+  <div class="card" style="text-align:center;padding:22px">
+    <div style="font-size:.78em;letter-spacing:.5px;color:#9aa6b6;text-transform:uppercase">P(at least 1 admit)</div>
+    <div style="font-size:3em;font-weight:800;color:{p1_color};line-height:1;margin-top:6px;letter-spacing:-1px">{sim["p_at_least_1"]}%</div>
+    <div class="muted" style="font-size:.85em;margin-top:6px">probability you get in somewhere</div>
+  </div>
+  <div class="card" style="text-align:center;padding:22px">
+    <div style="font-size:.78em;letter-spacing:.5px;color:#9aa6b6;text-transform:uppercase">P(at least 3 admits)</div>
+    <div style="font-size:3em;font-weight:800;color:#9aa6b6;line-height:1;margin-top:6px;letter-spacing:-1px">{sim["p_at_least_3"]}%</div>
+    <div class="muted" style="font-size:.85em;margin-top:6px">probability of multiple options</div>
+  </div>
+</div>
+
+<h2 style="margin-top:28px">By school</h2>
+{note}
+<div class="card" style="padding:0;overflow-x:auto">
+  <table style="width:100%;border-collapse:collapse;font-size:.92em">
+    <thead><tr style="text-align:left;border-bottom:1px solid var(--border)">
+      <th style="padding:12px">School</th>
+      <th style="padding:12px">Round</th>
+      <th style="padding:12px">Odds in this round</th>
+      <th style="padding:12px">vs overall</th>
+      <th></th>
+    </tr></thead>
+    <tbody>{rows_html}</tbody>
+  </table>
+</div>
+
+<details class="card" style="margin-top:18px">
+  <summary style="cursor:pointer;font-weight:600">How does this work?</summary>
+  <p class="muted" style="font-size:.9em;margin-top:10px;line-height:1.6">For each school you've assigned a round, we compute your personalized odds <i>specifically in that round</i> using the school's published ED:RD ratio and your profile. Then we sum those probabilities to get expected admits, and use the Poisson binomial distribution to compute the probability of N or more admits.</p>
+  <p class="muted" style="font-size:.9em;line-height:1.6"><b>Why round matters:</b> Penn ED gives roughly 2× the lift over Penn RD for an unhooked applicant; Stanford REA barely moves the needle. The simulator reflects the school-specific dynamics.</p>
+</details>
+
+<p style="margin-top:18px"><a class="btn btn-light" href="/plans">← Back</a> <a class="btn btn-primary" href="/plans/grade">See list grade →</a></p>
+""", title="Simulator — Candor")
+
+
+@app.route("/upgrade", methods=["POST", "GET"])
+@login_required
+def upgrade_to_premium():
+    """Stripe checkout entry point. Until a Candor-specific Stripe price is
+    configured, this falls through to a placeholder explaining what'll happen.
+    Set CANDOR_STRIPE_PRICE_ID env var to wire it up."""
+    price_id = os.environ.get("CANDOR_STRIPE_PRICE_ID", "").strip()
+    if not price_id:
+        return _page("""
+<h1>Premium upgrade</h1>
+<div class="card">
+  <p>Stripe checkout for Candor Premium isn't fully configured yet. The plumbing exists; we just need to point it at a Candor-specific Stripe Price.</p>
+  <p class="muted">Once the env var <code>CANDOR_STRIPE_PRICE_ID</code> is set on Railway, this page will redirect to Stripe Checkout for the $5/month subscription.</p>
+  <p style="margin-top:14px"><a class="btn btn-light" href="/plans">← Back to My colleges</a></p>
+</div>
+""", title="Upgrade — Candor")
+    # Real Stripe Checkout (only runs when env var is set)
+    try:
+        import stripe
+        stripe.api_key = os.environ.get("STRIPE_SECRET_KEY","")
+        sess = stripe.checkout.Session.create(
+            mode="subscription",
+            payment_method_types=["card"],
+            line_items=[{"price": price_id, "quantity": 1}],
+            customer_email=current_user().get("email"),
+            success_url=request.url_root.rstrip("/") + "/plans?upgraded=1",
+            cancel_url=request.url_root.rstrip("/") + "/plans",
+            metadata={"user_id": current_user()["id"]},
+        )
+        return redirect(sess.url, code=303)
+    except Exception as e:
+        flash(f"Couldn't start checkout: {e}", "error")
+        return redirect("/plans")
 
 
 @app.route("/college/<slug>/demonstrated-interest", methods=["POST"])
