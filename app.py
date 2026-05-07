@@ -4353,6 +4353,14 @@ def init_db():
             conn.execute("ALTER TABLE users ADD COLUMN premium_until TEXT")
         except sqlite3.OperationalError:
             pass
+        # Owner / founder accounts — auto-granted premium so the owner can
+        # always access premium features without going through Stripe.
+        OWNER_EMAILS = ("jasperthelazzer19@gmail.com",)
+        for email in OWNER_EMAILS:
+            try:
+                conn.execute("UPDATE users SET is_paid=1 WHERE LOWER(email)=LOWER(?)", (email,))
+            except Exception as e:
+                print(f"owner premium grant failed for {email}: {e}")
         # Federal-data overrides for each school's stats (College Scorecard).
         # Hardcoded COLLEGES values are fallback; this table takes precedence.
         conn.execute("""CREATE TABLE IF NOT EXISTS school_stats_overrides (
@@ -5421,7 +5429,8 @@ NAV = """<div class="nav"><a class="brand" href="/">""" + CANDOR_LOGO_SVG + """C
 <a href="/colleges">Browse</a>
 <a href="/rankings">Rankings</a>
 <a href="/compare">Compare</a>
-<a href="/plans">My colleges</a>
+<a href="/plans">My Colleges</a>
+<a href="/plans/grade">List Grade</a>
 <a href="/improve">Improve</a>
 <a href="/chat">AI Advisor</a>
 <span class="sp"></span>
@@ -7811,7 +7820,7 @@ def plans_index_html():
     GATED: requires premium subscription. Free users see a preview + upgrade
     CTA but cannot access the full grader/simulator/aggregated dashboard."""
     user = current_user()
-    is_premium = bool(user.get("is_premium"))
+    is_premium = bool(user.get("is_paid"))
     with db() as conn:
         chance_rows = conn.execute("""
             SELECT college_slug, tier, odds_low, odds_high, fit, confidence,
@@ -7829,7 +7838,7 @@ def plans_index_html():
 
     if not chance_rows and not saved_slugs:
         return _page("""
-<h1>My colleges</h1>
+<h1>My Colleges</h1>
 <p class="muted">Each school you've saved or computed chances for shows up here, grouped by application round, with a list grader and admissions simulator.</p>
 <div class="card" style="background:rgba(94,234,212,.06);border-color:rgba(94,234,212,.3)">
   <h3 style="margin-top:0">No plans yet</h3>
@@ -7837,13 +7846,13 @@ def plans_index_html():
   <a class="btn btn-primary" href="/colleges">Browse colleges</a>
   <a class="btn btn-light" href="/rankings/my-fit">My Fit ranking</a>
 </div>
-""", title="My colleges — Candor")
+""", title="My Colleges — Candor")
 
     # If not premium, render a gated preview with upgrade CTA
     if not is_premium:
         n_schools = len(set(saved_slugs) | {r["college_slug"] for r in chance_rows})
         return _page(f"""
-<h1>My colleges</h1>
+<h1>My Colleges</h1>
 <p class="muted">Strategic dashboard for your full college list — round assignments, list grader, and admissions simulator.</p>
 
 <div class="card" style="background:linear-gradient(135deg,#0f3a37 0%,#0a131c 100%);border:1px solid rgba(94,234,212,.3);padding:32px">
@@ -7865,7 +7874,7 @@ def plans_index_html():
 </div>
 
 <p style="margin-top:18px"><a class="btn btn-light" href="/colleges">+ Add another school</a></p>
-""", title="My colleges — Candor")
+""", title="My Colleges — Candor")
 
     profile = get_profile(user["id"])
     # Build a unified list of (slug, app_round, chance_row_or_None)
@@ -7966,7 +7975,7 @@ def plans_index_html():
 </div>'''
 
     return _page(f"""
-<h1>My colleges</h1>
+<h1>My Colleges</h1>
 <p class="muted">Schools grouped by application round. Click a card for the personalized plan; use the round dropdown to assign or change a round; click × to remove.</p>
 {toolbar}
 {section_html}
@@ -7993,7 +8002,7 @@ async function removeSchool(slug){{
   }} catch(e) {{ alert('Network error'); }}
 }}
 </script>
-""", title="My colleges — Candor")
+""", title="My Colleges — Candor")
 
 
 # ─── CHAT (AI advisor) ────────────────────────────────────
@@ -9325,10 +9334,12 @@ def plans_remove_school(slug):
 
 
 def _gate_premium():
-    """Helper: returns a flask response if user isn't premium, else None.
-    Use at the top of premium-gated routes."""
+    """Helper: returns a flask response if user isn't paid (premium), else
+    None. Premium is a single tier that unlocks: AI advisor, My colleges
+    dashboard, list grader, and admissions simulator. All gated together
+    via the existing users.is_paid column."""
     user = current_user()
-    if not user.get("is_premium"):
+    if not user.get("is_paid"):
         return redirect("/plans")
     return None
 
@@ -9704,41 +9715,6 @@ def plans_simulate_page():
 
 <p style="margin-top:18px"><a class="btn btn-light" href="/plans">← Back</a> <a class="btn btn-primary" href="/plans/grade">See list grade →</a></p>
 """, title="Simulator — Candor")
-
-
-@app.route("/upgrade", methods=["POST", "GET"])
-@login_required
-def upgrade_to_premium():
-    """Stripe checkout entry point. Until a Candor-specific Stripe price is
-    configured, this falls through to a placeholder explaining what'll happen.
-    Set CANDOR_STRIPE_PRICE_ID env var to wire it up."""
-    price_id = os.environ.get("CANDOR_STRIPE_PRICE_ID", "").strip()
-    if not price_id:
-        return _page("""
-<h1>Premium upgrade</h1>
-<div class="card">
-  <p>Stripe checkout for Candor Premium isn't fully configured yet. The plumbing exists; we just need to point it at a Candor-specific Stripe Price.</p>
-  <p class="muted">Once the env var <code>CANDOR_STRIPE_PRICE_ID</code> is set on Railway, this page will redirect to Stripe Checkout for the $5/month subscription.</p>
-  <p style="margin-top:14px"><a class="btn btn-light" href="/plans">← Back to My colleges</a></p>
-</div>
-""", title="Upgrade — Candor")
-    # Real Stripe Checkout (only runs when env var is set)
-    try:
-        import stripe
-        stripe.api_key = os.environ.get("STRIPE_SECRET_KEY","")
-        sess = stripe.checkout.Session.create(
-            mode="subscription",
-            payment_method_types=["card"],
-            line_items=[{"price": price_id, "quantity": 1}],
-            customer_email=current_user().get("email"),
-            success_url=request.url_root.rstrip("/") + "/plans?upgraded=1",
-            cancel_url=request.url_root.rstrip("/") + "/plans",
-            metadata={"user_id": current_user()["id"]},
-        )
-        return redirect(sess.url, code=303)
-    except Exception as e:
-        flash(f"Couldn't start checkout: {e}", "error")
-        return redirect("/plans")
 
 
 @app.route("/college/<slug>/demonstrated-interest", methods=["POST"])
