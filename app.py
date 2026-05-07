@@ -8925,20 +8925,26 @@ def _rate_limit_scrapers():
         p.startswith("/college/") or p.startswith("/chances/") or p.startswith("/api/")
     ):
         return ("Forbidden.", 403)
-    # IP rate limit on college pages (the surface scrapers usually walk).
-    # 5-min window catches slower scrapers that pace themselves to dodge a
-    # 60s window. Real users browsing 50 schools in 5 minutes is rare; most
-    # scrolling 5-10 in that time. Threshold of 60 keeps real usage clean.
+    # Slug-diversity rate limit on college pages. Real users browse
+    # 3-8 different schools when researching; scrapers walk through 30+.
+    # Counting *unique* slugs over 5 minutes (not total requests) avoids
+    # blocking a human refreshing one school's page repeatedly while
+    # catching scrapers walking the alphabet.
     if p.startswith("/college/"):
         from collections import deque
-        ip = request.headers.get("X-Forwarded-For", request.remote_addr or "?").split(",")[0].strip()
-        now = time.time()
-        dq = _COLLEGE_RATE.setdefault(ip, deque())
-        while dq and now - dq[0] > 300:  # 5 min
-            dq.popleft()
-        if len(dq) > 60:
-            return ("Too many requests. Slow down.", 429)
-        dq.append(now)
+        # Extract slug from "/college/<slug>" or "/college/<slug>/sub"
+        parts = p.split("/")
+        slug = parts[2] if len(parts) > 2 else ""
+        if slug:
+            ip = request.headers.get("X-Forwarded-For", request.remote_addr or "?").split(",")[0].strip()
+            now = time.time()
+            dq = _COLLEGE_RATE.setdefault(ip, deque())
+            while dq and now - dq[0][0] > 300:  # 5-min window
+                dq.popleft()
+            dq.append((now, slug))
+            unique_slugs = len({s for _, s in dq})
+            if unique_slugs > 15:
+                return ("Too many requests. Slow down.", 429)
 
 
 @app.route("/robots.txt")
@@ -9677,7 +9683,7 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
         }})
         .catch(() => {{}});
     }}
-    function schedule(){{ clearTimeout(timer); timer = setTimeout(fetchOdds, 200); }}
+    function schedule(){{ clearTimeout(timer); timer = setTimeout(fetchOdds, 400); }}
 
     slug.addEventListener('change', schedule);
     gpa.addEventListener('input', () => {{ gpaOut.textContent = parseFloat(gpa.value).toFixed(2); schedule(); }});
@@ -9871,7 +9877,9 @@ def api_demo_odds():
     dq = _DEMO_RATE.setdefault(ip, deque())
     while dq and now - dq[0] > 60:
         dq.popleft()
-    if len(dq) > 30:
+    # Bump high — real users dragging the slider can fire 50+ requests in
+    # a few seconds. 200/min still cheap to compute and stops actual abuse.
+    if len(dq) > 200:
         return jsonify({"error":"slow down"}), 429
     dq.append(now)
     slug = (request.args.get("slug") or "").strip().lower()
