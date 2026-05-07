@@ -9715,6 +9715,7 @@ def plans_simulate_page():
     likely = []   # p >= 0.50
     tossup = []   # 0.20 <= p < 0.50
     longshot = [] # p < 0.20
+    sim_school_data = []  # JSON-able list for the JS Monte Carlo simulator
     for r in sim["rows"]:
         if not r["computed"] or r["p_round"] is None: continue
         p = r["p_round"]
@@ -9722,6 +9723,10 @@ def plans_simulate_page():
         if p >= 0.50: likely.append(item)
         elif p >= 0.20: tossup.append(item)
         else: longshot.append(item)
+        sim_school_data.append({
+            "name": r["name"], "slug": r["slug"], "p": round(p, 4),
+            "round": r.get("round_label","") or "Round undecided",
+        })
     likely.sort(key=lambda x: -x[2])
     tossup.sort(key=lambda x: -x[2])
     longshot.sort(key=lambda x: -x[2])
@@ -9808,6 +9813,136 @@ def plans_simulate_page():
     <div class="muted" style="font-size:.85em;margin-top:6px">probability of multiple options</div>
   </div>
 </div>
+
+<h2 style="margin-top:28px">Run a simulation</h2>
+<p class="muted" style="font-size:.92em">Roll the dice on a single admissions cycle — each school flipped against your real odds. Click again for a different outcome (it'll be different every time, because admissions has variance).</p>
+<div class="card" id="sim-card" style="padding:24px">
+  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px">
+    <button id="sim-btn" class="btn btn-primary">🎲 Simulate this cycle</button>
+    <button id="sim-1k-btn" class="btn btn-light btn-sm">Run 1,000 simulations</button>
+    <span id="sim-counter" class="muted" style="font-size:.85em"></span>
+  </div>
+  <div id="sim-summary" style="display:none;padding:14px 16px;background:rgba(94,234,212,.06);border:1px solid rgba(94,234,212,.25);border-radius:6px;margin-bottom:14px">
+    <div style="font-weight:600;font-size:1.1em" id="sim-headline">—</div>
+    <div class="muted" id="sim-subhead" style="font-size:.88em;margin-top:4px"></div>
+  </div>
+  <div id="sim-results" style="display:none"></div>
+  <div id="sim-1k-results" style="display:none"></div>
+  <div id="sim-empty" class="muted" style="font-size:.9em">Click "Simulate this cycle" to see one possible outcome based on your real odds.</div>
+</div>
+<script id="sim-data" type="application/json">{json.dumps(sim_school_data)}</script>
+<script>
+(function(){{
+  const data = JSON.parse(document.getElementById('sim-data').textContent || '[]');
+  const card = document.getElementById('sim-card');
+  const btn = document.getElementById('sim-btn');
+  const btn1k = document.getElementById('sim-1k-btn');
+  const counter = document.getElementById('sim-counter');
+  const empty = document.getElementById('sim-empty');
+  const summary = document.getElementById('sim-summary');
+  const headline = document.getElementById('sim-headline');
+  const subhead = document.getElementById('sim-subhead');
+  const results = document.getElementById('sim-results');
+  const results1k = document.getElementById('sim-1k-results');
+  let runs = 0;
+
+  function flip(p){{ return Math.random() < p; }}
+
+  function singleRun(){{
+    if (!data.length) {{
+      alert('Run chances on a few schools first to populate the simulator.');
+      return;
+    }}
+    const draws = data.map(s => ({{ ...s, admitted: flip(s.p) }}));
+    const admits = draws.filter(d => d.admitted);
+    const rejects = draws.filter(d => !d.admitted);
+    runs++;
+    counter.textContent = `Run #${{runs}}`;
+    empty.style.display = 'none';
+    results1k.style.display = 'none';
+    summary.style.display = 'block';
+    if (admits.length === 0) {{
+      headline.innerHTML = '😬 Zero admits this cycle';
+      subhead.textContent = 'Statistically possible but unlucky. Try again — most cycles you do get in somewhere.';
+    }} else if (admits.length === draws.length) {{
+      headline.innerHTML = `🔥 Admitted to all ${{admits.length}}!`;
+      subhead.textContent = 'Extremely lucky run. Real outcomes are usually noisier.';
+    }} else {{
+      headline.innerHTML = `Admitted to <b style="color:#5eead4">${{admits.length}}</b> of ${{draws.length}}`;
+      subhead.textContent = `${{rejects.length}} rejection${{rejects.length===1?'':'s'}} this cycle. Click again for a different outcome.`;
+    }}
+    let body = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:8px">';
+    // Sort: admits first (by probability desc), then rejects (by probability desc)
+    draws.sort((a,b) => (b.admitted - a.admitted) || (b.p - a.p));
+    for (const d of draws){{
+      const stamp = d.admitted
+        ? '<span style="background:rgba(94,234,212,.18);color:#5eead4;font-size:.74em;font-weight:700;letter-spacing:.5px;padding:3px 9px;border-radius:4px">ADMITTED</span>'
+        : '<span style="background:rgba(252,165,165,.12);color:#fca5a5;font-size:.74em;font-weight:700;letter-spacing:.5px;padding:3px 9px;border-radius:4px">REJECTED</span>';
+      body += `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px;background:${{d.admitted?'rgba(94,234,212,.04)':'transparent'}};border:1px solid var(--border);border-radius:5px">
+        <div><a href="/college/${{d.slug}}" style="color:inherit;font-weight:600">${{d.name}}</a><div class="muted" style="font-size:.78em">${{d.round}} · ${{(d.p*100).toFixed(1)}}% odds</div></div>
+        <div>${{stamp}}</div>
+      </div>`;
+    }}
+    body += '</div>';
+    results.innerHTML = body;
+    results.style.display = 'block';
+  }}
+
+  function thousandRun(){{
+    if (!data.length) {{
+      alert('Run chances on a few schools first to populate the simulator.');
+      return;
+    }}
+    const N = 1000;
+    // Track admit count per school + distribution of total admits
+    const admitCount = data.map(_=>0);
+    const totalDist = new Array(data.length+1).fill(0);
+    for (let i=0;i<N;i++){{
+      let total = 0;
+      for (let j=0;j<data.length;j++){{
+        if (flip(data[j].p)) {{ admitCount[j]++; total++; }}
+      }}
+      totalDist[total]++;
+    }}
+    runs += N;
+    counter.textContent = `Ran ${{N.toLocaleString()}} simulations · total runs: ${{runs}}`;
+    empty.style.display = 'none';
+    results.style.display = 'none';
+    summary.style.display = 'block';
+    // Stats
+    const median = (() => {{
+      let cum = 0; for (let k=0;k<totalDist.length;k++){{ cum += totalDist[k]; if (cum >= N/2) return k; }} return 0;
+    }})();
+    const p10 = (() => {{
+      let cum=0; for (let k=0;k<totalDist.length;k++){{ cum += totalDist[k]; if (cum >= N*0.1) return k; }} return 0;
+    }})();
+    const p90 = (() => {{
+      let cum=0; for (let k=0;k<totalDist.length;k++){{ cum += totalDist[k]; if (cum >= N*0.9) return k; }} return 0;
+    }})();
+    const zeroAdmits = totalDist[0];
+    headline.innerHTML = `Across ${{N.toLocaleString()}} runs: median <b style="color:#5eead4">${{median}}</b> admit${{median===1?'':'s'}}`;
+    subhead.innerHTML = `80% range: ${{p10}}-${{p90}} admits · ${{zeroAdmits}} runs (${{(zeroAdmits/N*100).toFixed(1)}}%) had zero admits`;
+    // Per-school breakdown
+    let body = '<div style="margin-top:10px"><div class="muted" style="font-size:.85em;margin-bottom:6px">Admit rate per school across the 1,000 runs (should match your underlying odds — sanity check):</div>';
+    body += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:6px">';
+    const ranked = data.map((s,i)=>({{...s, hits: admitCount[i], rate: admitCount[i]/N}})).sort((a,b)=>b.rate-a.rate);
+    for (const s of ranked){{
+      const pct = (s.rate*100).toFixed(1);
+      const fillW = (s.rate*100).toFixed(1);
+      body += `<div style="padding:6px 10px">
+        <div style="display:flex;justify-content:space-between;font-size:.85em"><span>${{s.name}}</span><span style="font-weight:600">${{pct}}%</span></div>
+        <div style="height:5px;background:var(--surface-2);border-radius:3px;margin-top:3px;overflow:hidden"><div style="height:100%;width:${{fillW}}%;background:#5eead4"></div></div>
+      </div>`;
+    }}
+    body += '</div></div>';
+    results1k.innerHTML = body;
+    results1k.style.display = 'block';
+  }}
+
+  if (btn) btn.addEventListener('click', singleRun);
+  if (btn1k) btn1k.addEventListener('click', thousandRun);
+}})();
+</script>
 
 <h2 style="margin-top:28px">Where you'll likely land</h2>
 <p class="muted" style="font-size:.92em">Schools grouped by your individual odds. The most-likely scenario: you get into the green ones.</p>
