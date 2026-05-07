@@ -7889,15 +7889,31 @@ def school_plan_html(slug):
     # 4) School-specific notes (curated values + essay strategy)
     note = get_school_strategy(school)
 
+    # Sub-school detection — when user's major matches a curated sub-school
+    # at this university, surface that prominently. Otherwise odds are
+    # confusingly anchored on a different number than the school overall.
+    sub_match = sub_school_for_major(slug, profile.get("major") or prof.get("major") or "")
+    sub_school_html = ""
+    header_accept = round(school['accept']*100, 1)
+    if sub_match:
+        sub_pct = round(sub_match["accept"]*100, 1)
+        sub_school_html = f'''
+<div class="card" style="margin-top:14px;background:rgba(94,234,212,.06);border:1px solid rgba(94,234,212,.3);padding:14px 18px">
+  <div style="font-size:.78em;letter-spacing:.6px;color:var(--teal);text-transform:uppercase;font-weight:600">You're applying to a specific college within {school["name"]}</div>
+  <div style="font-size:1.2em;font-weight:700;margin-top:4px">{sub_match["name"]}</div>
+  <div class="muted" style="font-size:.88em;margin-top:4px">Admit rate <b style="color:var(--teal)">{sub_pct}%</b> for this college specifically (vs {header_accept}% university-wide). {school["name"]}'s overall acceptance number doesn't apply to {sub_match["name"]} applicants — your odds below are computed against the {sub_pct}% rate.</div>
+  {f'<div class="muted" style="font-size:.82em;margin-top:6px;font-style:italic">{sub_match["note"]}</div>' if sub_match.get("note") else ""}
+</div>'''
+
     return _page(f"""
 <div class="bar"><a href="/college/{slug}">&larr; back to {school['name']}</a></div>
 <h1>Your plan for {school['name']}</h1>
-<div class="muted">{city_state(school)} · {round(school['accept']*100,1)}% acceptance · {school['type']}</div>
-
+<div class="muted">{city_state(school)} · {header_accept}% acceptance · {school['type']}</div>
+{sub_school_html}
 <div class="card" style="margin-top:18px;background:#1a1a1a;color:#fff;border-color:#1a1a1a">
   <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
     <div>
-      <h3 style="margin:0;color:#fff">Your chances</h3>
+      <h3 style="margin:0;color:#fff">Your chances{f' at {sub_match["name"].split("(")[0].strip()}' if sub_match else ''}</h3>
       <div class="muted" style="color:#bdbdbd;font-size:.82em">profile fit {r['fit']}/100</div>
     </div>
     <div><span class="pill {tier_class}">{r['tier']}</span> <span class="pill {conf_class}" style="margin-left:4px" title="{conf_tooltip}">{r['confidence']} confidence</span></div>
