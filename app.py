@@ -9265,25 +9265,6 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
   </section>
 
   <section class="section reveal">
-    <h2>The problem with every other tool</h2>
-    <p class="sub">A real example. Most calculators were showing Cornell's SAT mid-50% as a number that wasn't even close to right.</p>
-    <div class="problem-card">
-      <p class="quote">One popular calculator showed <strong>Cornell's SAT mid-50% as 1120-1285</strong>. The actual 2024-25 number? <strong>1510-1560.</strong> The tool was matching the wrong school entirely (Cornell College in Iowa, not Cornell University).</p>
-      <div class="vs">
-        <div class="col wrong">
-          <div class="label">What the calculator showed</div>
-          <div class="num">1120-1285</div>
-        </div>
-        <div class="col right">
-          <div class="label">Cornell's actual CDS</div>
-          <div class="num">1510-1560</div>
-        </div>
-      </div>
-      <p style="color:#9aa6b6; font-size:.95em; margin:24px 0 0; line-height:1.6">Half the tools online are using federal data that lags 1-2 cycles, AI-generated stats that change every refresh, or model assumptions that haven't been updated since 2018. Candor pulls actual Common Data Set PDFs by hand.</p>
-    </div>
-  </section>
-
-  <section class="section reveal">
     <h2>What's different</h2>
     <p class="sub">No vibes-based admissions math. Every number has a source.</p>
     <div class="features-grid">
