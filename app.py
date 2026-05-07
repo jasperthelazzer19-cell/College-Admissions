@@ -1552,6 +1552,56 @@ SUB_SCHOOL_RATES = {
 SUB_SCHOOL_RATES = {k: v for k, v in SUB_SCHOOL_RATES.items() if v}
 
 
+def median_earnings_10yr(school):
+    """Return federal-data median earnings 10 years post-entry, or None.
+    Pulled from College Scorecard / IPEDS via the overrides table."""
+    over = _get_overrides(school["slug"])
+    if over and over.get("median_earnings_10yr"):
+        return int(over["median_earnings_10yr"])
+    return None
+
+
+def cost_attendance(school):
+    """Return Scorecard's reported cost of attendance (academic year), or
+    fall back to the hardcoded tuition + a rough room/board adder."""
+    over = _get_overrides(school["slug"])
+    if over and over.get("cost_attendance"):
+        return int(over["cost_attendance"])
+    # Fallback estimate: tuition + ~$15K room/board for residential schools
+    return (school.get("tuition", 0) or 0) + 15000
+
+
+def earnings_to_cost_ratio(school):
+    """Cost-to-earnings ratio: how many years of post-grad median earnings
+    cover 4 years of attendance. Lower is better. Returns float or None."""
+    earn = median_earnings_10yr(school)
+    cost = cost_attendance(school)
+    if not earn or not cost:
+        return None
+    four_year_cost = cost * 4
+    return four_year_cost / earn  # years of earnings to cover
+
+
+def _render_earnings_card(school):
+    """College detail page card showing 10-yr median earnings + cost/earnings
+    ratio. Returns empty string if Scorecard hasn't populated yet."""
+    earn = median_earnings_10yr(school)
+    if not earn:
+        return ""
+    cost = cost_attendance(school)
+    ratio = earnings_to_cost_ratio(school)
+    ratio_str = ""
+    if ratio:
+        ratio_color = "#5eead4" if ratio < 2.0 else ("#fbbf24" if ratio < 3.5 else "#fca5a5")
+        ratio_str = f'<div class="muted" style="font-size:.82em;margin-top:4px">≈ <b style="color:{ratio_color}">{ratio:.1f} years</b> of post-grad earnings cover 4 yrs of attendance</div>'
+    return f'''<div class="card">
+  <h3 style="margin-top:0">Median earnings (10-yr)</h3>
+  <div class="odds" style="color:#2b6cff">${earn//1000}K</div>
+  <div class="muted" style="font-size:.82em">Federal data — 10 yrs after college entry, all majors combined</div>
+  {ratio_str}
+</div>'''
+
+
 def _render_sub_school_block(slug, highlight_keywords=None):
     """Display the per-college sub-school accept rates on the school detail
     page. If highlight_keywords is provided (typically the user's major),
@@ -2045,7 +2095,8 @@ def _get_overrides(slug):
     try:
         with db() as conn:
             row = conn.execute(
-                "SELECT accept, sat_25, sat_75, act_25, act_75, size, tuition, sf_ratio, source, verified_at "
+                "SELECT accept, sat_25, sat_75, act_25, act_75, size, tuition, sf_ratio, "
+                "median_earnings_10yr, cost_attendance, source, verified_at "
                 "FROM school_stats_overrides WHERE college_slug=?",
                 (slug,)
             ).fetchone()
@@ -2471,6 +2522,8 @@ def fetch_scorecard(c):
         "latest.student.size",
         "latest.cost.tuition.in_state",
         "latest.cost.tuition.out_of_state",
+        "latest.cost.attendance.academic_year",
+        "latest.earnings.10_yrs_after_entry.median",
         "latest.student.demographics.student_faculty_ratio",
     ])
     try:
@@ -2511,6 +2564,8 @@ def fetch_scorecard(c):
         tuition_is  = row.get("latest.cost.tuition.in_state")
         tuition = tuition_is if c["type"] == "public" else tuition_oos
         sf = row.get("latest.student.demographics.student_faculty_ratio")
+        earnings_10yr = row.get("latest.earnings.10_yrs_after_entry.median")
+        cost_attend = row.get("latest.cost.attendance.academic_year")
         return {
             "accept": accept,
             "sat_25": int(sat_25) if sat_25 else None,
@@ -2520,6 +2575,8 @@ def fetch_scorecard(c):
             "size": int(size) if size else None,
             "tuition": int(tuition) if tuition else None,
             "sf_ratio": int(round(sf)) if sf else None,
+            "median_earnings_10yr": int(earnings_10yr) if earnings_10yr else None,
+            "cost_attendance": int(cost_attend) if cost_attend else None,
             "source": "College Scorecard (IPEDS)",
         }
     except Exception as e:
@@ -2535,18 +2592,23 @@ def update_scorecard_overrides(c):
         return False
     with db() as conn:
         conn.execute("""INSERT INTO school_stats_overrides
-            (college_slug, accept, sat_25, sat_75, act_25, act_75, size, tuition, sf_ratio, source, verified_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            (college_slug, accept, sat_25, sat_75, act_25, act_75, size, tuition, sf_ratio,
+             median_earnings_10yr, cost_attendance, source, verified_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
             ON CONFLICT(college_slug) DO UPDATE SET
                 accept=excluded.accept,
                 sat_25=excluded.sat_25, sat_75=excluded.sat_75,
                 act_25=excluded.act_25, act_75=excluded.act_75,
                 size=excluded.size, tuition=excluded.tuition,
                 sf_ratio=excluded.sf_ratio,
+                median_earnings_10yr=excluded.median_earnings_10yr,
+                cost_attendance=excluded.cost_attendance,
                 source=excluded.source, verified_at=CURRENT_TIMESTAMP""",
             (c["slug"], data["accept"], data["sat_25"], data["sat_75"],
              data["act_25"], data["act_75"], data["size"], data["tuition"],
-             data["sf_ratio"], data["source"]))
+             data["sf_ratio"],
+             data.get("median_earnings_10yr"), data.get("cost_attendance"),
+             data["source"]))
         conn.commit()
     _overrides_cache.pop(c["slug"], None)
     return True
@@ -3097,6 +3159,18 @@ RANKINGS = [
         "title": "Best Value (Strong Outcomes, Low Cost)",
         "blurb": "Strong academics under ~$25K sticker. State flagships dominate; in-state students get the best deal.",
         "order": ["uf","unc","gatech","wm","ucb","ucla","umich","uva","wisc","ut-austin","umd","uw","uiuc","fsu","sdsu","calpoly-slo","clemson","uga","penn-state","vt","stony-brook","binghamton","udel","msu","ohio-state","sc","alabama","auburn","tamu","lsu","sjsu","csulb","gmu","temple","unh","uvm","iowa-state","uiowa","unl","ku","missou","umn","cu-boulder","utah","arizona","asu"],
+    },
+    {
+        "slug": "best-earnings",
+        "title": "Highest Post-Grad Earnings",
+        "blurb": "Median earnings 10 years after college entry, from federal Scorecard data. Engineering/CS-heavy and finance-pipeline schools dominate. Note: this is overall median across all majors — engineering grads from any school will earn more than humanities grads from the same school.",
+        "computed": True,  # populated dynamically from Scorecard data
+    },
+    {
+        "slug": "best-roi",
+        "title": "Best ROI (Earnings vs Cost)",
+        "blurb": "Schools where post-grad earnings cover 4 years of attendance fastest. Lower years-to-payback = better value. State flagships and engineering schools tend to dominate. Federal Scorecard earnings + cost-of-attendance.",
+        "computed": True,
     },
 ]
 
@@ -4359,6 +4433,14 @@ def init_db():
         for col in ("gpa_freshman", "gpa_sophomore", "gpa_junior", "gpa_senior"):
             try:
                 conn.execute(f"ALTER TABLE profiles ADD COLUMN {col} REAL")
+            except sqlite3.OperationalError:
+                pass
+        # Median earnings 10 years post-entry + cost-of-attendance, both
+        # from College Scorecard (federal IPEDS data). Used to compute a
+        # rough ROI proxy and surface earnings on each college page.
+        for col in ("median_earnings_10yr", "cost_attendance"):
+            try:
+                conn.execute(f"ALTER TABLE school_stats_overrides ADD COLUMN {col} INTEGER")
             except sqlite3.OperationalError:
                 pass
         # SAT/ACT subscores (optional). Used as context for AI advice — a
@@ -5720,6 +5802,7 @@ def college_detail_html(slug):
     <div class="odds" style="font-size:{('1.4em' if is_test_blind(c) else 'inherit')}">{('Test-blind' if is_test_blind(c) else f"{c['act_25']}–{c['act_75']}")}</div>
     <div class="muted" style="font-size:.82em">{('does not consider SAT/ACT' if is_test_blind(c) else 'middle 50% admitted ACT score')}</div>
   </div>
+  {_render_earnings_card(c)}
 </div>
 {render_school_feeders(c)}
 {_match_card(c)}
@@ -5834,6 +5917,9 @@ def _ranking_table(rows_data, show_stars=False):
 def ranking_detail_html(slug):
     r = RANKINGS_BY_SLUG.get(slug)
     if not r: abort(404)
+    # Computed rankings — sorted dynamically from Scorecard data
+    if r.get("computed"):
+        return _ranking_detail_computed_html(r)
     order = expanded_ranking_order(slug, target=75)
     rows_data = []
     for i, s in enumerate(order):
@@ -5846,6 +5932,72 @@ def ranking_detail_html(slug):
         note = f'<p class="muted" style="font-size:.85em">Sorted by selectivity. {len(rows_data)} schools tagged with this attribute.</p>'
     elif len(rows_data) > 20:
         note = '<p class="muted" style="font-size:.85em">Top entries are curated; the rest are auto-extended by selectivity.</p>'
+    return _page(f"""
+{RANKING_TABLE_CSS}
+<div class="bar"><a href="/rankings">&larr; all rankings</a></div>
+<h1>{r['title']}</h1>
+<p class="muted">{r['blurb']}</p>
+{note}
+{table}
+""", title=f"{r['title']} — Candor")
+
+
+def _ranking_detail_computed_html(r):
+    """Render best-earnings or best-roi rankings, sorted dynamically from
+    Scorecard's median-earnings and cost-of-attendance fields."""
+    rows = []
+    for c in COLLEGES:
+        merged = merged_school(c)
+        earn = median_earnings_10yr(merged)
+        if not earn: continue
+        cost = cost_attendance(merged)
+        ratio = earnings_to_cost_ratio(merged)
+        rows.append({
+            "school": merged,
+            "earn": earn,
+            "cost": cost,
+            "ratio": ratio,
+        })
+    if r["slug"] == "best-earnings":
+        rows.sort(key=lambda x: -x["earn"])
+        metric_label = "10-yr earnings"
+    else:  # best-roi
+        rows = [x for x in rows if x.get("ratio")]
+        rows.sort(key=lambda x: x["ratio"])
+        metric_label = "Years to payback"
+    rows = rows[:75]
+
+    head = f'''<table class="rank-table">
+      <thead><tr>
+        <th>#</th><th>School</th><th class="hide-sm">Location</th>
+        <th>{metric_label}</th>
+        <th class="hide-sm">10-yr earnings</th>
+        <th class="hide-sm">4-yr cost</th>
+        <th class="hide-sm">Type</th>
+        <th></th>
+      </tr></thead><tbody>'''
+    body = ""
+    for i, x in enumerate(rows):
+        c = x["school"]
+        loc = city_state(c)
+        if r["slug"] == "best-earnings":
+            metric_val = f"${x['earn']//1000}K"
+        else:
+            metric_val = f"{x['ratio']:.1f} yrs"
+        type_pill = f'<span class="pill pill-{c["type"]}" style="font-size:.65em">{c["type"]}</span>'
+        four_yr_cost = (x["cost"] or 0) * 4
+        body += f'''<tr>
+          <td class="rank-num">#{i+1}</td>
+          <td class="name"><a href="/college/{c['slug']}">{c['name']}</a></td>
+          <td class="hide-sm num-col">{loc}</td>
+          <td class="num-col"><b>{metric_val}</b></td>
+          <td class="hide-sm num-col">${x['earn']//1000}K</td>
+          <td class="hide-sm num-col">${four_yr_cost//1000}K</td>
+          <td class="hide-sm">{type_pill}</td>
+          <td><a class="btn btn-light btn-sm" href="/college/{c['slug']}">View</a></td>
+        </tr>'''
+    table = head + body + "</tbody></table>"
+    note = f'<p class="muted" style="font-size:.85em">Showing top {len(rows)} schools where Scorecard has populated earnings + cost data. Schools without federal earnings data (newer or smaller institutions) won\'t appear here.</p>'
     return _page(f"""
 {RANKING_TABLE_CSS}
 <div class="bar"><a href="/rankings">&larr; all rankings</a></div>
