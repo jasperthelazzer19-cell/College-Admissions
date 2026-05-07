@@ -9304,20 +9304,24 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
   .reveal { opacity:0; transform:translateY(16px); transition:opacity .7s ease, transform .7s ease; }
   .reveal.in { opacity:1; transform:translateY(0); }
 
-  /* Two-column hero: demo + marketing text on left, logo wall on right. */
+  /* Two-column hero: text + demo on left (narrower), big orbit on right. */
   .hero.hero-grid {
     display:grid;
-    grid-template-columns: minmax(0, 580px) minmax(0, 1fr);
-    gap:48px;
-    align-items:start;
+    grid-template-columns: minmax(0, 480px) minmax(0, 1fr);
+    gap:40px;
+    align-items:center;
     max-width:none;
   }
-  .hero.hero-grid .hero-text { max-width:580px; display:flex; flex-direction:column; gap:20px; }
-  .hero.hero-grid .hero-text-below { margin-top:8px; }
-  .hero.hero-grid h1 { font-size:clamp(1.9em, 3.4vw, 2.5em); margin:14px 0 14px; }
-  .hero.hero-grid p.lede { font-size:1em; margin-bottom:20px; }
-  .hero.hero-grid .stats { margin-top:22px; gap:22px; }
-  .hero.hero-grid .stats .stat .num { font-size:1.4em; }
+  .hero.hero-grid .hero-text { max-width:480px; display:flex; flex-direction:column; gap:14px; }
+  .hero.hero-grid .hero-text-above { display:flex; flex-direction:column; gap:10px; margin-bottom:6px; }
+  .hero.hero-grid h1 { font-size:clamp(1.6em, 2.8vw, 2.1em); margin:8px 0 4px; line-height:1.1; }
+  .hero.hero-grid p.lede { font-size:.96em; margin:0 0 12px; line-height:1.5; }
+  .hero.hero-grid .stats { margin-top:8px; gap:20px; }
+  .hero.hero-grid .stats .stat { font-size:.8em; }
+  .hero.hero-grid .stats .stat .num { font-size:1.3em; }
+  .hero.hero-grid .cta-row { gap:10px; margin:4px 0; }
+  .hero.hero-grid .cta-row a { padding:10px 18px; font-size:.92em; }
+  .hero.hero-grid .eyebrow { margin-bottom:0; padding:4px 10px; font-size:.72em; }
   @media (max-width:980px) {
     .hero.hero-grid { grid-template-columns:1fr; gap:36px; }
     .hero.hero-grid .hero-text { max-width:none; }
@@ -9343,20 +9347,21 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
      @property/custom-prop interpolation, which has spotty support. */
   .logo-orbit {
     position:relative; width:100%; aspect-ratio:1/1;
-    max-width:540px; margin:0 auto;
+    max-width:720px; margin:0 auto;
+    --orbit-radius: -300px;
   }
   .orbit-center {
     position:absolute; top:50%; left:50%;
     transform:translate(-50%, -50%);
-    width:120px; height:120px;
+    width:160px; height:160px;
     display:flex; align-items:center; justify-content:center;
     background:rgba(94,234,212,.06);
     border:1px solid rgba(94,234,212,.32);
     border-radius:50%;
     z-index:2;
-    box-shadow:0 0 60px rgba(94,234,212,.16), inset 0 0 28px rgba(94,234,212,.05);
+    box-shadow:0 0 80px rgba(94,234,212,.18), inset 0 0 36px rgba(94,234,212,.05);
   }
-  .orbit-center svg { width:64px; height:64px; }
+  .orbit-center svg { width:88px; height:88px; }
   .orbit-ring {
     position:absolute; inset:0;
     animation:orbit-spin 80s linear infinite;
@@ -9565,6 +9570,20 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
 <main class="lp-wrap">
   <section class="hero hero-grid">
    <div class="hero-text">
+    <div class="hero-text-above">
+      <div class="eyebrow">Built by a high school junior · {school_count}+ schools</div>
+      <h1>The college admissions calculator that uses <span class="accent">real data</span>, not guesses.</h1>
+      <p class="lede">Most chances calculators tell everyone they have a 25-30% shot at every T20. Stanford accepts 3.6%. The math doesn't work. Candor uses verified Common Data Set figures from {cds_count}+ schools and odds calibrated to be honest, not optimistic.</p>
+      <div class="cta-row">
+        <a href="/signup" class="primary">Get your chances →</a>
+        <a href="/colleges" class="secondary">Browse schools</a>
+      </div>
+      <div class="stats">
+        <div class="stat"><span class="num">100+</span>active users</div>
+        <div class="stat"><span class="num">{cds_count}</span>CDS-verified schools</div>
+        <div class="stat"><span class="num"><span class="accent">{activation_pct}%</span></span>complete their profile</div>
+      </div>
+    </div>
     <div class="demo-eyebrow">Try it · no signup needed</div>
     <div class="demo-card">
       <div class="demo-controls">
@@ -9615,20 +9634,6 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
         </div>
         <div class="demo-context" id="demo-context">School mid-50%: —</div>
         <a href="/signup" class="demo-cta">Sign up free to run this on your full profile →</a>
-      </div>
-    </div>
-    <div class="hero-text-below">
-      <div class="eyebrow">Built by a high school junior · {school_count}+ schools</div>
-      <h1>The college admissions calculator that uses <span class="accent">real data</span>, not guesses.</h1>
-      <p class="lede">Most chances calculators tell everyone they have a 25-30% shot at every T20. Stanford accepts 3.6%. The math doesn't work. Candor uses verified Common Data Set figures from {cds_count}+ schools and odds calibrated to be honest, not optimistic.</p>
-      <div class="cta-row">
-        <a href="/signup" class="primary">Get your chances →</a>
-        <a href="/colleges" class="secondary">Browse schools</a>
-      </div>
-      <div class="stats">
-        <div class="stat"><span class="num">100+</span>active users</div>
-        <div class="stat"><span class="num">{cds_count}</span>CDS-verified schools</div>
-        <div class="stat"><span class="num"><span class="accent">{activation_pct}%</span></span>complete their profile</div>
       </div>
     </div>
    </div>
