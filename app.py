@@ -7982,24 +7982,42 @@ def plans_index_html():
 <p style="margin-top:18px"><a class="btn btn-light" href="/colleges">+ Add another school</a></p>
 
 <script>
+function _csrfToken(){{
+  const el = document.querySelector('meta[name="csrf-token"]');
+  return el ? el.getAttribute('content') : '';
+}}
 async function setRound(slug, round){{
   try {{
+    const tok = _csrfToken();
     const r = await fetch(`/plans/round/${{slug}}`, {{
       method:'POST',
-      headers:{{'Content-Type':'application/x-www-form-urlencoded'}},
-      body:'round=' + encodeURIComponent(round)
+      headers:{{'Content-Type':'application/x-www-form-urlencoded', 'X-CSRFToken': tok}},
+      body:'round=' + encodeURIComponent(round) + '&csrf_token=' + encodeURIComponent(tok)
     }});
     if (r.ok) location.reload();
-    else alert('Could not save round assignment.');
-  }} catch(e) {{ alert('Network error'); }}
+    else {{
+      const t = await r.text();
+      alert('Could not save round assignment: ' + r.status + ' ' + t.slice(0,100));
+    }}
+  }} catch(e) {{ alert('Network error: ' + e.message); }}
 }}
 async function removeSchool(slug){{
   if (!confirm('Remove this school from your plans?')) return;
   try {{
-    const r = await fetch(`/plans/remove/${{slug}}`, {{ method:'POST' }});
+    const tok = _csrfToken();
+    const fd = new FormData();
+    fd.append('csrf_token', tok);
+    const r = await fetch(`/plans/remove/${{slug}}`, {{
+      method:'POST',
+      headers:{{'X-CSRFToken': tok}},
+      body: fd
+    }});
     if (r.ok) location.reload();
-    else alert('Could not remove.');
-  }} catch(e) {{ alert('Network error'); }}
+    else {{
+      const t = await r.text();
+      alert('Could not remove: ' + r.status + ' ' + t.slice(0,100));
+    }}
+  }} catch(e) {{ alert('Network error: ' + e.message); }}
 }}
 </script>
 """, title="My Colleges — Candor")
@@ -9352,6 +9370,7 @@ def grade_user_list(uid):
       - Realism: too many dreams without targets = bad
 
     Returns dict with score, breakdown, suggestions."""
+    profile = get_profile(uid) or {}
     with db() as conn:
         chances = conn.execute(
             "SELECT college_slug, tier, odds_low, odds_high, application_round "
@@ -9366,10 +9385,29 @@ def grade_user_list(uid):
     for r in chances:
         items.append({"slug": r["college_slug"], "tier": r["tier"],
                       "odds": (r["odds_low"]+r["odds_high"])/2.0 if r["odds_low"] is not None else None,
-                      "round": r["application_round"]})
+                      "round": r["application_round"], "tier_source":"computed"})
+    # For saved-but-uncomputed schools, classify their tier on-the-fly using
+    # the user's profile + the school's accept rate so the grader has real
+    # tier data instead of treating them as ungraded.
     for r in saved:
         if r["college_slug"] in chance_slugs: continue
-        items.append({"slug": r["college_slug"], "tier": None, "odds": None, "round": r["application_round"]})
+        slug = r["college_slug"]
+        c = COLLEGES_BY_SLUG.get(slug)
+        if not c:
+            items.append({"slug": slug, "tier": None, "odds": None,
+                          "round": r["application_round"], "tier_source":"missing"})
+            continue
+        try:
+            fit, _ = compute_fit(profile, c)
+            tier = assign_tier(c, fit, profile)
+            # Estimate odds midpoint too (for realism scoring)
+            lo, hi = estimate_odds(c, fit, profile)
+            odds_mid = (lo + hi) / 2.0
+        except Exception:
+            tier = None
+            odds_mid = None
+        items.append({"slug": slug, "tier": tier, "odds": odds_mid,
+                      "round": r["application_round"], "tier_source":"estimated"})
     n = len(items)
     if n == 0:
         return {"score": 0, "breakdown": [], "suggestions": ["Add some schools to your list first."]}
@@ -9453,9 +9491,13 @@ def grade_user_list(uid):
     if not sugs:
         sugs.append("Solid list — strategic balance, reasonable size, and rounds make sense for your profile.")
 
+    n_computed = sum(1 for it in items if it.get("tier_source") == "computed")
+    n_estimated = sum(1 for it in items if it.get("tier_source") == "estimated")
     return {
         "score": score,
         "n": n,
+        "n_computed": n_computed,
+        "n_estimated": n_estimated,
         "tiers": {k: v for k, v in tiers.items() if k},
         "rounds_used": dict.fromkeys(rounds, 0),
         "breakdown": [
@@ -9505,6 +9547,7 @@ def plans_grade_page():
 <div class="card" style="text-align:center;padding:32px">
   <div style="font-size:5em;font-weight:800;color:{score_color};line-height:1;letter-spacing:-2px">{score}<span class="muted" style="font-size:.4em;font-weight:400">/10</span></div>
   <div class="muted" style="margin-top:6px">{g["n"]} school{'s' if g["n"] != 1 else ''} in your list{f' · avg odds {g["avg_odds"]}%' if g.get("avg_odds") is not None else ''}</div>
+  {(f'<div class="muted" style="margin-top:10px;font-size:.85em">{g["n_computed"]} fully chanced · {g["n_estimated"]} estimated from your profile. <a href="/plans">Run chances</a> for sharper grading.</div>' if g["n_estimated"] > 0 else '')}
 </div>
 
 <h2 style="margin-top:24px">By tier</h2>
