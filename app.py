@@ -6344,20 +6344,55 @@ def chances_html(slug):
         "exceptional_reason": exc_reason,
         "portfolio": p.get("portfolio") or "",
     }
-    r = analyze_school(profile, slug)
-    if not r: abort(404)
-    # Save it
-    with db() as conn:
-        conn.execute("""INSERT INTO saved_chances (user_id, college_slug, tier, odds_low, odds_high, fit, confidence, strength, weakness, differentiator, computed_at)
-            VALUES (?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)
-            ON CONFLICT(user_id, college_slug) DO UPDATE SET
-              tier=excluded.tier, odds_low=excluded.odds_low, odds_high=excluded.odds_high,
-              fit=excluded.fit, confidence=excluded.confidence,
-              strength=excluded.strength, weakness=excluded.weakness, differentiator=excluded.differentiator,
-              computed_at=CURRENT_TIMESTAMP""",
-            (current_user()["id"], r["slug"], r["tier"], r["odds_low"], r["odds_high"],
-             r["fit"], r["confidence"], r["strength"], r["weakness"], r["differentiator"]))
-        conn.commit()
+    # Cached result reuse: if a saved_chances row exists for this user+school,
+    # render from it directly instead of recomputing (which calls Claude for
+    # the AI strength/weakness/differentiator narrative — that's the slow,
+    # expensive step). Cache is invalidated automatically when:
+    # - User updates profile (DELETE FROM saved_chances on profile save)
+    # - User adds demonstrated interest at this school (DELETE in DI route)
+    # - User explicitly hits ?refresh=1
+    school_data = COLLEGES_BY_SLUG.get(slug)
+    if not school_data: abort(404)
+    force_refresh = request.args.get("refresh") == "1"
+    cached_r = None
+    if not force_refresh:
+        with db() as conn:
+            row = conn.execute(
+                "SELECT tier, odds_low, odds_high, fit, confidence, strength, "
+                "weakness, differentiator FROM saved_chances "
+                "WHERE user_id=? AND college_slug=?",
+                (uid, slug)
+            ).fetchone()
+            if row and all(row[k] is not None for k in ("odds_low","odds_high","strength")):
+                # Reconstruct the analyze_school result from the cache so the
+                # rest of the page renders identically without the recompute.
+                merged = merged_school(school_data)
+                cached_r = {
+                    "school": school_data["name"], "slug": slug,
+                    "tier": row["tier"], "odds_low": row["odds_low"], "odds_high": row["odds_high"],
+                    "fit": row["fit"], "confidence": row["confidence"],
+                    "strength": row["strength"], "weakness": row["weakness"],
+                    "differentiator": row["differentiator"],
+                    "accept_rate_pct": round(merged["accept"]*100,1),
+                }
+    if cached_r:
+        r = cached_r
+    else:
+        r = analyze_school(profile, slug)
+        if not r: abort(404)
+        # Persist the freshly-computed result. Only writes on a real compute;
+        # cached reads already have a row in saved_chances.
+        with db() as conn:
+            conn.execute("""INSERT INTO saved_chances (user_id, college_slug, tier, odds_low, odds_high, fit, confidence, strength, weakness, differentiator, computed_at)
+                VALUES (?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)
+                ON CONFLICT(user_id, college_slug) DO UPDATE SET
+                  tier=excluded.tier, odds_low=excluded.odds_low, odds_high=excluded.odds_high,
+                  fit=excluded.fit, confidence=excluded.confidence,
+                  strength=excluded.strength, weakness=excluded.weakness, differentiator=excluded.differentiator,
+                  computed_at=CURRENT_TIMESTAMP""",
+                (current_user()["id"], r["slug"], r["tier"], r["odds_low"], r["odds_high"],
+                 r["fit"], r["confidence"], r["strength"], r["weakness"], r["differentiator"]))
+            conn.commit()
     tier_class = {"Dream": "pill-dream", "Reach": "pill-reach", "Target": "pill-target", "Safety": "pill-safety"}[r["tier"]]
     conf_class = {"low": "pill-conf-low", "medium": "pill-conf-medium", "high": "pill-conf-high"}[r["confidence"]]
     conf_tooltip = {
