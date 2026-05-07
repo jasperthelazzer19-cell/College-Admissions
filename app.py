@@ -8926,14 +8926,17 @@ def _rate_limit_scrapers():
     ):
         return ("Forbidden.", 403)
     # IP rate limit on college pages (the surface scrapers usually walk).
+    # 5-min window catches slower scrapers that pace themselves to dodge a
+    # 60s window. Real users browsing 50 schools in 5 minutes is rare; most
+    # scrolling 5-10 in that time. Threshold of 60 keeps real usage clean.
     if p.startswith("/college/"):
         from collections import deque
         ip = request.headers.get("X-Forwarded-For", request.remote_addr or "?").split(",")[0].strip()
         now = time.time()
         dq = _COLLEGE_RATE.setdefault(ip, deque())
-        while dq and now - dq[0] > 60:
+        while dq and now - dq[0] > 300:  # 5 min
             dq.popleft()
-        if len(dq) > 30:
+        if len(dq) > 60:
             return ("Too many requests. Slow down.", 429)
         dq.append(now)
 
@@ -9290,29 +9293,27 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
     background:rgba(255,255,255,.025);
     border:1px solid rgba(255,255,255,.06);
     border-radius:6px;
-    padding:14px;
+    padding:10px;
+    text-align:center;
     text-decoration:none;
-    transition:background .15s, border-color .15s, transform .15s;
+    color:#cbd5e1;
+    font-size:.92em;
+    font-weight:500;
+    letter-spacing:.2px;
+    transition:background .15s, border-color .15s, transform .15s, color .15s;
   }
   .logo-tile:hover {
-    background:rgba(94,234,212,.05);
+    background:rgba(94,234,212,.06);
     border-color:rgba(94,234,212,.22);
+    color:#e6edf3;
     transform:translateY(-2px);
     text-decoration:none;
   }
-  .logo-tile img {
-    max-width:100%; max-height:100%; object-fit:contain;
-    /* Push colored logos toward unified white-on-dark */
-    filter: brightness(0) invert(1);
-    opacity:.85;
-    transition:opacity .15s, filter .15s;
-  }
-  .logo-tile:hover img { opacity:1; }
   .logo-tile-more {
     color:#5eead4;
     background:rgba(94,234,212,.04);
     border-color:rgba(94,234,212,.18);
-    font-size:.88em; font-weight:600;
+    font-size:.86em; font-weight:600;
   }
   .logo-tile-more:hover { color:#7ff7df; }
   @media (max-width:980px) {
@@ -9470,6 +9471,20 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
 <main class="lp-wrap">
   <section class="hero hero-grid">
    <div class="hero-text">
+    <div class="hero-text-above">
+      <div class="eyebrow">Built by a high school junior · {school_count}+ schools</div>
+      <h1>The college admissions calculator that uses <span class="accent">real data</span>, not guesses.</h1>
+      <p class="lede">Most chances calculators tell everyone they have a 25-30% shot at every T20. Stanford accepts 3.6%. The math doesn't work. Candor uses verified Common Data Set figures from {cds_count}+ schools and odds calibrated to be honest, not optimistic.</p>
+      <div class="cta-row">
+        <a href="/signup" class="primary">Get your chances →</a>
+        <a href="/colleges" class="secondary">Browse schools</a>
+      </div>
+      <div class="stats">
+        <div class="stat"><span class="num">100+</span>active users</div>
+        <div class="stat"><span class="num">{cds_count}</span>CDS-verified schools</div>
+        <div class="stat"><span class="num"><span class="accent">{activation_pct}%</span></span>complete their profile</div>
+      </div>
+    </div>
     <div class="demo-eyebrow">Try it · no signup needed</div>
     <div class="demo-card">
       <div class="demo-controls">
@@ -9523,44 +9538,31 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
       </div>
     </div>
 
-    <div class="hero-text-below">
-      <div class="eyebrow">Built by a high school junior · {school_count}+ schools</div>
-      <h1>The college admissions calculator that uses <span class="accent">real data</span>, not guesses.</h1>
-      <p class="lede">Most chances calculators tell everyone they have a 25-30% shot at every T20. Stanford accepts 3.6%. The math doesn't work. Candor uses verified Common Data Set figures from {cds_count}+ schools and odds calibrated to be honest, not optimistic.</p>
-      <div class="cta-row">
-        <a href="/signup" class="primary">Get your chances →</a>
-        <a href="/colleges" class="secondary">Browse schools</a>
-      </div>
-      <div class="stats">
-        <div class="stat"><span class="num">100+</span>active users</div>
-        <div class="stat"><span class="num">{cds_count}</span>CDS-verified schools</div>
-        <div class="stat"><span class="num"><span class="accent">{activation_pct}%</span></span>complete their profile</div>
-      </div>
     </div>
    </div>
    <div class="hero-logos">
     <div class="hero-logos-label">Verified data for {cds_count}+ schools, including:</div>
     <div class="hero-logos-grid">
-      <a href="/college/harvard"      class="logo-tile" title="Harvard"><img src="https://logo.clearbit.com/harvard.edu"      alt="Harvard"      loading="lazy"></a>
-      <a href="/college/mit"          class="logo-tile" title="MIT"><img src="https://logo.clearbit.com/mit.edu"          alt="MIT"          loading="lazy"></a>
-      <a href="/college/stanford"     class="logo-tile" title="Stanford"><img src="https://logo.clearbit.com/stanford.edu"     alt="Stanford"     loading="lazy"></a>
-      <a href="/college/yale"         class="logo-tile" title="Yale"><img src="https://logo.clearbit.com/yale.edu"         alt="Yale"         loading="lazy"></a>
-      <a href="/college/princeton"    class="logo-tile" title="Princeton"><img src="https://logo.clearbit.com/princeton.edu"    alt="Princeton"    loading="lazy"></a>
-      <a href="/college/upenn"        class="logo-tile" title="UPenn"><img src="https://logo.clearbit.com/upenn.edu"        alt="UPenn"        loading="lazy"></a>
-      <a href="/college/brown"        class="logo-tile" title="Brown"><img src="https://logo.clearbit.com/brown.edu"        alt="Brown"        loading="lazy"></a>
-      <a href="/college/cornell"      class="logo-tile" title="Cornell"><img src="https://logo.clearbit.com/cornell.edu"      alt="Cornell"      loading="lazy"></a>
-      <a href="/college/columbia"     class="logo-tile" title="Columbia"><img src="https://logo.clearbit.com/columbia.edu"     alt="Columbia"     loading="lazy"></a>
-      <a href="/college/dartmouth"    class="logo-tile" title="Dartmouth"><img src="https://logo.clearbit.com/dartmouth.edu"    alt="Dartmouth"    loading="lazy"></a>
-      <a href="/college/duke"         class="logo-tile" title="Duke"><img src="https://logo.clearbit.com/duke.edu"         alt="Duke"         loading="lazy"></a>
-      <a href="/college/uchicago"     class="logo-tile" title="UChicago"><img src="https://logo.clearbit.com/uchicago.edu"     alt="UChicago"     loading="lazy"></a>
-      <a href="/college/northwestern" class="logo-tile" title="Northwestern"><img src="https://logo.clearbit.com/northwestern.edu" alt="Northwestern" loading="lazy"></a>
-      <a href="/college/vanderbilt"   class="logo-tile" title="Vanderbilt"><img src="https://logo.clearbit.com/vanderbilt.edu"   alt="Vanderbilt"   loading="lazy"></a>
-      <a href="/college/notre-dame"   class="logo-tile" title="Notre Dame"><img src="https://logo.clearbit.com/nd.edu"           alt="Notre Dame"   loading="lazy"></a>
-      <a href="/college/rice"         class="logo-tile" title="Rice"><img src="https://logo.clearbit.com/rice.edu"         alt="Rice"         loading="lazy"></a>
-      <a href="/college/ucb"          class="logo-tile" title="UC Berkeley"><img src="https://logo.clearbit.com/berkeley.edu"     alt="UC Berkeley"  loading="lazy"></a>
-      <a href="/college/ucla"         class="logo-tile" title="UCLA"><img src="https://logo.clearbit.com/ucla.edu"         alt="UCLA"         loading="lazy"></a>
-      <a href="/college/georgetown"   class="logo-tile" title="Georgetown"><img src="https://logo.clearbit.com/georgetown.edu"   alt="Georgetown"   loading="lazy"></a>
-      <a href="/colleges" class="logo-tile logo-tile-more"><span>+ {max(0, school_count - 19)} more →</span></a>
+      <a href="/college/harvard"      class="logo-tile">Harvard</a>
+      <a href="/college/mit"          class="logo-tile">MIT</a>
+      <a href="/college/stanford"     class="logo-tile">Stanford</a>
+      <a href="/college/yale"         class="logo-tile">Yale</a>
+      <a href="/college/princeton"    class="logo-tile">Princeton</a>
+      <a href="/college/upenn"        class="logo-tile">UPenn</a>
+      <a href="/college/brown"        class="logo-tile">Brown</a>
+      <a href="/college/cornell"      class="logo-tile">Cornell</a>
+      <a href="/college/columbia"     class="logo-tile">Columbia</a>
+      <a href="/college/dartmouth"    class="logo-tile">Dartmouth</a>
+      <a href="/college/duke"         class="logo-tile">Duke</a>
+      <a href="/college/uchicago"     class="logo-tile">UChicago</a>
+      <a href="/college/northwestern" class="logo-tile">Northwestern</a>
+      <a href="/college/vanderbilt"   class="logo-tile">Vanderbilt</a>
+      <a href="/college/notre-dame"   class="logo-tile">Notre Dame</a>
+      <a href="/college/rice"         class="logo-tile">Rice</a>
+      <a href="/college/ucb"          class="logo-tile">UC Berkeley</a>
+      <a href="/college/ucla"         class="logo-tile">UCLA</a>
+      <a href="/college/georgetown"   class="logo-tile">Georgetown</a>
+      <a href="/colleges" class="logo-tile logo-tile-more">+ {max(0, school_count - 19)} more →</a>
     </div>
    </div>
   </section>
