@@ -5429,9 +5429,9 @@ NAV = """<div class="nav"><a class="brand" href="/">""" + CANDOR_LOGO_SVG + """C
 <a href="/colleges">Browse</a>
 <a href="/rankings">Rankings</a>
 <a href="/compare">Compare</a>
+<a href="/improve">Improve</a>
 <a href="/plans">My Colleges</a>
 <a href="/plans/grade">List Grade</a>
-<a href="/improve">Improve</a>
 <a href="/chat">AI Advisor</a>
 <span class="sp"></span>
 __USER_LINKS__
