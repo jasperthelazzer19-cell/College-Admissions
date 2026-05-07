@@ -9376,25 +9376,20 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
   .orbit-tile {
     width:80px; height:80px;
     display:flex; align-items:center; justify-content:center;
-    background:rgba(255,255,255,.04);
-    border:1px solid rgba(255,255,255,.08);
-    border-radius:50%;
     transform:translate(-50%, -50%);
     /* per-item animation: orbit-counter-N — defined in the keyframes
        block injected below, one per orbit position. */
-    transition:background .15s, border-color .15s, box-shadow .15s;
+    transition:transform .15s, filter .15s;
     will-change:transform;
-    overflow:hidden;
   }
   .orbit-logo {
-    width:54px; height:54px;
+    width:64px; height:64px;
     object-fit:contain;
-    border-radius:6px;
+    transition:filter .15s, transform .15s;
   }
-  .orbit-item:hover .orbit-tile {
-    background:rgba(94,234,212,.12);
-    border-color:rgba(94,234,212,.4);
-    box-shadow:0 0 24px rgba(94,234,212,.18);
+  .orbit-item:hover .orbit-logo {
+    transform:scale(1.12);
+    filter:drop-shadow(0 0 16px rgba(94,234,212,.5));
   }
   @keyframes orbit-spin { to { transform:rotate(360deg); } }
   @media (prefers-reduced-motion: reduce) {
