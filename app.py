@@ -9213,62 +9213,71 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
   .reveal { opacity:0; transform:translateY(16px); transition:opacity .7s ease, transform .7s ease; }
   .reveal.in { opacity:1; transform:translateY(0); }
 
-  /* Two-column hero: text left, demo right */
+  /* Two-column hero: text left, demo+logos right. Right column is wider
+     than the text column so the demo can sit comfortably + a 4-col logo
+     wall fits below it. */
   .hero.hero-grid {
     display:grid;
-    grid-template-columns: minmax(0, 1fr) minmax(380px, 480px);
-    gap:64px;
+    grid-template-columns: minmax(0, 480px) minmax(0, 1fr);
+    gap:48px;
     align-items:start;
     max-width:none;
   }
-  .hero.hero-grid .hero-text { max-width:600px; }
-  .hero.hero-grid h1 { font-size:clamp(2.2em, 4.4vw, 3.2em); }
-  .hero.hero-grid p.lede { font-size:1.08em; }
-  .hero.hero-grid .stats { margin-top:32px; gap:28px; }
-  .hero.hero-grid .stats .stat .num { font-size:1.6em; }
-  .hero.hero-grid .hero-demo {
-    position:sticky; top:24px;
-  }
+  .hero.hero-grid .hero-text { max-width:480px; }
+  .hero.hero-grid h1 { font-size:clamp(2em, 3.8vw, 2.8em); }
+  .hero.hero-grid p.lede { font-size:1.04em; }
+  .hero.hero-grid .stats { margin-top:28px; gap:24px; }
+  .hero.hero-grid .stats .stat .num { font-size:1.5em; }
+  .hero.hero-grid .hero-demo { display:flex; flex-direction:column; gap:24px; }
   @media (max-width:980px) {
     .hero.hero-grid { grid-template-columns:1fr; gap:36px; }
     .hero.hero-grid .hero-text { max-width:none; }
-    .hero.hero-grid .hero-demo { position:static; }
   }
 
-  /* Logo wall — placeholder text cells until SVGs are dropped in */
+  /* Logo wall — sits inside the right-column hero panel, under the demo.
+     Text cells are placeholders until SVGs drop in. */
   .logo-wall {
-    padding:64px 0 32px;
-    border-top:1px solid rgba(255,255,255,.06);
+    padding:0;
   }
   .logo-wall-label {
-    font-size:.78em; font-weight:600; letter-spacing:.6px;
+    font-size:.74em; font-weight:600; letter-spacing:.6px;
     text-transform:uppercase; color:#9aa6b6;
-    margin-bottom:28px;
+    margin-bottom:14px;
   }
   .logo-wall-grid {
     display:grid;
-    grid-template-columns:repeat(auto-fill, minmax(140px, 1fr));
-    gap:14px;
+    grid-template-columns:repeat(4, 1fr);
+    gap:8px;
   }
   .logo-cell {
-    padding:18px 14px;
+    padding:11px 10px;
     background:rgba(255,255,255,.025);
     border:1px solid rgba(255,255,255,.06);
     border-radius:5px;
     color:#cbd5e1;
     text-align:center;
-    font-size:.92em;
+    font-size:.84em;
     font-weight:500;
     letter-spacing:.2px;
-    transition:background .15s, border-color .15s;
+    text-decoration:none;
+    transition:background .15s, border-color .15s, color .15s;
   }
   .logo-cell:hover {
-    background:rgba(94,234,212,.05);
-    border-color:rgba(94,234,212,.18);
+    background:rgba(94,234,212,.06);
+    border-color:rgba(94,234,212,.22);
     color:#e6edf3;
+    text-decoration:none;
   }
-  .logo-wall-foot {
-    margin-top:18px; font-size:.85em; color:#5e6b7c; font-style:italic;
+  .logo-cell-more {
+    color:#5eead4;
+    background:rgba(94,234,212,.04);
+    border-color:rgba(94,234,212,.18);
+  }
+  @media (max-width:520px) {
+    .logo-wall-grid { grid-template-columns:repeat(3, 1fr); }
+  }
+  @media (max-width:380px) {
+    .logo-wall-grid { grid-template-columns:repeat(2, 1fr); }
   }
 
   /* Interactive demo (used inside hero-demo column) */
@@ -9290,13 +9299,17 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
     color:#9aa6b6; font-size:1.02em; margin:0 0 28px; max-width:620px; line-height:1.55;
   }
   .demo-card {
-    display:grid; grid-template-columns: 1fr; gap:0;
+    display:grid; grid-template-columns: minmax(220px, 1fr) minmax(220px, 1.05fr); gap:0;
     background:#0d1620; border:1px solid rgba(255,255,255,.08); border-radius:8px;
     overflow:hidden;
   }
   .demo-controls {
-    padding:24px 24px; border-bottom:1px solid rgba(255,255,255,.06);
-    display:flex; flex-direction:column; gap:18px;
+    padding:20px 22px; border-right:1px solid rgba(255,255,255,.06);
+    display:flex; flex-direction:column; gap:14px;
+  }
+  @media (max-width:560px) {
+    .demo-card { grid-template-columns:1fr; }
+    .demo-controls { border-right:none; border-bottom:1px solid rgba(255,255,255,.06); }
   }
   .demo-field { display:flex; flex-direction:column; gap:8px; }
   .demo-label {
@@ -9342,24 +9355,24 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
     background:#5eead4; border:2px solid #0d1620;
   }
   .demo-result {
-    padding:22px 24px; display:flex; flex-direction:column; gap:16px;
+    padding:20px 22px; display:flex; flex-direction:column; gap:12px;
     background:linear-gradient(180deg, rgba(94,234,212,.04) 0%, transparent 60%);
   }
-  .demo-result-row { display:flex; gap:24px; flex-wrap:wrap; }
+  .demo-result-row { display:flex; gap:16px; flex-wrap:wrap; }
   .demo-result-block { flex:1; min-width:120px; }
   .demo-result-label {
     font-size:.72em; font-weight:600; letter-spacing:.6px;
     text-transform:uppercase; color:#9aa6b6; margin-bottom:6px;
   }
   .demo-odds {
-    font-size:2.4em; font-weight:800; letter-spacing:-1px; line-height:1;
+    font-size:1.9em; font-weight:800; letter-spacing:-.8px; line-height:1;
     color:#5eead4; font-variant-numeric:tabular-nums;
   }
   .demo-fit, .demo-tier {
-    font-size:1.5em; font-weight:700; letter-spacing:-.4px; color:#e6edf3;
+    font-size:1.2em; font-weight:700; letter-spacing:-.3px; color:#e6edf3;
     font-variant-numeric:tabular-nums;
   }
-  .demo-tier { font-size:1.1em; font-weight:600; }
+  .demo-tier { font-size:1em; font-weight:600; }
   .demo-context {
     color:#9aa6b6; font-size:.86em; line-height:1.5;
     border-top:1px solid rgba(255,255,255,.06); padding-top:14px;
@@ -9477,34 +9490,33 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
         <a href="/signup" class="demo-cta">Sign up free to run this on your full profile →</a>
       </div>
     </div>
-   </div>
-  </section>
 
-  <section class="logo-wall reveal">
-    <div class="logo-wall-label">Verified data for {cds_count}+ schools, including:</div>
-    <div class="logo-wall-grid">
-      <div class="logo-cell">Harvard</div>
-      <div class="logo-cell">MIT</div>
-      <div class="logo-cell">Stanford</div>
-      <div class="logo-cell">Yale</div>
-      <div class="logo-cell">Princeton</div>
-      <div class="logo-cell">UPenn</div>
-      <div class="logo-cell">Brown</div>
-      <div class="logo-cell">Cornell</div>
-      <div class="logo-cell">Columbia</div>
-      <div class="logo-cell">Dartmouth</div>
-      <div class="logo-cell">Duke</div>
-      <div class="logo-cell">UChicago</div>
-      <div class="logo-cell">Northwestern</div>
-      <div class="logo-cell">Vanderbilt</div>
-      <div class="logo-cell">Notre Dame</div>
-      <div class="logo-cell">Rice</div>
-      <div class="logo-cell">UC Berkeley</div>
-      <div class="logo-cell">UCLA</div>
-      <div class="logo-cell">Michigan</div>
-      <div class="logo-cell">Georgetown</div>
+    <div class="logo-wall">
+      <div class="logo-wall-label">Verified data for {cds_count}+ schools, including:</div>
+      <div class="logo-wall-grid">
+        <a href="/college/harvard"      class="logo-cell">Harvard</a>
+        <a href="/college/mit"          class="logo-cell">MIT</a>
+        <a href="/college/stanford"     class="logo-cell">Stanford</a>
+        <a href="/college/yale"         class="logo-cell">Yale</a>
+        <a href="/college/princeton"    class="logo-cell">Princeton</a>
+        <a href="/college/upenn"        class="logo-cell">UPenn</a>
+        <a href="/college/brown"        class="logo-cell">Brown</a>
+        <a href="/college/cornell"      class="logo-cell">Cornell</a>
+        <a href="/college/columbia"     class="logo-cell">Columbia</a>
+        <a href="/college/dartmouth"    class="logo-cell">Dartmouth</a>
+        <a href="/college/duke"         class="logo-cell">Duke</a>
+        <a href="/college/uchicago"     class="logo-cell">UChicago</a>
+        <a href="/college/northwestern" class="logo-cell">Northwestern</a>
+        <a href="/college/vanderbilt"   class="logo-cell">Vanderbilt</a>
+        <a href="/college/notre-dame"   class="logo-cell">Notre Dame</a>
+        <a href="/college/rice"         class="logo-cell">Rice</a>
+        <a href="/college/ucb"          class="logo-cell">UC Berkeley</a>
+        <a href="/college/ucla"         class="logo-cell">UCLA</a>
+        <a href="/college/georgetown"   class="logo-cell">Georgetown</a>
+        <a href="/colleges"             class="logo-cell logo-cell-more">+ {max(0, school_count - 19)} more →</a>
+      </div>
     </div>
-    <div class="logo-wall-foot">+ {max(0, school_count - 20)} more</div>
+   </div>
   </section>
 
   <section class="section reveal">
@@ -9830,6 +9842,11 @@ def api_demo_odds():
     # demo numbers feel right for visitors with perfect/near-perfect
     # stats (a 4.0/1600 should see ~20-25% at Cornell, not 10-15%).
     # The real model isn't touched — only the demo profile defaults.
+    # Stat-perfect / near-perfect demo applicants get the is_exceptional flag
+    # so the model lifts caps the same way it does for real top-1% applicants.
+    # Otherwise stats-perfect kids see ~10-15% at every elite school in the
+    # demo, which feels too pessimistic for a marketing surface.
+    looks_exceptional = (gpa >= 3.92 and sat >= 1530)
     profile = {
         "uw_gpa": gpa, "sat": sat, "act": 0,
         "ecs": ("Founder of a substantive student org with measurable impact, "
@@ -9838,10 +9855,11 @@ def api_demo_odds():
                 "deep involvement (10+ hrs/wk) in field tied to intended major"),
         "leadership": ("Captain of varsity team, founder/president of school org, "
                        "elected officer in student government, mentorship role"),
-        "awards": ("National Merit Finalist or commended scholar, regional/state recognition "
-                   "in primary activity, AP Scholar with Distinction, top-1 ranking in subject"),
+        "awards": ("National Merit Finalist, regional/state-level recognition in main "
+                   "activity, AP Scholar with Distinction, ranked top of class in subject"),
         "aps": "Calc BC, Chem, Bio, Physics C, Lang, Lit, US History, Stats",
         "major": "", "state": "", "school_type": "private",
+        "is_exceptional": looks_exceptional,
     }
     fit, _ = compute_fit(profile, school)
     low, high = estimate_odds(school, fit, profile)
