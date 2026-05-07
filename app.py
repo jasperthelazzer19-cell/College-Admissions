@@ -9848,37 +9848,69 @@ def plans_simulate_page():
 
   function flip(p){{ return Math.random() < p; }}
 
+  // 4-outcome model that mirrors real admissions:
+  //   ADMIT, DEFER (early-round only), WAITLIST, REJECT
+  // For ED/ED2/EA/REA: of the (1-p) non-admit pool, ~45% defer to RD,
+  //   ~10% waitlist, ~45% reject. (Defer rates are highest at the most
+  //   competitive schools — Penn ED is famously defer-heavy.)
+  // For RD: of the (1-p) non-admit pool, ~12% waitlist, ~88% reject.
+  // For "Round undecided": treat as RD by default.
+  function rollOutcome(p, round){{
+    const isEarly = /(Early Decision|Early Action|Restrictive)/i.test(round || '');
+    const r = Math.random();
+    if (r < p) return 'ADMIT';
+    const rem = (r - p) / Math.max(0.0001, 1 - p);  // 0..1 within the non-admit slice
+    if (isEarly) {{
+      if (rem < 0.45) return 'DEFER';
+      if (rem < 0.55) return 'WAITLIST';
+      return 'REJECT';
+    }}
+    if (rem < 0.12) return 'WAITLIST';
+    return 'REJECT';
+  }}
+
+  const STAMP_STYLE = {{
+    ADMIT:    {{label:'ADMITTED',   bg:'rgba(94,234,212,.18)', color:'#5eead4', rowbg:'rgba(94,234,212,.04)'}},
+    DEFER:    {{label:'DEFERRED',   bg:'rgba(125,211,252,.15)', color:'#7dd3fc', rowbg:'rgba(125,211,252,.03)'}},
+    WAITLIST: {{label:'WAITLISTED', bg:'rgba(251,191,36,.15)', color:'#fbbf24', rowbg:'rgba(251,191,36,.03)'}},
+    REJECT:   {{label:'REJECTED',   bg:'rgba(252,165,165,.12)', color:'#fca5a5', rowbg:'transparent'}},
+  }};
+  const OUTCOME_RANK = {{ADMIT:0, DEFER:1, WAITLIST:2, REJECT:3}};
+
   function singleRun(){{
     if (!data.length) {{
       alert('Run chances on a few schools first to populate the simulator.');
       return;
     }}
-    const draws = data.map(s => ({{ ...s, admitted: flip(s.p) }}));
-    const admits = draws.filter(d => d.admitted);
-    const rejects = draws.filter(d => !d.admitted);
+    const draws = data.map(s => ({{ ...s, outcome: rollOutcome(s.p, s.round) }}));
+    const counts = {{ADMIT:0, DEFER:0, WAITLIST:0, REJECT:0}};
+    for (const d of draws) counts[d.outcome]++;
     runs++;
     counter.textContent = `Run #${{runs}}`;
     empty.style.display = 'none';
     results1k.style.display = 'none';
     summary.style.display = 'block';
-    if (admits.length === 0) {{
-      headline.innerHTML = '😬 Zero admits this cycle';
-      subhead.textContent = 'Statistically possible but unlucky. Try again — most cycles you do get in somewhere.';
-    }} else if (admits.length === draws.length) {{
-      headline.innerHTML = `🔥 Admitted to all ${{admits.length}}!`;
+    if (counts.ADMIT === 0 && counts.WAITLIST === 0 && counts.DEFER === 0) {{
+      headline.innerHTML = '😬 Zero admits, zero waitlists this cycle';
+      subhead.textContent = 'Unlucky run. Try again — most cycles get something.';
+    }} else if (counts.ADMIT === draws.length) {{
+      headline.innerHTML = `🔥 Admitted to all ${{counts.ADMIT}}!`;
       subhead.textContent = 'Extremely lucky run. Real outcomes are usually noisier.';
     }} else {{
-      headline.innerHTML = `Admitted to <b style="color:#5eead4">${{admits.length}}</b> of ${{draws.length}}`;
-      subhead.textContent = `${{rejects.length}} rejection${{rejects.length===1?'':'s'}} this cycle. Click again for a different outcome.`;
+      const parts = [];
+      if (counts.ADMIT)   parts.push(`<b style="color:#5eead4">${{counts.ADMIT}}</b> admit${{counts.ADMIT===1?'':'s'}}`);
+      if (counts.DEFER)    parts.push(`<b style="color:#7dd3fc">${{counts.DEFER}}</b> deferred`);
+      if (counts.WAITLIST) parts.push(`<b style="color:#fbbf24">${{counts.WAITLIST}}</b> waitlist${{counts.WAITLIST===1?'':'s'}}`);
+      if (counts.REJECT)   parts.push(`<span style="color:#fca5a5">${{counts.REJECT}} reject${{counts.REJECT===1?'':'s'}}</span>`);
+      headline.innerHTML = parts.join(' · ');
+      subhead.textContent = 'Click again for a different outcome.';
     }}
     let body = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:8px">';
-    // Sort: admits first (by probability desc), then rejects (by probability desc)
-    draws.sort((a,b) => (b.admitted - a.admitted) || (b.p - a.p));
+    draws.sort((a,b) => (OUTCOME_RANK[a.outcome] - OUTCOME_RANK[b.outcome]) || (b.p - a.p));
     for (const d of draws){{
-      const stamp = d.admitted
-        ? '<span style="background:rgba(94,234,212,.18);color:#5eead4;font-size:.74em;font-weight:700;letter-spacing:.5px;padding:3px 9px;border-radius:4px">ADMITTED</span>'
-        : '<span style="background:rgba(252,165,165,.12);color:#fca5a5;font-size:.74em;font-weight:700;letter-spacing:.5px;padding:3px 9px;border-radius:4px">REJECTED</span>';
-      body += `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px;background:${{d.admitted?'rgba(94,234,212,.04)':'transparent'}};border:1px solid var(--border);border-radius:5px">
+      const s = STAMP_STYLE[d.outcome];
+      const stamp = `<span style="background:${{s.bg}};color:${{s.color}};font-size:.72em;font-weight:700;letter-spacing:.5px;padding:3px 9px;border-radius:4px;white-space:nowrap">${{s.label}}</span>`;
+      body += `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px;background:${{s.rowbg}};border:1px solid var(--border);border-radius:5px">
         <div><a href="/college/${{d.slug}}" style="color:inherit;font-weight:600">${{d.name}}</a><div class="muted" style="font-size:.78em">${{d.round}} · ${{(d.p*100).toFixed(1)}}% odds</div></div>
         <div>${{stamp}}</div>
       </div>`;
@@ -9894,44 +9926,52 @@ def plans_simulate_page():
       return;
     }}
     const N = 1000;
-    // Track admit count per school + distribution of total admits
-    const admitCount = data.map(_=>0);
+    // Track per-school outcomes + distribution of total admits per run
+    const perSchool = data.map(_=>({{ADMIT:0, DEFER:0, WAITLIST:0, REJECT:0}}));
     const totalDist = new Array(data.length+1).fill(0);
     for (let i=0;i<N;i++){{
-      let total = 0;
+      let admits = 0;
       for (let j=0;j<data.length;j++){{
-        if (flip(data[j].p)) {{ admitCount[j]++; total++; }}
+        const o = rollOutcome(data[j].p, data[j].round);
+        perSchool[j][o]++;
+        if (o === 'ADMIT') admits++;
       }}
-      totalDist[total]++;
+      totalDist[admits]++;
     }}
     runs += N;
     counter.textContent = `Ran ${{N.toLocaleString()}} simulations · total runs: ${{runs}}`;
     empty.style.display = 'none';
     results.style.display = 'none';
     summary.style.display = 'block';
-    // Stats
-    const median = (() => {{
-      let cum = 0; for (let k=0;k<totalDist.length;k++){{ cum += totalDist[k]; if (cum >= N/2) return k; }} return 0;
-    }})();
-    const p10 = (() => {{
-      let cum=0; for (let k=0;k<totalDist.length;k++){{ cum += totalDist[k]; if (cum >= N*0.1) return k; }} return 0;
-    }})();
-    const p90 = (() => {{
-      let cum=0; for (let k=0;k<totalDist.length;k++){{ cum += totalDist[k]; if (cum >= N*0.9) return k; }} return 0;
-    }})();
+    const median = (() => {{ let cum=0; for (let k=0;k<totalDist.length;k++){{ cum += totalDist[k]; if (cum >= N/2) return k; }} return 0; }})();
+    const p10 = (() => {{ let cum=0; for (let k=0;k<totalDist.length;k++){{ cum += totalDist[k]; if (cum >= N*0.1) return k; }} return 0; }})();
+    const p90 = (() => {{ let cum=0; for (let k=0;k<totalDist.length;k++){{ cum += totalDist[k]; if (cum >= N*0.9) return k; }} return 0; }})();
     const zeroAdmits = totalDist[0];
     headline.innerHTML = `Across ${{N.toLocaleString()}} runs: median <b style="color:#5eead4">${{median}}</b> admit${{median===1?'':'s'}}`;
     subhead.innerHTML = `80% range: ${{p10}}-${{p90}} admits · ${{zeroAdmits}} runs (${{(zeroAdmits/N*100).toFixed(1)}}%) had zero admits`;
-    // Per-school breakdown
-    let body = '<div style="margin-top:10px"><div class="muted" style="font-size:.85em;margin-bottom:6px">Admit rate per school across the 1,000 runs (should match your underlying odds — sanity check):</div>';
-    body += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:6px">';
-    const ranked = data.map((s,i)=>({{...s, hits: admitCount[i], rate: admitCount[i]/N}})).sort((a,b)=>b.rate-a.rate);
+    let body = '<div style="margin-top:10px"><div class="muted" style="font-size:.85em;margin-bottom:6px">Per-school outcome breakdown across 1,000 cycles:</div>';
+    body += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:8px">';
+    const ranked = data.map((s,i)=>({{...s, ...perSchool[i], rate: perSchool[i].ADMIT/N}})).sort((a,b)=>b.rate-a.rate);
     for (const s of ranked){{
-      const pct = (s.rate*100).toFixed(1);
-      const fillW = (s.rate*100).toFixed(1);
-      body += `<div style="padding:6px 10px">
-        <div style="display:flex;justify-content:space-between;font-size:.85em"><span>${{s.name}}</span><span style="font-weight:600">${{pct}}%</span></div>
-        <div style="height:5px;background:var(--surface-2);border-radius:3px;margin-top:3px;overflow:hidden"><div style="height:100%;width:${{fillW}}%;background:#5eead4"></div></div>
+      const aPct = (s.ADMIT/N*100).toFixed(1);
+      const dPct = (s.DEFER/N*100).toFixed(1);
+      const wPct = (s.WAITLIST/N*100).toFixed(1);
+      const rPct = (s.REJECT/N*100).toFixed(1);
+      body += `<div style="padding:8px 10px;border:1px solid var(--border);border-radius:5px">
+        <div style="display:flex;justify-content:space-between;font-size:.88em;font-weight:600;margin-bottom:6px">
+          <span>${{s.name}}</span><span style="color:#5eead4">${{aPct}}% admit</span>
+        </div>
+        <div style="display:flex;height:6px;border-radius:3px;overflow:hidden;background:var(--surface-2)">
+          <div style="background:#5eead4;width:${{aPct}}%" title="Admit ${{aPct}}%"></div>
+          <div style="background:#7dd3fc;width:${{dPct}}%" title="Defer ${{dPct}}%"></div>
+          <div style="background:#fbbf24;width:${{wPct}}%" title="Waitlist ${{wPct}}%"></div>
+        </div>
+        <div class="muted" style="font-size:.74em;margin-top:4px">
+          <span style="color:#5eead4">●</span> ${{aPct}}% admit
+          ${{s.DEFER>0?` · <span style="color:#7dd3fc">●</span> ${{dPct}}% defer`:''}}
+          ${{s.WAITLIST>0?` · <span style="color:#fbbf24">●</span> ${{wPct}}% waitlist`:''}}
+          · <span style="color:#fca5a5">●</span> ${{rPct}}% reject
+        </div>
       </div>`;
     }}
     body += '</div></div>';
