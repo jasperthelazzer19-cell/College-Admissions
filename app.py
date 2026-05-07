@@ -3299,22 +3299,45 @@ def generate_bullets(profile, school, fit, components, tier, odds):
         else:
             gap = school["act_25"] - act
             test_compare = f"ACT {act} is BELOW the 25th percentile ({school['act_25']}) of admits — gap of {gap} points."
-    # Same idea for GPA.
-    gpa = profile.get("uw_gpa")
+    # Same idea for GPA. Use the year-by-year-aware effective GPA so the
+    # narrative reflects the model's actual input (UC drops freshman, weighted
+    # average for others, trend bonus). Show the raw flat GPA in parens for
+    # context when they differ.
+    raw_gpa = profile.get("uw_gpa")
+    gpa = effective_gpa(profile, school)
     gpa_compare = "GPA not submitted."
     if gpa:
         mid = round((school["gpa_lo"] + school["gpa_hi"]) / 2, 2)
+        gpa_label = f"effective GPA {gpa}" if (raw_gpa is not None and abs(gpa - raw_gpa) > 0.02) else f"GPA {gpa}"
         if gpa >= school["gpa_hi"]:
-            gpa_compare = f"GPA {gpa} is AT OR ABOVE the typical 75th percentile ({school['gpa_hi']})."
+            gpa_compare = f"{gpa_label} is AT OR ABOVE the typical 75th percentile ({school['gpa_hi']})."
         elif gpa >= mid:
-            gpa_compare = f"GPA {gpa} is ABOVE midpoint ({mid}), upper half of admits."
+            gpa_compare = f"{gpa_label} is ABOVE midpoint ({mid}), upper half of admits."
         elif gpa >= school["gpa_lo"]:
-            gpa_compare = f"GPA {gpa} is BELOW midpoint ({mid}) but inside the typical range ({school['gpa_lo']}-{school['gpa_hi']})."
+            gpa_compare = f"{gpa_label} is BELOW midpoint ({mid}) but inside the typical range ({school['gpa_lo']}-{school['gpa_hi']})."
         else:
-            gpa_compare = f"GPA {gpa} is BELOW the typical 25th percentile ({school['gpa_lo']}) — academic gap."
+            gpa_compare = f"{gpa_label} is BELOW the typical 25th percentile ({school['gpa_lo']}) — academic gap."
+
+    # Build a GPA-context line for the prompt that explains the year-by-year
+    # adjustment when present, so Claude doesn't write narrative pegged to
+    # the raw flat number.
+    gpa_lines = [f"- Unweighted GPA (flat): {raw_gpa}"]
+    if raw_gpa is not None and abs((gpa or 0) - raw_gpa) > 0.02:
+        breakdown = []
+        for year_label, key in [("9th", "gpa_freshman"), ("10th", "gpa_sophomore"),
+                                ("11th", "gpa_junior"), ("12th", "gpa_senior")]:
+            v = profile.get(key)
+            if v is not None: breakdown.append(f"{year_label}={v}")
+        is_uc = school and school.get("slug") in UC_SLUGS
+        gpa_lines.append(
+            f"- Year-by-year provided ({', '.join(breakdown)})"
+            + (" — UC policy ignores 9th-grade grades entirely" if is_uc else " — using upper-year-weighted average")
+        )
+        gpa_lines.append(f"- Effective GPA used by the model: {gpa}")
+        gpa_lines.append("- IMPORTANT: in your narrative, refer to the effective GPA, not the flat one. If the trajectory is upward (e.g. 3.2 → 3.8 → 3.95), call that out as a strength signal.")
 
     user = f"""Student profile:
-- Unweighted GPA: {profile.get('uw_gpa')}
+{chr(10).join(gpa_lines)}
 - Test: {test_str}
 - Major: {profile.get('major','undecided')}
 - ECs: {profile.get('ecs','(blank)') or '(blank)'}
@@ -3353,7 +3376,7 @@ DIFFERENTIATOR: <one-sentence — what could make this applicant memorable, or w
 
 
 def _fallback_bullets(profile, school, fit, components, tier):
-    gpa = profile.get("uw_gpa") or 0
+    gpa = effective_gpa(profile, school) or profile.get("uw_gpa") or 0
     school_gpa_mid = round((school["gpa_lo"]+school["gpa_hi"])/2, 2)
     if components.get("gpa", 0) > 5:
         strength = f"Your GPA of {gpa} is meaningfully above {school['name']}'s typical midpoint of {school_gpa_mid}, the strongest signal in your favor."
@@ -6683,7 +6706,8 @@ No preamble, no closing line."""
         # Templated fallback
         bullets = []
         if components.get("gpa", 0) < -3:
-            bullets.append(f"GPA gap: yours is {profile.get('uw_gpa')} vs admit range {school['gpa_lo']}-{school['gpa_hi']}. Target straight A's for the rest of high school — every 0.05 of unweighted matters here.")
+            _eg = effective_gpa(profile, school) or profile.get('uw_gpa')
+            bullets.append(f"GPA gap: yours is {_eg} vs admit range {school['gpa_lo']}-{school['gpa_hi']}. Target straight A's for the rest of high school — every 0.05 of unweighted matters here.")
         if components.get("test", 0) < -5:
             bullets.append(f"Test gap: middle 50% is SAT {school['sat_25']}-{school['sat_75']}. A retake targeting +60 is the single highest-leverage thing you can do for this school.")
         bullets.append(f"On essays: {note['supplemental_strategy']}")
