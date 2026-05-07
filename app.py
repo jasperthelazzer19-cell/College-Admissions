@@ -9136,27 +9136,17 @@ def landing():
 
 
 _ORBIT_SCHOOLS = [
-    # (slug, display name, domain for favicon)
-    ("umich",      "Michigan",     "umich.edu"),
-    ("harvard",    "Harvard",      "harvard.edu"),
-    ("stanford",   "Stanford",     "stanford.edu"),
-    ("princeton",  "Princeton",    "princeton.edu"),
-    ("cornell",    "Cornell",      "cornell.edu"),
-    ("ucb",        "UC Berkeley",  "berkeley.edu"),
-    ("ucla",       "UCLA",         "ucla.edu"),
-    ("usc",        "USC",          "usc.edu"),
-    ("mit",        "MIT",          "mit.edu"),
-    ("yale",       "Yale",         "yale.edu"),
-    ("duke",       "Duke",         "duke.edu"),
-    ("upenn",      "UPenn",        "upenn.edu"),
-    ("columbia",   "Columbia",     "columbia.edu"),
-    ("vanderbilt", "Vanderbilt",   "vanderbilt.edu"),
-    ("uva",        "UVA",          "virginia.edu"),
-    ("unc",        "UNC",          "unc.edu"),
-    ("dartmouth",  "Dartmouth",    "dartmouth.edu"),
-    ("brown",      "Brown",        "brown.edu"),
-    ("notre-dame", "Notre Dame",   "nd.edu"),
-    ("nyu",        "NYU",          "nyu.edu"),
+    # (slug, display name, logo file in /static/logos/)
+    ("harvard",   "Harvard",     "harvard.jpeg"),
+    ("mit",       "MIT",         "mit.png"),
+    ("stanford",  "Stanford",    "stanford.png"),
+    ("princeton", "Princeton",   "princeton.png"),
+    ("cornell",   "Cornell",     "cornell.png"),
+    ("ucb",       "UC Berkeley", "ucb.png"),
+    ("ucla",      "UCLA",        "ucla.png"),
+    ("usc",       "USC",         "usc.png"),
+    ("duke",      "Duke",        "duke.png"),
+    ("nyu",       "NYU",         "nyu.webp"),
 ]
 
 def _landing_html(user_count, school_count, cds_count, activation_pct):
@@ -9168,14 +9158,14 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
     n_orbit = len(_ORBIT_SCHOOLS)
     orbit_items = ""
     orbit_keyframes = ""  # one counter-rotation animation per item
-    for i, (slug, name, domain) in enumerate(_ORBIT_SCHOOLS):
+    for i, (slug, name, logo_file) in enumerate(_ORBIT_SCHOOLS):
         angle = i * 360 / n_orbit
-        favicon = f"https://www.google.com/s2/favicons?domain={domain}&sz=128"
+        logo_url = url_for('static', filename=f'logos/{logo_file}')
         orbit_items += (
             f'<a class="orbit-item" href="/college/{slug}" title="{name}" '
             f'style="--angle:{angle:.2f}deg;">'
             f'<div class="orbit-tile" style="animation:orbit-counter-{i} 80s linear infinite;">'
-            f'<img class="orbit-logo" src="{favicon}" alt="{name}" loading="lazy">'
+            f'<img class="orbit-logo" src="{logo_url}" alt="{name}" loading="lazy">'
             f'</div></a>'
         )
         orbit_keyframes += (
@@ -9374,7 +9364,7 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
     transform:rotate(var(--angle, 0deg)) translateY(var(--orbit-radius, -230px));
   }
   .orbit-tile {
-    width:80px; height:80px;
+    width:108px; height:108px;
     display:flex; align-items:center; justify-content:center;
     transform:translate(-50%, -50%);
     /* per-item animation: orbit-counter-N — defined in the keyframes
@@ -9383,7 +9373,7 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
     will-change:transform;
   }
   .orbit-logo {
-    width:64px; height:64px;
+    width:96px; height:96px;
     object-fit:contain;
     transition:filter .15s, transform .15s;
   }
