@@ -4672,6 +4672,18 @@ def init_db():
         )""")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_outcomes_user ON user_outcomes(user_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_outcomes_school ON user_outcomes(college_slug, actual_outcome)")
+        # Anonymous page-view log — feeds /admin/stats "visitors in last hour /
+        # 24h" cards. Cookie-based visitor_id so the same browser counts as
+        # one across sessions even before signup.
+        conn.execute("""CREATE TABLE IF NOT EXISTS page_visits (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            visitor_id TEXT NOT NULL,
+            user_id INTEGER,
+            path TEXT NOT NULL,
+            ts TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )""")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_page_visits_ts ON page_visits(ts)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_page_visits_visitor ON page_visits(visitor_id, ts)")
         conn.commit()
 
 
@@ -8893,6 +8905,44 @@ except Exception:
     _CSRF_ON = False
     print("flask-wtf not available; CSRF disabled")
 
+# ─── PAGE-VIEW LOGGING ────────────────────────────────────
+# Anonymous visitor tracking so /admin/stats can show "visitors in the last
+# hour / 24h" — distinct from cumulative signups. cv_id cookie persists for
+# 1 year so a return visitor with cookies on counts as the same person.
+_VISIT_SKIP_PREFIXES = ("/api/", "/static/", "/admin/")
+_VISIT_SKIP_PATHS = {"/favicon.ico", "/robots.txt"}
+_VISIT_SKIP_SUFFIXES = (".css", ".js", ".png", ".jpg", ".svg", ".ico", ".map", ".webp")
+
+@app.before_request
+def _log_page_visit():
+    if request.method != "GET":
+        return
+    p = request.path or ""
+    if p in _VISIT_SKIP_PATHS: return
+    if any(p.startswith(x) for x in _VISIT_SKIP_PREFIXES): return
+    if any(p.endswith(x) for x in _VISIT_SKIP_SUFFIXES): return
+    vid = request.cookies.get("cv_id")
+    if not vid:
+        vid = secrets.token_urlsafe(12)
+        request._new_cv_id = vid
+    uid = session.get("user_id")
+    try:
+        with db() as conn:
+            conn.execute("INSERT INTO page_visits(visitor_id, user_id, path) VALUES(?,?,?)",
+                         (vid, uid, p))
+            conn.commit()
+    except Exception:
+        pass  # logging must never break a request
+
+@app.after_request
+def _set_visitor_cookie(response):
+    new_vid = getattr(request, "_new_cv_id", None)
+    if new_vid:
+        response.set_cookie("cv_id", new_vid, max_age=60*60*24*365,
+                            httponly=True, samesite="Lax",
+                            secure=os.getenv("RAILWAY_ENVIRONMENT") is not None)
+    return response
+
 # Rate limiting (per-IP). Defaults are generous; sensitive routes (login,
 # signup) get tighter caps via @limiter.limit() decorators.
 try:
@@ -10965,6 +11015,21 @@ def admin_stats():
         paid_users = conn.execute(
             "SELECT COUNT(*) c FROM users WHERE is_paid=1"
         ).fetchone()["c"]
+        # Anonymous visitor counts (separate from signups). page_visits.ts is
+        # UTC (SQLite CURRENT_TIMESTAMP), and datetime('now','-1 hour') is
+        # also UTC, so the math doesn't need a TZ offset.
+        try:
+            visitors_1h = conn.execute(
+                "SELECT COUNT(DISTINCT visitor_id) c FROM page_visits WHERE ts >= datetime('now','-1 hour')"
+            ).fetchone()["c"]
+            visitors_24h = conn.execute(
+                "SELECT COUNT(DISTINCT visitor_id) c FROM page_visits WHERE ts >= datetime('now','-24 hours')"
+            ).fetchone()["c"]
+            pageviews_24h = conn.execute(
+                "SELECT COUNT(*) c FROM page_visits WHERE ts >= datetime('now','-24 hours')"
+            ).fetchone()["c"]
+        except Exception:
+            visitors_1h = visitors_24h = pageviews_24h = 0
         recent_users = conn.execute(
             "SELECT email, created_at FROM users ORDER BY created_at DESC LIMIT 15"
         ).fetchall()
@@ -10986,6 +11051,25 @@ def admin_stats():
     profile_pct = round(profiles_done / max(1, total_users) * 100)
     return _page(f"""
 <h1>Activity</h1>
+<h3 style="margin:18px 0 8px;color:var(--text-2);font-size:.82em;letter-spacing:.6px;text-transform:uppercase;font-weight:600">Live traffic</h3>
+<div class="grid">
+  <div class="stat-card">
+    <div class="label">Visitors last hour</div>
+    <div class="value accent">{visitors_1h}</div>
+    <div class="delta">unique browsers (cookie-based)</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">Visitors last 24h</div>
+    <div class="value">{visitors_24h}</div>
+    <div class="delta">unique browsers</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">Page views last 24h</div>
+    <div class="value">{pageviews_24h}</div>
+    <div class="delta">total — incl. repeat views</div>
+  </div>
+</div>
+<h3 style="margin:24px 0 8px;color:var(--text-2);font-size:.82em;letter-spacing:.6px;text-transform:uppercase;font-weight:600">Cumulative</h3>
 <div class="grid">
   <div class="stat-card">
     <div class="label">Total users</div>
