@@ -9744,8 +9744,20 @@ def api_demo_odds():
         return jsonify({"error":"bad input"}), 400
     gpa = max(2.0, min(4.5, gpa))
     sat = max(1000, min(1600, sat))
-    profile = {"uw_gpa": gpa, "sat": sat, "act": 0, "ecs":"", "leadership":"",
-               "awards":"", "aps":"", "major":"", "state":"", "school_type":"public"}
+    # Demo uses placeholder ECs/leadership/awards that match an "average
+    # competitive applicant" so the result reflects stats + typical
+    # extracurricular strength, not stats-only (which would dramatically
+    # under-state odds for someone with empty fields). Visitors who sign
+    # up will see odds adjusted to their real profile.
+    profile = {
+        "uw_gpa": gpa, "sat": sat, "act": 0,
+        "ecs": ("Varsity sport (3 yrs), club president, regular volunteering, "
+                "summer research or internship in field of interest, school newspaper"),
+        "leadership": "Captain of varsity team, founder of a school club, officer in 2+ orgs",
+        "awards": "Regional / state-level recognition in main activity, AP Scholar with Distinction",
+        "aps": "Calc BC, Chem, Lang, Lit, US History",
+        "major": "", "state": "", "school_type": "public",
+    }
     fit, _ = compute_fit(profile, school)
     low, high = estimate_odds(school, fit, profile)
     tier = assign_tier(school, fit, profile)
