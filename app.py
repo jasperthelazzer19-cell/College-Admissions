@@ -9709,6 +9709,45 @@ def plans_simulate_page():
     uid = current_user()["id"]
     sim = simulate_admissions(uid)
 
+    # Bucket schools by individual probability so users see "where will I
+    # actually get in." Most likely outcome at the per-school level: admit
+    # if p>0.5, otherwise reject. Toss-ups are 20-50%, long shots <20%.
+    likely = []   # p >= 0.50
+    tossup = []   # 0.20 <= p < 0.50
+    longshot = [] # p < 0.20
+    for r in sim["rows"]:
+        if not r["computed"] or r["p_round"] is None: continue
+        p = r["p_round"]
+        item = (r["name"], r["slug"], p, r.get("round_label",""))
+        if p >= 0.50: likely.append(item)
+        elif p >= 0.20: tossup.append(item)
+        else: longshot.append(item)
+    likely.sort(key=lambda x: -x[2])
+    tossup.sort(key=lambda x: -x[2])
+    longshot.sort(key=lambda x: -x[2])
+
+    def _bucket_card(title, color, items, hint):
+        if not items:
+            return ""
+        body = ""
+        for name, slug, p, rnd in items:
+            rnd_label = f' <span class="muted" style="font-size:.78em">({rnd})</span>' if rnd else ""
+            body += f'<div style="display:flex;justify-content:space-between;padding:7px 0;border-top:1px solid var(--border);font-size:.92em"><a href="/college/{slug}" style="color:inherit"><b>{name}</b>{rnd_label}</a><span style="font-weight:600;color:{color}">{round(p*100,1)}%</span></div>'
+        return f'''<div class="card" style="margin-bottom:12px;padding:18px">
+  <h3 style="margin:0 0 4px;font-family:'Newsreader',Georgia,serif;color:{color}">{title} <span style="font-weight:400;color:var(--text-2);font-size:.78em">({len(items)})</span></h3>
+  <p class="muted" style="font-size:.84em;margin:0 0 6px">{hint}</p>
+  {body}
+</div>'''
+
+    buckets_html = (
+        _bucket_card("Likely admits", "#5eead4", likely,
+                     "Schools where your odds are 50%+. The most-likely outcome is you get in.")
+        + _bucket_card("Toss-ups", "#fbbf24", tossup,
+                       "20-50% odds. Could go either way; these are where the variance lives.")
+        + _bucket_card("Long shots", "#fca5a5", longshot,
+                       "Under 20%. Real possibilities but you can't count on them.")
+    )
+
     rows_html = ""
     for r in sim["rows"]:
         if not r["computed"]:
@@ -9770,7 +9809,12 @@ def plans_simulate_page():
   </div>
 </div>
 
-<h2 style="margin-top:28px">By school</h2>
+<h2 style="margin-top:28px">Where you'll likely land</h2>
+<p class="muted" style="font-size:.92em">Schools grouped by your individual odds. The most-likely scenario: you get into the green ones.</p>
+{buckets_html}
+{('<p class="muted" style="font-size:.85em;text-align:center;margin:14px 0">No grouped predictions yet — run chances on more schools to populate this view.</p>' if not (likely or tossup or longshot) else '')}
+
+<h2 style="margin-top:28px">All schools (round-by-round)</h2>
 {note}
 <div class="card" style="padding:0;overflow-x:auto">
   <table style="width:100%;border-collapse:collapse;font-size:.92em">
