@@ -4117,6 +4117,7 @@ def fetch_articles(college_slug):
 
 # ─── HTML / CSS ───────────────────────────────────────────
 BASE_CSS = """
+@import url('https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600;6..72,700&display=swap');
 :root{
   --bg:#070d14;
   --bg-2:#0a131c;
@@ -4165,15 +4166,16 @@ a:hover{color:#7df0db}
 .nav a{color:var(--text-2);font-size:.91em;font-weight:500;transition:color .15s}
 .nav a:hover{color:var(--text)}
 .nav .sp{flex:1}
-h1{font-size:1.9em;font-weight:700;letter-spacing:-.6px;margin:8px 0 8px;color:var(--text)}
-h2{font-size:1.22em;font-weight:600;margin:28px 0 12px;color:var(--text);letter-spacing:-.2px}
-h3{font-size:1em;font-weight:600;margin:14px 0 6px;color:var(--text);letter-spacing:-.1px}
+h1,h2,h3{font-family:'Newsreader',Georgia,'Times New Roman',serif;font-feature-settings:"ss01","ss02"}
+h1{font-size:2.2em;font-weight:600;letter-spacing:-.5px;margin:8px 0 8px;color:var(--text);line-height:1.15}
+h2{font-size:1.45em;font-weight:600;margin:28px 0 12px;color:var(--text);letter-spacing:-.3px;line-height:1.25}
+h3{font-size:1.12em;font-weight:600;margin:14px 0 6px;color:var(--text);letter-spacing:-.15px}
 p{color:var(--text)}
 .muted{color:var(--text-2);font-size:.92em}
 .btn{
   display:inline-block;
   background:var(--surface-2);color:var(--text);
-  font-weight:600;padding:11px 22px;border-radius:10px;border:1px solid var(--border-strong);
+  font-weight:600;padding:11px 22px;border-radius:4px;border:1px solid var(--border-strong);
   cursor:pointer;font-size:.93em;text-decoration:none;font-family:inherit;
   transition:all .15s ease;
 }
@@ -4186,11 +4188,11 @@ p{color:var(--text)}
 .btn-primary:hover{filter:brightness(1.05);box-shadow:0 10px 26px rgba(56,189,248,.24);color:#031715}
 .btn-light{background:transparent;color:var(--text);border:1px solid var(--border-strong)}
 .btn-light:hover{background:var(--surface-2);color:var(--text)}
-.btn-sm{font-size:.82em;padding:7px 14px;border-radius:8px}
+.btn-sm{font-size:.82em;padding:7px 14px;border-radius:4px}
 .card{
   background:var(--surface)!important;
   border:1px solid var(--border)!important;
-  border-radius:14px;padding:22px;margin-bottom:14px;
+  border-radius:6px;padding:22px;margin-bottom:14px;
   box-shadow:var(--shadow-card);
   color:var(--text)!important;
 }
@@ -4199,7 +4201,7 @@ p{color:var(--text)}
 label{display:block;font-weight:500;font-size:.85em;margin:14px 0 6px;color:var(--text-2);letter-spacing:.1px}
 input,select,textarea{
   width:100%;padding:11px 13px;
-  border:1px solid var(--border-strong);border-radius:9px;
+  border:1px solid var(--border-strong);border-radius:4px;
   font-size:.93em;font-family:inherit;
   background:var(--bg-2);color:var(--text);
   transition:border-color .15s, box-shadow .15s;
@@ -4239,7 +4241,7 @@ input::placeholder,textarea::placeholder{color:var(--text-3)}
 }
 .flash{
   padding:12px 16px;background:rgba(56,189,248,.06);border:1px solid rgba(56,189,248,.2);
-  border-radius:10px;margin-bottom:16px;font-size:.9em;color:var(--text);
+  border-radius:4px;margin-bottom:16px;font-size:.9em;color:var(--text);
 }
 .flash.error{background:rgba(244,114,182,.08);border-color:rgba(244,114,182,.25);color:#f9a8d4}
 .flash.success{background:rgba(94,234,212,.08);border-color:rgba(94,234,212,.25);color:var(--teal)}
@@ -4248,7 +4250,7 @@ input::placeholder,textarea::placeholder{color:var(--text-3)}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
 .school-card{
   background:var(--surface);border:1px solid var(--border);
-  border-radius:12px;padding:16px;transition:all .2s ease;
+  border-radius:5px;padding:16px;transition:all .2s ease;
 }
 .school-card:hover{
   border-color:rgba(94,234,212,.3);
@@ -4263,7 +4265,7 @@ input::placeholder,textarea::placeholder{color:var(--text-3)}
 .stat-row span:last-child{color:var(--text);font-weight:500}
 .rank-row{
   display:flex;align-items:center;gap:14px;padding:14px 16px;
-  background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:10px;
+  background:var(--surface);border:1px solid var(--border);border-radius:5px;margin-bottom:10px;
   transition:all .15s ease;
 }
 .rank-row:hover{border-color:rgba(94,234,212,.2);background:var(--surface-hover)}
@@ -4285,7 +4287,7 @@ hr{border:0;border-top:1px solid var(--border);margin:24px 0}
 ::selection{background:rgba(94,234,212,.25);color:#fff}
 /* Stat card emphasis */
 .stat-card{
-  background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:22px;
+  background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:22px;
   position:relative;overflow:hidden;
 }
 .stat-card::before{
@@ -4311,7 +4313,7 @@ hr{border:0;border-top:1px solid var(--border);margin:24px 0}
   .nav a{font-size:.85em}
   h1{font-size:1.45em}
   h2{font-size:1.1em}
-  .card{padding:16px;border-radius:12px}
+  .card{padding:16px;border-radius:5px}
   .grid{grid-template-columns:1fr;gap:12px}
   .school-card{padding:14px}
   .stat-card .value{font-size:1.6em}
@@ -4673,7 +4675,7 @@ def rankings_index_html():
 
 RANKING_TABLE_CSS = """
 <style>
-.rank-table{width:100%;border-collapse:collapse;background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;font-size:.92em;box-shadow:var(--shadow-card)}
+.rank-table{width:100%;border-collapse:collapse;background:var(--surface);border:1px solid var(--border);border-radius:6px;overflow:hidden;font-size:.92em;box-shadow:var(--shadow-card)}
 .rank-table th{background:rgba(255,255,255,.02);text-align:left;padding:13px 16px;color:var(--text-2);font-weight:500;font-size:.74em;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border)}
 .rank-table td{padding:13px 16px;border-bottom:1px solid var(--border);vertical-align:middle;color:var(--text)}
 .rank-table tr:hover td{background:rgba(94,234,212,.04)}
@@ -5003,7 +5005,7 @@ def _pref_form_fields(p):
             boxes += (
                 f'<label class="pick-pill" style="display:inline-flex;align-items:center;gap:7px;'
                 f'background:var(--surface-2);border:1px solid var(--border-strong);'
-                f'border-radius:8px;padding:7px 12px;font-weight:500;color:var(--text);'
+                f'border-radius:4px;padding:7px 12px;font-weight:500;color:var(--text);'
                 f'cursor:pointer;font-size:.85em;margin:0;transition:all .15s">'
                 f'<input type="checkbox" name="{key}" value="{val}" {checked} style="width:auto;margin:0">'
                 f'{opt_label}</label>'
@@ -5078,7 +5080,7 @@ def _render_ap_picker(saved_aps_str):
             boxes += (
                 f'<label class="pick-pill" style="display:inline-flex;align-items:center;gap:7px;'
                 f'background:var(--surface-2);border:1px solid var(--border-strong);'
-                f'border-radius:8px;padding:6px 11px;font-weight:500;color:var(--text);'
+                f'border-radius:4px;padding:6px 11px;font-weight:500;color:var(--text);'
                 f'cursor:pointer;font-size:.83em;margin:0;transition:all .15s">'
                 f'<input type="checkbox" name="ap_pick" value="{canonical}" {checked} style="width:auto;margin:0">'
                 f'{display}</label>'
@@ -5141,7 +5143,7 @@ def _render_ib_picker(saved_ibs_str):
             boxes += (
                 f'<label class="pick-pill" style="display:inline-flex;align-items:center;gap:7px;'
                 f'background:var(--surface-2);border:1px solid var(--border-strong);'
-                f'border-radius:8px;padding:6px 11px;font-weight:500;color:var(--text);'
+                f'border-radius:4px;padding:6px 11px;font-weight:500;color:var(--text);'
                 f'cursor:pointer;font-size:.83em;margin:0;transition:all .15s">'
                 f'<input type="checkbox" name="ib_pick" value="{canonical}" {checked} style="width:auto;margin:0">'
                 f'{display}</label>'
@@ -5313,7 +5315,7 @@ def chances_html(slug):
   </div>
   <div class="odds" style="color:#2b6cff">{r['odds_low']}–{r['odds_high']}%</div>
   <div class="muted" style="font-size:.82em">your estimated chances</div>
-  {(f'<div style="margin-top:14px;padding:10px 14px;background:rgba(94,234,212,.08);border:1px solid rgba(94,234,212,.25);border-radius:8px;font-size:.88em"><b style="color:var(--teal)">★ Exceptional applicant override</b><div class="muted" style="margin-top:4px">{exc_reason or "Flagged exceptional based on your profile."} Your odds reflect this above the standard cap.</div></div>' if profile.get('is_exceptional') else '')}
+  {(f'<div style="margin-top:14px;padding:10px 14px;background:rgba(94,234,212,.08);border:1px solid rgba(94,234,212,.25);border-radius:4px;font-size:.88em"><b style="color:var(--teal)">★ Exceptional applicant override</b><div class="muted" style="margin-top:4px">{exc_reason or "Flagged exceptional based on your profile."} Your odds reflect this above the standard cap.</div></div>' if profile.get('is_exceptional') else '')}
   {render_admissions_breakdown(COLLEGES_BY_SLUG.get(r['slug']), admissions_detail(COLLEGES_BY_SLUG.get(r['slug'])))}
   <ul style="padding-left:18px;margin:18px 0 0">
     <li><b>Strength —</b> {r['strength']}</li>
@@ -6490,7 +6492,7 @@ def school_profiles_html(slug):
                     <span style="font-weight:600;color:var(--text)">{prompt}</span>
                     <span style="font-size:.74em;color:{outcome_color};padding:3px 11px;border-radius:999px;border:1px solid rgba(94,234,212,.2);background:rgba(94,234,212,.08);font-weight:600;letter-spacing:.4px;text-transform:uppercase">{outcome} · {words} words</span>
                   </div>
-                  <div style="font-size:.92em;line-height:1.65;color:var(--text);font-family:Georgia,serif;background:var(--bg-2);padding:14px;border-radius:8px;border:1px solid var(--border)">{essay_text}</div>
+                  <div style="font-size:.92em;line-height:1.65;color:var(--text);font-family:Georgia,serif;background:var(--bg-2);padding:14px;border-radius:4px;border:1px solid var(--border)">{essay_text}</div>
                 </div>"""
             essays_card = f"""<div class="card">
               <h3 style="margin-top:0">Real essays from Reddit</h3>
@@ -6940,24 +6942,24 @@ def _render_message(m):
 
 CHAT_PAGE_HTML = """
 <style>
-.chat-msgs{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px;min-height:340px;max-height:560px;overflow-y:auto;margin-bottom:14px;box-shadow:var(--shadow-card)}
+.chat-msgs{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:18px;min-height:340px;max-height:560px;overflow-y:auto;margin-bottom:14px;box-shadow:var(--shadow-card)}
 .msg{margin:12px 0;display:flex;gap:8px}
 .msg-user{justify-content:flex-end}
-.msg-bubble{max-width:78%;padding:11px 15px;border-radius:14px;font-size:.95em;line-height:1.55}
+.msg-bubble{max-width:78%;padding:11px 15px;border-radius:6px;font-size:.95em;line-height:1.55}
 .msg-user .msg-bubble{background:var(--accent-grad);color:#031715;font-weight:500;box-shadow:0 6px 18px rgba(56,189,248,.22)}
 .msg-assistant .msg-bubble{background:var(--surface-2);color:var(--text);border:1px solid var(--border-strong)}
 .msg-bubble ul{margin:6px 0;padding-left:18px}
 .msg-bubble li{margin:2px 0}
 .chat-input{display:flex;gap:10px;align-items:flex-end}
-.chat-input textarea{flex:1;min-height:50px;max-height:160px;padding:12px 14px;border:1px solid var(--border-strong);border-radius:10px;font-family:inherit;resize:vertical;font-size:.95em;background:var(--bg-2);color:var(--text)}
+.chat-input textarea{flex:1;min-height:50px;max-height:160px;padding:12px 14px;border:1px solid var(--border-strong);border-radius:4px;font-family:inherit;resize:vertical;font-size:.95em;background:var(--bg-2);color:var(--text)}
 .chat-input textarea:focus{outline:0;border-color:var(--teal);box-shadow:0 0 0 3px rgba(94,234,212,.12)}
-.chat-input button{padding:12px 24px;border-radius:10px;border:0;background:var(--accent-grad);color:#031715;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 8px 20px rgba(56,189,248,.18);transition:filter .15s}
+.chat-input button{padding:12px 24px;border-radius:4px;border:0;background:var(--accent-grad);color:#031715;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 8px 20px rgba(56,189,248,.18);transition:filter .15s}
 .chat-input button:hover{filter:brightness(1.05)}
 .chat-input button:disabled{opacity:.6;cursor:wait;filter:grayscale(.4)}
 .suggestions{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0 18px}
 .suggestion{background:var(--surface-2);border:1px solid var(--border-strong);border-radius:999px;padding:7px 14px;font-size:.83em;cursor:pointer;color:var(--text-2);transition:all .15s;font-family:inherit}
 .suggestion:hover{border-color:rgba(94,234,212,.4);color:var(--teal);background:var(--surface-hover)}
-.typing{display:flex;gap:4px;padding:11px 15px;background:var(--surface-2);border:1px solid var(--border-strong);border-radius:14px;width:fit-content}
+.typing{display:flex;gap:4px;padding:11px 15px;background:var(--surface-2);border:1px solid var(--border-strong);border-radius:6px;width:fit-content}
 .typing span{width:7px;height:7px;background:var(--teal);border-radius:50%;animation:typing 1.2s infinite}
 .typing span:nth-child(2){animation-delay:.2s}
 .typing span:nth-child(3){animation-delay:.4s}
@@ -7339,10 +7341,10 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
   .hero { padding:80px 0 100px; text-align:left; max-width:780px; }
   .hero .eyebrow { display:inline-block; font-size:.78em; font-weight:600; letter-spacing:.8px; text-transform:uppercase; color:#5eead4; padding:5px 12px; border:1px solid rgba(94,234,212,.25); border-radius:999px; background:rgba(94,234,212,.06); margin-bottom:22px; }
   .hero h1 { font-size:clamp(2.4em,5vw,3.6em); font-weight:700; letter-spacing:-1.5px; line-height:1.06; margin:0 0 22px; color:#e6edf3; }
-  .hero h1 .accent { background:linear-gradient(135deg,#5eead4 0%,#38bdf8 100%); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
+  .hero h1 .accent { color:#5eead4; }
   .hero p.lede { font-size:1.18em; color:#9aa6b6; max-width:620px; margin:0 0 32px; line-height:1.55; }
   .hero .cta-row { display:flex; gap:14px; flex-wrap:wrap; align-items:center; }
-  .hero .cta-row a { display:inline-flex; align-items:center; gap:8px; padding:12px 22px; border-radius:10px; font-weight:600; text-decoration:none; transition:all .18s; font-size:.97em; }
+  .hero .cta-row a { display:inline-flex; align-items:center; gap:8px; padding:12px 22px; border-radius:4px; font-weight:600; text-decoration:none; transition:all .18s; font-size:.97em; }
   .hero .cta-row .primary { background:linear-gradient(135deg,#5eead4 0%,#2dd4bf 100%); color:#070d14; box-shadow:0 6px 24px rgba(94,234,212,.28); }
   .hero .cta-row .primary:hover { transform:translateY(-1px); box-shadow:0 8px 30px rgba(94,234,212,.4); }
   .hero .cta-row .secondary { color:#e6edf3; border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.03); }
@@ -7356,11 +7358,11 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
   .section h2 { font-size:clamp(1.7em,3vw,2.3em); font-weight:700; letter-spacing:-.6px; margin:0 0 16px; color:#e6edf3; }
   .section p.sub { color:#9aa6b6; font-size:1.05em; margin:0 0 40px; max-width:680px; }
 
-  .problem-card { background:rgba(16,26,37,.55); border:1px solid rgba(255,255,255,.06); border-radius:14px; padding:36px; backdrop-filter:blur(8px); }
+  .problem-card { background:#0d1620; border:1px solid rgba(255,255,255,.08); border-radius:6px; padding:36px; }
   .problem-card .quote { font-size:1.25em; line-height:1.5; color:#e6edf3; font-weight:500; margin:0 0 16px; }
   .problem-card .quote strong { color:#5eead4; }
   .problem-card .vs { display:flex; gap:14px; align-items:stretch; margin-top:20px; flex-wrap:wrap; }
-  .problem-card .vs .col { flex:1; min-width:240px; padding:18px; border-radius:10px; }
+  .problem-card .vs .col { flex:1; min-width:240px; padding:18px; border-radius:4px; }
   .problem-card .vs .wrong { background:rgba(239,68,68,.08); border:1px solid rgba(239,68,68,.22); }
   .problem-card .vs .right { background:rgba(94,234,212,.08); border:1px solid rgba(94,234,212,.25); }
   .problem-card .vs .label { font-size:.74em; font-weight:600; letter-spacing:.5px; text-transform:uppercase; opacity:.7; margin-bottom:6px; }
@@ -7368,14 +7370,14 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
   .problem-card .vs .right .label { color:#5eead4; }
   .problem-card .vs .num { font-size:1.6em; font-weight:700; letter-spacing:-.4px; color:#e6edf3; }
 
-  .features-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:18px; }
-  .feature { background:rgba(16,26,37,.55); border:1px solid rgba(255,255,255,.06); border-radius:12px; padding:24px; transition:border-color .2s, transform .2s; }
-  .feature:hover { border-color:rgba(94,234,212,.25); transform:translateY(-2px); }
-  .feature .icon { display:inline-flex; width:36px; height:36px; align-items:center; justify-content:center; border-radius:9px; background:rgba(94,234,212,.1); color:#5eead4; font-weight:700; margin-bottom:14px; font-size:1.1em; }
-  .feature h3 { margin:0 0 8px; font-size:1.05em; color:#e6edf3; font-weight:600; letter-spacing:-.2px; }
+  .features-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:1px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.06); border-radius:4px; overflow:hidden; }
+  .feature { background:#0a121a; padding:28px 26px; transition:background .2s; }
+  .feature:hover { background:#0d1620; }
+  .feature .num { display:block; font-family:'Newsreader',Georgia,serif; font-size:.85em; color:#5eead4; font-weight:500; letter-spacing:.5px; margin-bottom:18px; font-feature-settings:"tnum"; }
+  .feature h3 { margin:0 0 8px; font-size:1.1em; color:#e6edf3; font-weight:600; letter-spacing:-.2px; }
   .feature p { margin:0; color:#9aa6b6; font-size:.92em; line-height:1.55; }
 
-  .founder { display:grid; grid-template-columns:1fr; gap:24px; align-items:center; background:rgba(16,26,37,.55); border:1px solid rgba(255,255,255,.06); border-radius:14px; padding:36px; }
+  .founder { display:grid; grid-template-columns:1fr; gap:24px; align-items:center; background:#0d1620; border:1px solid rgba(255,255,255,.08); border-radius:6px; padding:36px; }
   .founder p { font-size:1.08em; line-height:1.6; color:#cbd5e1; margin:0 0 12px; }
   .founder p:last-child { margin:0; }
   .founder .signature { color:#5eead4; font-weight:600; margin-top:16px !important; }
@@ -7383,7 +7385,7 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
   .final-cta { text-align:center; padding:80px 0 100px; }
   .final-cta h2 { margin-bottom:18px; }
   .final-cta p { color:#9aa6b6; margin:0 0 30px; font-size:1.08em; }
-  .final-cta a.primary { display:inline-block; padding:14px 32px; background:linear-gradient(135deg,#5eead4 0%,#2dd4bf 100%); color:#070d14; font-weight:600; border-radius:10px; text-decoration:none; box-shadow:0 8px 30px rgba(94,234,212,.3); transition:all .2s; }
+  .final-cta a.primary { display:inline-block; padding:14px 32px; background:linear-gradient(135deg,#5eead4 0%,#2dd4bf 100%); color:#070d14; font-weight:600; border-radius:4px; text-decoration:none; box-shadow:0 8px 30px rgba(94,234,212,.3); transition:all .2s; }
   .final-cta a.primary:hover { transform:translateY(-2px); box-shadow:0 12px 36px rgba(94,234,212,.4); }
 
   footer { padding:40px 0 60px; text-align:center; color:#5e6b7c; font-size:.84em; border-top:1px solid rgba(255,255,255,.04); margin-top:60px; }
@@ -7449,33 +7451,33 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
     <p class="sub">No vibes-based admissions math. Every number has a source.</p>
     <div class="features-grid">
       <div class="feature">
-        <div class="icon">✓</div>
-        <h3>CDS-Verified Data</h3>
+        <span class="num">01 / Data</span>
+        <h3>CDS-verified figures</h3>
         <p>{cds_count}+ schools have stats hand-pulled from their official Common Data Set. The rest use federal data with a clear "verified vs federal" badge so you know what's checked.</p>
       </div>
       <div class="feature">
-        <div class="icon">⚖</div>
+        <span class="num">02 / Model</span>
         <h3>Calibrated, not optimistic</h3>
         <p>Elite schools cap at sub-15% even for top applicants — because that's reality. Truly exceptional applicants (USAMO golds, recruited athletes) get a separate flag that lifts the cap honestly.</p>
       </div>
       <div class="feature">
-        <div class="icon">★</div>
-        <h3>Hooks per school</h3>
+        <span class="num">03 / Hooks</span>
+        <h3>Per-school weighting</h3>
         <p>Legacy at Harvard ≠ legacy at Duke. The model factors legacy at the specific school, athlete status, first-gen, and demonstrated interest at schools that actually track it.</p>
       </div>
       <div class="feature">
-        <div class="icon">↗</div>
-        <h3>My Fit ranking</h3>
+        <span class="num">04 / Fit</span>
+        <h3>Targets, not lotteries</h3>
         <p>Schools sorted by how well they actually match your stats and preferences (size, vibe, weather, prestige weighting). Pushes you toward real targets, not just lottery reaches.</p>
       </div>
       <div class="feature">
-        <div class="icon">🎯</div>
-        <h3>Real applicant profiles</h3>
+        <span class="num">05 / Profiles</span>
+        <h3>Real outcomes from real applicants</h3>
         <p>Pulled from r/collegeresults and similar — actual admit/reject/waitlist outcomes with stats and what stood out, so you can calibrate against people who actually got in.</p>
       </div>
       <div class="feature">
-        <div class="icon">∞</div>
-        <h3>AI advisor with grounded facts</h3>
+        <span class="num">06 / Advisor</span>
+        <h3>AI grounded in hand-checked facts</h3>
         <p>Every school has hand-checked program facts the AI can't override (USC Roski requires portfolios for ALL majors, etc.). No more hallucinated advice.</p>
       </div>
     </div>
@@ -8204,7 +8206,7 @@ def chat_api_send():
     status = usage_status(user["id"])
     if status.get("blocked"):
         if status["reason"] == "free_exhausted":
-            paywall = (f'<div style="padding:18px;border-radius:12px;background:rgba(94,234,212,.06);'
+            paywall = (f'<div style="padding:18px;border-radius:5px;background:rgba(94,234,212,.06);'
                        f'border:1px solid rgba(94,234,212,.2)">'
                        f'<div style="font-weight:600;color:var(--teal);margin-bottom:8px">'
                        f"You've used your {FREE_TRIAL_MESSAGES} free trial messages.</div>"
