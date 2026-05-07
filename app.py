@@ -8905,6 +8905,45 @@ except Exception:
     _CSRF_ON = False
     print("flask-wtf not available; CSRF disabled")
 
+# ─── BOT / SCRAPER MITIGATION ─────────────────────────────
+# Two cheap defenses: a rate limit on /college/<slug> (humans don't browse
+# 30+ college pages in a minute, scrapers do), and a robots.txt with a
+# crawl-delay so well-behaved bots throttle themselves. Determined scrapers
+# will still get through; this just stops the dumb cases and keeps the
+# admin/stats numbers clean.
+_COLLEGE_RATE = {}  # ip -> deque of timestamps
+_BOT_UA_FRAGMENTS = ("python-requests", "scrapy", "wget", "httpie", "go-http-client")
+
+@app.before_request
+def _rate_limit_scrapers():
+    p = request.path or ""
+    if request.method != "GET":
+        return
+    # Bot user-agents — block outright on college/chances/api routes.
+    ua = (request.headers.get("User-Agent") or "").lower()
+    if any(x in ua for x in _BOT_UA_FRAGMENTS) and (
+        p.startswith("/college/") or p.startswith("/chances/") or p.startswith("/api/")
+    ):
+        return ("Forbidden.", 403)
+    # IP rate limit on college pages (the surface scrapers usually walk).
+    if p.startswith("/college/"):
+        from collections import deque
+        ip = request.headers.get("X-Forwarded-For", request.remote_addr or "?").split(",")[0].strip()
+        now = time.time()
+        dq = _COLLEGE_RATE.setdefault(ip, deque())
+        while dq and now - dq[0] > 60:
+            dq.popleft()
+        if len(dq) > 30:
+            return ("Too many requests. Slow down.", 429)
+        dq.append(now)
+
+
+@app.route("/robots.txt")
+def robots_txt():
+    body = "User-agent: *\nDisallow: /admin/\nDisallow: /api/\nCrawl-Delay: 5\n"
+    return (body, 200, {"Content-Type": "text/plain; charset=utf-8"})
+
+
 # ─── PAGE-VIEW LOGGING ────────────────────────────────────
 # Anonymous visitor tracking so /admin/stats can show "visitors in the last
 # hour / 24h" — distinct from cumulative signups. cv_id cookie persists for
