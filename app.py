@@ -7284,6 +7284,10 @@ No preamble, just the two samples."""
 
 # ─── TAILORED ADVICE (Claude-generated, cached 7 days) ────
 TAILORED_ADVICE_TTL_DAYS = 7
+# Bump this whenever the tailored-advice prompt changes — anything cached
+# before this timestamp is treated as stale and regenerated. Saves us from
+# manually clearing the table when we fix prompt bugs.
+TAILORED_ADVICE_MIN_VALID_AT = "2026-05-07T08:30:00"
 
 # Per-school facts that AI tailored advice must use as ground truth
 # rather than guessing from training data. The AI was hallucinating
@@ -7364,9 +7368,12 @@ def get_tailored_advice(user_id, school, profile, force=False):
     with db() as conn:
         if not force:
             cutoff = (datetime.utcnow() - timedelta(days=TAILORED_ADVICE_TTL_DAYS)).isoformat()
+            # Take the LATER of: TTL cutoff, prompt-version cutoff. Cached
+            # entries from before the prompt fix are treated as stale.
+            effective_cutoff = max(cutoff, TAILORED_ADVICE_MIN_VALID_AT)
             row = conn.execute(
                 "SELECT body, generated_at FROM tailored_advice WHERE user_id=? AND college_slug=? AND generated_at >= ?",
-                (user_id, school["slug"], cutoff)
+                (user_id, school["slug"], effective_cutoff)
             ).fetchone()
             if row:
                 return row["body"]
@@ -7376,6 +7383,54 @@ def get_tailored_advice(user_id, school, profile, force=False):
     m = school_match(profile, school)
     note = get_school_strategy(school)
     test_str = f"SAT {profile['sat']}" if profile.get("sat") else (f"ACT {profile['act']}" if profile.get("act") else "no test score submitted")
+    # Pre-compute test + GPA comparisons so Claude doesn't do the math
+    # (and get it wrong — we've seen it write "ACT 33 below 31-34 range").
+    sat = profile.get("sat")
+    act = profile.get("act")
+    test_compare = ""
+    if sat:
+        s25, s75 = school.get("sat_25"), school.get("sat_75")
+        if s25 and s75:
+            if sat >= s75:
+                test_compare = f"SAT {sat} is AT or ABOVE the 75th percentile of admits ({s75}) — top of {school['name']}'s mid-50% range ({s25}-{s75}). This is a STRENGTH, not a gap."
+            elif sat >= (s25 + s75) / 2:
+                test_compare = f"SAT {sat} sits in the upper half of {school['name']}'s admit pool (mid-50% is {s25}-{s75}). Solid, not a gap."
+            elif sat >= s25:
+                test_compare = f"SAT {sat} is INSIDE {school['name']}'s mid-50% range ({s25}-{s75}) but in the lower half. Workable; not a major weakness."
+            else:
+                gap = s25 - sat
+                test_compare = f"SAT {sat} is BELOW {school['name']}'s 25th percentile of {s25} (gap of {gap} points). This IS a real academic gap to address."
+    elif act:
+        a25, a75 = school.get("act_25"), school.get("act_75")
+        if a25 and a75:
+            if act >= a75:
+                test_compare = f"ACT {act} is AT or ABOVE the 75th percentile of admits ({a75}) — top of {school['name']}'s mid-50% range ({a25}-{a75}). This is a STRENGTH, not a gap. Do NOT describe this as below the range or as a weakness."
+            elif act >= (a25 + a75) / 2:
+                test_compare = f"ACT {act} sits in the upper half of {school['name']}'s admit pool (mid-50% is {a25}-{a75}). Solid, not a gap."
+            elif act >= a25:
+                test_compare = f"ACT {act} is INSIDE {school['name']}'s mid-50% range ({a25}-{a75}) but in the lower half. Workable; not a major weakness."
+            else:
+                gap = a25 - act
+                test_compare = f"ACT {act} is BELOW {school['name']}'s 25th percentile of {a25} (gap of {gap} points). This IS a real academic gap."
+    else:
+        test_compare = "Test-optional submission — no test score in profile."
+    gpa_compare_imp = ""
+    raw_gpa = profile.get("uw_gpa")
+    eff_gpa = effective_gpa(profile, school)
+    glo, ghi = school.get("gpa_lo"), school.get("gpa_hi")
+    if raw_gpa and glo and ghi:
+        gmid = round((glo + ghi) / 2, 2)
+        if raw_gpa >= ghi:
+            gpa_compare_imp = f"GPA {raw_gpa} is AT or ABOVE the 75th percentile of {school['name']} admits ({ghi}). STRENGTH, not gap."
+        elif raw_gpa >= gmid:
+            gpa_compare_imp = f"GPA {raw_gpa} is in the upper half of {school['name']}'s admit GPA range ({glo}-{ghi}, midpoint ~{gmid}). Solid."
+        elif raw_gpa >= glo:
+            gpa_compare_imp = f"GPA {raw_gpa} is INSIDE {school['name']}'s admit range ({glo}-{ghi}) but in the lower half (midpoint ~{gmid}). Workable, minor gap."
+        else:
+            gap = round(glo - raw_gpa, 2)
+            gpa_compare_imp = f"GPA {raw_gpa} is BELOW {school['name']}'s 25th percentile ({glo}) — gap of {gap} points. Real academic gap."
+        if eff_gpa is not None and abs(eff_gpa - raw_gpa) > 0.02:
+            gpa_compare_imp += f" (Year-by-year: model uses effective {eff_gpa} after upper-year weighting/UC adjustment.)"
     pref_str = []
     for k, label in [("pref_weather","weather"),("pref_setting","setting"),("pref_size","school size"),
                      ("pref_class_size","class size"),("pref_greek","Greek life"),("pref_sports","sports culture"),
@@ -7421,6 +7476,10 @@ COMPUTED FIT: academic={fit_acad}/100, odds={low}-{high}%
 PREFERENCE MATCH:
 {match_lines if match_lines else '(no preferences set)'}
 
+PRE-COMPUTED COMPARISONS (use these EXACTLY — do NOT recompute, do NOT contradict):
+- TEST: {test_compare or '(no test data)'}
+- GPA:  {gpa_compare_imp or '(no GPA data)'}
+
 VERIFIED FACTS YOU MUST USE (do NOT contradict these — they're hand-checked):
 {chr(10).join(f"- {f}" for f in SCHOOL_VERIFIED_FACTS.get(school['slug'], [])) or "(none specific to this school)"}
 
@@ -7431,6 +7490,7 @@ TASK: Write 6-8 SPECIFIC, ACTIONABLE bullets advising this exact student on appl
 4. Be concrete: name the program, the threshold, the action, the deadline.
 
 CRITICAL ACCURACY RULES — DO NOT VIOLATE:
+- USE THE PRE-COMPUTED COMPARISONS ABOVE. If they say the test score is AT or ABOVE the 75th percentile, do NOT call it a gap or below the range. If they say it's INSIDE the mid-50% range, do NOT call it below the range. Verbatim quote the comparison framing — these are correct, your math is not.
 - When citing a gap, USE THE ACTUAL NUMBERS. Don't say "0.2 below median" — say "your 3.7 UW vs the school's 3.93 admit median (0.23 below)". Always show the math.
 - Don't sugarcoat. A 3.7 GPA is a meaningful gap at a school where the median is 3.95+, not "marginal." For elite schools (sub-10% accept), even small gaps matter a lot.
 - If the student's stats are clearly below the typical admit range, say so directly. "Your test score is below the 25th percentile (which means most admits scored higher than you)" — not euphemisms like "compensable" or "marginal".
