@@ -9247,7 +9247,7 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
     0%,100% { opacity: 1; }
     50% { opacity: 0.5; }
   }
-  .lp-wrap { max-width:1320px; margin:0 auto; padding:0 32px; position: relative; z-index: 2; }
+  .lp-wrap { max-width:1500px; margin:0 auto; padding:0 24px; position: relative; z-index: 2; }
   .hero { padding:40px 0 60px; text-align:left; max-width:780px; }
   .hero .eyebrow { display:inline-block; font-size:.78em; font-weight:600; letter-spacing:.8px; text-transform:uppercase; color:#5eead4; padding:5px 12px; border:1px solid rgba(94,234,212,.25); border-radius:999px; background:rgba(94,234,212,.06); margin-bottom:22px; }
   .hero h1 { font-size:clamp(2.4em,5vw,3.6em); font-weight:700; letter-spacing:-1.5px; line-height:1.06; margin:0 0 22px; color:#e6edf3; }
@@ -9347,21 +9347,21 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
      @property/custom-prop interpolation, which has spotty support. */
   .logo-orbit {
     position:relative; width:100%; aspect-ratio:1/1;
-    max-width:560px; margin:0 auto;
-    --orbit-radius: -228px;
+    max-width:780px; margin:0 auto;
+    --orbit-radius: -315px;
   }
   .orbit-center {
     position:absolute; top:50%; left:50%;
     transform:translate(-50%, -50%);
-    width:128px; height:128px;
+    width:170px; height:170px;
     display:flex; align-items:center; justify-content:center;
     background:rgba(94,234,212,.06);
     border:1px solid rgba(94,234,212,.32);
     border-radius:50%;
     z-index:2;
-    box-shadow:0 0 60px rgba(94,234,212,.18), inset 0 0 28px rgba(94,234,212,.05);
+    box-shadow:0 0 90px rgba(94,234,212,.2), inset 0 0 40px rgba(94,234,212,.06);
   }
-  .orbit-center svg { width:68px; height:68px; }
+  .orbit-center svg { width:96px; height:96px; }
   .orbit-ring {
     position:absolute; inset:0;
     animation:orbit-spin 80s linear infinite;
@@ -9374,7 +9374,7 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
     transform:rotate(var(--angle, 0deg)) translateY(var(--orbit-radius, -230px));
   }
   .orbit-tile {
-    width:60px; height:60px;
+    width:80px; height:80px;
     display:flex; align-items:center; justify-content:center;
     background:rgba(255,255,255,.04);
     border:1px solid rgba(255,255,255,.08);
@@ -9387,9 +9387,9 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
     overflow:hidden;
   }
   .orbit-logo {
-    width:40px; height:40px;
+    width:54px; height:54px;
     object-fit:contain;
-    border-radius:5px;
+    border-radius:6px;
   }
   .orbit-item:hover .orbit-tile {
     background:rgba(94,234,212,.12);
