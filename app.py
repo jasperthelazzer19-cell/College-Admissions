@@ -9172,11 +9172,10 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
         angle = i * 360 / n_orbit
         favicon = f"https://www.google.com/s2/favicons?domain={domain}&sz=128"
         orbit_items += (
-            f'<a class="orbit-item" href="/college/{slug}" '
+            f'<a class="orbit-item" href="/college/{slug}" title="{name}" '
             f'style="--angle:{angle:.2f}deg;">'
             f'<div class="orbit-tile" style="animation:orbit-counter-{i} 80s linear infinite;">'
-            f'<img class="orbit-logo" src="{favicon}" alt="" loading="lazy">'
-            f'<span class="orbit-name">{name}</span>'
+            f'<img class="orbit-logo" src="{favicon}" alt="{name}" loading="lazy">'
             f'</div></a>'
         )
         orbit_keyframes += (
@@ -9370,51 +9369,44 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
     transform:rotate(var(--angle, 0deg)) translateY(var(--orbit-radius, -230px));
   }
   .orbit-tile {
-    display:flex; flex-direction:row; align-items:center; gap:7px;
-    padding:6px 11px 6px 7px;
-    background:rgba(255,255,255,.03);
+    width:72px; height:72px;
+    display:flex; align-items:center; justify-content:center;
+    background:rgba(255,255,255,.04);
     border:1px solid rgba(255,255,255,.08);
-    border-radius:99px;
+    border-radius:50%;
     transform:translate(-50%, -50%);
     /* per-item animation: orbit-counter-N — defined in the keyframes
        block injected below, one per orbit position. */
-    transition:background .15s, border-color .15s, transform .15s;
+    transition:background .15s, border-color .15s, box-shadow .15s;
     will-change:transform;
+    overflow:hidden;
   }
   .orbit-logo {
-    width:22px; height:22px; border-radius:4px;
-    object-fit:contain; flex-shrink:0;
-    background:rgba(255,255,255,.04);
-  }
-  .orbit-name {
-    color:#cbd5e1;
-    font-size:.78em;
-    font-weight:500;
-    letter-spacing:.2px;
-    white-space:nowrap;
+    width:48px; height:48px;
+    object-fit:contain;
+    border-radius:6px;
   }
   .orbit-item:hover .orbit-tile {
-    background:rgba(94,234,212,.1);
-    border-color:rgba(94,234,212,.32);
+    background:rgba(94,234,212,.12);
+    border-color:rgba(94,234,212,.4);
+    box-shadow:0 0 24px rgba(94,234,212,.18);
   }
-  .orbit-item:hover .orbit-name { color:#e6edf3; }
   @keyframes orbit-spin { to { transform:rotate(360deg); } }
   @media (prefers-reduced-motion: reduce) {
     .orbit-ring { animation:none; }
     .orbit-tile { animation:none !important; }
   }
   @media (max-width:980px) {
-    .logo-orbit { max-width:460px; }
-    .logo-orbit { --orbit-radius: -195px; }
+    .logo-orbit { max-width:460px; --orbit-radius: -190px; }
+    .orbit-tile { width:60px; height:60px; }
+    .orbit-logo { width:38px; height:38px; }
     .orbit-center { width:96px; height:96px; }
     .orbit-center svg { width:52px; height:52px; }
   }
   @media (max-width:600px) {
-    .logo-orbit { max-width:340px; }
-    .logo-orbit { --orbit-radius: -145px; }
-    .orbit-tile { padding:4px 9px 4px 5px; gap:5px; }
-    .orbit-logo { width:18px; height:18px; }
-    .orbit-name { font-size:.7em; }
+    .logo-orbit { max-width:340px; --orbit-radius: -140px; }
+    .orbit-tile { width:48px; height:48px; }
+    .orbit-logo { width:30px; height:30px; }
     .orbit-center { width:74px; height:74px; }
     .orbit-center svg { width:40px; height:40px; }
   }
