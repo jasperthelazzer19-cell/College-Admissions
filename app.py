@@ -1643,8 +1643,8 @@ def _render_counterfactual_card(profile, school, current_low, current_high):
         else:
             color = "#5eead4"
             arrow = "↑"
-        rows += f'''<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-top:1px solid var(--border);font-size:.92em;gap:12px">
-  <div style="flex:1">{label}</div>
+        rows += f'''<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-top:1px solid var(--border);font-size:.92em;gap:12px;flex-wrap:wrap">
+  <div style="flex:1;min-width:160px">{label}</div>
   <div style="white-space:nowrap"><span class="muted">{int(current_low)}–{int(current_high)}%</span> <span style="color:{color};font-weight:700;margin:0 4px">{arrow}</span> <b style="color:{color}">{int(lo)}–{int(hi)}%</b> <span style="color:{color};font-size:.85em">(+{delta:.0f})</span></div>
 </div>'''
 
@@ -1730,9 +1730,9 @@ def _render_sub_school_block(slug, highlight_keywords=None):
         note = e.get("note","")
         note_html = f'<div class="muted" style="font-size:.78em;line-height:1.4">{note}</div>' if note else ""
         rows += (
-            f'<div style="display:flex;justify-content:space-between;padding:6px 0;border-top:1px solid #f0f0f0;font-size:.9em;{bg}">'
-            f'<div><span>{e["name"]}</span>{match_pill}{note_html}</div>'
-            f'<span style="font-weight:600">{round(e["accept"]*100,1)}%</span>'
+            f'<div style="display:flex;justify-content:space-between;padding:6px 0;border-top:1px solid #f0f0f0;font-size:.9em;gap:8px;flex-wrap:wrap;{bg}">'
+            f'<div style="flex:1;min-width:180px"><span>{e["name"]}</span>{match_pill}{note_html}</div>'
+            f'<span style="font-weight:600;white-space:nowrap">{round(e["accept"]*100,1)}%</span>'
             f'</div>'
         )
     return f'<div style="margin-top:14px"><div style="font-weight:600;font-size:.85em;color:#666;margin-bottom:2px">By college within the university</div>{rows}</div>'
@@ -1943,7 +1943,7 @@ def render_admissions_breakdown(school, detail, dark=False, scale=1.0, personali
                 rate_str = f'{round(adj*100,1)}% <span style="color:{label_color};font-weight:400;font-size:.82em">(school: {pub}%)</span>'
         else:
             rate_str = "—"
-        rows += f'<div style="display:flex;justify-content:space-between;padding:5px 0;border-top:1px solid {border};font-size:.9em"><span>{ROUND_LABELS.get(r, r)}</span><span style="font-weight:600">{rate_str}</span></div>'
+        rows += f'<div style="display:flex;justify-content:space-between;padding:5px 0;border-top:1px solid {border};font-size:.9em;gap:8px;flex-wrap:wrap"><span>{ROUND_LABELS.get(r, r)}</span><span style="font-weight:600;white-space:nowrap">{rate_str}</span></div>'
     state_block = ""
     in_r = detail.get("in_state_rate")
     out_r = detail.get("out_of_state_rate")
@@ -5615,16 +5615,28 @@ hr{border:0;border-top:1px solid var(--border);margin:24px 0}
 .pick-pill:has(input:checked){background:rgba(94,234,212,.12)!important;border-color:rgba(94,234,212,.45)!important;color:var(--teal)!important}
 /* ───────── MOBILE ───────── */
 @media (max-width: 720px){
+  html,body{overflow-x:hidden}
   .wrap{padding:0 16px 60px}
-  .nav{padding:12px 14px;gap:14px;flex-wrap:wrap}
-  .nav .brand{font-size:1em;width:100%;margin-bottom:2px}
+  /* Nav becomes a horizontal-scroll bar on mobile so all 7 tabs are
+     reachable without awkward wrapping. Brand stays fixed at left. */
+  .nav{
+    padding:10px 14px;gap:0;flex-wrap:nowrap;overflow-x:auto;
+    scrollbar-width:none;-webkit-overflow-scrolling:touch;
+  }
+  .nav::-webkit-scrollbar{display:none}
+  .nav .brand{font-size:1em;flex-shrink:0;margin-right:14px}
   .nav .sp{display:none}
-  .nav a{font-size:.85em}
-  h1{font-size:1.45em}
-  h2{font-size:1.1em}
-  .card{padding:16px;border-radius:5px}
+  .nav a{font-size:.85em;white-space:nowrap;flex-shrink:0;margin-right:14px}
+  .nav a:last-child{margin-right:0}
+  .nav .muted{flex-shrink:0;white-space:nowrap;margin-left:8px}
+  h1{font-size:1.55em}
+  h2{font-size:1.15em}
+  h3{font-size:1.02em}
+  p{font-size:.95em}
+  .card{padding:16px;border-radius:5px;margin-bottom:12px}
   .grid{grid-template-columns:1fr;gap:12px}
   .school-card{padding:14px}
+  .stat-card{padding:18px}
   .stat-card .value{font-size:1.6em}
   .odds{font-size:1.85em}
   .rank-table{font-size:.78em}
@@ -5635,28 +5647,48 @@ hr{border:0;border-top:1px solid var(--border);margin:24px 0}
   .pill{font-size:.65em;padding:3px 8px}
   /* iOS auto-zooms inputs with font-size <16px. Keep at 16 to prevent that. */
   input,select,textarea{font-size:16px}
-  .btn{padding:10px 18px;font-size:.92em}
-  .btn-sm{padding:7px 12px}
+  .btn{padding:10px 18px;font-size:.92em;min-height:42px}
+  .btn-sm{padding:8px 14px;min-height:36px}
+  /* Forms: full-width primary buttons on mobile so they're easy to thumb */
+  form .btn-primary{display:inline-block}
   /* Tap targets */
   .checks label{padding:8px 0;min-height:44px}
   .pick-pill{min-height:36px}
   /* Tables that overflow get a scroll container */
-  table{display:block;overflow-x:auto}
+  table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch}
   /* Action plan items stack tighter */
   .action-item{flex-direction:column;gap:8px;padding:14px 0}
   .action-num{margin-bottom:4px}
+  /* Bar (back-link + breadcrumbs) tighter */
+  .bar{margin:6px 0 16px}
+  /* Search rows: input + button stack-friendly */
+  .search{flex-direction:column;gap:8px}
+  .search input{flex:none;width:100%}
+  /* Landing hero tighter on mobile */
+  .hero{padding:40px 0 50px!important}
+  /* Stat-card grid in simulator goes 1-up on narrow */
+  .grid[style*="minmax(220px"]{grid-template-columns:1fr!important}
 }
 @media (max-width: 480px){
   .wrap{padding:0 12px 50px}
-  .nav{gap:10px}
-  .nav a{font-size:.8em}
-  h1{font-size:1.3em;letter-spacing:-.4px}
-  .card{padding:14px}
+  .nav{padding:10px 12px}
+  .nav .brand{font-size:.95em;margin-right:10px}
+  .nav a{font-size:.82em;margin-right:12px}
+  h1{font-size:1.35em;letter-spacing:-.4px}
+  h2{font-size:1.05em;margin:20px 0 10px}
+  .card{padding:14px;margin-bottom:10px}
+  .stat-card{padding:16px}
   .stat-card .value{font-size:1.4em}
   .odds{font-size:1.6em}
   /* Real Profiles header on mobile */
   .rank-row{flex-wrap:wrap;padding:12px}
   .rank-row .num{min-width:24px;font-size:1.1em}
+  /* CTA row — stack secondary below primary */
+  .cta-row{flex-direction:column;align-items:stretch!important}
+  .cta-row a{text-align:center}
+  /* Stats row on landing — 2-up instead of 3-up at narrow */
+  .hero .stats{gap:14px!important}
+  .hero .stats .stat .num{font-size:1.5em!important}
 }
 /* Action plan items */
 .action-item{display:flex;gap:14px;padding:14px 0;border-top:1px solid var(--border)}
@@ -7125,7 +7157,7 @@ def school_improve_html(slug):
             v = rates.get(r)
             v_str = f"{round(v*100,1)}%" if v else "—"
             highlight = ' style="color:var(--teal);font-weight:700"' if r == rec else ""
-            rate_rows += f'<div style="display:flex;justify-content:space-between;padding:6px 0;border-top:1px solid var(--border)"><span{highlight}>{ROUND_LABELS.get(r,r)}{" ← recommended" if r == rec else ""}</span><span{highlight}>{v_str}</span></div>'
+            rate_rows += f'<div style="display:flex;justify-content:space-between;padding:6px 0;border-top:1px solid var(--border);gap:8px;flex-wrap:wrap"><span{highlight}>{ROUND_LABELS.get(r,r)}{" ← recommended" if r == rec else ""}</span><span{highlight} style="white-space:nowrap">{v_str}</span></div>'
         round_card = f"""<div class="card">
   <h3 style="margin-top:0">Best application round for you</h3>
   <p style="margin:0 0 10px">{rec_reason}</p>
@@ -9132,11 +9164,29 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
   .reveal.in { opacity:1; transform:translateY(0); }
 
   @media (max-width:680px) {
+    .lp-wrap { padding:0 18px; }
     .hero { padding:50px 0 60px; }
+    .hero h1 { letter-spacing:-.6px; }
+    .hero p.lede { font-size:1.05em; }
+    .hero .cta-row { gap:10px; }
+    .hero .cta-row a { padding:11px 18px; font-size:.95em; }
     .section { padding:60px 0; }
-    .lp-nav { padding:18px 20px; }
+    .lp-nav { padding:14px 16px; }
     .lp-nav .links a:not(.btn-primary) { display:none; }
-    .hero .stats { gap:22px; }
+    .hero .stats { gap:22px; margin-top:32px; }
+    .hero .stats .stat .num { font-size:1.5em; }
+    .problem-card { padding:24px 20px; }
+    .problem-card .quote { font-size:1.05em; }
+    .problem-card .vs .col { min-width:0; flex-basis:calc(50% - 7px); padding:14px; }
+    .problem-card .vs .num { font-size:1.3em; }
+    .feature { padding:22px 20px; }
+    .founder { padding:24px 20px; }
+    .founder p { font-size:1em; }
+    .final-cta { padding:60px 0 80px; }
+  }
+  @media (max-width:420px) {
+    .problem-card .vs .col { flex-basis:100%; }
+    .hero h1 { font-size:2em; }
   }
 </style>
 """
@@ -10458,8 +10508,8 @@ def plans_simulate_page():
       const s = STAMP_STYLE[d.outcome];
       const stamp = `<span style="background:${{s.bg}};color:${{s.color}};font-size:.72em;font-weight:700;letter-spacing:.5px;padding:3px 9px;border-radius:4px;white-space:nowrap">${{s.label}}</span>`;
       body += `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px;background:${{s.rowbg}};border:1px solid var(--border);border-radius:5px">
-        <div><a href="/college/${{d.slug}}" style="color:inherit;font-weight:600">${{d.name}}</a><div class="muted" style="font-size:.78em">${{d.round}} · ${{(d.p*100).toFixed(1)}}% odds</div></div>
-        <div>${{stamp}}</div>
+        <div style="flex:1;min-width:0;overflow:hidden"><a href="/college/${{d.slug}}" style="color:inherit;font-weight:600">${{d.name}}</a><div class="muted" style="font-size:.78em">${{d.round}} · ${{(d.p*100).toFixed(1)}}% odds</div></div>
+        <div style="flex-shrink:0">${{stamp}}</div>
       </div>`;
     }}
     body += '</div>';
@@ -10505,8 +10555,8 @@ def plans_simulate_page():
       const wPct = (s.WAITLIST/N*100).toFixed(1);
       const rPct = (s.REJECT/N*100).toFixed(1);
       body += `<div style="padding:8px 10px;border:1px solid var(--border);border-radius:5px">
-        <div style="display:flex;justify-content:space-between;font-size:.88em;font-weight:600;margin-bottom:6px">
-          <span>${{s.name}}</span><span style="color:#5eead4">${{aPct}}% admit</span>
+        <div style="display:flex;justify-content:space-between;font-size:.88em;font-weight:600;margin-bottom:6px;gap:8px;flex-wrap:wrap">
+          <span style="flex:1;min-width:0">${{s.name}}</span><span style="color:#5eead4;white-space:nowrap">${{aPct}}% admit</span>
         </div>
         <div style="display:flex;height:6px;border-radius:3px;overflow:hidden;background:var(--surface-2)">
           <div style="background:#5eead4;width:${{aPct}}%" title="Admit ${{aPct}}%"></div>
