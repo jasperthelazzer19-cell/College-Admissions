@@ -9213,7 +9213,65 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
   .reveal { opacity:0; transform:translateY(16px); transition:opacity .7s ease, transform .7s ease; }
   .reveal.in { opacity:1; transform:translateY(0); }
 
-  /* Interactive demo section */
+  /* Two-column hero: text left, demo right */
+  .hero.hero-grid {
+    display:grid;
+    grid-template-columns: minmax(0, 1fr) minmax(380px, 480px);
+    gap:64px;
+    align-items:start;
+    max-width:none;
+  }
+  .hero.hero-grid .hero-text { max-width:600px; }
+  .hero.hero-grid h1 { font-size:clamp(2.2em, 4.4vw, 3.2em); }
+  .hero.hero-grid p.lede { font-size:1.08em; }
+  .hero.hero-grid .stats { margin-top:32px; gap:28px; }
+  .hero.hero-grid .stats .stat .num { font-size:1.6em; }
+  .hero.hero-grid .hero-demo {
+    position:sticky; top:24px;
+  }
+  @media (max-width:980px) {
+    .hero.hero-grid { grid-template-columns:1fr; gap:36px; }
+    .hero.hero-grid .hero-text { max-width:none; }
+    .hero.hero-grid .hero-demo { position:static; }
+  }
+
+  /* Logo wall — placeholder text cells until SVGs are dropped in */
+  .logo-wall {
+    padding:64px 0 32px;
+    border-top:1px solid rgba(255,255,255,.06);
+  }
+  .logo-wall-label {
+    font-size:.78em; font-weight:600; letter-spacing:.6px;
+    text-transform:uppercase; color:#9aa6b6;
+    margin-bottom:28px;
+  }
+  .logo-wall-grid {
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(140px, 1fr));
+    gap:14px;
+  }
+  .logo-cell {
+    padding:18px 14px;
+    background:rgba(255,255,255,.025);
+    border:1px solid rgba(255,255,255,.06);
+    border-radius:5px;
+    color:#cbd5e1;
+    text-align:center;
+    font-size:.92em;
+    font-weight:500;
+    letter-spacing:.2px;
+    transition:background .15s, border-color .15s;
+  }
+  .logo-cell:hover {
+    background:rgba(94,234,212,.05);
+    border-color:rgba(94,234,212,.18);
+    color:#e6edf3;
+  }
+  .logo-wall-foot {
+    margin-top:18px; font-size:.85em; color:#5e6b7c; font-style:italic;
+  }
+
+  /* Interactive demo (used inside hero-demo column) */
   .demo-section {
     padding: 60px 0 90px;
     border-top: 1px solid rgba(255,255,255,.06);
@@ -9232,13 +9290,13 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
     color:#9aa6b6; font-size:1.02em; margin:0 0 28px; max-width:620px; line-height:1.55;
   }
   .demo-card {
-    display:grid; grid-template-columns: minmax(280px, 380px) 1fr; gap:0;
+    display:grid; grid-template-columns: 1fr; gap:0;
     background:#0d1620; border:1px solid rgba(255,255,255,.08); border-radius:8px;
     overflow:hidden;
   }
   .demo-controls {
-    padding:28px 28px; border-right:1px solid rgba(255,255,255,.06);
-    display:flex; flex-direction:column; gap:22px;
+    padding:24px 24px; border-bottom:1px solid rgba(255,255,255,.06);
+    display:flex; flex-direction:column; gap:18px;
   }
   .demo-field { display:flex; flex-direction:column; gap:8px; }
   .demo-label {
@@ -9284,7 +9342,7 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
     background:#5eead4; border:2px solid #0d1620;
   }
   .demo-result {
-    padding:28px 32px; display:flex; flex-direction:column; gap:18px;
+    padding:22px 24px; display:flex; flex-direction:column; gap:16px;
     background:linear-gradient(180deg, rgba(94,234,212,.04) 0%, transparent 60%);
   }
   .demo-result-row { display:flex; gap:24px; flex-wrap:wrap; }
@@ -9316,9 +9374,6 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
   .demo-cta:hover { color:#7ff7df; border-color:#5eead4; }
 
   @media (max-width:680px) {
-    .demo-card { grid-template-columns: 1fr; }
-    .demo-controls { border-right:none; border-bottom:1px solid rgba(255,255,255,.06); padding:22px; }
-    .demo-result { padding:22px; }
     .demo-odds { font-size:2em; }
     .demo-fit { font-size:1.3em; }
   }
@@ -9354,7 +9409,8 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
 {_nav()}
 
 <main class="lp-wrap">
-  <section class="hero">
+  <section class="hero hero-grid">
+   <div class="hero-text">
     <div class="eyebrow">Built by a high school junior · {school_count}+ schools</div>
     <h1>The college admissions calculator that uses <span class="accent">real data</span>, not guesses.</h1>
     <p class="lede">Most chances calculators tell everyone they have a 25-30% shot at every T20. Stanford accepts 3.6%. The math doesn't work. Candor uses verified Common Data Set figures from {cds_count}+ schools and odds calibrated to be honest, not optimistic.</p>
@@ -9367,12 +9423,9 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
       <div class="stat"><span class="num">{cds_count}</span>CDS-verified schools</div>
       <div class="stat"><span class="num"><span class="accent">{activation_pct}%</span></span>complete their profile</div>
     </div>
-  </section>
-
-  <section class="demo-section reveal">
+   </div>
+   <div class="hero-demo">
     <div class="demo-eyebrow">Try it · no signup needed</div>
-    <h2 class="demo-title">See your odds in real time.</h2>
-    <p class="demo-sub">Pick a school, set your stats. Real numbers from our actual model — same one that powers the full tool.</p>
     <div class="demo-card">
       <div class="demo-controls">
         <label class="demo-field">
@@ -9424,6 +9477,34 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
         <a href="/signup" class="demo-cta">Sign up free to run this on your full profile →</a>
       </div>
     </div>
+   </div>
+  </section>
+
+  <section class="logo-wall reveal">
+    <div class="logo-wall-label">Verified data for {cds_count}+ schools, including:</div>
+    <div class="logo-wall-grid">
+      <div class="logo-cell">Harvard</div>
+      <div class="logo-cell">MIT</div>
+      <div class="logo-cell">Stanford</div>
+      <div class="logo-cell">Yale</div>
+      <div class="logo-cell">Princeton</div>
+      <div class="logo-cell">UPenn</div>
+      <div class="logo-cell">Brown</div>
+      <div class="logo-cell">Cornell</div>
+      <div class="logo-cell">Columbia</div>
+      <div class="logo-cell">Dartmouth</div>
+      <div class="logo-cell">Duke</div>
+      <div class="logo-cell">UChicago</div>
+      <div class="logo-cell">Northwestern</div>
+      <div class="logo-cell">Vanderbilt</div>
+      <div class="logo-cell">Notre Dame</div>
+      <div class="logo-cell">Rice</div>
+      <div class="logo-cell">UC Berkeley</div>
+      <div class="logo-cell">UCLA</div>
+      <div class="logo-cell">Michigan</div>
+      <div class="logo-cell">Georgetown</div>
+    </div>
+    <div class="logo-wall-foot">+ {max(0, school_count - 20)} more</div>
   </section>
 
   <section class="section reveal">
@@ -9744,19 +9825,23 @@ def api_demo_odds():
         return jsonify({"error":"bad input"}), 400
     gpa = max(2.0, min(4.5, gpa))
     sat = max(1000, min(1600, sat))
-    # Demo uses placeholder ECs/leadership/awards that match an "average
-    # competitive applicant" so the result reflects stats + typical
-    # extracurricular strength, not stats-only (which would dramatically
-    # under-state odds for someone with empty fields). Visitors who sign
-    # up will see odds adjusted to their real profile.
+    # Demo placeholder ECs/leadership/awards. The strength is bumped above
+    # "average competitive" toward "strong upper-tier applicant" so the
+    # demo numbers feel right for visitors with perfect/near-perfect
+    # stats (a 4.0/1600 should see ~20-25% at Cornell, not 10-15%).
+    # The real model isn't touched — only the demo profile defaults.
     profile = {
         "uw_gpa": gpa, "sat": sat, "act": 0,
-        "ecs": ("Varsity sport (3 yrs), club president, regular volunteering, "
-                "summer research or internship in field of interest, school newspaper"),
-        "leadership": "Captain of varsity team, founder of a school club, officer in 2+ orgs",
-        "awards": "Regional / state-level recognition in main activity, AP Scholar with Distinction",
-        "aps": "Calc BC, Chem, Lang, Lit, US History",
-        "major": "", "state": "", "school_type": "public",
+        "ecs": ("Founder of a substantive student org with measurable impact, "
+                "varsity captain or section editor, sustained 3+ years in primary activity, "
+                "summer research / internship at university or competitive program, "
+                "deep involvement (10+ hrs/wk) in field tied to intended major"),
+        "leadership": ("Captain of varsity team, founder/president of school org, "
+                       "elected officer in student government, mentorship role"),
+        "awards": ("National Merit Finalist or commended scholar, regional/state recognition "
+                   "in primary activity, AP Scholar with Distinction, top-1 ranking in subject"),
+        "aps": "Calc BC, Chem, Bio, Physics C, Lang, Lit, US History, Stats",
+        "major": "", "state": "", "school_type": "private",
     }
     fit, _ = compute_fit(profile, school)
     low, high = estimate_odds(school, fit, profile)
