@@ -1171,7 +1171,7 @@ def render_round_breakdown_dark(school, detail, scale=1.0, personalized_rates=No
 # Bump this when the personalize_round_odds prompt logic changes —
 # auto-invalidates all cached round breakdowns on the next request so
 # users immediately see results from the new prompt.
-ROUND_PROMPT_VERSION = "v2"
+ROUND_PROMPT_VERSION = "v4"
 
 
 def _profile_version_hash(profile):
@@ -1269,33 +1269,48 @@ Published rates by round:
 Applicant profile: {profile_summary}
 This applicant's overall personalized chances: {user_low_pct}-{user_high_pct}% (midpoint {user_mid}%)
 
-Estimate this applicant's chances IN EACH ROUND. Be REALISTIC about how rounds shift odds in real admissions, not artificially conservative.
+Estimate this applicant's chances IN EACH ROUND. Be realistic — different tiers have very different round dynamics.
 
 How rounds actually move odds:
-- BINDING ED at yield-conscious privates (Penn, Duke, Cornell, NW, Vandy, JHU, Brown, WashU, Emory, Tufts, NYU): typically 2-4× lift over the user's RD odds. A user who'd be ~10% RD might be 25-35% ED.
-- ED at smaller LACs (Williams, Amherst, Bowdoin, Middlebury, Wesleyan): ~2-2.5× lift. ED is a major signal at these schools.
-- REA at HYPS / single-choice EA: small lift (~1.2-1.5×) for unhooked applicants. Bigger only with real hooks.
-- EA at non-binding schools (Georgetown, Notre Dame, BC): modest lift (~1.1-1.4×) — less commitment so smaller bump.
-- ED2 at binding-ED schools: ~1.7-2.5× lift, slightly less than ED1.
-- Demonstrated-interest schools (BU, Northeastern, Tulane, GWU): EA/ED lift is amplified for users who've engaged.
-- RD at any school: should land near the user's overall midpoint, since RD is the bulk of the pool.
-- For EXCEPTIONAL applicants (recruited athlete, USAMO/IMO, dev case): odds stay HIGH across all rounds. They're getting in if they apply right, ~70-90% in any round.
+
+ELITE TIER (overall accept ≤ 8% — Ivies, Stanford, MIT, Caltech, UChicago, Duke, JHU, Northwestern):
+- ED/REA lift here is REAL but capped because the absolute pool is so strong. Typically 1.5-2.2× RD odds, NOT 3-4×.
+- Even a strong applicant who'd be ~10% RD at Penn is more like 18-22% ED, not 30-40%.
+- HYPS REA / single-choice EA: small lift only (~1.1-1.4×) for unhooked applicants. The pool is self-selected to be elite, so the bump is structural, not personal.
+- For exceptional applicants (USAMO gold, recruited athlete, true national distinction): odds are high across all rounds (50-80%), and ED vs RD matters less.
+
+YIELD-CONSCIOUS PRIVATES (overall accept 8-25% — NYU, BC, Tufts, Vandy, Wash U, Emory, Rice, BU, Tulane, Northeastern, Lehigh, Villanova, GWU):
+- ED at these schools gets bigger lift because they're chasing yield. Typically 2-3.5× RD.
+- The most yield-obsessed (Tulane, NEU EA, Tufts ED2) can hit 3-4× lift for fit applicants.
+- EA at non-binding schools in this tier: 1.2-1.6× — not committal so smaller bump but still real.
+
+LACS (overall accept 8-25% — Williams, Amherst, Bowdoin, Middlebury, Wesleyan, Hamilton, Vassar, Pomona, Swarthmore):
+- ED gets meaningful lift, 1.8-2.5× RD. ED is a major commitment signal at small schools.
+
+ED2: ~1.3-1.8× RD. Less than ED1 because strongest applicants already went ED1.
+
+DEMONSTRATED-INTEREST schools (BU, Northeastern, Tulane, GWU, American, Syracuse, Marist): EA/ED gets a small extra bump (+10-20% on top of base lift) IF user shows engagement signals.
+
+RD at any school: should land approximately at the user's overall midpoint odds — RD is the bulk of the applicant pool.
 
 Common mistakes to avoid:
-- Don't make ED < published ED rate for any half-decent applicant. If published ED is 25%, our user with average odds at this school should be AT LEAST 25% in ED.
-- Don't bunch all rounds near the user's midpoint — there should be meaningful spread between ED and RD at most schools.
-- Don't undershoot ED at obvious yield-conscious schools just to seem "calibrated."
+- Don't apply elite-tier conservatism to non-elite schools (NEU ED IS a 3× bump, Penn ED isn't).
+- Don't apply yield-conscious lifts to elite schools (Penn ED is 1.8×, not 3×).
+- Don't bunch all rounds at the user's midpoint.
+- Don't make ED < RD. ED should always be ≥ RD at any binding-ED school.
 
 Return ONLY valid JSON (no markdown, no preamble) with this exact shape:
 {{
   "rates": {{ {", ".join(f'"{r}": <float 0-1>' for r in rounds)} }},
-  "reasoning": "<one sentence on how this school weights ED/EA for this specific applicant>"
+  "reasoning": "<one sentence on how THIS specific school weights ED/EA for THIS applicant>"
 }}
 
 Hard rules:
 - Each rate is the applicant's actual chance (0.0-0.95), not a percentage.
-- For most schools, the applicant's ED rate should be at least 1.4× their RD rate.
-- For schools with big ED lifts (yield-conscious privates), 2-4× is normal.
+- ED ≥ RD at any binding-ED school.
+- Elite tier ED/REA: max 2.2× RD unless applicant is exceptional.
+- Yield-conscious tier ED: typically 2-3× RD.
+- HYPS REA for unhooked: 1.1-1.4× RD.
 - Cap any single round at 0.95.
 - Keep reasoning under 30 words."""
 
