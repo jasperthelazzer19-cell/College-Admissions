@@ -9558,6 +9558,11 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
 </style>
 """
     body = f"""
+<div class="aurora-wrapper">
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <div class="blob blob-3"></div>
+</div>
 {_nav()}
 
 <main class="lp-wrap">
