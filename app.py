@@ -9364,22 +9364,30 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
     transform:rotate(var(--angle, 0deg)) translateY(var(--orbit-radius, -230px));
   }
   .orbit-tile {
-    width:108px; height:108px;
+    width:120px; height:120px;
     display:flex; align-items:center; justify-content:center;
     transform:translate(-50%, -50%);
+    background:transparent;
+    border:none;
+    border-radius:0;
     /* per-item animation: orbit-counter-N — defined in the keyframes
        block injected below, one per orbit position. */
-    transition:transform .15s, filter .15s;
+    transition:transform .15s;
     will-change:transform;
   }
   .orbit-logo {
-    width:96px; height:96px;
+    /* Each logo file is pre-cropped to its content bounding box (PIL
+       getbbox), so object-fit:contain makes every logo fill this 110px
+       box as fully as its aspect ratio allows. Wide logos end shorter
+       in height, tall logos end narrower, but the *visual area* of
+       each is roughly equal. */
+    width:110px; height:110px;
     object-fit:contain;
     transition:filter .15s, transform .15s;
   }
   .orbit-item:hover .orbit-logo {
-    transform:scale(1.12);
-    filter:drop-shadow(0 0 16px rgba(94,234,212,.5));
+    transform:scale(1.1);
+    filter:drop-shadow(0 0 18px rgba(94,234,212,.55));
   }
   @keyframes orbit-spin { to { transform:rotate(360deg); } }
   @media (prefers-reduced-motion: reduce) {
