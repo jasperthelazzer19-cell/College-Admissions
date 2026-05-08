@@ -5287,6 +5287,11 @@ def extract_structured_profiles(college_slug, force=False):
                     return json.loads(row["body"])
                 except Exception:
                     pass
+    # Anonymous gate: don't burn Anthropic budget generating on demand
+    # for unauthenticated visitors — cache miss + no logged-in user
+    # likely means a scraper hitting cold schools.
+    if not current_user():
+        return []
     posts = fetch_reddit_profiles(college_slug, force=False)
     if not posts: return []
     if not _claude_client: return []
@@ -7384,6 +7389,10 @@ def get_school_facts(c, force=False):
                 (c["slug"], cutoff)
             ).fetchone()
             if row: return row["body"]
+    # Anonymous gate: don't generate fresh facts for cold schools when
+    # no logged-in user is requesting it (scraper protection).
+    if not current_user():
+        return ""
     body = None
     if _claude_client:
         try:
@@ -7451,6 +7460,9 @@ def get_school_summary(c, force=False):
                 (c["slug"], cutoff)
             ).fetchone()
             if row: return row["body"]
+    # Anonymous gate: scrapers don't get free generation.
+    if not current_user():
+        return ""
     body = None
     if _claude_client:
         try:
@@ -7506,6 +7518,11 @@ def get_school_strategy(c, force=False):
             ).fetchone()
             if row:
                 return {"values": row["school_values"], "supplemental_strategy": row["supplemental_strategy"]}
+    # Anonymous gate: cold-school strategy generation is the biggest
+    # scraper-cost vector. Cached schools still serve fine; new ones
+    # only generate when a real user requests them.
+    if not current_user():
+        return {"values": "", "supplemental_strategy": ""}
     values, strat = None, None
     if _claude_client:
         try:
@@ -7593,6 +7610,10 @@ def get_school_profiles(c, force=False):
                 (c["slug"], cutoff)
             ).fetchone()
             if row: return row["body"]
+    # Anonymous gate: don't trigger generation for scrapers hitting cold
+    # schools. Logged-in users still get fresh generation on cache miss.
+    if not current_user():
+        return ""
     body = None
     if _claude_client:
         try:
