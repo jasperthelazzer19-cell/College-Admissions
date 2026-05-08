@@ -5184,6 +5184,12 @@ def extract_real_essays(college_slug, force=False):
                     return json.loads(row["body"])
                 except Exception:
                     pass
+    # Anonymous gate: this is the most expensive AI call in the app
+    # (max_tokens=6000). The bot was hitting ?essays=1 on every school
+    # and forcing fresh generation. Cached results still serve to
+    # anonymous; only generation requires a logged-in user.
+    if not current_user():
+        return []
     raw = fetch_reddit_essays(college_slug, force=False)
     if not raw or not _claude_client: return []
     posts_text = ""
@@ -5216,7 +5222,7 @@ Posts:
     try:
         resp = _claude_client.messages.create(
             model="claude-haiku-4-5-20251001",
-            max_tokens=6000,
+            max_tokens=3000,  # was 6000 — that's enough for ~5-8 essays. Halving cost.
             system="You extract real essay text from Reddit posts. Verbatim, never rewriting. Skip posts that don't contain actual essay text.",
             messages=[{"role":"user","content": prompt}],
         )
@@ -8051,7 +8057,9 @@ def school_profiles_html(slug):
     c = COLLEGES_BY_SLUG.get(slug)
     if not c: abort(404)
     name = c["name"]
-    force = request.args.get("refresh") == "1"
+    # Only logged-in users can force a refresh (cache-bypass). Bots were
+    # hitting ?refresh=1 to dodge our cache.
+    force = (request.args.get("refresh") == "1") and bool(current_user())
     show_essays = request.args.get("essays") == "1"
     import html as _html
 
