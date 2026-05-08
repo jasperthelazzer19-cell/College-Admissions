@@ -9482,6 +9482,24 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
     text-transform:none; letter-spacing:0;
     font-variant-numeric:tabular-nums;
   }
+  .demo-test-toggle {
+    display:inline-flex; gap:0;
+    border:1px solid rgba(255,255,255,.12); border-radius:99px;
+    overflow:hidden; padding:2px;
+    background:rgba(255,255,255,.02);
+  }
+  .demo-test-btn {
+    background:transparent; border:0; padding:3px 10px;
+    font-size:.78em; font-weight:600; color:#9aa6b6;
+    text-transform:uppercase; letter-spacing:.4px;
+    border-radius:99px; cursor:pointer;
+    transition:background .15s, color .15s;
+  }
+  .demo-test-btn.active {
+    background:rgba(94,234,212,.15);
+    color:#5eead4;
+  }
+  .demo-test-btn:not(.active):hover { color:#cbd5e1; }
   .demo-field select, .demo-field input[type=range] { width:100%; }
   .demo-field select {
     background:#0a121a; color:#e6edf3; border:1px solid rgba(255,255,255,.12);
@@ -9632,8 +9650,15 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
           <input type="range" id="demo-gpa" min="2.5" max="4.0" step="0.01" value="3.90">
         </label>
         <label class="demo-field">
-          <span class="demo-label">SAT <span class="demo-readout" id="demo-sat-out">1500</span></span>
+          <span class="demo-label">
+            <span class="demo-test-toggle">
+              <button type="button" class="demo-test-btn active" data-test="sat">SAT</button>
+              <button type="button" class="demo-test-btn" data-test="act">ACT</button>
+            </span>
+            <span class="demo-readout" id="demo-score-out">1500</span>
+          </span>
           <input type="range" id="demo-sat" min="1100" max="1600" step="10" value="1500">
+          <input type="range" id="demo-act" min="18" max="36" step="1" value="33" style="display:none">
         </label>
       </div>
       <div class="demo-result">
@@ -9760,13 +9785,17 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
     const slug = document.getElementById('demo-school');
     const gpa  = document.getElementById('demo-gpa');
     const sat  = document.getElementById('demo-sat');
+    const act  = document.getElementById('demo-act');
     const gpaOut = document.getElementById('demo-gpa-out');
-    const satOut = document.getElementById('demo-sat-out');
+    const scoreOut = document.getElementById('demo-score-out');
     const oddsEl = document.getElementById('demo-odds');
     const fitEl  = document.getElementById('demo-fit');
     const tierEl = document.getElementById('demo-tier');
     const ctxEl  = document.getElementById('demo-context');
-    if (!slug || !gpa || !sat) return;
+    const testBtns = document.querySelectorAll('.demo-test-btn');
+    if (!slug || !gpa || !sat || !act) return;
+
+    let activeTest = 'sat';
 
     const TIER_COLORS = {{
       "Dream":"#f9a8d4", "Reach":"#fcd34d",
@@ -9775,8 +9804,10 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
 
     let timer;
     function fetchOdds(){{
-      const params = new URLSearchParams({{slug:slug.value, gpa:gpa.value, sat:sat.value}});
-      fetch('/api/demo-odds?' + params.toString())
+      const params = {{slug:slug.value, gpa:gpa.value}};
+      if (activeTest === 'sat') params.sat = sat.value;
+      else                       params.act = act.value;
+      fetch('/api/demo-odds?' + new URLSearchParams(params).toString())
         .then(r => r.ok ? r.json() : null)
         .then(d => {{
           if (!d) return;
@@ -9784,17 +9815,31 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
           fitEl.textContent  = `${{d.fit}}/100`;
           tierEl.textContent = d.tier;
           tierEl.style.color = TIER_COLORS[d.tier] || '#e6edf3';
-          const satRange = (d.school_sat_lo && d.school_sat_hi) ? `${{d.school_sat_lo}}–${{d.school_sat_hi}}` : '—';
+          const range = (activeTest === 'sat')
+            ? ((d.school_sat_lo && d.school_sat_hi) ? `${{d.school_sat_lo}}–${{d.school_sat_hi}}` : '—')
+            : ((d.school_act_lo && d.school_act_hi) ? `${{d.school_act_lo}}–${{d.school_act_hi}}` : '—');
+          const testLabel = activeTest.toUpperCase();
           const gpaRange = (d.school_gpa_lo && d.school_gpa_hi) ? `${{d.school_gpa_lo}}–${{d.school_gpa_hi}}` : '—';
-          ctxEl.textContent = `${{d.school_name}} · ${{d.school_accept}}% accept · SAT mid-50% ${{satRange}} · GPA mid-50% ${{gpaRange}}`;
+          ctxEl.textContent = `${{d.school_name}} · ${{d.school_accept}}% accept · ${{testLabel}} mid-50% ${{range}} · GPA mid-50% ${{gpaRange}}`;
         }})
         .catch(() => {{}});
     }}
     function schedule(){{ clearTimeout(timer); timer = setTimeout(fetchOdds, 400); }}
 
+    function setTest(which){{
+      activeTest = which;
+      testBtns.forEach(b => b.classList.toggle('active', b.dataset.test === which));
+      sat.style.display = (which === 'sat') ? '' : 'none';
+      act.style.display = (which === 'act') ? '' : 'none';
+      scoreOut.textContent = (which === 'sat') ? sat.value : act.value;
+      schedule();
+    }}
+
+    testBtns.forEach(b => b.addEventListener('click', () => setTest(b.dataset.test)));
     slug.addEventListener('change', schedule);
     gpa.addEventListener('input', () => {{ gpaOut.textContent = parseFloat(gpa.value).toFixed(2); schedule(); }});
-    sat.addEventListener('input', () => {{ satOut.textContent = sat.value; schedule(); }});
+    sat.addEventListener('input', () => {{ if (activeTest==='sat') scoreOut.textContent = sat.value; schedule(); }});
+    act.addEventListener('input', () => {{ if (activeTest==='act') scoreOut.textContent = act.value; schedule(); }});
     fetchOdds(); // initial render
   }})();
 </script>
@@ -9997,10 +10042,12 @@ def api_demo_odds():
     try:
         gpa = float(request.args.get("gpa") or 0)
         sat = int(request.args.get("sat") or 0)
+        act = int(request.args.get("act") or 0)
     except ValueError:
         return jsonify({"error":"bad input"}), 400
     gpa = max(2.0, min(4.5, gpa))
-    sat = max(1000, min(1600, sat))
+    if sat: sat = max(1000, min(1600, sat))
+    if act: act = max(12, min(36, act))
     # Demo placeholder ECs/leadership/awards. The strength is bumped above
     # "average competitive" toward "strong upper-tier applicant" so the
     # demo numbers feel right for visitors with perfect/near-perfect
@@ -10010,9 +10057,10 @@ def api_demo_odds():
     # so the model lifts caps the same way it does for real top-1% applicants.
     # Otherwise stats-perfect kids see ~10-15% at every elite school in the
     # demo, which feels too pessimistic for a marketing surface.
-    looks_exceptional = (gpa >= 3.92 and sat >= 1530)
+    # exceptional flag fires for stats-perfect kids on either test
+    looks_exceptional = (gpa >= 3.92 and (sat >= 1530 or act >= 34))
     profile = {
-        "uw_gpa": gpa, "sat": sat, "act": 0,
+        "uw_gpa": gpa, "sat": sat, "act": act,
         "ecs": ("Founder of a substantive student org with measurable impact, "
                 "varsity captain or section editor, sustained 3+ years in primary activity, "
                 "summer research / internship at university or competitive program, "
@@ -10033,6 +10081,7 @@ def api_demo_odds():
         "school_name": school["name"],
         "school_accept": round(school["accept"]*100, 1),
         "school_sat_lo": school.get("sat_25"), "school_sat_hi": school.get("sat_75"),
+        "school_act_lo": school.get("act_25"), "school_act_hi": school.get("act_75"),
         "school_gpa_lo": school.get("gpa_lo"), "school_gpa_hi": school.get("gpa_hi"),
     })
 
