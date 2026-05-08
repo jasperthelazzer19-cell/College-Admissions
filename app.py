@@ -9375,6 +9375,12 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
   .orbit-logo {
     width:96px; height:96px;
     object-fit:contain;
+    /* multiply blends each pixel with the page bg behind it. White
+       (255,255,255) × dark page ≈ dark page, so white squares fade
+       into the background. Colored content survives (slightly darker
+       on a near-black page). Pure-black-on-white logos disappear
+       entirely — those need transparent sources instead. */
+    mix-blend-mode:multiply;
     transition:filter .15s, transform .15s;
   }
   .orbit-item:hover .orbit-logo {
