@@ -11220,27 +11220,66 @@ def plans_simulate_page():
   //   competitive schools — Penn ED is famously defer-heavy.)
   // For RD: of the (1-p) non-admit pool, ~12% waitlist, ~88% reject.
   // For "Round undecided": treat as RD by default.
+  // Two-stage rolling: any defer/waitlist resolves to a final admit or
+  // reject, since by the end of the cycle no decision is "still pending."
+  // Returns { final, path, label } so we can show both the final outcome
+  // (for counting admits) and the path that got there (for the stamp).
+  // Constants based on rough industry averages:
+  //   - Of deferred applicants: ~13% admitted RD, ~10% waitlisted, ~77% rejected
+  //   - Of waitlisted applicants: ~10% pulled off (varies wildly by school)
   function rollOutcome(p, round){{
     const isEarly = /(Early Decision|Early Action|Restrictive)/i.test(round || '');
-    const r = Math.random();
-    if (r < p) return 'ADMIT';
-    const rem = (r - p) / Math.max(0.0001, 1 - p);  // 0..1 within the non-admit slice
-    if (isEarly) {{
-      if (rem < 0.45) return 'DEFER';
-      if (rem < 0.55) return 'WAITLIST';
-      return 'REJECT';
+    // Stage 1: submitted-round decision
+    if (Math.random() < p) {{
+      return {{ final:'ADMIT', path:'admit', label:'ADMITTED' }};
     }}
-    if (rem < 0.12) return 'WAITLIST';
-    return 'REJECT';
+    // Distribute non-admits. Early rounds defer most, RD waitlists some.
+    let stage;
+    if (isEarly) {{
+      const r = Math.random();
+      stage = r < 0.45 ? 'defer' : (r < 0.55 ? 'waitlist' : 'reject');
+    }} else {{
+      stage = Math.random() < 0.12 ? 'waitlist' : 'reject';
+    }}
+    if (stage === 'defer') {{
+      // Stage 2: deferred applicants get re-evaluated in RD pool
+      const r = Math.random();
+      if (r < 0.13) return {{ final:'ADMIT', path:'defer_admit', label:'DEFER → ADMIT' }};
+      if (r < 0.23) {{
+        // Defer → waitlist → resolve final
+        if (Math.random() < 0.10)
+          return {{ final:'ADMIT', path:'defer_wl_admit', label:'DEFER → WL → ADMIT' }};
+        return {{ final:'REJECT', path:'defer_wl_reject', label:'DEFER → WL → REJECT' }};
+      }}
+      return {{ final:'REJECT', path:'defer_reject', label:'DEFER → REJECT' }};
+    }}
+    if (stage === 'waitlist') {{
+      if (Math.random() < 0.10)
+        return {{ final:'ADMIT', path:'wl_admit', label:'WAITLIST → ADMIT' }};
+      return {{ final:'REJECT', path:'wl_reject', label:'WAITLIST → REJECT' }};
+    }}
+    return {{ final:'REJECT', path:'reject', label:'REJECTED' }};
   }}
 
+  // Stamp visuals keyed by path. Final-admit paths are all teal; final-
+  // reject paths shade pink. Defer/waitlist legs of admits get a softer
+  // teal so the reader sees "this admit came after a defer" at a glance.
   const STAMP_STYLE = {{
-    ADMIT:    {{label:'ADMITTED',   bg:'rgba(94,234,212,.18)', color:'#5eead4', rowbg:'rgba(94,234,212,.04)'}},
-    DEFER:    {{label:'DEFERRED',   bg:'rgba(125,211,252,.15)', color:'#7dd3fc', rowbg:'rgba(125,211,252,.03)'}},
-    WAITLIST: {{label:'WAITLISTED', bg:'rgba(251,191,36,.15)', color:'#fbbf24', rowbg:'rgba(251,191,36,.03)'}},
-    REJECT:   {{label:'REJECTED',   bg:'rgba(252,165,165,.12)', color:'#fca5a5', rowbg:'transparent'}},
+    admit:           {{bg:'rgba(94,234,212,.18)', color:'#5eead4', rowbg:'rgba(94,234,212,.04)'}},
+    defer_admit:     {{bg:'rgba(94,234,212,.14)', color:'#5eead4', rowbg:'rgba(94,234,212,.03)'}},
+    defer_wl_admit:  {{bg:'rgba(94,234,212,.14)', color:'#5eead4', rowbg:'rgba(94,234,212,.03)'}},
+    wl_admit:        {{bg:'rgba(94,234,212,.14)', color:'#5eead4', rowbg:'rgba(94,234,212,.03)'}},
+    defer_reject:    {{bg:'rgba(252,165,165,.12)', color:'#fca5a5', rowbg:'transparent'}},
+    defer_wl_reject: {{bg:'rgba(252,165,165,.12)', color:'#fca5a5', rowbg:'transparent'}},
+    wl_reject:       {{bg:'rgba(252,165,165,.12)', color:'#fca5a5', rowbg:'transparent'}},
+    reject:          {{bg:'rgba(252,165,165,.12)', color:'#fca5a5', rowbg:'transparent'}},
   }};
-  const OUTCOME_RANK = {{ADMIT:0, DEFER:1, WAITLIST:2, REJECT:3}};
+  // Sort: admits first (direct, then defer-admit, then wl-admit), then
+  // rejects (most "almost made it" first), then plain reject last.
+  const PATH_RANK = {{
+    admit:0, defer_admit:1, defer_wl_admit:2, wl_admit:3,
+    wl_reject:4, defer_wl_reject:5, defer_reject:6, reject:7,
+  }};
 
   function singleRun(){{
     if (!data.length) {{
@@ -11248,33 +11287,30 @@ def plans_simulate_page():
       return;
     }}
     const draws = data.map(s => ({{ ...s, outcome: rollOutcome(s.p, s.round) }}));
-    const counts = {{ADMIT:0, DEFER:0, WAITLIST:0, REJECT:0}};
-    for (const d of draws) counts[d.outcome]++;
+    let nAdmit = 0, nReject = 0;
+    for (const d of draws) {{
+      if (d.outcome.final === 'ADMIT') nAdmit++; else nReject++;
+    }}
     runs++;
     counter.textContent = `Run #${{runs}}`;
     empty.style.display = 'none';
     results1k.style.display = 'none';
     summary.style.display = 'block';
-    if (counts.ADMIT === 0 && counts.WAITLIST === 0 && counts.DEFER === 0) {{
-      headline.innerHTML = '😬 Zero admits, zero waitlists this cycle';
+    if (nAdmit === 0) {{
+      headline.innerHTML = '😬 Zero admits this cycle';
       subhead.textContent = 'Unlucky run. Try again — most cycles get something.';
-    }} else if (counts.ADMIT === draws.length) {{
-      headline.innerHTML = `🔥 Admitted to all ${{counts.ADMIT}}!`;
+    }} else if (nAdmit === draws.length) {{
+      headline.innerHTML = `🔥 Admitted to all ${{nAdmit}}!`;
       subhead.textContent = 'Extremely lucky run. Real outcomes are usually noisier.';
     }} else {{
-      const parts = [];
-      if (counts.ADMIT)   parts.push(`<b style="color:#5eead4">${{counts.ADMIT}}</b> admit${{counts.ADMIT===1?'':'s'}}`);
-      if (counts.DEFER)    parts.push(`<b style="color:#7dd3fc">${{counts.DEFER}}</b> deferred`);
-      if (counts.WAITLIST) parts.push(`<b style="color:#fbbf24">${{counts.WAITLIST}}</b> waitlist${{counts.WAITLIST===1?'':'s'}}`);
-      if (counts.REJECT)   parts.push(`<span style="color:#fca5a5">${{counts.REJECT}} reject${{counts.REJECT===1?'':'s'}}</span>`);
-      headline.innerHTML = parts.join(' · ');
-      subhead.textContent = 'Click again for a different outcome.';
+      headline.innerHTML = `<b style="color:#5eead4">${{nAdmit}}</b> admit${{nAdmit===1?'':'s'}} · <span style="color:#fca5a5">${{nReject}} reject${{nReject===1?'':'s'}}</span>`;
+      subhead.textContent = 'Click again for a different outcome. Watch the paths — defers, waitlists, and rejections all resolve.';
     }}
     let body = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:8px">';
-    draws.sort((a,b) => (OUTCOME_RANK[a.outcome] - OUTCOME_RANK[b.outcome]) || (b.p - a.p));
+    draws.sort((a,b) => (PATH_RANK[a.outcome.path] - PATH_RANK[b.outcome.path]) || (b.p - a.p));
     for (const d of draws){{
-      const s = STAMP_STYLE[d.outcome];
-      const stamp = `<span style="background:${{s.bg}};color:${{s.color}};font-size:.72em;font-weight:700;letter-spacing:.5px;padding:3px 9px;border-radius:4px;white-space:nowrap">${{s.label}}</span>`;
+      const s = STAMP_STYLE[d.outcome.path];
+      const stamp = `<span style="background:${{s.bg}};color:${{s.color}};font-size:.72em;font-weight:700;letter-spacing:.5px;padding:3px 9px;border-radius:4px;white-space:nowrap">${{d.outcome.label}}</span>`;
       body += `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px;background:${{s.rowbg}};border:1px solid var(--border);border-radius:5px">
         <div style="flex:1;min-width:0;overflow:hidden"><a href="/college/${{d.slug}}" style="color:inherit;font-weight:600">${{d.name}}</a><div class="muted" style="font-size:.78em">${{d.round}} · ${{(d.p*100).toFixed(1)}}% odds</div></div>
         <div style="flex-shrink:0">${{stamp}}</div>
@@ -11291,15 +11327,21 @@ def plans_simulate_page():
       return;
     }}
     const N = 1000;
-    // Track per-school outcomes + distribution of total admits per run
-    const perSchool = data.map(_=>({{ADMIT:0, DEFER:0, WAITLIST:0, REJECT:0}}));
+    // Per-school accumulator: track admit total + each path so we can show
+    // "10% admit (4% direct, 5% off waitlist, 1% deferred-then-admit)"
+    const perSchool = data.map(_=>({{
+      admit_total:0, reject_total:0,
+      admit:0, defer_admit:0, defer_wl_admit:0, wl_admit:0,
+      defer_reject:0, defer_wl_reject:0, wl_reject:0, reject:0,
+    }}));
     const totalDist = new Array(data.length+1).fill(0);
     for (let i=0;i<N;i++){{
       let admits = 0;
       for (let j=0;j<data.length;j++){{
         const o = rollOutcome(data[j].p, data[j].round);
-        perSchool[j][o]++;
-        if (o === 'ADMIT') admits++;
+        perSchool[j][o.path]++;
+        if (o.final === 'ADMIT') {{ perSchool[j].admit_total++; admits++; }}
+        else perSchool[j].reject_total++;
       }}
       totalDist[admits]++;
     }}
@@ -11314,28 +11356,35 @@ def plans_simulate_page():
     const zeroAdmits = totalDist[0];
     headline.innerHTML = `Across ${{N.toLocaleString()}} runs: median <b style="color:#5eead4">${{median}}</b> admit${{median===1?'':'s'}}`;
     subhead.innerHTML = `80% range: ${{p10}}-${{p90}} admits · ${{zeroAdmits}} runs (${{(zeroAdmits/N*100).toFixed(1)}}%) had zero admits`;
-    let body = '<div style="margin-top:10px"><div class="muted" style="font-size:.85em;margin-bottom:6px">Per-school outcome breakdown across 1,000 cycles:</div>';
+    let body = '<div style="margin-top:10px"><div class="muted" style="font-size:.85em;margin-bottom:6px">Per-school outcome breakdown across 1,000 cycles. Each admit % includes direct admits + admits via deferral or waitlist.</div>';
     body += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:8px">';
-    const ranked = data.map((s,i)=>({{...s, ...perSchool[i], rate: perSchool[i].ADMIT/N}})).sort((a,b)=>b.rate-a.rate);
+    const ranked = data.map((s,i)=>({{...s, ...perSchool[i], rate: perSchool[i].admit_total/N}})).sort((a,b)=>b.rate-a.rate);
+    const pct = (n)=> (n/N*100).toFixed(1);
     for (const s of ranked){{
-      const aPct = (s.ADMIT/N*100).toFixed(1);
-      const dPct = (s.DEFER/N*100).toFixed(1);
-      const wPct = (s.WAITLIST/N*100).toFixed(1);
-      const rPct = (s.REJECT/N*100).toFixed(1);
+      const aTot = pct(s.admit_total);
+      const rTot = pct(s.reject_total);
+      // Build path breakdown text
+      const adminParts = [];
+      if (s.admit > 0)            adminParts.push(`${{pct(s.admit)}}% direct`);
+      if (s.defer_admit > 0)      adminParts.push(`${{pct(s.defer_admit)}}% via defer`);
+      if (s.defer_wl_admit > 0)   adminParts.push(`${{pct(s.defer_wl_admit)}}% via defer→WL`);
+      if (s.wl_admit > 0)         adminParts.push(`${{pct(s.wl_admit)}}% off WL`);
+      const rejectParts = [];
+      if (s.reject > 0)           rejectParts.push(`${{pct(s.reject)}}% direct`);
+      if (s.defer_reject > 0)     rejectParts.push(`${{pct(s.defer_reject)}}% after defer`);
+      if (s.defer_wl_reject > 0)  rejectParts.push(`${{pct(s.defer_wl_reject)}}% after defer→WL`);
+      if (s.wl_reject > 0)        rejectParts.push(`${{pct(s.wl_reject)}}% after WL`);
       body += `<div style="padding:8px 10px;border:1px solid var(--border);border-radius:5px">
         <div style="display:flex;justify-content:space-between;font-size:.88em;font-weight:600;margin-bottom:6px;gap:8px;flex-wrap:wrap">
-          <span style="flex:1;min-width:0">${{s.name}}</span><span style="color:#5eead4;white-space:nowrap">${{aPct}}% admit</span>
+          <span style="flex:1;min-width:0">${{s.name}}</span><span style="color:#5eead4;white-space:nowrap">${{aTot}}% admit</span>
         </div>
         <div style="display:flex;height:6px;border-radius:3px;overflow:hidden;background:var(--surface-2)">
-          <div style="background:#5eead4;width:${{aPct}}%" title="Admit ${{aPct}}%"></div>
-          <div style="background:#7dd3fc;width:${{dPct}}%" title="Defer ${{dPct}}%"></div>
-          <div style="background:#fbbf24;width:${{wPct}}%" title="Waitlist ${{wPct}}%"></div>
+          <div style="background:#5eead4;width:${{aTot}}%" title="Admit ${{aTot}}%"></div>
+          <div style="background:#fca5a5;width:${{rTot}}%" title="Reject ${{rTot}}%"></div>
         </div>
-        <div class="muted" style="font-size:.74em;margin-top:4px">
-          <span style="color:#5eead4">●</span> ${{aPct}}% admit
-          ${{s.DEFER>0?` · <span style="color:#7dd3fc">●</span> ${{dPct}}% defer`:''}}
-          ${{s.WAITLIST>0?` · <span style="color:#fbbf24">●</span> ${{wPct}}% waitlist`:''}}
-          · <span style="color:#fca5a5">●</span> ${{rPct}}% reject
+        <div class="muted" style="font-size:.72em;margin-top:6px;line-height:1.5">
+          <div><span style="color:#5eead4">●</span> Admit ${{aTot}}% — ${{adminParts.join(' · ') || '0%'}}</div>
+          <div><span style="color:#fca5a5">●</span> Reject ${{rTot}}% — ${{rejectParts.join(' · ') || '0%'}}</div>
         </div>
       </div>`;
     }}
