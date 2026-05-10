@@ -11679,6 +11679,118 @@ def admin_refresh_scorecard():
 """, title="Scorecard refresh — Candor")
 
 
+@app.route("/admin/visitors")
+def admin_visitors():
+    """Visitor traffic breakdown — distinguish real engaged users from
+    cookie-less scrapers. Pass ?window=1hour or ?window=24hours."""
+    if not ADMIN_KEY or request.args.get("key") != ADMIN_KEY:
+        return ("<h1>401 Unauthorized</h1>", 401)
+    window = request.args.get("window", "1 hour")
+    if window not in ("1 hour", "6 hours", "24 hours", "7 days"):
+        window = "1 hour"
+    with db() as conn:
+        visitors = conn.execute(f"""
+            SELECT visitor_id, COUNT(*) as n,
+                   MIN(ts) as first_seen, MAX(ts) as last_seen,
+                   user_id,
+                   GROUP_CONCAT(DISTINCT path) as paths
+            FROM page_visits
+            WHERE ts >= datetime('now','-{window}')
+            GROUP BY visitor_id
+            ORDER BY n DESC
+        """).fetchall()
+        single_paths = conn.execute(f"""
+            SELECT pv.path, COUNT(*) as n
+            FROM page_visits pv
+            WHERE pv.ts >= datetime('now','-{window}')
+              AND pv.visitor_id IN (
+                SELECT visitor_id FROM page_visits
+                WHERE ts >= datetime('now','-{window}')
+                GROUP BY visitor_id HAVING COUNT(*) = 1
+              )
+            GROUP BY pv.path ORDER BY n DESC LIMIT 25
+        """).fetchall()
+        engaged_paths = conn.execute(f"""
+            SELECT pv.path, COUNT(*) as n
+            FROM page_visits pv
+            WHERE pv.ts >= datetime('now','-{window}')
+              AND pv.visitor_id IN (
+                SELECT visitor_id FROM page_visits
+                WHERE ts >= datetime('now','-{window}')
+                GROUP BY visitor_id HAVING COUNT(*) >= 2
+              )
+            GROUP BY pv.path ORDER BY n DESC LIMIT 25
+        """).fetchall()
+    total = len(visitors)
+    engaged = sum(1 for r in visitors if r["n"] >= 2)
+    single = total - engaged
+    auth = sum(1 for r in visitors if r["user_id"])
+    rows_html = ""
+    for r in visitors[:60]:
+        auth_pill = '<span style="color:var(--teal)">AUTH</span>' if r["user_id"] else '<span class="muted">anon</span>'
+        paths_short = (r["paths"] or "")[:120]
+        rows_html += (
+            f'<div style="display:flex;gap:14px;padding:6px 0;border-top:1px solid var(--border);font-size:.84em;font-family:monospace">'
+            f'<span style="width:90px">{r["visitor_id"][:14]}</span>'
+            f'<span style="width:54px">{auth_pill}</span>'
+            f'<span style="width:50px;text-align:right">{r["n"]} hits</span>'
+            f'<span style="flex:1;overflow:hidden;text-overflow:ellipsis">{paths_short}</span>'
+            f'</div>'
+        )
+    sp_html = "".join(
+        f'<div style="display:flex;justify-content:space-between;font-size:.85em;padding:3px 0"><span>{r["path"]}</span><span class="muted">{r["n"]}</span></div>'
+        for r in single_paths
+    )
+    ep_html = "".join(
+        f'<div style="display:flex;justify-content:space-between;font-size:.85em;padding:3px 0"><span>{r["path"]}</span><span class="muted">{r["n"]}</span></div>'
+        for r in engaged_paths
+    )
+    return _page(f"""
+<h1>Visitor traffic — last {window}</h1>
+<p class="muted">Real engaged users have 2+ pageviews. Single-hit "visitors" are usually scrapers (no cookie persistence → fresh visitor_id per request).</p>
+<div class="grid">
+  <div class="stat-card">
+    <div class="label">Total unique cv_ids</div>
+    <div class="value accent">{total}</div>
+    <div class="delta">raw count, includes scrapers</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">Engaged (2+ pageviews)</div>
+    <div class="value">{engaged}</div>
+    <div class="delta">likely real humans</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">Single-hit (1 pageview)</div>
+    <div class="value">{single}</div>
+    <div class="delta">likely scrapers / link-preview bots</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">Logged-in</div>
+    <div class="value">{auth}</div>
+    <div class="delta">signed-in users</div>
+  </div>
+</div>
+<p class="muted" style="margin-top:14px">Window: <a href="?key={ADMIN_KEY}&window=1 hour">1h</a> · <a href="?key={ADMIN_KEY}&window=6 hours">6h</a> · <a href="?key={ADMIN_KEY}&window=24 hours">24h</a> · <a href="?key={ADMIN_KEY}&window=7 days">7d</a></p>
+
+<h2 style="margin-top:24px">Pages requested by single-hit visitors</h2>
+<div class="card">{sp_html or '<p class="muted">None.</p>'}</div>
+
+<h2 style="margin-top:24px">Pages requested by engaged visitors (humans)</h2>
+<div class="card">{ep_html or '<p class="muted">None.</p>'}</div>
+
+<h2 style="margin-top:24px">Per-visitor breakdown (top 60 by hit count)</h2>
+<div class="card">
+  <div style="display:flex;gap:14px;padding:6px 0;font-size:.78em;color:var(--text-2);text-transform:uppercase;letter-spacing:.4px;font-family:monospace">
+    <span style="width:90px">cv_id</span>
+    <span style="width:54px">auth</span>
+    <span style="width:50px;text-align:right">hits</span>
+    <span style="flex:1">paths (sample)</span>
+  </div>
+  {rows_html}
+</div>
+""", title="Visitors — Candor")
+
+
 @app.route("/admin/stats")
 def admin_stats():
     """Live activity dashboard. Pulls from existing DB tables."""
