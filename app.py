@@ -7839,7 +7839,11 @@ TAILORED_ADVICE_MIN_VALID_AT = "2026-05-07T08:45:00"
 # and recomputed on next view. Bumped when the odds model changes (e.g.
 # legacy multipliers, in-state rates, etc.) so users see fresh numbers
 # without having to re-save their profile.
-SAVED_CHANCES_MIN_VALID_AT = "2026-05-10T05:00:00"
+# IMPORTANT: SQLite CURRENT_TIMESTAMP uses a SPACE separator
+# ("2026-05-10 20:51:00"), not ISO-T. Lexicographic comparison fails if
+# this constant uses 'T' — space (32) < T (84) so every fresh row would
+# be wrongly classified as stale.
+SAVED_CHANCES_MIN_VALID_AT = "2026-05-10 05:00:00"
 
 # Per-school facts that AI tailored advice must use as ground truth
 # rather than guessing from training data. The AI was hallucinating
