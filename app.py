@@ -10990,17 +10990,20 @@ def plans_compute_all():
         "is_exceptional": is_exc, "exceptional_reason": exc_reason,
         "portfolio": p.get("portfolio") or "",
     }
-    # Get all saved-school slugs that lack a *fresh* saved_chances row.
-    # Use the same SAVED_CHANCES_MIN_VALID_AT cutoff the simulator uses
-    # — otherwise stale rows show as "uncomputed" in the simulator but
-    # block compute-all from refreshing them (mismatched filter).
+    # Get every school the user has in their list — saved_schools (clicked
+    # "Save") OR saved_chances (ran chances on it). The simulator reads
+    # BOTH tables; if compute-all only checks saved_schools we'd miss
+    # schools the user computed chances on but never explicitly saved.
+    # Then exclude any with a *fresh* saved_chances row already.
     with db() as conn:
-        saved = [r["college_slug"] for r in conn.execute(
-            "SELECT college_slug FROM saved_schools WHERE user_id=?", (uid,)).fetchall()]
+        all_slugs = {r["college_slug"] for r in conn.execute(
+            "SELECT college_slug FROM saved_schools WHERE user_id=? "
+            "UNION SELECT college_slug FROM saved_chances WHERE user_id=?",
+            (uid, uid)).fetchall()}
         with_chances = {r["college_slug"] for r in conn.execute(
             "SELECT college_slug FROM saved_chances WHERE user_id=? AND computed_at >= ?",
             (uid, SAVED_CHANCES_MIN_VALID_AT)).fetchall()}
-    todo = [s for s in saved if s not in with_chances]
+    todo = [s for s in all_slugs if s not in with_chances]
     n_done = 0
     # Batch path: skip the per-school Claude bullets call (strength/weakness/
     # differentiator) — that's the slow part of analyze_school. With 18+
