@@ -4087,6 +4087,24 @@ def estimate_odds(school, fit, profile):
     sub = sub_school_for_major(school.get("slug"), profile.get("major") or "")
     if sub and sub.get("accept"):
         a = sub["accept"]
+    # In-state / out-of-state public school adjustment. Public flagships
+    # admit at very different rates by residency (UCLA in-state ~13% vs
+    # out-of-state ~7%, UNC in-state 42% vs OOS 9%). When ADMISSIONS_DETAIL
+    # has the residency split AND user has a state on file, anchor 'a'
+    # to the matching residency rate instead of overall.
+    user_state = (profile.get("state") or "").strip()
+    if (
+        not sub  # don't override sub-school anchor
+        and school.get("type") == "public"
+        and user_state
+        and school.get("slug") in ADMISSIONS_DETAIL
+    ):
+        d = ADMISSIONS_DETAIL[school["slug"]]
+        is_in_state = user_state.lower() == (school.get("state") or "").lower()
+        if is_in_state and d.get("in_state_rate"):
+            a = d["in_state_rate"]
+        elif not is_in_state and d.get("out_of_state_rate"):
+            a = d["out_of_state_rate"]
     # International / domestic pool adjustment. The published acceptance rate
     # is overall (intl + domestic combined). At schools with a large intl
     # admit pool, domestic applicants are competing for fewer effective
@@ -4105,10 +4123,15 @@ def estimate_odds(school, fit, profile):
     fit_mult = 0.20 + (fit / 65.0) ** 1.6
     hook_mult = 1.0
     if profile.get("athlete"): hook_mult *= 1.30
+    # Legacy is a real, measurable boost at top schools — Harvard ~6x,
+    # Princeton ~4x, Penn ~5x baseline rates. Previous multipliers (1.15-
+    # 1.25x) were way under-calibrated for this. Lift them — but the
+    # caps below also need to rise for legacy applicants so the multiplier
+    # actually shows up at elite-tier schools (where the cap binds).
     legacy_gens = legacy_generations_at(profile, school)
-    if legacy_gens >= 3:   hook_mult *= 1.25
-    elif legacy_gens == 2: hook_mult *= 1.20
-    elif legacy_gens == 1: hook_mult *= 1.15
+    if legacy_gens >= 3:   hook_mult *= 3.5
+    elif legacy_gens == 2: hook_mult *= 3.0
+    elif legacy_gens == 1: hook_mult *= 2.5
     if profile.get("first_gen"): hook_mult *= 1.10
     # Demonstrated interest (only applies at tier 2-3 schools that track it)
     di_level = profile.get("_di_level") or "none"
@@ -4123,6 +4146,11 @@ def estimate_odds(school, fit, profile):
     # Standard caps assume a typical strong applicant; exceptional profiles
     # (USAMO golds, recruited D1 athletes, ISEF top, etc.) get raised caps
     # because flat caps undersell them. Caps only LIFT — never lower odds.
+    # Strong-hook flag: legacy or recruited athlete. These applicants
+    # legitimately need raised caps because at elite schools their odds
+    # are 25-40%, not the standard 14-18% cap. Without the lift, the
+    # legacy multiplier above gets clipped invisibly.
+    has_strong_hook = legacy_gens > 0 or bool(profile.get("athlete"))
     if bool(profile.get("is_exceptional")):
         # Lift caps significantly. A USAMO gold + recruited athlete legitimately
         # has 60-80% odds at MIT. Even unhooked extraordinary kids cross 30%.
@@ -4131,6 +4159,13 @@ def estimate_odds(school, fit, profile):
         elif a < 0.20: center = min(center * 1.4 + 0.05, 0.80)
         elif a < 0.40: center = min(center * 1.3 + 0.03, 0.88)
         else:           center = min(center * 1.2, 0.93)
+    elif has_strong_hook:
+        # Legacy / athlete cap path — between standard and exceptional.
+        if a < 0.07:  center = min(center, 0.32)   # was 0.14
+        elif a < 0.10: center = min(center, 0.40)  # was 0.18
+        elif a < 0.20: center = min(center, 0.55)  # was 0.30
+        elif a < 0.40: center = min(center, 0.72)  # was 0.55
+        else:           center = min(center, 0.92) # was 0.85
     else:
         # Standard caps — tightened so headline numbers don't promise a Stanford
         # that isn't there for a typical strong applicant.
@@ -6673,8 +6708,11 @@ def profile_html():
       <datalist id="majors-list">
         {''.join(f'<option value="{m}">' for m in MAJORS)}
       </datalist></div>
-    <div><label>State</label>
-      <input name="state" value="{v('state')}" placeholder="California"></div>
+    <div><label>State <span class="muted">(home state — affects in-state rates at public schools)</span></label>
+      <select name="state">
+        <option value="">— Select —</option>
+        {''.join(f'<option value="{s}" {"selected" if v("state")==s else ""}>{s}</option>' for s in STATES)}
+      </select></div>
   </div>
   <label>High school type</label>
   <select name="school_type">
