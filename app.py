@@ -11005,18 +11005,25 @@ def plans_compute_all():
             (uid, SAVED_CHANCES_MIN_VALID_AT)).fetchall()}
     todo = [s for s in all_slugs if s not in with_chances]
     n_done = 0
-    # Batch path: skip the per-school Claude bullets call (strength/weakness/
-    # differentiator) — that's the slow part of analyze_school. With 18+
-    # schools × ~3s each that's 50+ seconds and the request times out.
-    # We compute fit + odds + tier (deterministic, instant), use fallback
-    # bullets as placeholders, and save the row. The Claude bullets get
-    # generated lazily when the user actually visits /chances/<slug>.
+    errors = []  # collect failure reasons so we can surface them in the flash
+    # Batch path: skip the per-school Claude bullets call. Use fallback
+    # bullets and rely on /chances/<slug> to fill in the AI narrative
+    # lazily when the user views that specific school.
+    if not todo:
+        flash(f"No schools needed computing — list has {len(all_slugs)} schools, "
+              f"all have fresh chances.", "success")
+        return redirect(request.form.get("return_to") or "/plans/simulate")
     for slug in todo:
         try:
             school = COLLEGES_BY_SLUG.get(slug)
-            if not school: continue
+            if not school:
+                errors.append(f"{slug}: not in college DB")
+                continue
             profile_for_school = dict(profile)
-            profile_for_school["_di_level"] = get_demonstrated_interest(uid, slug)
+            try:
+                profile_for_school["_di_level"] = get_demonstrated_interest(uid, slug)
+            except Exception:
+                profile_for_school["_di_level"] = "none"
             fit, components = compute_fit(profile_for_school, school)
             tier = assign_tier(school, fit, profile_for_school)
             low, high = estimate_odds(school, fit, profile_for_school)
@@ -11035,8 +11042,15 @@ def plans_compute_all():
                 conn.commit()
             n_done += 1
         except Exception as e:
-            print(f"compute-all failed for {slug}: {e}")
-    flash(f"Computed chances for {n_done} schools.", "success")
+            errors.append(f"{slug}: {type(e).__name__}: {e}")
+            print(f"compute-all failed for {slug}: {type(e).__name__}: {e}")
+    msg = f"Computed chances for {n_done}/{len(todo)} schools."
+    if errors:
+        # Surface the first 3 failure reasons so we can actually see what's wrong
+        msg += " Errors: " + " | ".join(errors[:3])
+        if len(errors) > 3:
+            msg += f" (+{len(errors)-3} more)"
+    flash(msg, "success" if n_done else "error")
     return redirect(request.form.get("return_to") or "/plans/simulate")
 
 
