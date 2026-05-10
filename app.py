@@ -4143,9 +4143,9 @@ def estimate_odds(school, fit, profile):
     # caps below also need to rise for legacy applicants so the multiplier
     # actually shows up at elite-tier schools (where the cap binds).
     legacy_gens = legacy_generations_at(profile, school)
-    if legacy_gens >= 3:   hook_mult *= 3.5
-    elif legacy_gens == 2: hook_mult *= 3.0
-    elif legacy_gens == 1: hook_mult *= 2.5
+    if legacy_gens >= 3:   hook_mult *= 1.25
+    elif legacy_gens == 2: hook_mult *= 1.20
+    elif legacy_gens == 1: hook_mult *= 1.15
     if profile.get("first_gen"): hook_mult *= 1.10
     # Demonstrated interest (only applies at tier 2-3 schools that track it)
     di_level = profile.get("_di_level") or "none"
@@ -4160,11 +4160,6 @@ def estimate_odds(school, fit, profile):
     # Standard caps assume a typical strong applicant; exceptional profiles
     # (USAMO golds, recruited D1 athletes, ISEF top, etc.) get raised caps
     # because flat caps undersell them. Caps only LIFT — never lower odds.
-    # Strong-hook flag: legacy or recruited athlete. These applicants
-    # legitimately need raised caps because at elite schools their odds
-    # are 25-40%, not the standard 14-18% cap. Without the lift, the
-    # legacy multiplier above gets clipped invisibly.
-    has_strong_hook = legacy_gens > 0 or bool(profile.get("athlete"))
     if bool(profile.get("is_exceptional")):
         # Lift caps significantly. A USAMO gold + recruited athlete legitimately
         # has 60-80% odds at MIT. Even unhooked extraordinary kids cross 30%.
@@ -4173,13 +4168,6 @@ def estimate_odds(school, fit, profile):
         elif a < 0.20: center = min(center * 1.4 + 0.05, 0.80)
         elif a < 0.40: center = min(center * 1.3 + 0.03, 0.88)
         else:           center = min(center * 1.2, 0.93)
-    elif has_strong_hook:
-        # Legacy / athlete cap path — between standard and exceptional.
-        if a < 0.07:  center = min(center, 0.32)   # was 0.14
-        elif a < 0.10: center = min(center, 0.40)  # was 0.18
-        elif a < 0.20: center = min(center, 0.55)  # was 0.30
-        elif a < 0.40: center = min(center, 0.72)  # was 0.55
-        else:           center = min(center, 0.92) # was 0.85
     else:
         # Standard caps — tightened so headline numbers don't promise a Stanford
         # that isn't there for a typical strong applicant.
@@ -11014,12 +11002,23 @@ def plans_compute_all():
             (uid, SAVED_CHANCES_MIN_VALID_AT)).fetchall()}
     todo = [s for s in saved if s not in with_chances]
     n_done = 0
+    # Batch path: skip the per-school Claude bullets call (strength/weakness/
+    # differentiator) — that's the slow part of analyze_school. With 18+
+    # schools × ~3s each that's 50+ seconds and the request times out.
+    # We compute fit + odds + tier (deterministic, instant), use fallback
+    # bullets as placeholders, and save the row. The Claude bullets get
+    # generated lazily when the user actually visits /chances/<slug>.
     for slug in todo:
         try:
+            school = COLLEGES_BY_SLUG.get(slug)
+            if not school: continue
             profile_for_school = dict(profile)
             profile_for_school["_di_level"] = get_demonstrated_interest(uid, slug)
-            r = analyze_school(profile_for_school, slug)
-            if not r: continue
+            fit, components = compute_fit(profile_for_school, school)
+            tier = assign_tier(school, fit, profile_for_school)
+            low, high = estimate_odds(school, fit, profile_for_school)
+            fb = _fallback_bullets(profile_for_school, school, fit, components, tier)
+            conf = confidence_level(profile_for_school, components)
             with db() as conn:
                 conn.execute("""INSERT INTO saved_chances (user_id, college_slug, tier, odds_low, odds_high, fit, confidence, strength, weakness, differentiator, computed_at)
                     VALUES (?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)
@@ -11028,8 +11027,8 @@ def plans_compute_all():
                       fit=excluded.fit, confidence=excluded.confidence,
                       strength=excluded.strength, weakness=excluded.weakness, differentiator=excluded.differentiator,
                       computed_at=CURRENT_TIMESTAMP""",
-                    (uid, r["slug"], r["tier"], r["odds_low"], r["odds_high"],
-                     r["fit"], r["confidence"], r["strength"], r["weakness"], r["differentiator"]))
+                    (uid, slug, tier, low, high, fit, conf,
+                     fb["strength"], fb["weakness"], fb["differentiator"]))
                 conn.commit()
             n_done += 1
         except Exception as e:
