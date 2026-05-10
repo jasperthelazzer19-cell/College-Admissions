@@ -2040,7 +2040,21 @@ def personalize_round_odds(user_id, school, detail, profile, user_low_pct, user_
     if profile.get("intended_major"): parts.append(f"Major: {profile.get('intended_major')}")
     if profile.get("is_exceptional"): parts.append("EXCEPTIONAL APPLICANT (top 1-2% nationally)")
     legacies = profile.get("legacy_schools") or []
+    # Profile stores legacy_schools as a comma-separated string; older code
+    # path expected a list and would `.join()` over a string (iterating
+    # char-by-char into garbage). Normalize either shape into a clean list.
+    if isinstance(legacies, str):
+        legacies = [s.strip() for s in legacies.split(",") if s.strip()]
     if legacies:
+        # Also tell Claude this user IS a legacy at the target school if it
+        # matches — so the round rates reflect that boost specifically.
+        target_match = any(
+            l.lower() in (school.get("name") or "").lower()
+            or (school.get("slug") or "").lower() in l.lower()
+            for l in legacies
+        )
+        if target_match:
+            parts.append(f"LEGACY AT THIS SCHOOL — apply legacy boost (typically 2-5x baseline at top schools)")
         parts.append(f"Legacy at: {', '.join(legacies)}")
     ecs = profile.get("extracurriculars") or ""
     if isinstance(ecs, list): ecs = "; ".join(ecs)
@@ -6830,9 +6844,10 @@ def chances_html(slug):
         with db() as conn:
             row = conn.execute(
                 "SELECT tier, odds_low, odds_high, fit, confidence, strength, "
-                "weakness, differentiator FROM saved_chances "
-                "WHERE user_id=? AND college_slug=?",
-                (uid, slug)
+                "weakness, differentiator, computed_at FROM saved_chances "
+                "WHERE user_id=? AND college_slug=? "
+                "AND computed_at >= ?",
+                (uid, slug, SAVED_CHANCES_MIN_VALID_AT)
             ).fetchone()
             if row and all(row[k] is not None for k in ("odds_low","odds_high","strength")):
                 # Reconstruct the analyze_school result from the cache so the
@@ -7776,6 +7791,12 @@ TAILORED_ADVICE_TTL_DAYS = 7
 # before this timestamp is treated as stale and regenerated. Saves us from
 # manually clearing the table when we fix prompt bugs.
 TAILORED_ADVICE_MIN_VALID_AT = "2026-05-07T08:45:00"
+
+# Saved-chances rows computed before this timestamp are treated as stale
+# and recomputed on next view. Bumped when the odds model changes (e.g.
+# legacy multipliers, in-state rates, etc.) so users see fresh numbers
+# without having to re-save their profile.
+SAVED_CHANCES_MIN_VALID_AT = "2026-05-10T05:00:00"
 
 # Per-school facts that AI tailored advice must use as ground truth
 # rather than guessing from training data. The AI was hallucinating
@@ -10565,7 +10586,8 @@ def grade_user_list(uid):
     with db() as conn:
         chances = conn.execute(
             "SELECT college_slug, tier, odds_low, odds_high, application_round "
-            "FROM saved_chances WHERE user_id=?", (uid,)
+            "FROM saved_chances WHERE user_id=? AND computed_at >= ?",
+            (uid, SAVED_CHANCES_MIN_VALID_AT)
         ).fetchall()
         saved = conn.execute(
             "SELECT college_slug, application_round FROM saved_schools WHERE user_id=?", (uid,)
@@ -10779,9 +10801,13 @@ def simulate_admissions(uid):
     odds. Sum to get expected admits. Compute P(>=1), P(>=3) via Poisson
     binomial. Identify strategic suggestions for round swaps."""
     with db() as conn:
+        # Filter out stale entries — schools chanced under an old odds
+        # model (pre-legacy-fix, pre-state-fix, etc.) regenerate on next
+        # /chances visit instead of polluting the simulator with old numbers.
         chances = conn.execute(
             "SELECT college_slug, tier, odds_low, odds_high, application_round "
-            "FROM saved_chances WHERE user_id=?", (uid,)
+            "FROM saved_chances WHERE user_id=? AND computed_at >= ?",
+            (uid, SAVED_CHANCES_MIN_VALID_AT)
         ).fetchall()
         saved = conn.execute(
             "SELECT college_slug, application_round FROM saved_schools WHERE user_id=?", (uid,)
@@ -10836,6 +10862,10 @@ def simulate_admissions(uid):
                     _adapted["intended_major"] = profile.get("major")
                 if profile and profile.get("ecs"):
                     _adapted["extracurriculars"] = profile.get("ecs")
+                # Pass legacy through — personalize_round_odds reads
+                # legacy_schools to factor in legacy boost on round rates.
+                if profile and profile.get("legacy_schools"):
+                    _adapted["legacy_schools"] = profile.get("legacy_schools")
                 personal_rounds = personalize_round_odds(
                     uid, c, detail, _adapted, it["odds_low"], it["odds_high"]
                 )
