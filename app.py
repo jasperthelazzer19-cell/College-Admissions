@@ -10780,17 +10780,44 @@ def simulate_admissions(uid):
                              "round_label": ROUND_DISPLAY.get(it["round"], "Round undecided")})
             continue
         # Use round-specific personalized odds when available
-        detail = ADMISSIONS_DETAIL.get(slug)
+        detail = admissions_detail(c)
         p_overall = (it["odds_low"] + it["odds_high"]) / 200.0  # midpoint as float 0-1
-        p_round = p_overall  # default if no round selected or no detail
-        if it["round"] and detail:
-            personal_rounds = personalize_round_odds(uid, c, detail, profile or {}, it["odds_low"], it["odds_high"])
-            # Map ED1 → ED for the personalized rounds dict (which uses ED key)
+        p_round = p_overall  # default if no round selected
+        if it["round"]:
             r_key = "ED" if it["round"] == "ED1" else it["round"]
+            personal_rounds = None
+            if detail:
+                # Adapt profile keys: personalize_round_odds reads gpa /
+                # intended_major / extracurriculars; our profile uses
+                # uw_gpa / major / ecs. Without this remap the AI gets
+                # an empty profile and returns generic rates.
+                _adapted = dict(profile or {})
+                if profile and profile.get("uw_gpa") is not None:
+                    _adapted["gpa"] = profile.get("uw_gpa")
+                if profile and profile.get("major"):
+                    _adapted["intended_major"] = profile.get("major")
+                if profile and profile.get("ecs"):
+                    _adapted["extracurriculars"] = profile.get("ecs")
+                personal_rounds = personalize_round_odds(
+                    uid, c, detail, _adapted, it["odds_low"], it["odds_high"]
+                )
             if personal_rounds and r_key in personal_rounds:
                 p_round = personal_rounds[r_key]
             elif personal_rounds and it["round"] in personal_rounds:
                 p_round = personal_rounds[it["round"]]
+            elif detail and detail.get("rates") and c.get("accept"):
+                # Fallback: scale user's p_overall by the school's published
+                # round-vs-overall ratio. Approximate but way better than
+                # ignoring round selection entirely.
+                pub = detail["rates"].get(r_key) or detail["rates"].get(it["round"])
+                if pub and c["accept"]:
+                    p_round = min(0.95, p_overall * (pub / c["accept"]))
+            else:
+                # No detail at all — apply rough genre defaults so ED still
+                # bumps something. ED ~2x, ED2 ~1.5x, REA ~1.4x, EA ~1.2x.
+                MULT = {"ED":2.0, "ED1":2.0, "ED2":1.5, "REA":1.4, "EA":1.2}
+                if it["round"] in MULT:
+                    p_round = min(0.95, p_overall * MULT[it["round"]])
         probs.append(p_round)
         sim_rows.append({**it, "name": c["name"], "p_round": p_round, "p_overall": p_overall,
                          "round_label": ROUND_DISPLAY.get(it["round"], "Round undecided")})
