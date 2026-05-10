@@ -2156,14 +2156,36 @@ Hard rules:
             text = text.strip("`").lstrip("json").strip()
         data = json.loads(text)
         rates_out = data.get("rates", {})
-        # Sanity check + clamp
+        # Sanity check + clamp.
+        # Anchor the cap on the user's relative-to-school position. If
+        # the user's overall personal odds are 4% and the school admits
+        # 5.5% overall, they're a 0.73x applicant. AI sometimes returns
+        # rates that violate this — e.g. saying EA personal = 8% when
+        # the user's overall is 4% and EA published = overall = 5.5%
+        # (which would imply the user is BETTER than average for EA
+        # specifically, despite being below-average overall — incoherent).
+        # Cap each round's personal rate at school_round_rate * user_ratio
+        # to enforce relative-position consistency.
+        anchor = (sub_school["accept"] if sub_school else school.get("accept", 0)) or 0
+        user_mid_frac = (user_low_pct + user_high_pct) / 200.0  # 0-1
+        user_ratio = (user_mid_frac / anchor) if anchor else 1.0
+        # But never let a round drop below a small floor if AI returned
+        # something. And never apply a ratio cap that's lower than the
+        # school's RD rate × user_ratio (RD floor). Hooked applicants
+        # (legacy/exceptional) get a bump above 1.0x; for them ratio can
+        # exceed 1, so the cap is already loose.
         clean = {}
         for r in rounds:
             v = rates_out.get(r)
             try:
                 v = float(v)
-                if 0.0 <= v <= 0.99:
-                    clean[r] = round(min(0.95, max(0.005, v)), 4)
+                if not (0.0 <= v <= 0.99):
+                    continue
+                pub_r = effective_pub_rates.get(r, 0)
+                if pub_r > 0 and user_ratio > 0:
+                    cap = min(0.95, pub_r * user_ratio * 1.4)  # +40% slack for AI nuance
+                    v = min(v, cap)
+                clean[r] = round(min(0.95, max(0.005, v)), 4)
             except (TypeError, ValueError):
                 continue
         if not clean:
