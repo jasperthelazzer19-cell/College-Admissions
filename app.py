@@ -836,7 +836,12 @@ ADMISSIONS_DETAIL = {
     "villanova":    {"rounds": ["ED","ED2","EA","RD"],  "rates": {"ED":0.350,"ED2":0.180,"EA":0.230,"RD":0.190}},
     "lehigh":       {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.470,"ED2":0.340,"RD":0.290}},
     "case":         {"rounds": ["ED","ED2","EA","RD"],  "rates": {"ED":0.350,"ED2":0.290,"EA":0.290,"RD":0.220}},
-    "northeastern": {"rounds": ["ED","ED2","EA","RD"],  "rates": {"ED":0.280,"ED2":0.170,"EA":0.055,"RD":0.050}},
+    # Northeastern is a yield-extremist school — they front-load admits into
+    # ED and EA and slash the RD pool. Public-facing "5.5% accept" hides
+    # the real story: EA admits ~12-13%, RD a brutal ~2-3% for unhooked
+    # applicants. Calibrated to roughly weight-average back to the
+    # 5.5% headline given Northeastern's known round volume mix.
+    "northeastern": {"rounds": ["ED","ED2","EA","RD"],  "rates": {"ED":0.280,"ED2":0.170,"EA":0.125,"RD":0.025}},
     "bu":           {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.290,"ED2":0.140,"RD":0.080}},
     "miami":        {"rounds": ["ED","ED2","EA","RD"],  "rates": {"ED":0.430,"ED2":0.300,"EA":0.200,"RD":0.190}},
     "brandeis":     {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.500,"ED2":0.380,"RD":0.350}},
@@ -1966,7 +1971,7 @@ def render_round_breakdown_dark(school, detail, scale=1.0, personalized_rates=No
 # Bump this when the personalize_round_odds prompt logic changes —
 # auto-invalidates all cached round breakdowns on the next request so
 # users immediately see results from the new prompt.
-ROUND_PROMPT_VERSION = "v8"
+ROUND_PROMPT_VERSION = "v9"
 
 
 def _profile_version_hash(profile):
