@@ -11222,9 +11222,9 @@ def plans_simulate_page():
   // For "Round undecided": treat as RD by default.
   // Two-stage rolling: any defer/waitlist resolves to a final admit or
   // reject, since by the end of the cycle no decision is "still pending."
-  // Returns { final, path, label } so we can show both the final outcome
-  // (for counting admits) and the path that got there (for the stamp).
-  // Constants based on rough industry averages:
+  // Returns an object with final/path/label so we can show both the
+  // final outcome (for counting admits) and the path that got there
+  // (for the stamp). Constants based on rough industry averages:
   //   - Of deferred applicants: ~13% admitted RD, ~10% waitlisted, ~77% rejected
   //   - Of waitlisted applicants: ~10% pulled off (varies wildly by school)
   function rollOutcome(p, round){{
