@@ -4951,16 +4951,52 @@ def parse_pref_weights_form(form):
 _LEGACY_COUNT_RE = re.compile(r"\s*(?:[\(\[]?\s*(\d+)\s*x?\s*[\)\]]?|x\s*(\d+))\s*$", re.IGNORECASE)
 
 
+# Common short-name aliases users type → canonical slug. Used to disambiguate
+# "Penn" (UPenn, NOT Penn State) and "MIT" (MIT, NOT Smith), etc. Naive
+# substring matching would falsely match those.
+_LEGACY_ALIASES = {
+    "penn": "upenn", "upenn": "upenn", "u penn": "upenn", "pennsylvania": "upenn",
+    "harvard": "harvard", "yale": "yale", "princeton": "princeton",
+    "stanford": "stanford", "mit": "mit", "cornell": "cornell",
+    "columbia": "columbia", "brown": "brown", "dartmouth": "dartmouth",
+    "duke": "duke",
+    "chicago": "uchicago", "uchicago": "uchicago", "u of c": "uchicago",
+    "northwestern": "northwestern", "vanderbilt": "vanderbilt", "vandy": "vanderbilt",
+    "rice": "rice", "notre dame": "notre-dame", "nd": "notre-dame",
+    "nyu": "nyu", "georgetown": "georgetown",
+    "berkeley": "ucb", "uc berkeley": "ucb", "cal": "ucb", "ucb": "ucb",
+    "ucla": "ucla", "usc": "usc",
+    "michigan": "umich", "umich": "umich", "u of m": "umich",
+    "uva": "uva", "virginia": "uva",
+    "unc": "unc", "north carolina": "unc",
+    "jhu": "jhu", "johns hopkins": "jhu", "hopkins": "jhu",
+    "cmu": "cmu", "carnegie mellon": "cmu",
+    "wm": "wm", "william and mary": "wm",
+    "gtech": "gatech", "gatech": "gatech", "georgia tech": "gatech",
+    "bc": "bc", "boston college": "bc",
+    "bu": "bu", "boston university": "bu",
+    "case": "case", "case western": "case",
+    "wash u": "wustl", "washu": "wustl", "wustl": "wustl", "washington university": "wustl",
+}
+
 def legacy_generations_at(profile, school):
     """How many generations of legacy the user has at THIS school. Returns
     0 if none. Parses '<name> Nx' or '<name> (N)' or just '<name>' (=1 gen).
-    Match is name-substring, case-insensitive, both directions — so 'Penn'
-    matches 'University of Pennsylvania' and vice-versa."""
+
+    Matching strategy (in order):
+    1. Alias map (canonical for short/common names — "Penn" → upenn, NOT Penn State)
+    2. Exact slug match
+    3. Exact name match
+    4. All user words must be words in school name (so "Bowdoin College"
+       matches Bowdoin even though one extra word). Word-boundary, no
+       partial substring match — so "MIT" doesn't match "Smith"."""
     if not profile or not school: return 0
     raw = (profile.get("legacy_schools") or "").strip().lower()
     if not raw: return 0
+    import re as _re
     school_name = (school.get("name") or "").lower()
     school_slug = (school.get("slug") or "").lower()
+    name_words = set(_re.findall(r"\w+", school_name))
     best = 0
     for p in raw.split(","):
         p = p.strip()
@@ -4974,7 +5010,26 @@ def legacy_generations_at(profile, school):
             count = 1
             name = p
         if not name: continue
-        if name in school_name or school_name in name or name in school_slug or school_slug in name:
+        matched = False
+        # 1. Alias map — disambiguates short names that would otherwise false-positive
+        if name in _LEGACY_ALIASES:
+            matched = (_LEGACY_ALIASES[name] == school_slug)
+        # 2-3. Exact matches if no alias hit
+        if not matched and name not in _LEGACY_ALIASES:
+            if name == school_slug:
+                matched = True
+            elif name.replace(" ", "-") == school_slug:
+                matched = True
+            elif name == school_name:
+                matched = True
+            else:
+                # 4. Word-boundary subset: every word in user input is a word
+                # in the school's name. Rejects "MIT" → "Smith" and similar
+                # substring traps; accepts "Bowdoin College" → Bowdoin.
+                user_words = set(_re.findall(r"\w+", name))
+                if user_words and user_words.issubset(name_words):
+                    matched = True
+        if matched:
             best = max(best, count)
     return best
 
@@ -10947,12 +11002,16 @@ def plans_compute_all():
         "is_exceptional": is_exc, "exceptional_reason": exc_reason,
         "portfolio": p.get("portfolio") or "",
     }
-    # Get all saved-school slugs that lack a saved_chances row
+    # Get all saved-school slugs that lack a *fresh* saved_chances row.
+    # Use the same SAVED_CHANCES_MIN_VALID_AT cutoff the simulator uses
+    # — otherwise stale rows show as "uncomputed" in the simulator but
+    # block compute-all from refreshing them (mismatched filter).
     with db() as conn:
         saved = [r["college_slug"] for r in conn.execute(
             "SELECT college_slug FROM saved_schools WHERE user_id=?", (uid,)).fetchall()]
         with_chances = {r["college_slug"] for r in conn.execute(
-            "SELECT college_slug FROM saved_chances WHERE user_id=?", (uid,)).fetchall()}
+            "SELECT college_slug FROM saved_chances WHERE user_id=? AND computed_at >= ?",
+            (uid, SAVED_CHANCES_MIN_VALID_AT)).fetchall()}
     todo = [s for s in saved if s not in with_chances]
     n_done = 0
     for slug in todo:
