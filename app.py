@@ -2210,12 +2210,14 @@ Hard rules:
 
 
 def sf_ratio(c):
-    """Best-effort student-faculty ratio: curated value if known, else estimated
-    from size + type. Override table (Scorecard data) takes precedence when set."""
-    over = _get_overrides(c["slug"])
-    if over and over.get("sf_ratio"): return over["sf_ratio"]
+    """Best-effort student-faculty ratio: curated value if known, else
+    federal override, else estimated from size + type. Curated values win
+    because ambiguously-named schools (e.g. "MIT", "Wesleyan") can match
+    the wrong school in Scorecard and produce wildly off ratios."""
     if c["slug"] in SF_RATIO_BY_SLUG:
         return SF_RATIO_BY_SLUG[c["slug"]]
+    over = _get_overrides(c["slug"])
+    if over and over.get("sf_ratio"): return over["sf_ratio"]
     s = c.get("size", 10000)
     if c["type"] == "private":
         if s < 3000: return 9
@@ -2570,7 +2572,11 @@ def merged_school(c):
         return c
     out = dict(c)
     if over:
-        for k in ("accept", "sat_25", "sat_75", "act_25", "act_75", "size", "tuition"):
+        # Don't override "size" from federal data: Scorecard's name search
+        # for ambiguous school names (e.g. "MIT", "Wesleyan") sometimes
+        # matches the wrong institution and returns a wildly off undergrad
+        # count. Hand-typed sizes in COLLEGES are accurate enough.
+        for k in ("accept", "sat_25", "sat_75", "act_25", "act_75", "tuition"):
             if k == "accept" and c["slug"] in MANUAL_FRESH_ACCEPT:
                 continue  # keep hand-typed fresher rate
             v = over.get(k)
@@ -2596,6 +2602,8 @@ def is_cds_verified(slug):
 # name works directly; the trickier ones get an explicit override.
 SCORECARD_NAME_OVERRIDES = {
     "cornell": "Cornell University",  # else Scorecard finds Cornell College in IA
+    "mit": "Massachusetts Institute of Technology",  # else "MIT" matches small unrelated schools
+    "wesleyan": "Wesleyan University",  # else matches Ohio/Texas/Indiana Wesleyan
     "unc": "University of North Carolina at Chapel Hill",
     "parsons": "The New School",
     "ucb": "University of California-Berkeley",
