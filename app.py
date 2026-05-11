@@ -5930,7 +5930,7 @@ def _page(body_html, title="Candor"):
     footer = """<div style="max-width:1180px;margin:60px auto 30px;padding:24px;color:var(--text-3);font-size:.84em;text-align:center;border-top:1px solid var(--border)">
 made by a high school junior. found a bug? something looks wrong? tell me on the
 <a href="https://www.reddit.com/user/Zestyclose_Tower_380" style="color:var(--text-2)">reddit</a>.
-candor is free. the AI advisor costs $5/mo only because the api isn't.
+free chances calculator. <a href="/upgrade" style="color:var(--text-2)">Candor Premium</a> is $5/mo for the strategy on top.
 </div>"""
     return f"""<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 {favicon}
@@ -6988,6 +6988,13 @@ def chances_html(slug):
   </ul>
   <p class="muted" style="font-size:.82em;margin-top:8px"><i>tldr: a high-confidence "5-12%" means probably 5-12%. A low-confidence "5-12%" means the real range could be 2-25%.</i></p>
 </details>
+<div class="card" style="margin-top:18px;background:linear-gradient(135deg,#0f3a37 0%,#0a131c 100%);border:1px solid rgba(94,234,212,.3)">
+  <div style="font-size:.74em;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#5eead4;margin-bottom:6px">Next step</div>
+  <h3 style="margin:0 0 8px;color:#e6edf3">Turn this number into a plan</h3>
+  <p class="muted" style="margin:0 0 14px;line-height:1.55">Candor Premium ($5/mo) unlocks a personalized strategy for {r['school']}, score-push impact, your list grader, and unlimited AI advisor. Or share this report with your parents and let them decide.</p>
+  <a class="btn btn-primary btn-sm" href="/upgrade">Upgrade — $5/month</a>
+  <a class="btn btn-light btn-sm" href="/upgrade?for=parent" style="margin-left:6px">Show your parents →</a>
+</div>
 <p style="margin-top:18px"><a class="btn btn-light" href="/profile">Edit profile</a> <a class="btn btn-light" href="/college/{r['slug']}/improve">Get tailored advice for {r['school']} &rarr;</a></p>
 """, title=f"Your chances at {r['school']} — Candor")
 
@@ -7223,6 +7230,7 @@ def school_improve_html(slug):
     note = get_school_strategy(school)
     user = current_user()
     profile = get_profile(user["id"]) if user else None
+    is_paid = bool(user.get("is_paid")) if user else False
     chances_card = ""
     if profile:
         # personalized gap analysis for this specific school
@@ -7268,17 +7276,25 @@ def school_improve_html(slug):
     # ─── Personalized AI strategy (cached in tailored_advice) ───
     tailored_card = ""
     if profile and profile.get("uw_gpa") is not None:
-        try:
-            advice_body = get_tailored_advice(user["id"], school_m, profile, force=False)
-            advice_html = _render_tailored_advice(advice_body) if advice_body else ""
-            if advice_html:
-                tailored_card = f"""<div class="card">
+        if is_paid:
+            try:
+                advice_body = get_tailored_advice(user["id"], school_m, profile, force=False)
+                advice_html = _render_tailored_advice(advice_body) if advice_body else ""
+                if advice_html:
+                    tailored_card = f"""<div class="card">
   <h3 style="margin-top:0">Your personalized strategy for {school['name']}</h3>
   <p class="muted" style="font-size:.85em;margin:0 0 10px">Concrete actions calibrated to your stats, ECs, and {school['name']}'s admissions priorities.</p>
   {advice_html}
 </div>"""
-        except Exception as e:
-            print(f"tailored advice (improve) error: {e}")
+            except Exception as e:
+                print(f"tailored advice (improve) error: {e}")
+        else:
+            tailored_card = f"""<div class="card" style="background:linear-gradient(135deg,#0f3a37 0%,#0a131c 100%);border:1px solid rgba(94,234,212,.3)">
+  <div style="font-size:.74em;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#5eead4;margin-bottom:6px">Candor Premium</div>
+  <h3 style="margin-top:0;color:#e6edf3">Your personalized strategy for {school['name']}</h3>
+  <p class="muted" style="margin:0 0 12px;line-height:1.55">Concrete actions calibrated to your stats, ECs, and what {school['name']} actually weights — written for your profile, not generic advice. <b style="color:#e6edf3">Unlock with Candor Premium ($5/mo)</b>.</p>
+  <a class="btn btn-primary btn-sm" href="/upgrade">See what Premium includes →</a>
+</div>"""
     # ─── Application round recommendation ───
     round_card = ""
     detail = admissions_detail(school)
@@ -7311,7 +7327,14 @@ def school_improve_html(slug):
 </div>"""
     # ─── Score push impact ───
     score_card = ""
-    if profile and (profile.get("sat") or profile.get("act")):
+    if profile and (profile.get("sat") or profile.get("act")) and not is_paid:
+        score_card = f"""<div class="card" style="background:linear-gradient(135deg,#0f3a37 0%,#0a131c 100%);border:1px solid rgba(94,234,212,.3)">
+  <div style="font-size:.74em;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#5eead4;margin-bottom:6px">Candor Premium</div>
+  <h3 style="margin-top:0;color:#e6edf3">Score push impact</h3>
+  <p class="muted" style="margin:0 0 12px;line-height:1.55">See exactly how a +60 SAT or +2 ACT moves your odds at {school['name']} — so you can decide if a retake is actually worth your time. <b style="color:#e6edf3">$5/mo</b>.</p>
+  <a class="btn btn-primary btn-sm" href="/upgrade">Unlock score push impact →</a>
+</div>"""
+    elif profile and (profile.get("sat") or profile.get("act")):
         cur_sat = profile.get("sat")
         cur_act = profile.get("act")
         cur_fit, _ = compute_fit(profile, school_m)
@@ -8566,19 +8589,16 @@ def plans_index_html():
 
 <div class="card" style="background:linear-gradient(135deg,#0f3a37 0%,#0a131c 100%);border:1px solid rgba(94,234,212,.3);padding:32px">
   <div style="font-size:.78em;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#5eead4;margin-bottom:8px">Candor Premium · $5/month</div>
-  <h2 style="margin:0 0 14px">Unlock your full list strategy</h2>
+  <h2 style="margin:0 0 14px">Turn your chances into a real plan</h2>
   <ul style="line-height:1.9;padding-left:18px;margin:0 0 18px">
-    <li><b>List grader (1–10 score)</b> — balance, realism, round strategy</li>
-    <li><b>Admissions simulator</b> — pick where you'd ED / EA / RD, see expected admits across your whole list</li>
-    <li><b>Round optimization</b> — "ED at Penn gives more lift than REA at Stanford"</li>
-    <li><b>Categorized dashboard</b> — schools grouped by round with one-click remove</li>
-    <li><b>Free chances calc stays free</b> — premium is for the strategic layer on top</li>
+    <li><b>List grader + admissions simulator</b> — score your full list 1–10, simulate ED/EA/RD outcomes across every school</li>
+    <li><b>Personalized AI strategy per school</b> — calibrated to your stats, ECs, and what that school actually weights</li>
+    <li><b>Score push impact</b> — see exactly how a +60 SAT or +2 ACT moves your odds at each school</li>
+    <li><b>Unlimited AI advisor</b> — per-school chat that knows your full profile + verified school facts</li>
+    <li><b>Free chances calculator stays free</b> — premium is the layer on top</li>
   </ul>
-  <p class="muted" style="font-size:.88em">You currently have <b style="color:#e6edf3">{n_schools}</b> school{'' if n_schools==1 else 's'} in your list. Upgrade to organize and simulate.</p>
-  <form method="post" action="/upgrade" style="margin-top:18px">
-    {csrf_input()}
-    <button class="btn btn-primary" type="submit" style="font-size:1em;padding:12px 28px">Upgrade — $5/month</button>
-  </form>
+  <p class="muted" style="font-size:.88em">You currently have <b style="color:#e6edf3">{n_schools}</b> school{'' if n_schools==1 else 's'} in your list. Upgrade to organize, simulate, and strategize.</p>
+  <a class="btn btn-primary" href="/upgrade" style="font-size:1em;padding:12px 28px;margin-top:18px;display:inline-block">Upgrade — $5/month →</a>
   <p class="muted" style="font-size:.78em;margin-top:12px">Cancel any time. Your saved schools and chances stay accessible on each college's page.</p>
 </div>
 
@@ -9894,7 +9914,7 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
 
   <section class="final-cta reveal">
     <h2>Get your real chances.</h2>
-    <p>Free, no paywall on chances. Takes 30 seconds.</p>
+    <p>Free chances in 30 seconds. Upgrade only if you want the strategy on top.</p>
     <a href="/signup" class="primary">Sign up free →</a>
   </section>
 </main>
@@ -10041,6 +10061,9 @@ def _rate_limit(*args, **kwargs):
 @_rate_limit("5 per 15 minutes", methods=["POST"])
 def signup_page():
     if current_user(): return redirect(url_for("profile_page"))
+    nxt = request.args.get("next") or request.form.get("next")
+    if nxt and nxt.startswith("/"):
+        session["next_url"] = nxt
     if request.method == "POST":
         email = (request.form.get("email") or "").strip().lower()
         password = request.form.get("password") or ""
@@ -10066,6 +10089,9 @@ def signup_page():
 @_rate_limit("5 per 15 minutes", methods=["POST"])
 def login_page():
     if current_user(): return redirect(url_for("profile_page"))
+    nxt = request.args.get("next") or request.form.get("next")
+    if nxt and nxt.startswith("/"):
+        session["next_url"] = nxt
     if request.method == "POST":
         email = (request.form.get("email") or "").strip().lower()
         password = request.form.get("password") or ""
@@ -11631,16 +11657,24 @@ def chat_api_send():
 
 
 @app.route("/upgrade")
-@login_required
 def upgrade_page():
     user = current_user()
-    status = usage_status(user["id"])
-    is_paid = status.get("is_paid")
-    # Pass user_id as client_reference_id so we can match the Stripe payment
-    # back to this user (via webhook). Also prefill the email.
-    sep = "&" if "?" in STRIPE_PAYMENT_LINK else "?"
-    pay_url = (f"{STRIPE_PAYMENT_LINK}{sep}client_reference_id={user['id']}"
-               f"&prefilled_email={user['email']}")
+    is_paid = False
+    status = None
+    pay_url = STRIPE_PAYMENT_LINK
+    if user:
+        status = usage_status(user["id"])
+        is_paid = status.get("is_paid")
+        sep = "&" if "?" in STRIPE_PAYMENT_LINK else "?"
+        pay_url = (f"{STRIPE_PAYMENT_LINK}{sep}client_reference_id={user['id']}"
+                   f"&prefilled_email={user['email']}")
+    # Subscribe button: anon users get sent through signup first so we can
+    # attach the Stripe payment to a real account via client_reference_id.
+    subscribe_href = pay_url if user else "/signup?next=/upgrade"
+    subscribe_label = "Subscribe — $5/month" if user else "Sign up to subscribe — $5/month"
+
+    for_parent = request.args.get("for") == "parent"
+
     if is_paid:
         body = f"""<div class="card" style="max-width:560px">
           <div class="stat-card" style="margin-bottom:14px">
@@ -11650,23 +11684,45 @@ def upgrade_page():
           </div>
           <p class="muted" style="margin:0">You're all set. Manage or cancel through the Stripe email receipt you received.</p>
         </div>"""
+        return _page(body, title="Upgrade — Candor")
+
+    if for_parent:
+        headline = "Help your kid apply to the right schools."
+        sub = ("Most chances calculators give a flattering number that doesn't help anyone decide anything. "
+               "Candor uses verified Common Data Set data from 220+ schools and tells you the truth — "
+               "so the ED slot, the test retake, and the supplemental essay time actually go where they matter.")
+        social = ('<p class="muted" style="font-size:.85em;margin:18px 0 0">'
+                  'Built by a high school junior who got tired of $5,000 consultants telling families different things.'
+                  '</p>')
     else:
-        body = f"""<div class="card" style="max-width:560px">
-          <h2 style="margin-top:0">Upgrade to Candor Premium</h2>
-          <p class="muted" style="margin:0 0 14px">Unlock unlimited use of the AI Advisor — personalized college admissions guidance trained on your full profile and 155 schools.</p>
-          <div style="display:flex;align-items:baseline;gap:8px;margin:14px 0">
-            <span style="font-size:2.2em;font-weight:700;letter-spacing:-1px;background:var(--accent-grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent">$5</span>
-            <span class="muted">/ month · cancel anytime</span>
-          </div>
-          <ul style="padding-left:18px;margin:14px 0;color:var(--text)">
-            <li>{PAID_MONTHLY_LIMIT} AI Advisor messages per month</li>
-            <li>Per-school chat that knows the school + your profile</li>
-            <li>Personalized application strategy, essay feedback, gap analysis</li>
-            <li>Everything else on Candor (chances, fit, plans) stays free</li>
-          </ul>
-          <a href="{pay_url}" class="btn btn-primary" style="margin-top:8px">Subscribe with Stripe →</a>
-          <p class="muted" style="font-size:.78em;margin:14px 0 0">You'll be redirected to Stripe to complete payment. Your premium status activates within ~30 seconds of payment.</p>
-        </div>"""
+        headline = "Stop guessing where you stand."
+        sub = ("You ran your chances. Premium is the part that turns a number into a plan: "
+               "what to do this week, where to send your ED, whether a retake is actually worth it, "
+               "and a per-school AI advisor that knows your full profile.")
+        social = ""
+
+    bundle = """
+      <ul style="padding-left:18px;margin:18px 0;color:var(--text);line-height:1.85">
+        <li><b>Personalized AI strategy</b> — per school, calibrated to your stats, ECs, and what that school actually weights.</li>
+        <li><b>List grader + admissions simulator</b> — score your full list 1–10, simulate where you'd ED/EA/RD across your whole list.</li>
+        <li><b>Score push impact</b> — see exactly how much a +60 SAT or +2 ACT moves your odds, so you can decide if a retake is worth the time.</li>
+        <li><b>Unlimited AI advisor</b> — ask anything about a school, your supplements, ED vs RD, gap closing. Knows your profile and the school's verified facts.</li>
+        <li><b>Free chances calculator stays free</b> — premium is the layer on top.</li>
+      </ul>"""
+
+    body = f"""<div class="card" style="max-width:620px">
+      <div style="font-size:.78em;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--teal);margin-bottom:6px">Candor Premium</div>
+      <h1 style="margin:0 0 10px;font-size:2em;line-height:1.15">{headline}</h1>
+      <p class="muted" style="margin:0 0 6px;font-size:1em;line-height:1.55">{sub}</p>
+      <div style="display:flex;align-items:baseline;gap:8px;margin:22px 0 6px">
+        <span style="font-size:2.4em;font-weight:700;letter-spacing:-1px;background:var(--accent-grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent">$5</span>
+        <span class="muted">/ month · cancel anytime</span>
+      </div>
+      {bundle}
+      <a href="{subscribe_href}" class="btn btn-primary" style="font-size:1em;padding:12px 28px;margin-top:4px">{subscribe_label} →</a>
+      <p class="muted" style="font-size:.78em;margin:14px 0 0">Secure checkout through Stripe. Premium activates within ~30 seconds of payment.</p>
+      {social}
+    </div>"""
     return _page(body, title="Upgrade — Candor")
 
 
