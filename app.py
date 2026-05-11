@@ -6154,6 +6154,7 @@ def college_detail_html(slug):
         # seeds the outcome-network email list (CEO plan, May 2026).
         save_btn = (
             f'<form id="interest-form-{slug}" class="interest-form" data-slug="{slug}" style="display:inline-flex;gap:6px;align-items:center;flex-wrap:wrap">'
+            f'{csrf_input()}'
             f'<input type="email" name="email" required placeholder="your@email.com" '
             f'style="padding:8px 12px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:.9em;min-width:200px">'
             f'<button class="btn btn-light" type="submit">☆ Save for later</button>'
@@ -6253,8 +6254,8 @@ def college_detail_html(slug):
       e.preventDefault();
       var emailInput = interestForm.querySelector("input[name=email]");
       var btn = interestForm.querySelector("button");
-      var fd = new FormData();
-      fd.append("email", emailInput.value);
+      // FormData(form) picks up all fields including the CSRF token hidden input.
+      var fd = new FormData(interestForm);
       fd.append("slug", slug);
       fd.append("source", "college_detail");
       btn.disabled = true;
