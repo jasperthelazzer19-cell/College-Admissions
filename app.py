@@ -4829,6 +4829,20 @@ def init_db():
         )""")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_page_visits_ts ON page_visits(ts)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_page_visits_visitor ON page_visits(visitor_id, ts)")
+        # Lead capture from anonymous /college/<slug> visitors. Email + the
+        # school they were looking at. No password, no auth — just a list
+        # that becomes the seed for outcome-capture and retention emails
+        # (per the CEO plan, May 2026).
+        conn.execute("""CREATE TABLE IF NOT EXISTS interest_signups (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT NOT NULL,
+            slug TEXT,
+            visitor_id TEXT,
+            source TEXT,
+            ts TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )""")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_interest_email ON interest_signups(email)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_interest_ts ON interest_signups(ts)")
         conn.commit()
 
 
@@ -6136,7 +6150,16 @@ def college_detail_html(slug):
                     f'<button class="btn {("btn-primary" if saved else "btn-light")}" type="submit">'
                     f'{"★ Saved" if saved else "☆ Save to my list"}</button></form>')
     else:
-        save_btn = f'<a class="btn btn-light" href="/login">☆ Save to my list</a>'
+        # Anonymous: drop the email instead of forcing login. Lead capture
+        # seeds the outcome-network email list (CEO plan, May 2026).
+        save_btn = (
+            f'<form id="interest-form-{slug}" class="interest-form" data-slug="{slug}" style="display:inline-flex;gap:6px;align-items:center;flex-wrap:wrap">'
+            f'<input type="email" name="email" required placeholder="your@email.com" '
+            f'style="padding:8px 12px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:.9em;min-width:200px">'
+            f'<button class="btn btn-light" type="submit">☆ Save for later</button>'
+            f'<span class="interest-msg muted" style="font-size:.85em"></span>'
+            f'</form>'
+        )
     over = _get_overrides(slug)
     verified_badge = ""
     if is_cds_verified(slug):
@@ -6221,6 +6244,40 @@ def college_detail_html(slug):
   load("summary-block", "/api/college/"+slug+"/summary");
   load("facts-block",   "/api/college/"+slug+"/facts");
   load("articles-block","/api/college/"+slug+"/articles");
+
+  // Email lead capture for anonymous visitors (#8 — seeds outcome-network list).
+  var interestForm = document.querySelector(".interest-form[data-slug=\\"" + slug + "\\"]");
+  if (interestForm) {{
+    var msg = interestForm.querySelector(".interest-msg");
+    interestForm.addEventListener("submit", function(e){{
+      e.preventDefault();
+      var emailInput = interestForm.querySelector("input[name=email]");
+      var btn = interestForm.querySelector("button");
+      var fd = new FormData();
+      fd.append("email", emailInput.value);
+      fd.append("slug", slug);
+      fd.append("source", "college_detail");
+      btn.disabled = true;
+      msg.textContent = "Saving…";
+      msg.style.color = "";
+      fetch("/api/interest", {{ method:"POST", body: fd }})
+        .then(function(r){{ return r.json().then(function(d){{ return {{ok: r.ok, data: d}}; }}); }})
+        .then(function(res){{
+          if (res.ok && res.data && res.data.ok) {{
+            interestForm.innerHTML = "<span style=\\"color:var(--teal);font-size:.9em\\">★ Saved. We'll email you when more features for this school are ready.</span>";
+          }} else {{
+            msg.textContent = (res.data && res.data.error) || "Couldn't save — try again?";
+            msg.style.color = "#f87171";
+            btn.disabled = false;
+          }}
+        }})
+        .catch(function(){{
+          msg.textContent = "Network error — try again?";
+          msg.style.color = "#f87171";
+          btn.disabled = false;
+        }});
+    }});
+  }}
 }})();
 </script>
 """, title=f"{c['name']} — Candor")
@@ -9802,13 +9859,39 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
     border-top:1px solid rgba(255,255,255,.06); padding-top:8px;
   }
   .demo-cta {
-    margin-top:2px; display:inline-block;
-    color:#5eead4; font-weight:600; font-size:.86em; text-decoration:none;
-    align-self:flex-start;
-    border-bottom:1px solid rgba(94,234,212,.3);
-    padding-bottom:2px; transition:border-color .15s, color .15s;
+    margin-top:6px; display:inline-block; align-self:flex-start;
+    background:linear-gradient(135deg,#5eead4 0%,#3fcdb2 100%);
+    color:#0b1220; font-weight:700; font-size:.95em; text-decoration:none;
+    padding:11px 22px; border-radius:8px;
+    box-shadow:0 4px 14px rgba(94,234,212,.25), 0 1px 0 rgba(255,255,255,.08) inset;
+    transition:transform .12s ease, box-shadow .15s ease, background .15s ease;
   }
-  .demo-cta:hover { color:#7ff7df; border-color:#5eead4; }
+  .demo-cta:hover {
+    background:linear-gradient(135deg,#7ff7df 0%,#5eead4 100%);
+    box-shadow:0 6px 20px rgba(94,234,212,.35), 0 1px 0 rgba(255,255,255,.12) inset;
+    transform:translateY(-1px);
+  }
+  .demo-cta:active { transform:translateY(0); }
+  .demo-math-toggle {
+    margin-top:8px; display:inline-block; align-self:flex-start;
+    color:#9aa6b6; font-size:.78em; cursor:pointer; user-select:none;
+    background:none; border:none; padding:4px 0; font-family:inherit;
+    border-bottom:1px dashed rgba(154,166,182,.35);
+    transition:color .12s, border-color .12s;
+  }
+  .demo-math-toggle:hover { color:#5eead4; border-bottom-color:rgba(94,234,212,.5); }
+  .demo-math {
+    display:none; margin-top:10px; padding:12px 14px;
+    background:rgba(94,234,212,.04); border:1px solid rgba(94,234,212,.15);
+    border-radius:6px; font-size:.82em; line-height:1.55; color:#c9d3e1;
+  }
+  .demo-math.open { display:block; }
+  .demo-math .demo-math-row { display:flex; justify-content:space-between; gap:10px; padding:3px 0; }
+  .demo-math .demo-math-row b { color:#e8eef6; font-weight:600; }
+  .demo-math .demo-math-note {
+    margin-top:8px; padding-top:8px; border-top:1px solid rgba(94,234,212,.12);
+    color:#9aa6b6; font-size:.94em;
+  }
 
   @media (max-width:680px) {
     .demo-odds { font-size:2em; }
@@ -9923,6 +10006,17 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
           </div>
         </div>
         <div class="demo-context" id="demo-context">School mid-50%: —</div>
+        <button type="button" class="demo-math-toggle" id="demo-math-toggle" aria-expanded="false">How is this calculated?</button>
+        <div class="demo-math" id="demo-math" hidden>
+          <div class="demo-math-row"><span>Base accept rate (CDS)</span><b id="demo-math-base">—</b></div>
+          <div class="demo-math-row"><span>Your GPA vs admitted mid-50%</span><b id="demo-math-gpa">—</b></div>
+          <div class="demo-math-row"><span>Your <span id="demo-math-test-label">SAT</span> vs admitted mid-50%</span><b id="demo-math-test">—</b></div>
+          <div class="demo-math-row"><span>Profile fit score</span><b id="demo-math-fit">—</b></div>
+          <div class="demo-math-row"><span>Tier ceiling applied</span><b id="demo-math-ceiling">—</b></div>
+          <div class="demo-math-note">
+            Odds combine your position in the school's admitted-student bands with a tier ceiling (elite schools cap typical applicants below ~15%; exceptional profiles lift the cap). The full model adds hooks, ED/EA round, demographics, and demonstrated interest. Sign up to run the full version.
+          </div>
+        </div>
         <a href="/signup" class="demo-cta">Sign up free to run this on your full profile →</a>
       </div>
     </div>
@@ -10039,7 +10133,38 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
     const tierEl = document.getElementById('demo-tier');
     const ctxEl  = document.getElementById('demo-context');
     const testBtns = document.querySelectorAll('.demo-test-btn');
+    const mathToggle = document.getElementById('demo-math-toggle');
+    const mathBox    = document.getElementById('demo-math');
+    const mathBase   = document.getElementById('demo-math-base');
+    const mathGpa    = document.getElementById('demo-math-gpa');
+    const mathTestLb = document.getElementById('demo-math-test-label');
+    const mathTest   = document.getElementById('demo-math-test');
+    const mathFit    = document.getElementById('demo-math-fit');
+    const mathCeil   = document.getElementById('demo-math-ceiling');
     if (!slug || !gpa || !sat || !act) return;
+
+    if (mathToggle && mathBox) {{
+      mathToggle.addEventListener('click', () => {{
+        const open = mathBox.classList.toggle('open');
+        if (open) mathBox.removeAttribute('hidden'); else mathBox.setAttribute('hidden','');
+        mathToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        mathToggle.textContent = open ? 'Hide the math' : 'How is this calculated?';
+      }});
+    }}
+
+    function fmtBand(userVal, lo, hi) {{
+      if (lo == null || hi == null) return String(userVal);
+      const u = Number(userVal);
+      const where = (u < Number(lo)) ? 'below' : (u > Number(hi)) ? 'above' : 'within';
+      return `${{userVal}} · ${{where}} ${{lo}}–${{hi}}`;
+    }}
+    function tierCeilingText(tier, hi) {{
+      if (tier === 'Dream')  return `~${{Math.max(15, hi || 15)}}% cap on typical strong applicants`;
+      if (tier === 'Reach')  return `up to ~30% for strong applicants`;
+      if (tier === 'Target') return `no cap — your bands match well`;
+      if (tier === 'Safety') return `no cap — admits broadly at your level`;
+      return '—';
+    }}
 
     let activeTest = 'sat';
 
@@ -10067,6 +10192,17 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
           const testLabel = activeTest.toUpperCase();
           const gpaRange = (d.school_gpa_lo && d.school_gpa_hi) ? `${{d.school_gpa_lo}}–${{d.school_gpa_hi}}` : '—';
           ctxEl.textContent = `${{d.school_name}} · ${{d.school_accept}}% accept · ${{testLabel}} mid-50% ${{range}} · GPA mid-50% ${{gpaRange}}`;
+          if (mathBase) {{
+            mathBase.textContent = `${{d.school_accept}}%`;
+            mathGpa.textContent  = fmtBand(parseFloat(gpa.value).toFixed(2), d.school_gpa_lo, d.school_gpa_hi);
+            const userTestVal = (activeTest === 'sat') ? sat.value : act.value;
+            const lo = (activeTest === 'sat') ? d.school_sat_lo : d.school_act_lo;
+            const hi = (activeTest === 'sat') ? d.school_sat_hi : d.school_act_hi;
+            mathTestLb.textContent = testLabel;
+            mathTest.textContent   = fmtBand(userTestVal, lo, hi);
+            mathFit.textContent    = `${{d.fit}}/100`;
+            mathCeil.textContent   = tierCeilingText(d.tier, d.high);
+          }}
         }})
         .catch(() => {{}});
     }}
@@ -10693,6 +10829,42 @@ def unsave_school(slug):
         conn.commit()
     nxt = request.form.get("next") or request.referrer or url_for("college_detail_page", slug=slug)
     return redirect(nxt)
+
+
+_EMAIL_RE = re.compile(r"^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$")
+
+@app.route("/api/interest", methods=["POST"])
+def api_interest():
+    """Anonymous email capture from /college/<slug> for visitors who aren't
+    ready to make an account. Stores email + school slug. No login created,
+    no email sent — pure lead capture that seeds the outcome-network email
+    list. Per-IP rate-limited to stop drive-by abuse."""
+    from collections import deque
+    ip = request.headers.get("X-Forwarded-For", request.remote_addr or "?").split(",")[0].strip()
+    now = time.time()
+    dq = _DEMO_RATE.setdefault(f"interest:{ip}", deque())
+    while dq and now - dq[0] > 3600:
+        dq.popleft()
+    if len(dq) > 20:
+        return jsonify({"error": "Too many submissions. Try again in an hour."}), 429
+    dq.append(now)
+
+    email = (request.form.get("email") or request.json.get("email") if request.is_json else request.form.get("email") or "").strip().lower()
+    slug = (request.form.get("slug") or "").strip().lower() or None
+    source = (request.form.get("source") or "college_detail").strip()[:64]
+    if not email or not _EMAIL_RE.match(email) or len(email) > 254:
+        return jsonify({"error": "Please enter a valid email."}), 400
+    if slug and slug not in COLLEGES_BY_SLUG:
+        slug = None  # silently drop unknown slug rather than 400
+
+    visitor_id = request.cookies.get("cv_id") or None
+    with db() as conn:
+        conn.execute(
+            "INSERT INTO interest_signups (email, slug, visitor_id, source) VALUES (?, ?, ?, ?)",
+            (email, slug, visitor_id, source)
+        )
+        conn.commit()
+    return jsonify({"ok": True})
 
 
 @app.route("/plans")
