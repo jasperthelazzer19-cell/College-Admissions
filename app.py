@@ -5976,6 +5976,7 @@ NAV = """<div class="nav"><a class="brand" href="/">""" + CANDOR_LOGO_SVG + """C
 <a href="/plans">My Colleges</a>
 <a href="/plans/grade">List Grade</a>
 <a href="/chat">AI Advisor</a>
+<a href="/upgrade" style="color:#5eead4">Premium</a>
 <span class="sp"></span>
 __USER_LINKS__
 </div>"""
@@ -6185,7 +6186,7 @@ def college_detail_html(slug):
   <div id="summary-block" style="margin:14px 0 6px;color:#444">{c['desc']}<div class="muted" style="font-size:.82em;margin-top:4px"><i>Loading extended overview…</i></div></div>
   <div class="tag-list">{majors_tags}</div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
-    <a class="btn btn-primary" href="/college/{c['slug']}/plan">★ My personalized plan</a>
+    <a class="btn btn-primary" href="/college/{c['slug']}/plan">★ Calculate my chances</a>
     <a class="btn btn-light" href="/chances/{c['slug']}">Chances only</a>
     <a class="btn btn-light" href="/college/{c['slug']}/improve">Improve guide</a>
     <a class="btn btn-light" href="/college/{c['slug']}/chat">AI advisor</a>
@@ -9607,6 +9608,60 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
   .founder p:last-child { margin:0; }
   .founder .signature { color:#5eead4; font-weight:600; margin-top:16px !important; }
 
+  .premium-band {
+    background:linear-gradient(135deg,#0f3a37 0%,#0a131c 65%);
+    border:1px solid rgba(94,234,212,.28);
+    border-radius:8px;
+    padding:48px;
+  }
+  .premium-band-header { max-width:680px; margin-bottom:36px; }
+  .premium-band-eyebrow {
+    font-size:.78em; font-weight:600; letter-spacing:.8px; text-transform:uppercase;
+    color:#5eead4; padding:5px 12px; border:1px solid rgba(94,234,212,.3);
+    border-radius:999px; background:rgba(94,234,212,.06); display:inline-block; margin-bottom:18px;
+  }
+  .premium-band-h2 {
+    font-size:clamp(1.6em,2.6vw,2.1em); font-weight:700; letter-spacing:-.5px;
+    margin:0 0 14px; color:#e6edf3; line-height:1.15;
+  }
+  .premium-band-sub {
+    font-size:1.02em; line-height:1.55; color:#9aa6b6; margin:0;
+  }
+  .premium-features {
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:1px; background:rgba(94,234,212,.08);
+    border:1px solid rgba(94,234,212,.12); border-radius:6px; overflow:hidden;
+  }
+  .premium-feature { background:#0a121a; padding:24px 22px; }
+  .premium-feature .premium-feature-num {
+    font-family:'Newsreader',Georgia,serif; font-size:.85em; color:#5eead4;
+    font-weight:500; letter-spacing:.5px; margin-bottom:14px; font-feature-settings:"tnum";
+  }
+  .premium-feature h3 {
+    margin:0 0 8px; font-size:1.02em; color:#e6edf3; font-weight:600; letter-spacing:-.2px;
+  }
+  .premium-feature p {
+    margin:0; color:#9aa6b6; font-size:.88em; line-height:1.5;
+  }
+  .premium-band-cta {
+    display:flex; align-items:center; gap:18px; flex-wrap:wrap; margin-top:32px;
+  }
+  .premium-cta-btn {
+    display:inline-block; padding:13px 28px;
+    background:linear-gradient(135deg,#5eead4 0%,#2dd4bf 100%);
+    color:#070d14; font-weight:700; font-size:.98em;
+    border-radius:6px; text-decoration:none;
+    box-shadow:0 6px 22px rgba(94,234,212,.3);
+    transition:all .18s ease;
+  }
+  .premium-cta-btn:hover {
+    transform:translateY(-1px);
+    box-shadow:0 8px 28px rgba(94,234,212,.42);
+  }
+  .premium-band-note { color:#7a8595; font-size:.82em; }
+  @media (max-width:680px) {
+    .premium-band { padding:28px 22px; }
+  }
   .final-cta { text-align:center; padding:80px 0 100px; }
   .final-cta h2 { margin-bottom:18px; }
   .final-cta p { color:#9aa6b6; margin:0 0 30px; font-size:1.08em; }
@@ -9619,15 +9674,15 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
   .reveal { opacity:0; transform:translateY(16px); transition:opacity .7s ease, transform .7s ease; }
   .reveal.in { opacity:1; transform:translateY(0); }
 
-  /* Two-column hero: text + demo on left (narrower), big orbit on right. */
+  /* Two-column hero: text + demo on left (wider), orbit pushed right. */
   .hero.hero-grid {
     display:grid;
-    grid-template-columns: minmax(0, 480px) minmax(0, 1fr);
-    gap:40px;
+    grid-template-columns: minmax(0, 620px) minmax(0, 1fr);
+    gap:60px;
     align-items:start;
     max-width:none;
   }
-  .hero.hero-grid .hero-text { max-width:480px; display:flex; flex-direction:column; gap:14px; }
+  .hero.hero-grid .hero-text { max-width:620px; display:flex; flex-direction:column; gap:14px; }
   .hero.hero-grid .hero-text-above { display:flex; flex-direction:column; gap:10px; margin-bottom:6px; }
   .hero.hero-grid h1 { font-size:clamp(1.6em, 2.8vw, 2.1em); margin:8px 0 4px; line-height:1.1; }
   .hero.hero-grid p.lede { font-size:.96em; margin:0 0 12px; line-height:1.5; }
@@ -9873,6 +9928,15 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
     transform:translateY(-1px);
   }
   .demo-cta:active { transform:translateY(0); }
+  .demo-premium-inline {
+    display:inline-block; margin-top:8px; align-self:flex-start;
+    font-size:.82em; color:#5eead4; text-decoration:none;
+    padding:4px 0; border-bottom:1px dashed rgba(94,234,212,.4);
+    transition:color .15s, border-color .15s;
+  }
+  .demo-premium-inline:hover {
+    color:#7ff7df; border-bottom-color:#7ff7df;
+  }
   .demo-math-toggle {
     margin-top:8px; display:inline-block; align-self:flex-start;
     color:#9aa6b6; font-size:.78em; cursor:pointer; user-select:none;
@@ -10019,6 +10083,7 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
           </div>
         </div>
         <a href="/signup" class="demo-cta">Sign up free to run this on your full profile →</a>
+        <a href="/upgrade" class="demo-premium-inline">Want a real plan? See Premium · $5/mo →</a>
       </div>
     </div>
    </div>
@@ -10089,6 +10154,47 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
       <p>I started digging into why, and turns out most of them either use federal data that lags 1-2 years, have AI just make up stats, or use a fit model so generic it's basically useless. So I spent a few weeks pulling the actual Common Data Set PDFs from each school's website and built my own.</p>
       <p>The goal is calibration, not telling you what you want to hear. If your odds at Stanford are 4%, you should know that — so you can spend your ED slot somewhere it'll actually matter.</p>
       <p class="signature">— Jasper, Candor's founder</p>
+    </div>
+  </section>
+
+  <section class="section reveal">
+    <div class="premium-band">
+      <div class="premium-band-header">
+        <div class="premium-band-eyebrow">Candor Premium · $5/month</div>
+        <h2 class="premium-band-h2">A chances number alone won't get you in.</h2>
+        <p class="premium-band-sub">Premium is the layer that turns "6% at Stanford" into a plan. Built into every school page, your full college list, and an AI advisor that actually knows your profile.</p>
+      </div>
+      <div class="premium-features">
+        <div class="premium-feature">
+          <div class="premium-feature-num">01</div>
+          <h3>Personalized AI strategy</h3>
+          <p>Per-school strategy calibrated to your stats, ECs, and what that school actually weights. Not generic advice — yours.</p>
+        </div>
+        <div class="premium-feature">
+          <div class="premium-feature-num">02</div>
+          <h3>List grader + simulator</h3>
+          <p>Score your full college list 1–10. Simulate where you'd ED, EA, RD — and your probability of getting into at least one reach.</p>
+        </div>
+        <div class="premium-feature">
+          <div class="premium-feature-num">03</div>
+          <h3>Score push impact</h3>
+          <p>See exactly how a +60 SAT or +2 ACT moves your odds at each school. Decide if a retake is actually worth the time.</p>
+        </div>
+        <div class="premium-feature">
+          <div class="premium-feature-num">04</div>
+          <h3>Unlimited AI advisor</h3>
+          <p>Per-school chat that knows your full profile and the school's verified facts. Ask about supplements, ED vs RD, gap closing.</p>
+        </div>
+        <div class="premium-feature">
+          <div class="premium-feature-num">05</div>
+          <h3>Free stays free</h3>
+          <p>The chances calculator stays free for everyone. Premium is the strategic layer on top — no paywall on the basics.</p>
+        </div>
+      </div>
+      <div class="premium-band-cta">
+        <a href="/upgrade" class="premium-cta-btn">See Premium →</a>
+        <span class="premium-band-note">Cancel anytime. Premium activates within 30 seconds of payment.</span>
+      </div>
     </div>
   </section>
 
@@ -10869,8 +10975,32 @@ def api_interest():
 
 
 @app.route("/plans")
-@login_required
 def plans_index_page():
+    if not current_user():
+        return _page("""
+<div class="lp-wrap" style="max-width:760px;margin:0 auto;padding:40px 24px">
+  <div style="font-size:.78em;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#5eead4;margin-bottom:8px">My Colleges · what you'd see here</div>
+  <h1 style="font-size:2.2em;letter-spacing:-1px;margin:0 0 12px">Your full college list, in one strategic view.</h1>
+  <p class="muted" style="font-size:1.05em;line-height:1.55;margin:0 0 24px">Every school you've chanced or saved, grouped by application round (ED1, ED2, EA, REA, RD), with personalized odds, fit scores, list grading, and an admissions simulator.</p>
+
+  <div class="card" style="background:linear-gradient(135deg,#0f3a37 0%,#0a131c 100%);border:1px solid rgba(94,234,212,.3);padding:28px;margin-bottom:24px">
+    <h2 style="margin:0 0 14px;font-size:1.3em">What's inside</h2>
+    <ul style="line-height:1.85;padding-left:18px;margin:0;color:#cbd5e1">
+      <li><b style="color:#e6edf3">Round-by-round dashboard</b> — see your ED, EA, and RD lists side by side</li>
+      <li><b style="color:#e6edf3">List grader (1–10)</b> — is your list balanced? Too top-heavy? Too safe?</li>
+      <li><b style="color:#e6edf3">Admissions simulator</b> — what's the probability you get into AT LEAST one of your reaches?</li>
+      <li><b style="color:#e6edf3">Personalized AI strategy per school</b> — calibrated to your stats and what each school weights</li>
+      <li><b style="color:#e6edf3">Score push impact</b> — would a +60 SAT or +2 ACT actually move your odds here?</li>
+    </ul>
+  </div>
+
+  <div style="display:flex;gap:12px;flex-wrap:wrap">
+    <a class="btn btn-primary" href="/signup" style="padding:12px 24px">Sign up free →</a>
+    <a class="btn btn-light" href="/upgrade" style="padding:12px 24px">See Premium ($5/mo)</a>
+  </div>
+  <p class="muted" style="font-size:.85em;margin-top:18px">Free chances calculator stays free. Premium unlocks the full strategic dashboard.</p>
+</div>
+""", title="My Colleges — Candor")
     return plans_index_html()
 
 
