@@ -5975,7 +5975,6 @@ NAV = """<div class="nav"><a class="brand" href="/">""" + CANDOR_LOGO_SVG + """C
 <a href="/improve">Improve</a>
 <a href="/plans">My Colleges</a>
 <a href="/plans/grade">List Grade</a>
-<a href="/chat">AI Advisor</a>
 <a href="/upgrade" style="color:#5eead4">Premium</a>
 <span class="sp"></span>
 __USER_LINKS__
@@ -6026,7 +6025,7 @@ def _page(body_html, title="Candor"):
     footer = """<div style="max-width:1180px;margin:60px auto 30px;padding:24px;color:var(--text-3);font-size:.84em;text-align:center;border-top:1px solid var(--border)">
 made by a high school junior. found a bug? something looks wrong? tell me on the
 <a href="https://www.reddit.com/user/Zestyclose_Tower_380" style="color:var(--text-2)">reddit</a>.
-free chances calculator. <a href="/upgrade" style="color:var(--text-2)">Candor Premium</a> is $5/mo for the strategy on top.
+free chances calculator. <a href="/upgrade" style="color:var(--text-2)">Candor Premium</a> is $10 once for the strategy on top.
 </div>"""
     return f"""<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 {favicon}
@@ -6189,7 +6188,6 @@ def college_detail_html(slug):
     <a class="btn btn-primary" href="/college/{c['slug']}/plan">★ Calculate my chances</a>
     <a class="btn btn-light" href="/chances/{c['slug']}">Chances only</a>
     <a class="btn btn-light" href="/college/{c['slug']}/improve">Improve guide</a>
-    <a class="btn btn-light" href="/college/{c['slug']}/chat">AI advisor</a>
     <a class="btn btn-light" href="/college/{c['slug']}/profiles">Real profiles & essays</a>
     {save_btn}
   </div>
@@ -7131,8 +7129,8 @@ def chances_html(slug):
 <div class="card" style="margin-top:18px;background:linear-gradient(135deg,#0f3a37 0%,#0a131c 100%);border:1px solid rgba(94,234,212,.3)">
   <div style="font-size:.74em;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#5eead4;margin-bottom:6px">Next step</div>
   <h3 style="margin:0 0 8px;color:#e6edf3">Turn this number into a plan</h3>
-  <p class="muted" style="margin:0 0 14px;line-height:1.55">Candor Premium ($5/mo) unlocks a personalized strategy for {r['school']}, score-push impact, your list grader, and unlimited AI advisor. Or share this report with your parents and let them decide.</p>
-  <a class="btn btn-primary btn-sm" href="/upgrade">Upgrade — $5/month</a>
+  <p class="muted" style="margin:0 0 14px;line-height:1.55">Candor Premium ($10 once) unlocks a personalized strategy for {r['school']}, score-push impact, and your list grader. Or share this report with your parents and let them decide.</p>
+  <a class="btn btn-primary btn-sm" href="/upgrade">Upgrade — $10 once</a>
   <a class="btn btn-light btn-sm" href="/upgrade?for=parent" style="margin-left:6px">Show your parents →</a>
 </div>
 <p style="margin-top:18px"><a class="btn btn-light" href="/profile">Edit profile</a> <a class="btn btn-light" href="/college/{r['slug']}/improve">Get tailored advice for {r['school']} &rarr;</a></p>
@@ -7597,7 +7595,7 @@ def school_improve_html(slug):
     <li><b>Find one current student to ask about their experience</b> — admissions offices often connect prospective applicants with current students. The follow-up email becomes specific essay material.</li>
   </ol>
 </div>
-<p style="margin-top:18px"><a class="btn btn-light" href="/college/{slug}/chat">Ask the AI advisor about {school['name']} &rarr;</a> <a class="btn btn-light" href="/improve">General improve guide</a></p>
+<p style="margin-top:18px"><a class="btn btn-light" href="/improve">General improve guide</a></p>
 """, title=f"Improve your {school['name']} application — Candor")
 
 
@@ -8451,7 +8449,6 @@ def school_profiles_html(slug):
   <a class="btn btn-light btn-sm" href="/college/{slug}">Overview</a>
   <a class="btn btn-light btn-sm" href="/college/{slug}/plan">My plan</a>
   <a class="btn btn-light btn-sm" href="/college/{slug}/improve">Improve</a>
-  <a class="btn btn-light btn-sm" href="/college/{slug}/chat">AI advisor</a>
   <a class="btn btn-light btn-sm" href="?refresh=1">Refresh</a>
 </div>
 
@@ -8646,8 +8643,7 @@ def school_plan_html(slug):
 </div>
 
 <div style="display:flex;gap:8px;flex-wrap:wrap;margin:18px 0">
-  <a class="btn btn-primary" href="/college/{slug}/chat">Ask the AI advisor about {school['name']}</a>
-  <a class="btn btn-light" href="/college/{slug}/improve">Full school-specific guide</a>
+  <a class="btn btn-primary" href="/college/{slug}/improve">Full school-specific guide</a>
   <a class="btn btn-light" href="/college/{slug}">School overview</a>
 </div>
 """, title=f"Your plan for {school['name']} — Candor")
@@ -8732,17 +8728,17 @@ def plans_index_html():
 <p class="muted">Strategic dashboard for your full college list — round assignments, list grader, and admissions simulator.</p>
 
 <div class="card" style="background:linear-gradient(135deg,#0f3a37 0%,#0a131c 100%);border:1px solid rgba(94,234,212,.3);padding:32px">
-  <div style="font-size:.78em;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#5eead4;margin-bottom:8px">Candor Premium · $5/month</div>
+  <div style="font-size:.78em;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#5eead4;margin-bottom:8px">Candor Premium · $10 once</div>
   <h2 style="margin:0 0 14px">Turn your chances into a real plan</h2>
   <ul style="line-height:1.9;padding-left:18px;margin:0 0 18px">
     <li><b>List grader + admissions simulator</b> — score your full list 1–10, simulate ED/EA/RD outcomes across every school</li>
     <li><b>Personalized AI strategy per school</b> — calibrated to your stats, ECs, and what that school actually weights</li>
     <li><b>Score push impact</b> — see exactly how a +60 SAT or +2 ACT moves your odds at each school</li>
-    <li><b>Unlimited AI advisor</b> — per-school chat that knows your full profile + verified school facts</li>
+    <li><b>Saved schools dashboard</b> — every school you've chanced or saved, grouped by application round</li>
     <li><b>Free chances calculator stays free</b> — premium is the layer on top</li>
   </ul>
   <p class="muted" style="font-size:.88em">You currently have <b style="color:#e6edf3">{n_schools}</b> school{'' if n_schools==1 else 's'} in your list. Upgrade to organize, simulate, and strategize.</p>
-  <a class="btn btn-primary" href="/upgrade" style="font-size:1em;padding:12px 28px;margin-top:18px;display:inline-block">Upgrade — $5/month →</a>
+  <a class="btn btn-primary" href="/upgrade" style="font-size:1em;padding:12px 28px;margin-top:18px;display:inline-block">Upgrade — $10 once →</a>
   <p class="muted" style="font-size:.78em;margin-top:12px">Cancel any time. Your saved schools and chances stay accessible on each college's page.</p>
 </div>
 
@@ -10083,7 +10079,7 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
           </div>
         </div>
         <a href="/signup" class="demo-cta">Sign up free to run this on your full profile →</a>
-        <a href="/upgrade" class="demo-premium-inline">Want a real plan? See Premium · $5/mo →</a>
+        <a href="/upgrade" class="demo-premium-inline">Want a real plan? See Premium · $10 once →</a>
       </div>
     </div>
    </div>
@@ -10160,9 +10156,9 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
   <section class="section reveal">
     <div class="premium-band">
       <div class="premium-band-header">
-        <div class="premium-band-eyebrow">Candor Premium · $5/month</div>
+        <div class="premium-band-eyebrow">Candor Premium · $10 once</div>
         <h2 class="premium-band-h2">A chances number alone won't get you in.</h2>
-        <p class="premium-band-sub">Premium is the layer that turns "6% at Stanford" into a plan. Built into every school page, your full college list, and an AI advisor that actually knows your profile.</p>
+        <p class="premium-band-sub">Premium is the layer that turns "6% at Stanford" into a plan. Built into every school page and your full college list. Pay once, use it through your whole application cycle.</p>
       </div>
       <div class="premium-features">
         <div class="premium-feature">
@@ -10182,8 +10178,8 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
         </div>
         <div class="premium-feature">
           <div class="premium-feature-num">04</div>
-          <h3>Unlimited AI advisor</h3>
-          <p>Per-school chat that knows your full profile and the school's verified facts. Ask about supplements, ED vs RD, gap closing.</p>
+          <h3>Saved schools dashboard</h3>
+          <p>Every school you've chanced or saved, grouped by application round (ED1, ED2, EA, REA, RD). One view of your whole list.</p>
         </div>
         <div class="premium-feature">
           <div class="premium-feature-num">05</div>
@@ -10193,7 +10189,7 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
       </div>
       <div class="premium-band-cta">
         <a href="/upgrade" class="premium-cta-btn">See Premium →</a>
-        <span class="premium-band-note">Cancel anytime. Premium activates within 30 seconds of payment.</span>
+        <span class="premium-band-note">One-time payment. Premium activates within 30 seconds.</span>
       </div>
     </div>
   </section>
@@ -10996,7 +10992,7 @@ def plans_index_page():
 
   <div style="display:flex;gap:12px;flex-wrap:wrap">
     <a class="btn btn-primary" href="/signup" style="padding:12px 24px">Sign up free →</a>
-    <a class="btn btn-light" href="/upgrade" style="padding:12px 24px">See Premium ($5/mo)</a>
+    <a class="btn btn-light" href="/upgrade" style="padding:12px 24px">See Premium ($10 once)</a>
   </div>
   <p class="muted" style="font-size:.85em;margin-top:18px">Free chances calculator stays free. Premium unlocks the full strategic dashboard.</p>
 </div>
@@ -11053,9 +11049,10 @@ def plans_remove_school(slug):
 
 def _gate_premium():
     """Helper: returns a flask response if user isn't paid (premium), else
-    None. Premium is a single tier that unlocks: AI advisor, My colleges
-    dashboard, list grader, and admissions simulator. All gated together
-    via the existing users.is_paid column."""
+    None. Premium is a single $10 one-time tier that unlocks: My colleges
+    dashboard, list grader, admissions simulator, score push impact, and
+    personalized AI strategy per school. All gated together via the
+    existing users.is_paid column."""
     user = current_user()
     if not user.get("is_paid"):
         return redirect("/plans")
@@ -11981,20 +11978,25 @@ def outcomes_page():
 
 
 @app.route("/chat")
-@login_required
-def chat_page():
-    return general_chat_html()
-
-
 @app.route("/college/<slug>/chat")
-@login_required
-def school_chat_page(slug):
-    return school_chat_html(slug)
+def chat_page_disabled(slug=None):
+    # AI Advisor was removed 2026-05-11 — see commit log. Redirect any old
+    # bookmarks or stale links to /upgrade so users don't hit a 404.
+    return redirect(url_for("upgrade_page"))
 
 
 @app.route("/chat/api/send", methods=["POST"])
 @login_required
 def chat_api_send():
+    # AI Advisor was retired 2026-05-11. Returns 410 so any stale tab gets a
+    # clear "this feature is gone" message instead of trying to send.
+    return jsonify({"error": "retired",
+        "html": "The AI Advisor was retired. Premium now focuses on the strategy + simulator features."}), 410
+
+
+def _chat_api_send_legacy_disabled():
+    """Original chat_api_send body, kept here for reference / quick re-enable.
+    To restore: rename this back to chat_api_send and re-add the @app.route + @login_required."""
     user = current_user()
     status = usage_status(user["id"])
     if status.get("blocked"):
@@ -12059,7 +12061,7 @@ def upgrade_page():
     # Subscribe button: anon users get sent through signup first so we can
     # attach the Stripe payment to a real account via client_reference_id.
     subscribe_href = pay_url if user else "/signup?next=/upgrade"
-    subscribe_label = "Subscribe — $5/month" if user else "Sign up to subscribe — $5/month"
+    subscribe_label = "Buy — $10 once" if user else "Sign up to buy — $10 once"
 
     for_parent = request.args.get("for") == "parent"
 
@@ -12078,7 +12080,8 @@ def upgrade_page():
         headline = "Help your kid apply to the right schools."
         sub = ("Most chances calculators give a flattering number that doesn't help anyone decide anything. "
                "Candor uses verified Common Data Set data from 220+ schools and tells you the truth — "
-               "so the ED slot, the test retake, and the supplemental essay time actually go where they matter.")
+               "so the ED slot, the test retake, and the supplemental essay time actually go where they matter. "
+               "One $10 payment, no subscription.")
         social = ('<p class="muted" style="font-size:.85em;margin:18px 0 0">'
                   'Built by a high school junior who got tired of $5,000 consultants telling families different things.'
                   '</p>')
@@ -12086,7 +12089,7 @@ def upgrade_page():
         headline = "Stop guessing where you stand."
         sub = ("You ran your chances. Premium is the part that turns a number into a plan: "
                "what to do this week, where to send your ED, whether a retake is actually worth it, "
-               "and a per-school AI advisor that knows your full profile.")
+               "and a personalized strategy for every school you're considering.")
         social = ""
 
     bundle = """
@@ -12094,7 +12097,7 @@ def upgrade_page():
         <li><b>Personalized AI strategy</b> — per school, calibrated to your stats, ECs, and what that school actually weights.</li>
         <li><b>List grader + admissions simulator</b> — score your full list 1–10, simulate where you'd ED/EA/RD across your whole list.</li>
         <li><b>Score push impact</b> — see exactly how much a +60 SAT or +2 ACT moves your odds, so you can decide if a retake is worth the time.</li>
-        <li><b>Unlimited AI advisor</b> — ask anything about a school, your supplements, ED vs RD, gap closing. Knows your profile and the school's verified facts.</li>
+        <li><b>Saved schools dashboard</b> — every school you've chanced or saved, grouped by application round.</li>
         <li><b>Free chances calculator stays free</b> — premium is the layer on top.</li>
       </ul>"""
 
@@ -12103,8 +12106,8 @@ def upgrade_page():
       <h1 style="margin:0 0 10px;font-size:2em;line-height:1.15">{headline}</h1>
       <p class="muted" style="margin:0 0 6px;font-size:1em;line-height:1.55">{sub}</p>
       <div style="display:flex;align-items:baseline;gap:8px;margin:22px 0 6px">
-        <span style="font-size:2.4em;font-weight:700;letter-spacing:-1px;background:var(--accent-grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent">$5</span>
-        <span class="muted">/ month · cancel anytime</span>
+        <span style="font-size:2.4em;font-weight:700;letter-spacing:-1px;background:var(--accent-grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent">$10</span>
+        <span class="muted">one-time · use through your whole app cycle</span>
       </div>
       {bundle}
       <a href="{subscribe_href}" class="btn btn-primary" style="font-size:1em;padding:12px 28px;margin-top:4px">{subscribe_label} →</a>
