@@ -59,7 +59,7 @@ SCORECARD_KEY = os.environ.get("SCORECARD_KEY", "")
 SECRET_KEY = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
 ADMIN_KEY = os.environ.get("ADMIN_KEY", "")  # gates the bulk-refresh endpoint
 STRIPE_PAYMENT_LINK = os.environ.get("STRIPE_PAYMENT_LINK",
-    "https://buy.stripe.com/cNicN6egv4XP6XS46Y5AQ01")
+    "https://buy.stripe.com/3cIbJ23BRfCt4PK5b25AQ02")
 STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
 ARTICLE_TTL_HOURS = 12   # how long to cache per-college articles
 SCORECARD_TTL_DAYS = 30  # refresh federal stats monthly
