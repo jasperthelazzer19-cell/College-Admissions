@@ -814,54 +814,72 @@ ADMISSIONS_DETAIL = {
     "dartmouth":    {"rounds": ["ED","RD"],             "rates": {"ED":0.174,"RD":0.046}},
     "brown":        {"rounds": ["ED","RD"],             "rates": {"ED":0.129,"RD":0.046}},
     "cornell":      {"rounds": ["ED","RD"],             "rates": {"ED":0.170,"RD":0.055}},
-    "northwestern": {"rounds": ["ED","RD"],             "rates": {"ED":0.240,"RD":0.060}},
+    # northwestern: CDS 2024-25: ED 1186/5154=23.0%. RD: 2620/44320=5.9%. C1: 49474 applied, 3806 admitted = 7.7%.
+    "northwestern": {"rounds": ["ED","RD"],             "rates": {"ED":0.230,"RD":0.059}},
     "uchicago":     {"rounds": ["ED","ED2","EA","RD"],  "rates": {"ED":0.180,"ED2":0.140,"EA":0.075,"RD":0.035}},
     # Top privates with ED/EA splits
     "vanderbilt":   {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.167,"ED2":0.140,"RD":0.045}},
     "rice":         {"rounds": ["ED","RD"],             "rates": {"ED":0.137,"RD":0.060}},
     "jhu":          {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.265,"ED2":0.175,"RD":0.045}},
-    "washu":        {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.280,"ED2":0.160,"RD":0.090}},
+    # washu: CDS 2024-25 form: combined ED 1217/4817=25.3%. ED1/ED2 estimated. C1: 32754/3951=12.1%. RD: 2734/27937=9.8%.
+    "washu":        {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.278,"ED2":0.202,"RD":0.098}},
     "notre-dame":   {"rounds": ["REA","RD"],            "rates": {"REA":0.170,"RD":0.070}},
     "georgetown":   {"rounds": ["EA","RD"],             "rates": {"EA":0.120,"RD":0.110}},
     "nyu":          {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.250,"ED2":0.220,"RD":0.070}},
-    "emory":        {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.280,"ED2":0.200,"RD":0.090}},
+    # emory: CDS 2024-25: combined ED 974/4193=23.2%. ED1/ED2 estimated. C1: 34614/3562=10.3%. RD: 2588/30421=8.5%.
+    "emory":        {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.256,"ED2":0.186,"RD":0.085}},
     "tufts":        {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.300,"ED2":0.190,"RD":0.070}},
-    "cmu":          {"rounds": ["ED","RD"],             "rates": {"ED":0.200,"RD":0.100}},
+    # cmu: CDS 2024-25: ED 612/4423=13.8%. RD: (3959-612)/(33941-4423) = 3347/29518 = 11.3%. C1: 33941/3959=11.7%.
+    "cmu":          {"rounds": ["ED","RD"],             "rates": {"ED":0.138,"RD":0.113}},
     "usc":          {"rounds": ["EA","RD"],             "rates": {"EA":0.110,"RD":0.080}},
     "wake-forest":  {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.450,"ED2":0.300,"RD":0.190}},
-    "bc":           {"rounds": ["ED","EA","RD"],        "rates": {"ED":0.330,"EA":0.180,"RD":0.140}},
+    # bc: CDS 2024-25: ED 1434/4288=33.4%. EA kept from prior. RD derived ~13.8% (excludes EA accurately). C1: 34779/5632=16.2%.
+    "bc":           {"rounds": ["ED","EA","RD"],        "rates": {"ED":0.334,"EA":0.180,"RD":0.138}},
     "tulane":       {"rounds": ["ED","EA","RD"],        "rates": {"ED":0.420,"EA":0.110,"RD":0.080}},
     "villanova":    {"rounds": ["ED","ED2","EA","RD"],  "rates": {"ED":0.350,"ED2":0.180,"EA":0.230,"RD":0.190}},
-    "lehigh":       {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.470,"ED2":0.340,"RD":0.290}},
+    # lehigh: CDS 2025-26: combined ED 966/2040=47.4%. ED1/ED2 estimated. RD kept from prior estimate.
+    "lehigh":       {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.521,"ED2":0.379,"RD":0.290}},
     "case":         {"rounds": ["ED","ED2","EA","RD"],  "rates": {"ED":0.350,"ED2":0.290,"EA":0.290,"RD":0.220}},
     # Northeastern is a yield-extremist school — they front-load admits into
     # ED and EA and slash the RD pool. Public-facing "5.5% accept" hides
     # the real story: EA admits ~12-13%, RD a brutal ~2-3% for unhooked
     # applicants. Calibrated to roughly weight-average back to the
     # 5.5% headline given Northeastern's known round volume mix.
-    "northeastern": {"rounds": ["ED","ED2","EA","RD"],  "rates": {"ED":0.280,"ED2":0.170,"EA":0.125,"RD":0.025}},
-    "bu":           {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.290,"ED2":0.140,"RD":0.080}},
+    # northeastern: CDS 2024-25: combined ED 1492/3466=43.0%. ED1/ED2 estimated (×1.10/×0.80). EA not in CDS. RD derived assumes EA ~12.5% (kept).
+    "northeastern": {"rounds": ["ED","ED2","EA","RD"],  "rates": {"ED":0.473,"ED2":0.344,"EA":0.125,"RD":0.025}},
+    # bu: CDS 2024-25 sec C: combined ED 1936/6854=28.2%. ED1/ED2 estimated. RD kept from prior.
+    "bu":           {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.310,"ED2":0.226,"RD":0.080}},
     "miami":        {"rounds": ["ED","ED2","EA","RD"],  "rates": {"ED":0.430,"ED2":0.300,"EA":0.200,"RD":0.190}},
-    "brandeis":     {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.500,"ED2":0.380,"RD":0.350}},
+    # brandeis: CDS 2024-25: combined ED 323/765=42.2%. ED1/ED2 estimated. C1: 10462/4234=40.5%. RD: 3911/9697=40.3%.
+    "brandeis":     {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.464,"ED2":0.338,"RD":0.403}},
     "fordham":      {"rounds": ["EA","RD"],             "rates": {"EA":0.580,"RD":0.530}},
     "gwu":          {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.690,"ED2":0.610,"RD":0.480}},
     "american":     {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.870,"ED2":0.800,"RD":0.510}},
     # LAC ED-heavy
     "williams":     {"rounds": ["ED","RD"],             "rates": {"ED":0.260,"RD":0.080}},
-    "amherst":      {"rounds": ["ED","RD"],             "rates": {"ED":0.300,"RD":0.080}},
-    "swarthmore":   {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.250,"ED2":0.180,"RD":0.060}},
+    # amherst: CDS 2024-25: ED 216/735=29.4%. C1 totals 1238/13742=9.0%. RD: (1238-216)/(13742-735) = 1022/13007 = 7.9%. (Amherst only has ED1, no ED2.)
+    "amherst":      {"rounds": ["ED","RD"],             "rates": {"ED":0.294,"RD":0.079}},
+    # swarthmore: CDS 2024-25: combined ED 220/1221=18.0%. ED1/ED2 estimated. RD: 755/11844 = 6.4%.
+    "swarthmore":   {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.198,"ED2":0.144,"RD":0.064}},
     "pomona":       {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.150,"ED2":0.100,"RD":0.060}},
-    "bowdoin":      {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.230,"ED2":0.180,"RD":0.080}},
+    # bowdoin: CDS 2024-25: combined ED 270/2005=13.5%. ED1/ED2 estimated. RD: 945/13257 → 6.0%.
+    "bowdoin":      {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.149,"ED2":0.108,"RD":0.060}},
     "middlebury":   {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.380,"ED2":0.300,"RD":0.130}},
-    "wellesley":    {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.380,"ED2":0.260,"RD":0.130}},
+    # wellesley: CDS 2025-26: combined ED 301/1023=29.4%. ED1/ED2 estimated. C1: 8506/1258=14.8%. RD: 957/7483=12.8%.
+    "wellesley":    {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.323,"ED2":0.235,"RD":0.128}},
     "colby":        {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.450,"ED2":0.300,"RD":0.080}},
-    "bates":        {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.500,"ED2":0.350,"RD":0.140}},
-    "hamilton":     {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.420,"ED2":0.310,"RD":0.110}},
-    "vassar":       {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.430,"ED2":0.280,"RD":0.170}},
-    "barnard":      {"rounds": ["ED","RD"],             "rates": {"ED":0.230,"RD":0.080}},
+    # bates: CDS 2024-25 reports combined ED1+ED2: 306 admits / 1128 apps = 27.1%. ED1/ED2 estimated (ED1≈combined×1.10, ED2≈combined×0.80). RD: 11.6%.
+    "bates":        {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.298,"ED2":0.217,"RD":0.116}},
+    # hamilton: CDS 2024-25: combined ED 247/839=29.4%. ED1/ED2 estimated. RD: 915/7692=11.9%.
+    "hamilton":     {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.323,"ED2":0.235,"RD":0.119}},
+    # vassar: CDS 2025-26 form: combined ED 402/1046=38.4%. ED1/ED2 estimated. C1: 11118/2327=20.9%. RD: 1925/10072=19.1%.
+    "vassar":       {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.423,"ED2":0.307,"RD":0.191}},
+    # barnard: CDS 2024-25: ED 434/1694=25.6%. RD: (1046-434)/(11836-1694)=612/10142=6.0%. C1: 11836 (women)/1046=8.8%.
+    "barnard":      {"rounds": ["ED","RD"],             "rates": {"ED":0.256,"RD":0.060}},
     # Public flagships — in/out of state matters
     "umich":        {"rounds": ["EA","RD"],   "rates": {"EA":0.220,"RD":0.170}, "in_state_rate":0.41, "out_of_state_rate":0.20},
-    "uva":          {"rounds": ["ED","EA","RD"], "rates": {"ED":0.290,"EA":0.180,"RD":0.150}, "in_state_rate":0.30, "out_of_state_rate":0.15},
+    # uva: CDS 2024-25: ED 1245/4461=27.9%. EA/RD kept from prior estimates (UVA reports ED in CDS but not EA/RD separately). C1: 58951/9909=16.8%.
+    "uva":          {"rounds": ["ED","EA","RD"], "rates": {"ED":0.279,"EA":0.180,"RD":0.150}, "in_state_rate":0.30, "out_of_state_rate":0.15},
     "unc":          {"rounds": ["EA","RD"],   "rates": {"EA":0.190,"RD":0.150}, "in_state_rate":0.42, "out_of_state_rate":0.09},
     "ucla":         {"rounds": ["RD"],         "rates": {"RD":0.086}, "in_state_rate":0.13, "out_of_state_rate":0.07},
     "ucb":          {"rounds": ["RD"],         "rates": {"RD":0.115}, "in_state_rate":0.18, "out_of_state_rate":0.08},
@@ -924,29 +942,41 @@ ADMISSIONS_DETAIL = {
     "umaine":       {"rounds": ["EA","RD"],   "rates": {"EA":0.920,"RD":0.900}, "in_state_rate":0.94, "out_of_state_rate":0.88},
     "neiu":         {"rounds": ["RD"],         "rates": {"RD":0.870}, "in_state_rate":0.89, "out_of_state_rate":0.78},
     # LACs — mostly ED + RD, some with ED2
-    "carleton":     {"rounds": ["ED","ED2","RD"], "rates": {"ED":0.380,"ED2":0.260,"RD":0.190}},
+    # carleton: CDS 2025-26 form: combined ED 263/760=34.6%. ED1/ED2 estimated. C1: 6796/1480=21.8%. RD: 1217/6036=20.2%.
+    "carleton":     {"rounds": ["ED","ED2","RD"], "rates": {"ED":0.381,"ED2":0.277,"RD":0.202}},
     "haverford":    {"rounds": ["ED","RD"],       "rates": {"ED":0.370,"RD":0.150}},
-    "davidson":     {"rounds": ["ED","ED2","RD"], "rates": {"ED":0.430,"ED2":0.280,"RD":0.130}},
+    # davidson: CDS 2025-26: combined ED 358/1232=29.1%. ED1/ED2 estimated. RD: (1127-358)/(8933-1232) = 10.0%.
+    "davidson":     {"rounds": ["ED","ED2","RD"], "rates": {"ED":0.320,"ED2":0.233,"RD":0.100}},
     "colgate":      {"rounds": ["ED","RD"],       "rates": {"ED":0.300,"RD":0.110}},
-    "smith":        {"rounds": ["ED","ED2","RD"], "rates": {"ED":0.510,"ED2":0.380,"RD":0.220}},
+    # smith: CDS 2024-25: combined ED 353/924=38.2%. ED1/ED2 estimated. C1: 8666 (women only) / 1820 admits = 21.0%. RD: 1467/7742=19.0%.
+    "smith":        {"rounds": ["ED","ED2","RD"], "rates": {"ED":0.420,"ED2":0.306,"RD":0.190}},
     "mt-holyoke":   {"rounds": ["ED","ED2","RD"], "rates": {"ED":0.620,"ED2":0.450,"RD":0.380}},
     "bryn-mawr":    {"rounds": ["ED","ED2","RD"], "rates": {"ED":0.620,"ED2":0.480,"RD":0.330}},
     "trinity-ct":   {"rounds": ["ED","ED2","RD"], "rates": {"ED":0.620,"ED2":0.500,"RD":0.380}},
-    "conn-college": {"rounds": ["ED","ED2","RD"], "rates": {"ED":0.620,"ED2":0.480,"RD":0.330}},
-    "skidmore":     {"rounds": ["ED","ED2","RD"], "rates": {"ED":0.500,"ED2":0.350,"RD":0.260}},
+    # conn-college: CDS 2024-25: combined ED 216/526=41.1%. ED1/ED2 estimated. C1: 7950/2945=37.0%. RD: 2729/7424=36.8%.
+    "conn-college": {"rounds": ["ED","ED2","RD"], "rates": {"ED":0.452,"ED2":0.329,"RD":0.368}},
+    # skidmore: CDS 2024-25: combined ED 351/848=41.4%. ED1/ED2 estimated. C1: 11889/2503=21.1%. RD: 2152/11041=19.5%.
+    "skidmore":     {"rounds": ["ED","ED2","RD"], "rates": {"ED":0.455,"ED2":0.331,"RD":0.195}},
     "macalester":   {"rounds": ["ED","ED2","RD"], "rates": {"ED":0.450,"ED2":0.330,"RD":0.250}},
-    "reed":         {"rounds": ["ED","ED2","RD"], "rates": {"ED":0.520,"ED2":0.430,"RD":0.270}},
-    "grinnell":     {"rounds": ["ED","ED2","RD"], "rates": {"ED":0.460,"ED2":0.300,"RD":0.090}},
+    # reed: CDS 2024-25 sec C: combined ED 80/526=15.2% (unusually low — Reed's ED pool may be more selective). C1: 9431/2321=24.6%. RD: 2241/8905=25.2%.
+    "reed":         {"rounds": ["ED","ED2","RD"], "rates": {"ED":0.167,"ED2":0.122,"RD":0.252}},
+    # grinnell: CDS 2024-25: combined ED 283/828=34.2%. ED1/ED2 estimated. RD: 1133/8930 = 12.7%.
+    "grinnell":     {"rounds": ["ED","ED2","RD"], "rates": {"ED":0.376,"ED2":0.274,"RD":0.127}},
     "kenyon":       {"rounds": ["ED","ED2","RD"], "rates": {"ED":0.480,"ED2":0.380,"RD":0.260}},
-    "oberlin":      {"rounds": ["ED","ED2","RD"], "rates": {"ED":0.500,"ED2":0.420,"RD":0.300}},
-    "whitman":      {"rounds": ["ED","ED2","RD"], "rates": {"ED":0.700,"ED2":0.500,"RD":0.450}},
-    "pitzer":       {"rounds": ["ED","ED2","RD"], "rates": {"ED":0.300,"ED2":0.220,"RD":0.150}},
-    "scripps":      {"rounds": ["ED","ED2","RD"], "rates": {"ED":0.380,"ED2":0.290,"RD":0.250}},
+    # oberlin: CDS 2024-25: combined ED 246/635=38.7%. ED1/ED2 estimated. RD kept from prior estimate.
+    "oberlin":      {"rounds": ["ED","ED2","RD"], "rates": {"ED":0.426,"ED2":0.310,"RD":0.300}},
+    # whitman: CDS 2024-25: combined ED 114/599=19.0%. ED1/ED2 estimated. C1: 7243/2763=38.1%. RD: 2649/6644=39.9%.
+    "whitman":      {"rounds": ["ED","ED2","RD"], "rates": {"ED":0.209,"ED2":0.152,"RD":0.399}},
+    # pitzer: CDS 2024-25: combined ED 177/419=42.2%. ED1/ED2 estimated. C1: 3438/865=25.2%. RD: 688/3019=22.8%.
+    "pitzer":       {"rounds": ["ED","ED2","RD"], "rates": {"ED":0.464,"ED2":0.338,"RD":0.228}},
+    # scripps: CDS 2024-25: combined ED 135/287=47.0%. ED1/ED2 estimated. C1: 3199/1225=38.3%. RD: 1090/2912=37.4%.
+    "scripps":      {"rounds": ["ED","ED2","RD"], "rates": {"ED":0.517,"ED2":0.376,"RD":0.374}},
     "harvey-mudd":  {"rounds": ["ED","ED2","RD"], "rates": {"ED":0.190,"ED2":0.140,"RD":0.080}},
     "cmc":          {"rounds": ["ED","ED2","RD"], "rates": {"ED":0.260,"ED2":0.190,"RD":0.080}},
     "oxy":          {"rounds": ["ED","ED2","RD"], "rates": {"ED":0.500,"ED2":0.350,"RD":0.260}},
     "wesleyan":     {"rounds": ["ED","ED2","RD"], "rates": {"ED":0.420,"ED2":0.300,"RD":0.140}},
-    "bucknell":     {"rounds": ["ED","ED2","RD"], "rates": {"ED":0.620,"ED2":0.430,"RD":0.290}},
+    # bucknell: CDS 2024-25: combined ED 666/1201=55.5%. ED1/ED2 estimated. C1: 11377/3291=28.9%. RD: 2625/10176=25.8%.
+    "bucknell":     {"rounds": ["ED","ED2","RD"], "rates": {"ED":0.610,"ED2":0.444,"RD":0.258}},
     # Engineering/tech specialty
     "rpi":          {"rounds": ["ED","ED2","RD"], "rates": {"ED":0.660,"ED2":0.540,"RD":0.560}},
     "wpi":          {"rounds": ["ED","ED2","EA","RD"], "rates": {"ED":0.700,"ED2":0.580,"EA":0.580,"RD":0.530}},
@@ -4467,8 +4497,11 @@ def _fallback_bullets(profile, school, fit, components, tier):
 
 
 def analyze_school(profile, slug):
-    school = COLLEGES_BY_SLUG.get(slug)
-    if not school: return None
+    raw = COLLEGES_BY_SLUG.get(slug)
+    if not raw: return None
+    # Apply CDS_VERIFIED + _OVERRIDES so the chances calc uses the most
+    # accurate accept rate and SAT/ACT bands, not stale COLLEGES values.
+    school = merged_school(raw)
     fit, components = compute_fit(profile, school)
     tier = assign_tier(school, fit, profile)
     low, high = estimate_odds(school, fit, profile)
@@ -8468,8 +8501,11 @@ def school_profiles_html(slug):
 def school_plan_html(slug):
     """One unified personalized view per school. Combines chances, school
     match, top improvement gaps, and links into the chat. Auth-required."""
-    school = COLLEGES_BY_SLUG.get(slug)
-    if not school: abort(404)
+    raw = COLLEGES_BY_SLUG.get(slug)
+    if not raw: abort(404)
+    # Apply CDS_VERIFIED + _OVERRIDES so the plan page subhead and round
+    # breakdown reflect the verified accept rate, not the stale COLLEGES value.
+    school = merged_school(raw)
     user = current_user()
     profile = get_profile(user["id"])
     if not profile or profile.get("uw_gpa") is None:
