@@ -6866,7 +6866,7 @@ def profile_html():
   <h3 style="margin-top:0">Academics</h3>
   <div class="row">
     <div><label>Unweighted GPA <span class="muted">(0–4)</span></label>
-      <input type="number" step="0.01" min="0" max="4.5" name="uw_gpa" value="{v('uw_gpa')}" required></div>
+      <input type="number" step="0.01" min="0" max="4.0" name="uw_gpa" value="{v('uw_gpa')}" required></div>
     <div><label>Weighted GPA <span class="muted">(optional)</span></label>
       <input type="number" step="0.01" min="0" max="6" name="weighted_gpa" value="{v('weighted_gpa')}"></div>
   </div>
@@ -6875,15 +6875,15 @@ def profile_html():
     <p class="muted" style="font-size:.84em;margin:8px 0 10px">Most schools weight upper years more heavily than freshman year. UCs literally don't see freshman grades at all. Filling these in lets the chances model reflect your actual trajectory — an upward trend (e.g., 3.2 → 3.8 → 3.95) reads very differently from a flat 3.65.</p>
     <div class="row">
       <div><label>Freshman <span class="muted">(unweighted)</span></label>
-        <input type="number" step="0.01" min="0" max="4.5" name="gpa_freshman" value="{v('gpa_freshman')}"></div>
+        <input type="number" step="0.01" min="0" max="4.0" name="gpa_freshman" value="{v('gpa_freshman')}"></div>
       <div><label>Sophomore</label>
-        <input type="number" step="0.01" min="0" max="4.5" name="gpa_sophomore" value="{v('gpa_sophomore')}"></div>
+        <input type="number" step="0.01" min="0" max="4.0" name="gpa_sophomore" value="{v('gpa_sophomore')}"></div>
     </div>
     <div class="row">
       <div><label>Junior <span class="muted">(or junior so far)</span></label>
-        <input type="number" step="0.01" min="0" max="4.5" name="gpa_junior" value="{v('gpa_junior')}"></div>
+        <input type="number" step="0.01" min="0" max="4.0" name="gpa_junior" value="{v('gpa_junior')}"></div>
       <div><label>Senior <span class="muted">(if applicable)</span></label>
-        <input type="number" step="0.01" min="0" max="4.5" name="gpa_senior" value="{v('gpa_senior')}"></div>
+        <input type="number" step="0.01" min="0" max="4.0" name="gpa_senior" value="{v('gpa_senior')}"></div>
     </div>
   </details>
   <div class="row">
@@ -10536,7 +10536,7 @@ def api_demo_odds():
         act = int(request.args.get("act") or 0)
     except ValueError:
         return jsonify({"error":"bad input"}), 400
-    gpa = max(2.0, min(4.5, gpa))
+    gpa = max(2.0, min(4.0, gpa))
     if sat: sat = max(1000, min(1600, sat))
     if act: act = max(12, min(36, act))
     # Demo placeholder ECs/leadership/awards. The strength is bumped above
