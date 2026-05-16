@@ -4707,6 +4707,21 @@ def init_db():
                 conn.execute(f"ALTER TABLE profiles ADD COLUMN {col_def}")
             except sqlite3.OperationalError:
                 pass
+        # "What I want in a college" free-text + cached My Match results
+        # (premium feature, May 2026). One AI call ranks all schools against
+        # the free-text; cached by a hash of the text so it regenerates only
+        # when the user rewrites their preferences.
+        try:
+            conn.execute("ALTER TABLE profiles ADD COLUMN pref_freetext TEXT DEFAULT ''")
+        except sqlite3.OperationalError:
+            pass
+        conn.execute("""CREATE TABLE IF NOT EXISTS match_results (
+            user_id INTEGER PRIMARY KEY,
+            prefs_hash TEXT NOT NULL,
+            body TEXT NOT NULL,
+            generated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        )""")
         # AI Advisor paywall — usage tracking + paid status on users.
         for col_def in (
             "is_paid INTEGER DEFAULT 0",
@@ -4979,6 +4994,13 @@ def save_profile(user_id, p):
             )
         except Exception as e:
             print(f"subscore save failed: {e}")
+        try:
+            conn.execute(
+                "UPDATE profiles SET pref_freetext=? WHERE user_id=?",
+                (p.get("pref_freetext") or "", user_id),
+            )
+        except Exception as e:
+            print(f"pref_freetext save failed: {e}")
         conn.commit()
 
 
@@ -6002,6 +6024,7 @@ NAV = """<div class="nav"><a class="brand" href="/">""" + CANDOR_LOGO_SVG + """C
 <a href="/improve">Improve</a>
 <a href="/plans">My Colleges</a>
 <a href="/plans/grade">List Grade</a>
+<a href="/match">My Match</a>
 <a href="/upgrade" style="color:#5eead4">Premium</a>
 <span class="sp"></span>
 __USER_LINKS__
@@ -6884,6 +6907,23 @@ def _render_ib_picker(saved_ibs_str):
 def profile_html():
     p = get_profile(current_user()["id"]) or {}
     def v(k): return (p.get(k) if p.get(k) is not None else "")
+    _is_paid = bool(current_user().get("is_paid"))
+    if _is_paid:
+        match_section = f'''
+  <h3 id="match">What I want in a college</h3>
+  <p class="muted" style="font-size:.85em;margin:-2px 0 8px">Describe your ideal college in your own words — vibe, location, academics, social scene, anything. Candor's <b>My Match</b> reads this and ranks all schools by how well each one fits what you wrote.</p>
+  <textarea name="pref_freetext" rows="4" placeholder="e.g. I want a medium-sized school with a strong CS program and an entrepreneurial culture — somewhere in or near a city, not too cold, where students are collaborative rather than cutthroat.">{v('pref_freetext')}</textarea>
+  <p class="muted" style="font-size:.78em;margin:4px 0 0">After you save, see your ranked matches on the <a href="/match">My Match</a> page.</p>
+'''
+    else:
+        match_section = '''
+  <h3 id="match">What I want in a college <span style="font-size:.55em;color:#5eead4;border:1px solid rgba(94,234,212,.4);border-radius:4px;padding:2px 6px;vertical-align:middle;letter-spacing:.5px">PREMIUM</span></h3>
+  <p class="muted" style="font-size:.85em;margin:-2px 0 8px">Describe your ideal college in your own words and Candor's <b>My Match</b> ranks every school by how well it fits.</p>
+  <div class="card" style="background:rgba(94,234,212,.06);border-color:rgba(94,234,212,.3);padding:16px">
+    <textarea rows="3" disabled placeholder="Unlock with Premium to describe your ideal college and get every school ranked against it." style="opacity:.6"></textarea>
+    <a class="btn btn-primary btn-sm" href="/upgrade" style="margin-top:8px;display:inline-block">Unlock My Match — $10 once →</a>
+  </div>
+'''
     checked = lambda k: 'checked' if p.get(k) else ''
     return _page(f"""
 <h1>Your profile</h1>
@@ -7021,6 +7061,8 @@ def profile_html():
   <p class="muted" style="font-size:.85em;margin:-2px 0 8px">Schools like USC Roski, NYU Tisch, Berklee, RISD, and others use portfolios or auditions as primary admissions criteria. STEM-focused schools (MIT, Caltech) sometimes weight optional research/maker portfolios heavily. If you have one, list it — used both for odds calc at portfolio-required schools and for tailored advice.</p>
   <label>Portfolio / research / audition materials <span class="muted">(brief description)</span></label>
   <textarea name="portfolio" rows="2" placeholder="e.g. Studio art portfolio (15 pieces, mixed media); jazz piano audition tape; published research on CRISPR delivery">{v('portfolio')}</textarea>
+
+  {match_section}
 
   <h3>Preferences</h3>
   <p class="muted" style="font-size:.85em;margin:-2px 0 8px">Check anything you'd be happy with. The 1-10 dial says how much it matters. 5 is neutral. <b>10 is a deal-breaker</b>: schools that miss get removed from My Fit.</p>
@@ -8762,6 +8804,7 @@ def plans_index_html():
   <h2 style="margin:0 0 14px">Turn your chances into a real plan</h2>
   <ul style="line-height:1.9;padding-left:18px;margin:0 0 18px">
     <li><b>List grader + admissions simulator</b> — score your full list 1–10, simulate ED/EA/RD outcomes across every school</li>
+    <li><b>Schools-to-add recommender</b> — Candor finds schools to add based on your list's gaps and the schools you already like</li>
     <li><b>Personalized AI strategy per school</b> — calibrated to your stats, ECs, and what that school actually weights</li>
     <li><b>Score push impact</b> — see exactly how a +60 SAT or +2 ACT moves your odds at each school</li>
     <li><b>Saved schools dashboard</b> — every school you've chanced or saved, grouped by application round</li>
@@ -8868,6 +8911,7 @@ def plans_index_html():
 <div style="display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 8px">
   <a class="btn btn-primary btn-sm" href="/plans/grade">Grade my list</a>
   <a class="btn btn-primary btn-sm" href="/plans/simulate">Simulate admissions</a>
+  <a class="btn btn-primary btn-sm" href="/plans/add">Schools to add</a>
   <a class="btn btn-light btn-sm" href="/compare">Compare saved</a>
   <a class="btn btn-light btn-sm" href="/timeline">Timeline</a>
   <a class="btn btn-light btn-sm" href="/predictor">Score predictor</a>
@@ -9385,6 +9429,7 @@ def _read_profile_form(form):
         "ecs": 4000, "leadership": 2000, "awards": 2000,
         "legacy_schools": 500, "major": 200, "state": 100,
         "aps": 2000, "ibs": 2000, "portfolio": 1500,
+        "pref_freetext": 1500,
     }
     try:
         from bleach import clean as _bleach
@@ -9430,6 +9475,7 @@ def _read_profile_form(form):
         "leadership": f("leadership") or "",
         "awards": f("awards") or "",
         "portfolio": f("portfolio") or "",
+        "pref_freetext": f("pref_freetext") or "",
         "legacy_schools": (f("legacy_schools") or "").strip(),
         "first_gen": form.get("first_gen") in ("yes","on","true","1"),
         "athlete": form.get("athlete") in ("yes","on","true","1"),
@@ -11237,6 +11283,482 @@ def grade_user_list(uid):
         "suggestions": sugs,
         "avg_odds": round(avg_odds, 1) if avg_odds is not None else None,
     }
+
+
+# ─── PREMIUM: "SCHOOLS TO ADD" RECOMMENDER ───
+def _size_bucket(size):
+    size = size or 0
+    if size < 3000: return "small"
+    if size < 13000: return "medium"
+    return "large"
+
+
+def _mk_rec(x, category, reason):
+    """Shape a scored candidate into a recommendation card record."""
+    c = x["c"]
+    return {
+        "slug": c["slug"], "name": c["name"], "fit": x["fit"], "tier": x["tier"],
+        "odds_low": x["odds_low"], "odds_high": x["odds_high"],
+        "accept": c["accept"], "loc": city_state(c),
+        "reason": reason, "category": category,
+    }
+
+
+def _closest_saved(cand, saved_colleges, shared_majors):
+    """Pick the saved school most similar to a candidate — for 'Like X —' copy."""
+    best, best_score = None, -1
+    for s in saved_colleges:
+        sc = 0
+        if s["type"] == cand["type"]: sc += 1
+        if shared_majors and any(m in s.get("majors", []) for m in shared_majors): sc += 2
+        if REGION_BY_STATE.get(s.get("state", "")) == REGION_BY_STATE.get(cand.get("state", "")): sc += 1
+        if sc > best_score:
+            best_score, best = sc, s
+    return best
+
+
+def recommend_schools_to_add(uid, limit=9):
+    """Premium recommender. Given the user's saved list + profile, suggest
+    schools to add — blending two signals:
+      - GAP: tiers missing from the current list (Safety/Target first), or
+        schools that balance a reach-heavy list.
+      - SIMILAR: schools matching the list's 'taste' (type, region, shared
+        majors, in-state) that the user hasn't added yet.
+    Returns {"gap": [...], "similar": [...], "list_n": int, "missing": [...],
+             "empty": bool}."""
+    profile = get_profile(uid) or {}
+    with db() as conn:
+        rows = conn.execute(
+            "SELECT college_slug FROM saved_schools WHERE user_id=? "
+            "UNION SELECT college_slug FROM saved_chances WHERE user_id=?",
+            (uid, uid)
+        ).fetchall()
+    saved = {r["college_slug"] for r in rows}
+    saved_colleges = [COLLEGES_BY_SLUG[s] for s in saved if s in COLLEGES_BY_SLUG]
+    if not saved_colleges:
+        return {"gap": [], "similar": [], "list_n": 0, "missing": [], "empty": True}
+
+    # Profile the current list
+    tier_counts = {"Dream": 0, "Reach": 0, "Target": 0, "Safety": 0}
+    type_counts, region_counts, list_majors = {}, {}, {}
+    for c in saved_colleges:
+        try:
+            fit, _ = compute_fit(profile, c)
+            t = assign_tier(c, fit, profile)
+        except Exception:
+            t = None
+        if t in tier_counts: tier_counts[t] += 1
+        type_counts[c["type"]] = type_counts.get(c["type"], 0) + 1
+        reg = REGION_BY_STATE.get(c.get("state", ""), "Other")
+        region_counts[reg] = region_counts.get(reg, 0) + 1
+        for m in c.get("majors", []):
+            list_majors[m] = list_majors.get(m, 0) + 1
+
+    n = len(saved_colleges)
+    dom_type = max(type_counts, key=type_counts.get) if type_counts else None
+    dom_region = max(region_counts, key=region_counts.get) if region_counts else None
+    top_heavy = (tier_counts["Dream"] + tier_counts["Reach"]) >= n * 0.7 and n >= 3
+    missing = [t for t in ("Safety", "Target", "Reach") if tier_counts[t] == 0]
+
+    # Score every non-saved college
+    cands = []
+    for c in COLLEGES:
+        if c["slug"] in saved: continue
+        try:
+            fit, _ = compute_fit(profile, c)
+            tier = assign_tier(c, fit, profile)
+            lo, hi = estimate_odds(c, fit, profile)
+        except Exception:
+            continue
+        if fit < 40: continue  # weak match — skip
+        cands.append({"c": c, "fit": fit, "tier": tier, "odds_low": lo, "odds_high": hi})
+
+    # GAP recs — fill missing tiers, or balance a reach-heavy list
+    gap, used = [], set()
+    gap_tiers = list(missing)
+    if top_heavy:
+        for t in ("Safety", "Target"):
+            if t not in gap_tiers: gap_tiers.append(t)
+    for tier in gap_tiers:
+        pool = sorted([x for x in cands if x["tier"] == tier and x["c"]["slug"] not in used],
+                      key=lambda x: x["fit"], reverse=True)
+        for x in pool[:2]:
+            used.add(x["c"]["slug"])
+            if tier in missing:
+                reason = f"Fills your missing {tier} tier — {x['fit']}/100 fit for you"
+            else:
+                reason = f"Your list leans reach-heavy; this {tier.lower()} balances it"
+            gap.append(_mk_rec(x, "gap", reason))
+        if len(gap) >= 5: break
+
+    # SIMILAR recs — taste match against the existing list
+    prof_major = (profile.get("major") or "").strip()
+    scored = []
+    for x in cands:
+        if x["c"]["slug"] in used: continue
+        c = x["c"]
+        s = float(x["fit"])
+        shared = [m for m in c.get("majors", []) if m in list_majors]
+        if dom_type and c["type"] == dom_type: s += 8
+        if dom_region and REGION_BY_STATE.get(c.get("state", "")) == dom_region: s += 6
+        if shared: s += 10
+        if prof_major and prof_major in c.get("majors", []): s += 8
+        if c["type"] == "public" and profile.get("state") \
+           and profile["state"].lower() == c.get("state", "").lower(): s += 6
+        if x["tier"] == "Dream" and top_heavy: s -= 25
+        scored.append((s, x, shared))
+    scored.sort(key=lambda t: t[0], reverse=True)
+
+    similar = []
+    for s, x, shared in scored:
+        if len(similar) >= max(0, limit - len(gap)): break
+        ref = _closest_saved(x["c"], saved_colleges, shared)
+        if shared and ref:
+            reason = f"Like {ref['name']} — also strong in {shared[0]}"
+        elif ref:
+            reason = f"Matches your list's style — similar to {ref['name']}"
+        else:
+            reason = f"Strong fit for your profile — {x['fit']}/100"
+        similar.append(_mk_rec(x, "similar", reason))
+
+    return {"gap": gap, "similar": similar, "list_n": n,
+            "missing": missing, "empty": False}
+
+
+def _rec_card_html(r):
+    """Render one recommendation card."""
+    tc = {"Dream": "#fca5a5", "Reach": "#fbbf24",
+          "Target": "#5eead4", "Safety": "#86efac"}.get(r["tier"], "#94a3b8")
+    return f'''
+<div class="card" style="padding:16px" data-slug="{r['slug']}">
+  <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">
+    <div>
+      <div style="font-weight:700;font-size:1.06em">{r['name']}</div>
+      <div class="muted" style="font-size:.82em">{r['loc']} · {round(r['accept']*100,1)}% accept</div>
+    </div>
+    <span style="background:{tc}22;color:{tc};border:1px solid {tc}55;border-radius:6px;padding:2px 8px;font-size:.78em;font-weight:700;align-self:flex-start">{r['tier']}</span>
+  </div>
+  <div style="display:flex;gap:16px;margin-top:8px;font-size:.9em">
+    <span style="color:#5eead4;font-weight:700">{r['odds_low']}–{r['odds_high']}% odds</span>
+    <span class="muted">fit {r['fit']}/100</span>
+  </div>
+  <div style="margin-top:8px;font-size:.9em;line-height:1.5">{r['reason']}</div>
+  <div class="rec-ai" style="margin-top:8px;font-size:.88em;line-height:1.55;color:var(--text-2);display:none"></div>
+  <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+    <form method="post" action="/save/{r['slug']}" style="display:inline">
+      {csrf_input()}
+      <input type="hidden" name="next" value="/plans/add">
+      <button class="btn btn-primary btn-sm" type="submit">+ Add to my list</button>
+    </form>
+    <button class="btn btn-light btn-sm" type="button" onclick="explainRec('{r['slug']}',this)">Explain with AI</button>
+    <a class="btn btn-light btn-sm" href="/college/{r['slug']}">View school</a>
+  </div>
+</div>'''
+
+
+@app.route("/plans/add")
+@login_required
+def plans_add_page():
+    user = current_user()
+    # Free users get a locked preview — drives upgrades, per /plans pattern.
+    if not user.get("is_paid"):
+        blurred = "".join(f'''
+<div class="card" style="padding:16px;position:relative;overflow:hidden">
+  <div style="filter:blur(6px);user-select:none;pointer-events:none">
+    <div style="font-weight:700;font-size:1.06em">{label}</div>
+    <div class="muted" style="font-size:.82em">A great-fit campus for you · XX% accept</div>
+    <div style="margin-top:8px;color:#5eead4;font-weight:700">XX–XX% odds · fit XX/100</div>
+    <div style="margin-top:8px">A personalized reason this school belongs on your list.</div>
+  </div>
+  <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:1.6em">🔒</div>
+</div>''' for label in ["A school picked for you", "Another strong match", "Fills a gap in your list"])
+        return _page(f'''
+<div class="bar"><a href="/plans">← Back to My colleges</a></div>
+<h1>Schools to Add</h1>
+<p class="muted">Candor reads your current list and recommends schools to add — gap-fillers that balance your reach/target/safety mix, and schools similar to ones you already like.</p>
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;margin-top:16px">{blurred}</div>
+<div class="card" style="background:linear-gradient(135deg,#0f3a37 0%,#0a131c 100%);border:1px solid rgba(94,234,212,.3);padding:28px;margin-top:18px;text-align:center">
+  <div style="font-size:.78em;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#5eead4;margin-bottom:8px">Candor Premium · $10 once</div>
+  <h2 style="margin:0 0 12px">Unlock your personalized school recommendations</h2>
+  <p class="muted" style="margin:0 0 16px">See exactly which schools to add — matched to your profile, your tier balance, and the schools already on your list.</p>
+  <a class="btn btn-primary" href="/upgrade" style="padding:12px 28px">Upgrade — $10 once →</a>
+</div>
+''', title="Schools to Add — Candor")
+
+    rec = recommend_schools_to_add(user["id"])
+    if rec["empty"]:
+        return _page('''
+<div class="bar"><a href="/plans">← Back to My colleges</a></div>
+<h1>Schools to Add</h1>
+<div class="card"><p class="muted">Your list is empty — save a few schools first and Candor will recommend more to round it out.</p>
+<a class="btn btn-primary" href="/colleges">Browse colleges</a></div>
+''', title="Schools to Add — Candor")
+
+    sections = ""
+    if rec["gap"]:
+        if rec["missing"]:
+            sub = "Your list is missing " + " and ".join(rec["missing"]) + " schools."
+        else:
+            sub = "Schools that balance out your reach-heavy list."
+        sections += f'''
+<h2 style="margin-top:24px">Fill the gaps in your list</h2>
+<p class="muted" style="margin-top:-6px">{sub}</p>
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px">{"".join(_rec_card_html(r) for r in rec["gap"])}</div>'''
+    if rec["similar"]:
+        sections += f'''
+<h2 style="margin-top:24px">More schools you'd like</h2>
+<p class="muted" style="margin-top:-6px">Matched to the style of the {rec["list_n"]} schools already on your list.</p>
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px">{"".join(_rec_card_html(r) for r in rec["similar"])}</div>'''
+    if not sections:
+        sections = '<div class="card"><p class="muted">No strong new matches right now — your list already covers your profile well.</p></div>'
+
+    return _page(f'''
+<div class="bar"><a href="/plans">← Back to My colleges</a></div>
+<h1>Schools to Add</h1>
+<p class="muted">Recommendations based on your profile and the {rec["list_n"]} schools on your list. Add any with one click.</p>
+{sections}
+<p style="margin-top:24px"><a class="btn btn-light" href="/plans">← Back to My colleges</a></p>
+<script>
+async function explainRec(slug, btn){{
+  const card = btn.closest('[data-slug]');
+  const box = card.querySelector('.rec-ai');
+  btn.disabled = true; btn.textContent = 'Thinking…';
+  try {{
+    const el = document.querySelector('meta[name="csrf-token"]');
+    const tok = el ? el.getAttribute('content') : '';
+    const r = await fetch(`/plans/add/explain/${{slug}}`, {{
+      method:'POST', headers:{{'X-CSRFToken': tok}}
+    }});
+    const j = await r.json();
+    if (r.ok && j.text) {{
+      box.textContent = j.text;
+      box.style.display = 'block';
+      btn.style.display = 'none';
+    }} else {{
+      btn.disabled = false; btn.textContent = 'Explain with AI';
+      alert(j.error || 'Could not generate explanation.');
+    }}
+  }} catch(e) {{
+    btn.disabled = false; btn.textContent = 'Explain with AI';
+    alert('Network error: ' + e.message);
+  }}
+}}
+</script>
+''', title="Schools to Add — Candor")
+
+
+@app.route("/plans/add/explain/<slug>", methods=["POST"])
+@login_required
+def plans_add_explain(slug):
+    user = current_user()
+    if not user.get("is_paid"):
+        return jsonify({"error": "Premium required"}), 403
+    c = COLLEGES_BY_SLUG.get(slug)
+    if not c:
+        return jsonify({"error": "Unknown school"}), 404
+    profile = get_profile(user["id"]) or {}
+    try:
+        fit, _ = compute_fit(profile, c)
+        tier = assign_tier(c, fit, profile)
+        lo, hi = estimate_odds(c, fit, profile)
+    except Exception:
+        fit, tier, lo, hi = 50, "Target", 0, 0
+    with db() as conn:
+        rows = conn.execute(
+            "SELECT college_slug FROM saved_schools WHERE user_id=? "
+            "UNION SELECT college_slug FROM saved_chances WHERE user_id=?",
+            (user["id"], user["id"])
+        ).fetchall()
+    saved_names = [COLLEGES_BY_SLUG[r["college_slug"]]["name"]
+                   for r in rows if r["college_slug"] in COLLEGES_BY_SLUG][:12]
+    sys = ("You are a candid college admissions advisor. In 2-3 sentences, "
+           "explain why this school is worth adding to the student's list. Be "
+           "specific and honest — reference their profile and the schools "
+           "already on their list. No preamble, no headers, no bullet points.")
+    usr = (f"School: {c['name']} ({c['type']}, {city_state(c)}). "
+           f"Accept rate {round(c['accept']*100,1)}%. Majors: {', '.join(c.get('majors',[]))}. "
+           f"{c.get('desc','')}\n"
+           f"Student: GPA {profile.get('uw_gpa') or 'n/a'}, "
+           f"SAT {profile.get('sat') or 'n/a'}, ACT {profile.get('act') or 'n/a'}, "
+           f"intended major {profile.get('major') or 'undecided'}.\n"
+           f"For this student at {c['name']}: fit {fit}/100, tier {tier}, odds {lo}-{hi}%.\n"
+           f"Schools already on their list: {', '.join(saved_names) or 'none'}.")
+    txt = _claude("claude-haiku-4-5-20251001", sys, usr, max_tokens=220)
+    if not txt:
+        txt = (f"{c['name']} is a {tier.lower()} for your profile "
+               f"({fit}/100 fit, ~{lo}-{hi}% odds). It fits the kind of schools "
+               f"already on your list and is worth a closer look.")
+    return jsonify({"text": txt.strip()})
+
+
+# ─── PREMIUM: "MY MATCH" — free-text college matcher ───
+def _match_prefs_hash(text):
+    import hashlib
+    return hashlib.sha1((text or "").strip().encode("utf-8")).hexdigest()[:16]
+
+
+def generate_match_results(wish, profile):
+    """One Haiku call: rank every school against the user's free-text
+    description of their ideal college. Returns a list of
+    {slug, score, reason} sorted high-to-low, or None on failure."""
+    lines = []
+    for c in COLLEGES:
+        lines.append(
+            f"{c['slug']}|{c['name']}|{c['type']}|{city_state(c)}|"
+            f"{REGION_BY_STATE.get(c.get('state',''),'?')}|size {c.get('size','?')}|"
+            f"acc {round(c['accept']*100)}%|{','.join(c.get('majors',[])[:4])}|"
+            f"{(c.get('desc','') or '')[:110]}"
+        )
+    catalog = "\n".join(lines)
+    sys = ("You match a student's described ideal college against a catalog of "
+           "real colleges. Return ONLY a JSON array of the 30 best-matching "
+           'schools, each {"slug":"...","score":0-100,"reason":"..."}. '
+           "score = how well that school fits what the student described. "
+           "reason = ONE specific sentence naming what they asked for that the "
+           "school delivers. No prose, no markdown — JSON array only.")
+    usr = (f"STUDENT'S IDEAL COLLEGE (their own words):\n{wish}\n\n"
+           f"Intended major: {profile.get('major') or 'undecided'}\n\n"
+           f"CATALOG — slug|name|type|location|region|size|accept|majors|description:\n"
+           f"{catalog}")
+    raw = _claude("claude-haiku-4-5-20251001", sys, usr, max_tokens=2800)
+    if not raw:
+        return None
+    import json, re as _re
+    raw = raw.strip()
+    if raw.startswith("```"):
+        raw = _re.sub(r"^```[a-z]*\n?", "", raw)
+        raw = _re.sub(r"\n?```$", "", raw).strip()
+    try:
+        data = json.loads(raw)
+    except Exception:
+        m = _re.search(r"\[.*\]", raw, _re.S)
+        if not m:
+            return None
+        try:
+            data = json.loads(m.group(0))
+        except Exception:
+            return None
+    out, seen = [], set()
+    for d in data if isinstance(data, list) else []:
+        if not isinstance(d, dict):
+            continue
+        slug = d.get("slug")
+        if slug in COLLEGES_BY_SLUG and slug not in seen:
+            seen.add(slug)
+            try:
+                score = max(0, min(100, int(d.get("score", 0))))
+            except (TypeError, ValueError):
+                score = 0
+            out.append({"slug": slug, "score": score,
+                        "reason": str(d.get("reason", ""))[:300]})
+    out.sort(key=lambda x: x["score"], reverse=True)
+    return out or None
+
+
+def _match_card_html(m):
+    c = COLLEGES_BY_SLUG.get(m["slug"])
+    if not c:
+        return ""
+    sc = m["score"]
+    col = "#86efac" if sc >= 80 else ("#5eead4" if sc >= 60 else ("#fbbf24" if sc >= 40 else "#fca5a5"))
+    from html import escape as _esc
+    return f'''
+<div class="card" style="padding:16px">
+  <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap">
+    <div>
+      <div style="font-weight:700;font-size:1.06em">{c['name']}</div>
+      <div class="muted" style="font-size:.82em">{city_state(c)} · {round(c['accept']*100,1)}% accept</div>
+    </div>
+    <div style="text-align:center">
+      <div style="font-size:1.7em;font-weight:800;color:{col};line-height:1">{sc}</div>
+      <div class="muted" style="font-size:.68em;letter-spacing:.6px">MATCH</div>
+    </div>
+  </div>
+  <div style="margin-top:8px;font-size:.9em;line-height:1.5">{_esc(m['reason'])}</div>
+  <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+    <form method="post" action="/save/{c['slug']}" style="display:inline">
+      {csrf_input()}
+      <input type="hidden" name="next" value="/match">
+      <button class="btn btn-primary btn-sm" type="submit">+ Add to my list</button>
+    </form>
+    <a class="btn btn-light btn-sm" href="/college/{c['slug']}">View school</a>
+  </div>
+</div>'''
+
+
+@app.route("/match")
+@login_required
+def match_page():
+    user = current_user()
+    if not user.get("is_paid"):
+        return _page('''
+<div class="bar"><a href="/profile">← Back to profile</a></div>
+<h1>My Match</h1>
+<p class="muted">Describe your ideal college in your own words — and Candor ranks every school by how well it fits what you wrote.</p>
+<div class="card" style="background:linear-gradient(135deg,#0f3a37 0%,#0a131c 100%);border:1px solid rgba(94,234,212,.3);padding:28px;margin-top:16px;text-align:center">
+  <div style="font-size:.78em;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#5eead4;margin-bottom:8px">Candor Premium · $10 once</div>
+  <h2 style="margin:0 0 12px">Find the schools that fit what you actually want</h2>
+  <p class="muted" style="margin:0 0 16px">Write a few sentences about your ideal college. Candor reads it and scores every school 0–100 on how well it matches — with a specific reason for each.</p>
+  <a class="btn btn-primary" href="/upgrade" style="padding:12px 28px">Upgrade — $10 once →</a>
+</div>
+''', title="My Match — Candor")
+
+    profile = get_profile(user["id"]) or {}
+    wish = (profile.get("pref_freetext") or "").strip()
+    if not wish:
+        return _page('''
+<div class="bar"><a href="/profile">← Back to profile</a></div>
+<h1>My Match</h1>
+<div class="card">
+  <p class="muted">Tell Candor what you're looking for in a college and it'll rank every school against it.</p>
+  <a class="btn btn-primary" href="/profile#match">Describe my ideal college →</a>
+</div>
+''', title="My Match — Candor")
+
+    h = _match_prefs_hash(wish)
+    regen = request.args.get("regen") == "1"
+    results = None
+    with db() as conn:
+        row = conn.execute(
+            "SELECT prefs_hash, body FROM match_results WHERE user_id=?",
+            (user["id"],)
+        ).fetchone()
+    if row and row["prefs_hash"] == h and not regen:
+        try:
+            results = json.loads(row["body"])
+        except Exception:
+            results = None
+    if results is None:
+        results = generate_match_results(wish, profile)
+        if not results:
+            return _page('''
+<div class="bar"><a href="/profile">← Back to profile</a></div>
+<h1>My Match</h1>
+<div class="card"><p class="muted">Couldn't generate matches just now — please try again in a moment.</p>
+<a class="btn btn-primary" href="/match?regen=1">Try again</a></div>
+''', title="My Match — Candor")
+        with db() as conn:
+            conn.execute(
+                "INSERT INTO match_results (user_id, prefs_hash, body, generated_at) "
+                "VALUES (?,?,?,CURRENT_TIMESTAMP) "
+                "ON CONFLICT(user_id) DO UPDATE SET prefs_hash=excluded.prefs_hash, "
+                "body=excluded.body, generated_at=CURRENT_TIMESTAMP",
+                (user["id"], h, json.dumps(results))
+            )
+            conn.commit()
+
+    from html import escape as _esc
+    cards = "".join(_match_card_html(m) for m in results)
+    return _page(f'''
+<div class="bar"><a href="/profile">← Back to profile</a></div>
+<h1>My Match</h1>
+<p class="muted">Every school, ranked by how well it fits what you described. <a href="/profile#match">Edit what you want</a> · <a href="/match?regen=1">Regenerate</a></p>
+<div class="card" style="background:rgba(94,234,212,.05);border-color:rgba(94,234,212,.25);font-size:.9em">
+  <b style="color:#5eead4">What you told Candor:</b> {_esc(wish)}
+</div>
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;margin-top:16px">{cards}</div>
+<p style="margin-top:24px"><a class="btn btn-light" href="/profile">← Back to profile</a></p>
+''', title="My Match — Candor")
 
 
 @app.route("/plans/grade")
