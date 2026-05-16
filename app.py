@@ -11592,9 +11592,15 @@ def plans_add_explain(slug):
 
 
 # ─── PREMIUM: "MY MATCH" — free-text college matcher ───
+# Bump when the My Match prompt changes — invalidates every cached result
+# so users auto-regenerate against the new prompt on their next visit.
+_MATCH_PROMPT_VERSION = "2"
+
+
 def _match_prefs_hash(text):
     import hashlib
-    return hashlib.sha1((text or "").strip().encode("utf-8")).hexdigest()[:16]
+    keyed = f"{_MATCH_PROMPT_VERSION}|{(text or '').strip()}"
+    return hashlib.sha1(keyed.encode("utf-8")).hexdigest()[:16]
 
 
 def generate_match_results(wish, profile):
@@ -11605,20 +11611,44 @@ def generate_match_results(wish, profile):
     for c in COLLEGES:
         lines.append(
             f"{c['slug']}|{c['name']}|{c['type']}|{city_state(c)}|"
-            f"{REGION_BY_STATE.get(c.get('state',''),'?')}|size {c.get('size','?')}|"
-            f"acc {round(c['accept']*100)}%|{','.join(c.get('majors',[])[:4])}|"
-            f"{(c.get('desc','') or '')[:110]}"
+            f"{REGION_BY_STATE.get(c.get('state',''),'?')}|"
+            f"{_size_bucket(c.get('size',0))} ({c.get('size','?')} undergrads)|"
+            f"{','.join(c.get('majors',[])[:5])}|{(c.get('desc','') or '')[:150]}"
         )
     catalog = "\n".join(lines)
-    sys = ("You match a student's described ideal college against a catalog of "
-           "real colleges. Return ONLY a JSON array of the 30 best-matching "
-           'schools, each {"slug":"...","score":0-100,"reason":"..."}. '
-           "score = how well that school fits what the student described. "
-           "reason = ONE specific sentence naming what they asked for that the "
-           "school delivers. No prose, no markdown — JSON array only.")
+    sys = (
+        "You match a student's described ideal college to a catalog of real "
+        "colleges. 'Match' means ONE thing: how well a school's actual "
+        "character fits what THIS student asked for. It is NOT about prestige, "
+        "rank, selectivity, or how strong the school is in general. A famous, "
+        "elite school that does not fit what the student described is a BAD "
+        "match and must score low.\n\n"
+        "How to score each school 0-100:\n"
+        "1. Extract the student's concrete criteria — size, social scene, "
+        "academic vibe, collaboration vs. competition, location, fields of "
+        "interest, school spirit, party culture, etc.\n"
+        "2. Score by how many of THOSE criteria the school actually satisfies.\n"
+        "3. Penalize mismatches hard. Wrong size (they want medium; school is "
+        "small or large) = big deduction. Wrong culture (they want collaborative "
+        "and not cutthroat; school is known as intense/cutthroat/competitive) = "
+        "big deduction — this applies to elite schools too.\n"
+        "4. Ignore prestige and admit rate completely. Never reward a school for "
+        "being famous, highly ranked, or hard to get into.\n"
+        "5. Use the FULL 0-100 range and spread scores out. Fits nearly "
+        "everything = 85-100. Fits about half = 50-70. Fits little = under 40. "
+        "Do NOT cluster every school in the 80s-90s.\n"
+        "6. Actively surface strong-fit schools that are NOT famous names — the "
+        "best match is often not the most well-known school.\n"
+        "7. reason = one honest sentence. If the school fits overall but has a "
+        "real tradeoff against what they asked for, say so plainly.\n\n"
+        "Return ONLY a JSON array of the 30 best matches, each "
+        '{"slug":"...","score":int,"reason":"..."}. No prose, no markdown.'
+    )
     usr = (f"STUDENT'S IDEAL COLLEGE (their own words):\n{wish}\n\n"
            f"Intended major: {profile.get('major') or 'undecided'}\n\n"
-           f"CATALOG — slug|name|type|location|region|size|accept|majors|description:\n"
+           f"Score every school on fit to the description above — not on how "
+           f"good or famous the school is.\n\n"
+           f"CATALOG — slug|name|type|location|region|size|majors|description:\n"
            f"{catalog}")
     raw = _claude("claude-haiku-4-5-20251001", sys, usr, max_tokens=2800)
     if not raw:
