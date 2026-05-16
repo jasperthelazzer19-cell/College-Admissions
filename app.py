@@ -254,7 +254,6 @@ COLLEGES = [
     {"name":"Liberty","slug":"liberty","accept":0.99,"gpa_lo":3.30,"gpa_hi":3.85,"sat_25":1010,"sat_75":1240,"act_25":21,"act_75":28,"tier":5,"type":"private","state":"Virginia","size":15000,"tuition":24000,"desc":"Largest evangelical Christian university. Strict honor code, strong online programs, conservative campus culture.","majors":["Business","Psychology","Nursing","Education","Aviation"]},
     {"name":"UMass Amherst","slug":"umass","accept":0.58,"gpa_lo":3.79,"gpa_hi":4.10,"sat_25":1280,"sat_75":1460,"act_25":29,"act_75":33,"tier":3,"type":"public","state":"Massachusetts","size":24000,"tuition":17000,"desc":"Flagship of the Five College Consortium. Strong CS, isenberg business, and food science. Big sports culture.","majors":["Computer Science","Business","Psychology","Biology","Engineering"]},
     {"name":"NC State","slug":"ncsu","accept":0.40,"gpa_lo":4.10,"gpa_hi":4.62,"sat_25":1290,"sat_75":1450,"act_25":28,"act_75":33,"tier":3,"type":"public","state":"North Carolina","size":26000,"tuition":9000,"desc":"Top engineering and ag school in the Research Triangle. Very strong CS, textiles, and design. Hard to crack from out of state.","majors":["Engineering","Computer Science","Business","Biology","Agriculture"]},
-    {"name":"University of Miami","slug":"umiami","accept":0.19,"gpa_lo":3.70,"gpa_hi":4.10,"sat_25":1310,"sat_75":1470,"act_25":30,"act_75":33,"tier":3,"type":"private","state":"Florida","size":12000,"tuition":58000,"desc":"Coral Gables campus. Strong marine science, music, business. Heavy sports culture, beach proximity.","majors":["Business","Biology","Psychology","Marine Biology","Communication"]},
     {"name":"Syracuse","slug":"syracuse","accept":0.42,"gpa_lo":3.60,"gpa_hi":3.95,"sat_25":1240,"sat_75":1430,"act_25":27,"act_75":32,"tier":4,"type":"private","state":"New York","size":15000,"tuition":62000,"desc":"Newhouse (communications) is one of the top journalism schools. Strong architecture and information studies too. Cold winters.","majors":["Communication","Business","Engineering","Psychology","Information Studies"]},
     {"name":"Hampton","slug":"hampton","accept":0.36,"gpa_lo":3.30,"gpa_hi":3.75,"sat_25":980,"sat_75":1170,"act_25":18,"act_75":24,"tier":4,"type":"private","state":"Virginia","size":3500,"tuition":29000,"desc":"Historic HBCU on the Chesapeake. Strong nursing, journalism, and marine science. Tight-knit alumni network.","majors":["Nursing","Business","Biology","Communication","Psychology"]},
     {"name":"Holy Cross","slug":"holy-cross","accept":0.22,"gpa_lo":3.70,"gpa_hi":4.00,"sat_25":1340,"sat_75":1490,"act_25":31,"act_75":33,"tier":3,"type":"private","state":"Massachusetts","size":3100,"tuition":63000,"desc":"Jesuit LAC. Strong pre-law and pre-med. No business or engineering majors — pure liberal arts. Wall Street pipeline.","majors":["Economics","Political Science","English","Psychology","Biology"]},
@@ -275,7 +274,6 @@ COLLEGES = [
     {"name":"University of Cincinnati","slug":"cincinnati","accept":0.86,"gpa_lo":3.55,"gpa_hi":3.92,"sat_25":1140,"sat_75":1330,"act_25":23,"act_75":29,"tier":5,"type":"public","state":"Ohio","size":29000,"tuition":12500,"desc":"Top design (DAAP) and known for inventing co-op education. Strong engineering and music conservatory (CCM).","majors":["Engineering","Design","Business","Nursing","Music"]},
     {"name":"University of South Florida","slug":"usf-tampa","accept":0.44,"gpa_lo":3.85,"gpa_hi":4.30,"sat_25":1210,"sat_75":1370,"act_25":25,"act_75":30,"tier":4,"type":"public","state":"Florida","size":38000,"tuition":6400,"desc":"R1 public in Tampa. Strong public health, marine science, business. Fast-rising research profile.","majors":["Business","Biology","Psychology","Engineering","Public Health"]},
     {"name":"VCU","slug":"vcu","accept":0.93,"gpa_lo":3.50,"gpa_hi":3.90,"sat_25":1080,"sat_75":1260,"act_25":21,"act_75":27,"tier":5,"type":"public","state":"Virginia","size":21000,"tuition":15000,"desc":"Virginia Commonwealth — top arts school (VCUarts) and very strong nursing/pharmacy. Urban Richmond campus.","majors":["Art","Nursing","Business","Biology","Pharmacy"]},
-    {"name":"University of Houston","slug":"houston","accept":0.65,"gpa_lo":3.50,"gpa_hi":3.90,"sat_25":1130,"sat_75":1320,"act_25":22,"act_75":29,"tier":4,"type":"public","state":"Texas","size":38000,"tuition":11000,"desc":"R1 public, strong hotel/restaurant, business (Bauer), engineering. Diverse, urban Houston campus.","majors":["Business","Engineering","Biology","Psychology","Hospitality"]},
     {"name":"University of New Mexico","slug":"unm","accept":0.93,"gpa_lo":3.40,"gpa_hi":3.85,"sat_25":1010,"sat_75":1230,"act_25":19,"act_75":26,"tier":5,"type":"public","state":"New Mexico","size":17000,"tuition":8500,"desc":"Flagship of NM. Strong Latin American studies, anthropology, photography. Affordable, beautiful Albuquerque campus.","majors":["Business","Psychology","Biology","Education","Engineering"]},
     {"name":"Wayne State","slug":"wayne-state","accept":0.78,"gpa_lo":3.30,"gpa_hi":3.80,"sat_25":1020,"sat_75":1230,"act_25":20,"act_75":26,"tier":5,"type":"public","state":"Michigan","size":17000,"tuition":13500,"desc":"R1 public in Detroit. Strong nursing, social work, urban planning. Major commuter school.","majors":["Business","Nursing","Engineering","Psychology","Biology"]},
     {"name":"Georgia State","slug":"gsu","accept":0.76,"gpa_lo":3.40,"gpa_hi":3.85,"sat_25":1090,"sat_75":1260,"act_25":21,"act_75":27,"tier":5,"type":"public","state":"Georgia","size":27000,"tuition":11000,"desc":"Atlanta R1. Strong business (Robinson), neuroscience, film. Major HSI/MSI numbers.","majors":["Business","Psychology","Biology","Computer Science","Film"]},
@@ -385,7 +383,6 @@ COLLEGES = [
     {"name":"Morgan State","slug":"morgan-state","accept":0.81,"gpa_lo":3.30,"gpa_hi":3.75,"sat_25":920,"sat_75":1110,"act_25":17,"act_75":22,"tier":5,"type":"public","state":"Maryland","size":6500,"tuition":8500,"desc":"Baltimore R2 HBCU. Strong business, engineering, architecture. Designated Maryland's preeminent public research university.","majors":["Business","Engineering","Architecture","Communication","Psychology"]},
     {"name":"Texas Southern","slug":"texas-southern","accept":0.55,"gpa_lo":3.10,"gpa_hi":3.55,"sat_25":860,"sat_75":1030,"act_25":15,"act_75":19,"tier":4,"type":"public","state":"Texas","size":7000,"tuition":11000,"desc":"Houston HBCU. Strong pharmacy, law, communications. Affordable urban campus.","majors":["Business","Pharmacy","Communication","Biology","Psychology"]},
     # Other commonly searched
-    {"name":"University of Vermont","slug":"vermont","accept":0.71,"gpa_lo":3.55,"gpa_hi":3.95,"sat_25":1170,"sat_75":1370,"act_25":26,"act_75":31,"tier":4,"type":"public","state":"Vermont","size":11000,"tuition":18000,"desc":"Burlington flagship. Strong environmental sciences, nursing, dietetics. Outdoorsy/granola student culture.","majors":["Business","Biology","Psychology","Environmental Science","Nursing"]},
     {"name":"Purdue Northwest","slug":"purdue-nw","accept":0.79,"gpa_lo":3.30,"gpa_hi":3.80,"sat_25":960,"sat_75":1180,"act_25":17,"act_75":24,"tier":5,"type":"public","state":"Indiana","size":8000,"tuition":9500,"desc":"Hammond/Westville campus. Strong engineering tech, nursing, business. Affordable Purdue degree option.","majors":["Engineering","Business","Nursing","Education","Biology"]},
     {"name":"Knox","slug":"knox","accept":0.65,"gpa_lo":3.55,"gpa_hi":3.95,"sat_25":1170,"sat_75":1380,"act_25":25,"act_75":31,"tier":4,"type":"private","state":"Illinois","size":1100,"tuition":53000,"desc":"Galesburg, IL LAC. Strong creative writing, neuroscience, theatre. Loosely structured curriculum.","majors":["Creative Writing","Biology","Psychology","Theatre","English"]},
     {"name":"Allegheny","slug":"allegheny","accept":0.79,"gpa_lo":3.55,"gpa_hi":3.95,"sat_25":1170,"sat_75":1370,"act_25":25,"act_75":30,"tier":5,"type":"private","state":"Pennsylvania","size":1500,"tuition":54000,"desc":"Western PA LAC. Required double-major across divisions. Strong sciences, English.","majors":["Biology","Psychology","English","Business","Communication"]},
@@ -807,7 +804,7 @@ ADMISSIONS_DETAIL = {
     "princeton":    {"rounds": ["REA","RD"],            "rates": {"REA":0.108,"RD":0.040}},
     "stanford":     {"rounds": ["REA","RD"],            "rates": {"REA":0.079,"RD":0.031}},
     "mit":          {"rounds": ["EA","RD"],             "rates": {"EA":0.053,"RD":0.045}},
-    "caltech":      {"rounds": ["EA","RD"],             "rates": {"EA":0.050,"RD":0.020}},
+    "caltech":      {"rounds": ["REA","RD"],            "rates": {"REA":0.050,"RD":0.020}},
     "columbia":     {"rounds": ["ED","RD"],             "rates": {"ED":0.119,"RD":0.030}},
     "upenn":        {"rounds": ["ED","RD"],             "rates": {"ED":0.140,"RD":0.045}},
     "duke":         {"rounds": ["ED","RD"],             "rates": {"ED":0.144,"RD":0.040}},
@@ -819,7 +816,7 @@ ADMISSIONS_DETAIL = {
     "uchicago":     {"rounds": ["ED","ED2","EA","RD"],  "rates": {"ED":0.180,"ED2":0.140,"EA":0.075,"RD":0.035}},
     # Top privates with ED/EA splits
     "vanderbilt":   {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.167,"ED2":0.140,"RD":0.045}},
-    "rice":         {"rounds": ["ED","RD"],             "rates": {"ED":0.137,"RD":0.060}},
+    "rice":         {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.137,"ED2":0.100,"RD":0.060}},  # ED2 added 2024-25; ED2 rate estimated
     "jhu":          {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.265,"ED2":0.175,"RD":0.045}},
     # washu: CDS 2024-25 form: combined ED 1217/4817=25.3%. ED1/ED2 estimated. C1: 32754/3951=12.1%. RD: 2734/27937=9.8%.
     "washu":        {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.278,"ED2":0.202,"RD":0.098}},
@@ -834,7 +831,7 @@ ADMISSIONS_DETAIL = {
     "usc":          {"rounds": ["EA","RD"],             "rates": {"EA":0.110,"RD":0.080}},
     "wake-forest":  {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.450,"ED2":0.300,"RD":0.190}},
     # bc: CDS 2024-25: ED 1434/4288=33.4%. EA kept from prior. RD derived ~13.8% (excludes EA accurately). C1: 34779/5632=16.2%.
-    "bc":           {"rounds": ["ED","EA","RD"],        "rates": {"ED":0.334,"EA":0.180,"RD":0.138}},
+    "bc":           {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.334,"ED2":0.244,"RD":0.138}},  # BC has no EA; offers ED2. ED2 rate estimated
     "tulane":       {"rounds": ["ED","EA","RD"],        "rates": {"ED":0.420,"EA":0.110,"RD":0.080}},
     "villanova":    {"rounds": ["ED","ED2","EA","RD"],  "rates": {"ED":0.350,"ED2":0.180,"EA":0.230,"RD":0.190}},
     # lehigh: CDS 2025-26: combined ED 966/2040=47.4%. ED1/ED2 estimated. RD kept from prior estimate.
@@ -852,7 +849,7 @@ ADMISSIONS_DETAIL = {
     "miami":        {"rounds": ["ED","ED2","EA","RD"],  "rates": {"ED":0.430,"ED2":0.300,"EA":0.200,"RD":0.190}},
     # brandeis: CDS 2024-25: combined ED 323/765=42.2%. ED1/ED2 estimated. C1: 10462/4234=40.5%. RD: 3911/9697=40.3%.
     "brandeis":     {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.464,"ED2":0.338,"RD":0.403}},
-    "fordham":      {"rounds": ["EA","RD"],             "rates": {"EA":0.580,"RD":0.530}},
+    "fordham":      {"rounds": ["ED","ED2","EA","RD"],  "rates": {"ED":0.660,"ED2":0.600,"EA":0.580,"RD":0.530}},  # ED/ED2 added; rates estimated
     "gwu":          {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.690,"ED2":0.610,"RD":0.480}},
     "american":     {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.870,"ED2":0.800,"RD":0.510}},
     # LAC ED-heavy
@@ -877,7 +874,7 @@ ADMISSIONS_DETAIL = {
     # barnard: CDS 2024-25: ED 434/1694=25.6%. RD: (1046-434)/(11836-1694)=612/10142=6.0%. C1: 11836 (women)/1046=8.8%.
     "barnard":      {"rounds": ["ED","RD"],             "rates": {"ED":0.256,"RD":0.060}},
     # Public flagships — in/out of state matters
-    "umich":        {"rounds": ["EA","RD"],   "rates": {"EA":0.220,"RD":0.170}, "in_state_rate":0.41, "out_of_state_rate":0.20},
+    "umich":        {"rounds": ["ED","EA","RD"], "rates": {"ED":0.300,"EA":0.220,"RD":0.170}, "in_state_rate":0.41, "out_of_state_rate":0.20},  # ED new Fall 2025; rate estimated
     # uva: CDS 2024-25: ED 1245/4461=27.9%. EA/RD kept from prior estimates (UVA reports ED in CDS but not EA/RD separately). C1: 58951/9909=16.8%.
     "uva":          {"rounds": ["ED","EA","RD"], "rates": {"ED":0.279,"EA":0.180,"RD":0.150}, "in_state_rate":0.30, "out_of_state_rate":0.15},
     "unc":          {"rounds": ["EA","RD"],   "rates": {"EA":0.190,"RD":0.150}, "in_state_rate":0.42, "out_of_state_rate":0.09},
@@ -889,51 +886,51 @@ ADMISSIONS_DETAIL = {
     "ucdavis":      {"rounds": ["RD"],         "rates": {"RD":0.420}, "in_state_rate":0.45, "out_of_state_rate":0.39},
     "gatech":       {"rounds": ["EA","RD"],   "rates": {"EA":0.220,"RD":0.140}, "in_state_rate":0.36, "out_of_state_rate":0.13},
     "wm":           {"rounds": ["ED","ED2","RD"], "rates": {"ED":0.520,"ED2":0.400,"RD":0.310}, "in_state_rate":0.40, "out_of_state_rate":0.27},
-    "ut-austin":    {"rounds": ["RD"],         "rates": {"RD":0.290}, "in_state_rate":0.36, "out_of_state_rate":0.10},
+    "ut-austin":    {"rounds": ["EA","RD"],   "rates": {"EA":0.310,"RD":0.290}, "in_state_rate":0.36, "out_of_state_rate":0.10},  # EA rate estimated
     "wisc":         {"rounds": ["EA","RD"],   "rates": {"EA":0.510,"RD":0.450}, "in_state_rate":0.62, "out_of_state_rate":0.39},
     "uiuc":         {"rounds": ["EA","RD"],   "rates": {"EA":0.600,"RD":0.430}, "in_state_rate":0.62, "out_of_state_rate":0.34},
     "uf":           {"rounds": ["EA","RD"],   "rates": {"EA":0.230,"RD":0.230}, "in_state_rate":0.30, "out_of_state_rate":0.13},
     "umd":          {"rounds": ["EA","RD"],   "rates": {"EA":0.470,"RD":0.430}, "in_state_rate":0.55, "out_of_state_rate":0.32},
     "uw":           {"rounds": ["RD"],         "rates": {"RD":0.430}, "in_state_rate":0.56, "out_of_state_rate":0.34},
-    "binghamton":   {"rounds": ["ED","RD"],   "rates": {"ED":0.500,"RD":0.420}, "in_state_rate":0.49, "out_of_state_rate":0.36},
+    "binghamton":   {"rounds": ["ED","EA","RD"], "rates": {"ED":0.500,"EA":0.460,"RD":0.420}, "in_state_rate":0.49, "out_of_state_rate":0.36},  # EA rate estimated
     "purdue":       {"rounds": ["EA","RD"],   "rates": {"EA":0.530,"RD":0.500}, "in_state_rate":0.59, "out_of_state_rate":0.50},
     "rutgers":      {"rounds": ["RD"],         "rates": {"RD":0.660}, "in_state_rate":0.72, "out_of_state_rate":0.58},
-    "penn-state":   {"rounds": ["RD"],         "rates": {"RD":0.540}, "in_state_rate":0.62, "out_of_state_rate":0.46},
+    "penn-state":   {"rounds": ["EA","RD"],   "rates": {"EA":0.570,"RD":0.540}, "in_state_rate":0.62, "out_of_state_rate":0.46},  # EA rate estimated
     "osu":          {"rounds": ["EA","RD"],   "rates": {"EA":0.520,"RD":0.530}, "in_state_rate":0.66, "out_of_state_rate":0.45},
-    "msu":          {"rounds": ["RD"],         "rates": {"RD":0.830}, "in_state_rate":0.86, "out_of_state_rate":0.78},
-    "uconn":        {"rounds": ["EA","RD"],   "rates": {"EA":0.570,"RD":0.540}, "in_state_rate":0.66, "out_of_state_rate":0.49},
-    "vt":           {"rounds": ["ED","EA","RD"], "rates": {"ED":0.700,"EA":0.620,"RD":0.560}, "in_state_rate":0.71, "out_of_state_rate":0.39},
+    "msu":          {"rounds": ["EA","RD"],   "rates": {"EA":0.860,"RD":0.830}, "in_state_rate":0.86, "out_of_state_rate":0.78},  # EA rate estimated
+    "uconn":        {"rounds": ["ED","EA","RD"], "rates": {"ED":0.650,"EA":0.570,"RD":0.540}, "in_state_rate":0.66, "out_of_state_rate":0.49},  # ED rate estimated
+    "vt":           {"rounds": ["EA","RD"], "rates": {"EA":0.620,"RD":0.560}, "in_state_rate":0.71, "out_of_state_rate":0.39},  # VT has no ED
     "clemson":      {"rounds": ["EA","RD"],   "rates": {"EA":0.450,"RD":0.430}, "in_state_rate":0.59, "out_of_state_rate":0.36},
     "uga":          {"rounds": ["EA","RD"],   "rates": {"EA":0.420,"RD":0.380}, "in_state_rate":0.50, "out_of_state_rate":0.34},
     # More public flagships + state schools
-    "fsu":          {"rounds": ["EA","RD"],   "rates": {"EA":0.260,"RD":0.250}, "in_state_rate":0.32, "out_of_state_rate":0.18},
+    "fsu":          {"rounds": ["ED","EA","RD"], "rates": {"ED":0.350,"EA":0.260,"RD":0.250}, "in_state_rate":0.32, "out_of_state_rate":0.18},  # ED new for 2027 cycle; rate estimated
     "iu":           {"rounds": ["EA","RD"],   "rates": {"EA":0.820,"RD":0.770}, "in_state_rate":0.84, "out_of_state_rate":0.74},
     "asu":          {"rounds": ["RD"],         "rates": {"RD":0.880}, "in_state_rate":0.91, "out_of_state_rate":0.85},
     "pitt":         {"rounds": ["RD"],         "rates": {"RD":0.500}, "in_state_rate":0.62, "out_of_state_rate":0.40},
-    "tamu":         {"rounds": ["RD"],         "rates": {"RD":0.630}, "in_state_rate":0.69, "out_of_state_rate":0.45},
+    "tamu":         {"rounds": ["EA","RD"],   "rates": {"EA":0.660,"RD":0.630}, "in_state_rate":0.69, "out_of_state_rate":0.45},  # EA (engineering applicants); rate estimated
     "alabama":      {"rounds": ["RD"],         "rates": {"RD":0.800}, "in_state_rate":0.82, "out_of_state_rate":0.79},
-    "utk":          {"rounds": ["RD"],         "rates": {"RD":0.450}, "in_state_rate":0.55, "out_of_state_rate":0.36},
-    "arizona":      {"rounds": ["RD"],         "rates": {"RD":0.870}, "in_state_rate":0.90, "out_of_state_rate":0.85},
-    "uiowa":        {"rounds": ["RD"],         "rates": {"RD":0.860}, "in_state_rate":0.89, "out_of_state_rate":0.83},
-    "umn":          {"rounds": ["RD"],         "rates": {"RD":0.750}, "in_state_rate":0.80, "out_of_state_rate":0.69},
+    "utk":          {"rounds": ["EA","RD"],   "rates": {"EA":0.480,"RD":0.450}, "in_state_rate":0.55, "out_of_state_rate":0.36},  # EA rate estimated
+    "arizona":      {"rounds": ["EA","RD"],   "rates": {"EA":0.890,"RD":0.870}, "in_state_rate":0.90, "out_of_state_rate":0.85},  # EA rate estimated
+    "uiowa":        {"rounds": ["EA","RD"],   "rates": {"EA":0.890,"RD":0.860}, "in_state_rate":0.89, "out_of_state_rate":0.83},  # EA rate estimated
+    "umn":          {"rounds": ["EA","RD"],   "rates": {"EA":0.780,"RD":0.750}, "in_state_rate":0.80, "out_of_state_rate":0.69},  # EA rate estimated
     "cu-boulder":   {"rounds": ["EA","RD"],   "rates": {"EA":0.810,"RD":0.770}, "in_state_rate":0.86, "out_of_state_rate":0.74},
-    "uoregon":      {"rounds": ["RD"],         "rates": {"RD":0.860}, "in_state_rate":0.89, "out_of_state_rate":0.84},
+    "uoregon":      {"rounds": ["EA","RD"],   "rates": {"EA":0.890,"RD":0.860}, "in_state_rate":0.89, "out_of_state_rate":0.84},  # EA rate estimated
     "stony-brook":  {"rounds": ["EA","RD"],   "rates": {"EA":0.500,"RD":0.470}, "in_state_rate":0.50, "out_of_state_rate":0.42},
-    "uky":          {"rounds": ["RD"],         "rates": {"RD":0.950}, "in_state_rate":0.96, "out_of_state_rate":0.94},
+    "uky":          {"rounds": ["EA","RD"],   "rates": {"EA":0.960,"RD":0.950}, "in_state_rate":0.96, "out_of_state_rate":0.94},  # EA rate estimated
     "auburn":       {"rounds": ["EA","RD"],   "rates": {"EA":0.460,"RD":0.420}, "in_state_rate":0.55, "out_of_state_rate":0.36},
     "lsu":          {"rounds": ["RD"],         "rates": {"RD":0.760}, "in_state_rate":0.82, "out_of_state_rate":0.70},
-    "sc":           {"rounds": ["RD"],         "rates": {"RD":0.640}, "in_state_rate":0.74, "out_of_state_rate":0.56},
+    "sc":           {"rounds": ["EA","RD"],   "rates": {"EA":0.670,"RD":0.640}, "in_state_rate":0.74, "out_of_state_rate":0.56},  # EA rate estimated
     "missou":       {"rounds": ["RD"],         "rates": {"RD":0.840}, "in_state_rate":0.90, "out_of_state_rate":0.78},
-    "ku":           {"rounds": ["RD"],         "rates": {"RD":0.880}, "in_state_rate":0.92, "out_of_state_rate":0.83},
+    "ku":           {"rounds": ["EA","RD"],   "rates": {"EA":0.900,"RD":0.880}, "in_state_rate":0.92, "out_of_state_rate":0.83},  # EA rate estimated
     "unl":          {"rounds": ["RD"],         "rates": {"RD":0.830}, "in_state_rate":0.88, "out_of_state_rate":0.79},
-    "uvm":          {"rounds": ["EA","RD"],   "rates": {"EA":0.660,"RD":0.640}, "in_state_rate":0.83, "out_of_state_rate":0.62},
+    "uvm":          {"rounds": ["ED","ED2","EA","RD"], "rates": {"ED":0.780,"ED2":0.700,"EA":0.660,"RD":0.640}, "in_state_rate":0.83, "out_of_state_rate":0.62},  # ED/ED2 rates estimated
     "udel":         {"rounds": ["EA","RD"],   "rates": {"EA":0.730,"RD":0.700}, "in_state_rate":0.79, "out_of_state_rate":0.66},
     "calpoly-slo":  {"rounds": ["RD"],         "rates": {"RD":0.300}, "in_state_rate":0.31, "out_of_state_rate":0.27},
     "sdsu":         {"rounds": ["RD"],         "rates": {"RD":0.380}, "in_state_rate":0.40, "out_of_state_rate":0.32},
     "sjsu":         {"rounds": ["RD"],         "rates": {"RD":0.770}, "in_state_rate":0.81, "out_of_state_rate":0.62},
     "csulb":        {"rounds": ["RD"],         "rates": {"RD":0.420}, "in_state_rate":0.46, "out_of_state_rate":0.31},
-    "iowa-state":   {"rounds": ["RD"],         "rates": {"RD":0.900}, "in_state_rate":0.93, "out_of_state_rate":0.87},
-    "temple":       {"rounds": ["RD"],         "rates": {"RD":0.800}, "in_state_rate":0.85, "out_of_state_rate":0.74},
+    "iowa-state":   {"rounds": ["EA","RD"],   "rates": {"EA":0.920,"RD":0.900}, "in_state_rate":0.93, "out_of_state_rate":0.87},  # EA rate estimated
+    "temple":       {"rounds": ["EA","RD"],   "rates": {"EA":0.830,"RD":0.800}, "in_state_rate":0.85, "out_of_state_rate":0.74},  # EA rate estimated
     "gmu":          {"rounds": ["EA","RD"],   "rates": {"EA":0.910,"RD":0.890}, "in_state_rate":0.92, "out_of_state_rate":0.85},
     "uh":           {"rounds": ["RD"],         "rates": {"RD":0.660}, "in_state_rate":0.69, "out_of_state_rate":0.51},
     "utah":         {"rounds": ["EA","RD"],   "rates": {"EA":0.910,"RD":0.890}, "in_state_rate":0.94, "out_of_state_rate":0.85},
@@ -944,10 +941,10 @@ ADMISSIONS_DETAIL = {
     # LACs — mostly ED + RD, some with ED2
     # carleton: CDS 2025-26 form: combined ED 263/760=34.6%. ED1/ED2 estimated. C1: 6796/1480=21.8%. RD: 1217/6036=20.2%.
     "carleton":     {"rounds": ["ED","ED2","RD"], "rates": {"ED":0.381,"ED2":0.277,"RD":0.202}},
-    "haverford":    {"rounds": ["ED","RD"],       "rates": {"ED":0.370,"RD":0.150}},
+    "haverford":    {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.370,"ED2":0.270,"RD":0.150}},  # ED2 rate estimated
     # davidson: CDS 2025-26: combined ED 358/1232=29.1%. ED1/ED2 estimated. RD: (1127-358)/(8933-1232) = 10.0%.
     "davidson":     {"rounds": ["ED","ED2","RD"], "rates": {"ED":0.320,"ED2":0.233,"RD":0.100}},
-    "colgate":      {"rounds": ["ED","RD"],       "rates": {"ED":0.300,"RD":0.110}},
+    "colgate":      {"rounds": ["ED","ED2","RD"],       "rates": {"ED":0.300,"ED2":0.220,"RD":0.110}},  # ED2 rate estimated
     # smith: CDS 2024-25: combined ED 353/924=38.2%. ED1/ED2 estimated. C1: 8666 (women only) / 1820 admits = 21.0%. RD: 1467/7742=19.0%.
     "smith":        {"rounds": ["ED","ED2","RD"], "rates": {"ED":0.420,"ED2":0.306,"RD":0.190}},
     "mt-holyoke":   {"rounds": ["ED","ED2","RD"], "rates": {"ED":0.620,"ED2":0.450,"RD":0.380}},
@@ -957,14 +954,14 @@ ADMISSIONS_DETAIL = {
     "conn-college": {"rounds": ["ED","ED2","RD"], "rates": {"ED":0.452,"ED2":0.329,"RD":0.368}},
     # skidmore: CDS 2024-25: combined ED 351/848=41.4%. ED1/ED2 estimated. C1: 11889/2503=21.1%. RD: 2152/11041=19.5%.
     "skidmore":     {"rounds": ["ED","ED2","RD"], "rates": {"ED":0.455,"ED2":0.331,"RD":0.195}},
-    "macalester":   {"rounds": ["ED","ED2","RD"], "rates": {"ED":0.450,"ED2":0.330,"RD":0.250}},
+    "macalester":   {"rounds": ["ED","ED2","EA","RD"],  "rates": {"ED":0.450,"ED2":0.330,"EA":0.290,"RD":0.250}},  # EA rate estimated
     # reed: CDS 2024-25 sec C: combined ED 80/526=15.2% (unusually low — Reed's ED pool may be more selective). C1: 9431/2321=24.6%. RD: 2241/8905=25.2%.
-    "reed":         {"rounds": ["ED","ED2","RD"], "rates": {"ED":0.167,"ED2":0.122,"RD":0.252}},
+    "reed":         {"rounds": ["ED","ED2","EA","RD"],  "rates": {"ED":0.167,"ED2":0.122,"EA":0.187,"RD":0.252}},  # EA rate estimated
     # grinnell: CDS 2024-25: combined ED 283/828=34.2%. ED1/ED2 estimated. RD: 1133/8930 = 12.7%.
     "grinnell":     {"rounds": ["ED","ED2","RD"], "rates": {"ED":0.376,"ED2":0.274,"RD":0.127}},
     "kenyon":       {"rounds": ["ED","ED2","RD"], "rates": {"ED":0.480,"ED2":0.380,"RD":0.260}},
     # oberlin: CDS 2024-25: combined ED 246/635=38.7%. ED1/ED2 estimated. RD kept from prior estimate.
-    "oberlin":      {"rounds": ["ED","ED2","RD"], "rates": {"ED":0.426,"ED2":0.310,"RD":0.300}},
+    "oberlin":      {"rounds": ["ED","ED2","EA","RD"],  "rates": {"ED":0.426,"ED2":0.310,"EA":0.305,"RD":0.300}},  # EA rate estimated
     # whitman: CDS 2024-25: combined ED 114/599=19.0%. ED1/ED2 estimated. C1: 7243/2763=38.1%. RD: 2649/6644=39.9%.
     "whitman":      {"rounds": ["ED","ED2","RD"], "rates": {"ED":0.209,"ED2":0.152,"RD":0.399}},
     # pitzer: CDS 2024-25: combined ED 177/419=42.2%. ED1/ED2 estimated. C1: 3438/865=25.2%. RD: 688/3019=22.8%.
@@ -973,37 +970,37 @@ ADMISSIONS_DETAIL = {
     "scripps":      {"rounds": ["ED","ED2","RD"], "rates": {"ED":0.517,"ED2":0.376,"RD":0.374}},
     "harvey-mudd":  {"rounds": ["ED","ED2","RD"], "rates": {"ED":0.190,"ED2":0.140,"RD":0.080}},
     "cmc":          {"rounds": ["ED","ED2","RD"], "rates": {"ED":0.260,"ED2":0.190,"RD":0.080}},
-    "oxy":          {"rounds": ["ED","ED2","RD"], "rates": {"ED":0.500,"ED2":0.350,"RD":0.260}},
+    "oxy":          {"rounds": ["ED","ED2","EA","RD"],  "rates": {"ED":0.500,"ED2":0.350,"EA":0.305,"RD":0.260}},  # EA rate estimated
     "wesleyan":     {"rounds": ["ED","ED2","RD"], "rates": {"ED":0.420,"ED2":0.300,"RD":0.140}},
     # bucknell: CDS 2024-25: combined ED 666/1201=55.5%. ED1/ED2 estimated. C1: 11377/3291=28.9%. RD: 2625/10176=25.8%.
     "bucknell":     {"rounds": ["ED","ED2","RD"], "rates": {"ED":0.610,"ED2":0.444,"RD":0.258}},
     # Engineering/tech specialty
-    "rpi":          {"rounds": ["ED","ED2","RD"], "rates": {"ED":0.660,"ED2":0.540,"RD":0.560}},
+    "rpi":          {"rounds": ["ED","ED2","EA","RD"],  "rates": {"ED":0.660,"ED2":0.540,"EA":0.550,"RD":0.560}},  # EA rate estimated
     "wpi":          {"rounds": ["ED","ED2","EA","RD"], "rates": {"ED":0.700,"ED2":0.580,"EA":0.580,"RD":0.530}},
-    "rose-hulman":  {"rounds": ["ED","EA","RD"],  "rates": {"ED":0.770,"EA":0.730,"RD":0.700}},
-    "olin":         {"rounds": ["EA","RD"],       "rates": {"EA":0.180,"RD":0.140}},
-    "stevens":      {"rounds": ["ED","ED2","RD"], "rates": {"ED":0.660,"ED2":0.540,"RD":0.420}},
+    "rose-hulman":  {"rounds": ["EA","RD"],              "rates": {"EA":0.730,"RD":0.700}},  # Rose-Hulman has no ED
+    "olin":         {"rounds": ["RD"],                  "rates": {"RD":0.140}},  # Olin: single deadline, no early round
+    "stevens":      {"rounds": ["ED","ED2","EA","RD"],  "rates": {"ED":0.660,"ED2":0.540,"EA":0.480,"RD":0.420}},  # EA rate estimated
     "cooper":       {"rounds": ["ED","RD"],       "rates": {"ED":0.180,"RD":0.110}},
-    "drexel":       {"rounds": ["ED","RD"],       "rates": {"ED":0.880,"RD":0.770}},
+    "drexel":       {"rounds": ["ED","EA","RD"],         "rates": {"ED":0.880,"EA":0.820,"RD":0.770}},  # EA rate estimated
     # Arts schools — rounds vary, often portfolio-driven
     "berklee":      {"rounds": ["EA","RD"],       "rates": {"EA":0.560,"RD":0.520}},
     "juilliard":    {"rounds": ["RD"],             "rates": {"RD":0.080}},
-    "pratt":        {"rounds": ["ED","ED2","RD"], "rates": {"ED":0.760,"ED2":0.620,"RD":0.540}},
-    "parsons":      {"rounds": ["EA","RD"],       "rates": {"EA":0.610,"RD":0.580}},
-    "risd":         {"rounds": ["ED","ED2","RD"], "rates": {"ED":0.300,"ED2":0.200,"RD":0.170}},
+    "pratt":        {"rounds": ["EA","RD"],              "rates": {"EA":0.580,"RD":0.540}},  # Pratt: EA only, no ED. EA rate estimated
+    "parsons":      {"rounds": ["ED","EA","RD"],         "rates": {"ED":0.680,"EA":0.610,"RD":0.580}},  # ED rate estimated
+    "risd":         {"rounds": ["ED","RD"],              "rates": {"ED":0.300,"RD":0.170}},  # RISD has no ED2
     "saic":         {"rounds": ["EA","RD"],       "rates": {"EA":0.730,"RD":0.690}},
     # Business-focused
-    "babson":       {"rounds": ["ED","ED2","RD"], "rates": {"ED":0.430,"ED2":0.350,"RD":0.180}},
+    "babson":       {"rounds": ["ED","ED2","EA","RD"],  "rates": {"ED":0.430,"ED2":0.350,"EA":0.265,"RD":0.180}},  # EA rate estimated
     "bentley":      {"rounds": ["ED","ED2","RD"], "rates": {"ED":0.700,"ED2":0.560,"RD":0.490}},
     # Religious-affiliated / California privates
     "pepperdine":   {"rounds": ["ED","EA","RD"],  "rates": {"ED":0.510,"EA":0.470,"RD":0.420}},
-    "scu":          {"rounds": ["EA","RD"],       "rates": {"EA":0.500,"RD":0.490}},
-    "lmu":          {"rounds": ["EA","RD"],       "rates": {"EA":0.460,"RD":0.430}},
+    "scu":          {"rounds": ["ED","ED2","EA","RD"],  "rates": {"ED":0.620,"ED2":0.550,"EA":0.500,"RD":0.490}},  # ED/ED2 rates estimated
+    "lmu":          {"rounds": ["ED","ED2","EA","RD"],  "rates": {"ED":0.580,"ED2":0.500,"EA":0.460,"RD":0.430}},  # ED/ED2 rates estimated
     # HBCUs / Hispanic-serving
-    "howard":       {"rounds": ["ED","RD"],       "rates": {"ED":0.560,"RD":0.300}},
+    "howard":       {"rounds": ["ED","EA","RD"],         "rates": {"ED":0.560,"EA":0.400,"RD":0.300}},  # EA rate estimated
     "spelman":      {"rounds": ["ED","EA","RD"],  "rates": {"ED":0.470,"EA":0.430,"RD":0.380}},
     "morehouse":    {"rounds": ["ED","EA","RD"],  "rates": {"ED":0.650,"EA":0.600,"RD":0.550}},
-    "famu":         {"rounds": ["EA","RD"],       "rates": {"EA":0.380,"RD":0.350}, "in_state_rate":0.41, "out_of_state_rate":0.31},
+    "famu":         {"rounds": ["RD"],                  "rates": {"RD":0.350}, "in_state_rate":0.41, "out_of_state_rate":0.31},  # FAMU: rolling, no EA
     "uprm":         {"rounds": ["RD"],             "rates": {"RD":0.660}, "in_state_rate":0.78, "out_of_state_rate":0.45},
     "tuskegee":     {"rounds": ["RD"],             "rates": {"RD":0.520}},
 }
@@ -2504,7 +2501,6 @@ CDS_VERIFIED = {
     "ucsb": {"accept": 0.3296},
     "uky": {"act_25": 21, "act_75": 28},
     "umaine": {"accept": 0.9664, "sat_25": 1060, "sat_75": 1280, "act_25": 21, "act_75": 30},
-    "umiami": {"accept": 0.189},
     "unlv": {"sat_25": 750, "sat_75": 1020, "act_25": 18, "act_75": 25},
     "unm": {"accept": 0.7947, "sat_25": 900, "sat_75": 1160, "act_25": 19, "act_75": 26},
     "uoregon": {"sat_25": 1130, "sat_75": 1360, "act_25": 23, "act_75": 30},
@@ -2515,7 +2511,6 @@ CDS_VERIFIED = {
     "utk": {"accept": 0.416, "sat_25": 1210, "sat_75": 1360, "act_25": 25, "act_75": 31},
     "uvm": {"accept": 0.653, "sat_25": 1300, "sat_75": 1420, "act_25": 30, "act_75": 32},
     "vcu": {"sat_25": 1010, "sat_75": 1260, "act_25": 22, "act_75": 30},
-    "vermont": {"accept": 0.653, "sat_25": 1300, "sat_75": 1420, "act_25": 30, "act_75": 32},
     "wesleyan": {"accept": 0.1649, "sat_25": 1300, "sat_75": 1500, "act_25": 31, "act_75": 34},
     "whitman": {"sat_25": 1330, "sat_75": 1470, "act_25": 29, "act_75": 33},
     "wlu": {"accept": 0.1397, "sat_25": 1430, "sat_75": 1540, "act_25": 33, "act_75": 34},
@@ -2526,7 +2521,6 @@ CDS_VERIFIED = {
     "allegheny": {"accept": 0.8184},
     "elon": {"accept": 0.6635, "sat_25": 1130, "sat_75": 1320, "act_25": 24, "act_75": 30},
     "furman": {"accept": 0.4295, "sat_25": 1280, "sat_75": 1417, "act_25": 28, "act_75": 32},
-    "houston": {"accept": 0.7392, "sat_25": 1170, "sat_75": 1330, "act_25": 23, "act_75": 29},
     "marist": {"accept": 0.4993},
     "rochester": {"accept": 0.4008, "sat_25": 1420, "sat_75": 1500, "act_25": 32, "act_75": 34},
     "uh": {"accept": 0.7392, "sat_25": 1170, "sat_75": 1330, "act_25": 23, "act_75": 29},
