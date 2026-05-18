@@ -4722,6 +4722,17 @@ def init_db():
             generated_at TEXT DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
         )""")
+        # Application Strategist (premium, May 2026). One AI call reads the
+        # user's whole college list + profile and returns a strategic plan.
+        # Cached by a hash of the list + profile so it regenerates only when
+        # the list, rounds, computed odds, or key profile fields change.
+        conn.execute("""CREATE TABLE IF NOT EXISTS strategist_results (
+            user_id INTEGER PRIMARY KEY,
+            input_hash TEXT NOT NULL,
+            body TEXT NOT NULL,
+            generated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        )""")
         # AI Advisor paywall — usage tracking + paid status on users.
         for col_def in (
             "is_paid INTEGER DEFAULT 0",
@@ -8909,6 +8920,7 @@ def plans_index_html():
     # Toolbar with strategic actions (premium)
     toolbar = '''
 <div style="display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 8px">
+  <a class="btn btn-primary btn-sm" href="/plans/strategist">Application strategist</a>
   <a class="btn btn-primary btn-sm" href="/plans/grade">Grade my list</a>
   <a class="btn btn-primary btn-sm" href="/plans/simulate">Simulate admissions</a>
   <a class="btn btn-primary btn-sm" href="/plans/add">Schools to add</a>
@@ -11841,6 +11853,331 @@ def plans_grade_page():
 
 <p style="margin-top:24px"><a class="btn btn-light" href="/plans">← Back to My colleges</a> <a class="btn btn-primary" href="/plans/simulate">Run admissions simulator →</a></p>
 """, title="List grade — Candor")
+
+
+# ─── APPLICATION STRATEGIST (premium AI feature) ──────────
+_STRATEGIST_PROMPT_VERSION = 1
+
+
+def _strategist_gather(uid):
+    """Merge the user's college list from saved_chances + saved_schools.
+    Returns (profile, items) where each item has slug, round, computed
+    odds (or None), and whether chances were computed."""
+    profile = get_profile(uid) or {}
+    with db() as conn:
+        chances = conn.execute(
+            "SELECT college_slug, tier, odds_low, odds_high, application_round "
+            "FROM saved_chances WHERE user_id=? AND computed_at >= ?",
+            (uid, SAVED_CHANCES_MIN_VALID_AT)
+        ).fetchall()
+        saved = conn.execute(
+            "SELECT college_slug, application_round FROM saved_schools WHERE user_id=?",
+            (uid,)
+        ).fetchall()
+    chance_slugs = {r["college_slug"] for r in chances}
+    items = []
+    for r in chances:
+        items.append({
+            "slug": r["college_slug"], "tier": r["tier"],
+            "odds_low": r["odds_low"], "odds_high": r["odds_high"],
+            "round": r["application_round"], "computed": True,
+        })
+    for r in saved:
+        if r["college_slug"] in chance_slugs:
+            continue
+        items.append({
+            "slug": r["college_slug"], "tier": None,
+            "odds_low": None, "odds_high": None,
+            "round": r["application_round"], "computed": False,
+        })
+    return profile, items
+
+
+def _strategist_input_hash(profile, items):
+    """Cache key — changes when the list, rounds, computed odds, or the
+    profile fields the strategy depends on change."""
+    import hashlib
+    parts = [str(_STRATEGIST_PROMPT_VERSION)]
+    for k in ("uw_gpa", "weighted_gpa", "sat", "act", "major",
+              "ecs", "leadership", "awards"):
+        parts.append(f"{k}={profile.get(k)}")
+    for it in sorted(items, key=lambda x: x["slug"]):
+        parts.append(f"{it['slug']}:{it['round']}:{it['odds_low']}:{it['odds_high']}")
+    return hashlib.sha1("|".join(parts).encode("utf-8")).hexdigest()[:16]
+
+
+def generate_strategy(profile, items):
+    """One Claude call: read the student's profile + full college list and
+    return a strategic plan — tier classification, round strategy, gaps to
+    fill, and prioritized next steps. Returns a dict or None on failure."""
+    if not items:
+        return None
+    list_lines = []
+    for it in items:
+        c = COLLEGES_BY_SLUG.get(it["slug"])
+        if not c:
+            continue
+        if it["computed"] and it["odds_low"] is not None:
+            odds = f"this student's odds {it['odds_low']}-{it['odds_high']}%"
+        else:
+            odds = "odds not yet computed"
+        rnd = ROUND_DISPLAY.get(it["round"], "round undecided")
+        list_lines.append(
+            f"{c['slug']}|{c['name']}|{round(c['accept']*100,1)}% overall admit|{odds}|{rnd}"
+        )
+    if not list_lines:
+        return None
+    in_list = {it["slug"] for it in items}
+    cat_lines = [
+        f"{c['slug']}|{c['name']}|{round(c['accept']*100,1)}% admit|"
+        f"{city_state(c)}|{','.join(c.get('majors', [])[:4])}"
+        for c in COLLEGES if c["slug"] not in in_list
+    ]
+
+    sys = (
+        "You are a seasoned, blunt college admissions strategist. A student "
+        "gives you their academic profile and current college list. Produce a "
+        "concrete, honest strategic plan — not generic encouragement.\n\n"
+        "Tier definitions (classify EVERY school in their list):\n"
+        "- Reach: realistic admit chance well under ~35% for THIS student.\n"
+        "- Target: roughly 35-75% — where most acceptances should come from.\n"
+        "- Safety: high confidence (>~80%) AND a school they'd be content to "
+        "attend. Use the student's computed odds when given; otherwise judge "
+        "from the school's admit rate against the student's stats.\n\n"
+        "A balanced list has at least one true safety, several targets, and a "
+        "capped number of reaches. Call out top-heavy lists (mostly reaches), "
+        "thin lists (under ~6 schools), and lists with no safety.\n\n"
+        "Round strategy: Early Decision is binding and gives the biggest odds "
+        "bump — recommend ONE school to ED only if it's strong-but-reachable "
+        "and the student would genuinely commit. Early Action is non-binding; "
+        "encourage using it. Name specific schools.\n\n"
+        "Return ONLY JSON, no markdown, no prose outside the object:\n"
+        '{"headline": "<=12 word verdict on the list", '
+        '"assessment": "2-4 honest sentences on the list overall", '
+        '"schools": [{"slug": "...", "tier": "Reach|Target|Safety", '
+        '"action": "Keep|Reconsider", "note": "one specific sentence"}], '
+        '"round_strategy": "2-3 sentences naming specific schools to ED/EA", '
+        '"additions": [{"slug": "...", "reason": "..."}], '
+        '"priorities": ["3-5 concrete next steps, most important first"]}\n'
+        "Include every school from their list in \"schools\". Pick 2-4 "
+        "\"additions\" from the CANDIDATE catalog that fill real gaps. Every "
+        "slug MUST come exactly from the lists provided. You may use **bold** "
+        "inside assessment/note/round_strategy/priorities text."
+    )
+    usr = (
+        "STUDENT PROFILE:\n"
+        f"Unweighted GPA: {profile.get('uw_gpa') or '?'}  "
+        f"Weighted GPA: {profile.get('weighted_gpa') or '?'}\n"
+        f"SAT: {profile.get('sat') or '—'}  ACT: {profile.get('act') or '—'}\n"
+        f"Intended major: {profile.get('major') or 'undecided'}\n"
+        f"Extracurriculars: {(profile.get('ecs') or '—')[:600]}\n"
+        f"Leadership: {(profile.get('leadership') or '—')[:300]}\n"
+        f"Awards: {(profile.get('awards') or '—')[:300]}\n\n"
+        "CURRENT COLLEGE LIST — slug|name|admit rate|odds|round:\n"
+        + "\n".join(list_lines)
+        + "\n\nCANDIDATE catalog for additions — slug|name|admit rate|location|majors:\n"
+        + "\n".join(cat_lines)
+    )
+    raw = _claude("claude-haiku-4-5-20251001", sys, usr, max_tokens=2600)
+    if not raw:
+        return None
+    import json as _json
+    import re as _re
+    raw = raw.strip()
+    if raw.startswith("```"):
+        raw = _re.sub(r"^```[a-z]*\n?", "", raw)
+        raw = _re.sub(r"\n?```$", "", raw).strip()
+    try:
+        data = _json.loads(raw)
+    except Exception:
+        m = _re.search(r"\{.*\}", raw, _re.S)
+        if not m:
+            return None
+        try:
+            data = _json.loads(m.group(0))
+        except Exception:
+            return None
+    if not isinstance(data, dict):
+        return None
+    # Validate / sanitize
+    schools = []
+    for s in data.get("schools") or []:
+        if not isinstance(s, dict):
+            continue
+        slug = s.get("slug")
+        if slug not in in_list:
+            continue
+        tier = s.get("tier") if s.get("tier") in ("Reach", "Target", "Safety") else "Target"
+        action = s.get("action") if s.get("action") in ("Keep", "Reconsider") else "Keep"
+        schools.append({"slug": slug, "tier": tier, "action": action,
+                        "note": str(s.get("note", ""))[:300]})
+    additions, seen = [], set()
+    for a in data.get("additions") or []:
+        if not isinstance(a, dict):
+            continue
+        slug = a.get("slug")
+        if slug in COLLEGES_BY_SLUG and slug not in in_list and slug not in seen:
+            seen.add(slug)
+            additions.append({"slug": slug, "reason": str(a.get("reason", ""))[:300]})
+    priorities = [str(p)[:240] for p in (data.get("priorities") or []) if str(p).strip()]
+    if not schools:
+        return None
+    return {
+        "headline": str(data.get("headline", "Your application strategy"))[:160],
+        "assessment": str(data.get("assessment", ""))[:900],
+        "schools": schools,
+        "round_strategy": str(data.get("round_strategy", ""))[:900],
+        "additions": additions,
+        "priorities": priorities[:6],
+    }
+
+
+def _strategist_render(strategy):
+    from html import escape as _esc
+    import re as _re
+
+    def _bold(s):
+        return _re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', _esc(str(s)))
+
+    headline = _esc(strategy.get("headline") or "Your application strategy")
+    assessment = _bold(strategy.get("assessment") or "")
+
+    tier_col = {"Reach": "#fbbf24", "Target": "#5eead4", "Safety": "#86efac"}
+    groups = {"Reach": [], "Target": [], "Safety": []}
+    for s in strategy.get("schools") or []:
+        if s.get("tier") in groups:
+            groups[s["tier"]].append(s)
+
+    schools_html = ""
+    for tier in ("Reach", "Target", "Safety"):
+        grp = groups[tier]
+        if not grp:
+            continue
+        col = tier_col[tier]
+        cards = ""
+        for s in grp:
+            c = COLLEGES_BY_SLUG.get(s.get("slug"))
+            if not c:
+                continue
+            action = s.get("action") or "Keep"
+            acol = "#fca5a5" if action == "Reconsider" else "#86efac"
+            cards += f'''
+<div class="card" style="padding:14px;border-left:3px solid {col}">
+  <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">
+    <div style="font-weight:700">{c["name"]}</div>
+    <span style="font-size:.74em;font-weight:700;color:{acol};white-space:nowrap">{_esc(action)}</span>
+  </div>
+  <div class="muted" style="font-size:.82em;margin-top:2px">{city_state(c)} · {round(c["accept"]*100,1)}% accept</div>
+  <div style="margin-top:8px;font-size:.9em;line-height:1.5">{_bold(s.get("note") or "")}</div>
+</div>'''
+        schools_html += (
+            f'<h2 style="margin-top:24px">{tier} '
+            f'<span class="muted" style="font-size:.6em;font-weight:400">({len(grp)})</span></h2>'
+            f'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px">{cards}</div>'
+        )
+
+    add_cards = ""
+    for a in strategy.get("additions") or []:
+        c = COLLEGES_BY_SLUG.get(a.get("slug"))
+        if not c:
+            continue
+        add_cards += f'''
+<div class="card" style="padding:14px">
+  <div style="font-weight:700">{c["name"]}</div>
+  <div class="muted" style="font-size:.82em">{city_state(c)} · {round(c["accept"]*100,1)}% accept</div>
+  <div style="margin-top:8px;font-size:.9em;line-height:1.5">{_bold(a.get("reason") or "")}</div>
+  <form method="post" action="/save/{c['slug']}" style="margin-top:10px">
+    {csrf_input()}
+    <input type="hidden" name="next" value="/plans/strategist">
+    <button class="btn btn-primary btn-sm" type="submit">+ Add to my list</button>
+  </form>
+</div>'''
+    add_section = ""
+    if add_cards:
+        add_section = (
+            '<h2 style="margin-top:24px">Schools to consider adding</h2>'
+            '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px">'
+            f'{add_cards}</div>'
+        )
+
+    round_html = _bold(strategy.get("round_strategy") or "")
+    prio_html = "".join(
+        f'<li style="margin:8px 0;line-height:1.6">{_bold(p)}</li>'
+        for p in (strategy.get("priorities") or [])
+    )
+
+    return _page(f'''
+<div class="bar"><a href="/plans">← Back to My colleges</a></div>
+<h1>Application strategist</h1>
+<p class="muted">An AI read of your full list and profile — tier balance, round strategy, gaps, and what to do next. <a href="/plans/strategist?regen=1">Regenerate</a></p>
+
+<div class="card" style="background:linear-gradient(135deg,#0f3a37 0%,#0a131c 100%);border:1px solid rgba(94,234,212,.3);padding:24px">
+  <div style="font-size:1.15em;font-weight:700;color:#5eead4;margin-bottom:8px">{headline}</div>
+  <div style="line-height:1.6">{assessment}</div>
+</div>
+
+{schools_html}
+
+<h2 style="margin-top:24px">Round strategy</h2>
+<div class="card"><div style="line-height:1.6">{round_html}</div></div>
+
+{add_section}
+
+<h2 style="margin-top:24px">Your priorities</h2>
+<div class="card"><ol style="padding-left:20px;margin:0">{prio_html or '<li>No specific actions — your list looks solid.</li>'}</ol></div>
+
+<p style="margin-top:24px"><a class="btn btn-light" href="/plans">← Back to My colleges</a> <a class="btn btn-primary" href="/plans/grade">See list grade →</a></p>
+''', title="Application strategist — Candor")
+
+
+@app.route("/plans/strategist")
+@login_required
+def plans_strategist_page():
+    gate = _gate_premium()
+    if gate:
+        return gate
+    uid = current_user()["id"]
+    profile, items = _strategist_gather(uid)
+    if not items:
+        return _page('''
+<div class="bar"><a href="/plans">← Back to My colleges</a></div>
+<h1>Application strategist</h1>
+<div class="card"><p class="muted">Your list is empty — save a few schools or run chances first, and the strategist will build you a plan.</p>
+<a class="btn btn-primary" href="/colleges">Browse colleges</a></div>
+''', title="Application strategist — Candor")
+
+    h = _strategist_input_hash(profile, items)
+    regen = request.args.get("regen") == "1"
+    strategy = None
+    with db() as conn:
+        row = conn.execute(
+            "SELECT input_hash, body FROM strategist_results WHERE user_id=?",
+            (uid,)
+        ).fetchone()
+    if row and row["input_hash"] == h and not regen:
+        try:
+            strategy = json.loads(row["body"])
+        except Exception:
+            strategy = None
+    if strategy is None:
+        strategy = generate_strategy(profile, items)
+        if not strategy:
+            return _page('''
+<div class="bar"><a href="/plans">← Back to My colleges</a></div>
+<h1>Application strategist</h1>
+<div class="card"><p class="muted">Couldn't build your strategy just now — please try again in a moment.</p>
+<a class="btn btn-primary" href="/plans/strategist?regen=1">Try again</a></div>
+''', title="Application strategist — Candor")
+        with db() as conn:
+            conn.execute(
+                "INSERT INTO strategist_results (user_id, input_hash, body, generated_at) "
+                "VALUES (?,?,?,CURRENT_TIMESTAMP) "
+                "ON CONFLICT(user_id) DO UPDATE SET input_hash=excluded.input_hash, "
+                "body=excluded.body, generated_at=CURRENT_TIMESTAMP",
+                (uid, h, json.dumps(strategy))
+            )
+            conn.commit()
+    return _strategist_render(strategy)
 
 
 def _poisson_binomial_at_least(probs, k):
