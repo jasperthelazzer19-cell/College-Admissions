@@ -1675,7 +1675,7 @@ def _render_counterfactual_card(profile, school, current_low, current_high):
             arrow = "↑"
         rows += f'''<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-top:1px solid var(--border);font-size:.92em;gap:12px;flex-wrap:wrap">
   <div style="flex:1;min-width:160px">{label}</div>
-  <div style="white-space:nowrap"><span class="muted">{int(current_low)}–{int(current_high)}%</span> <span style="color:{color};font-weight:700;margin:0 4px">{arrow}</span> <b style="color:{color}">{int(lo)}–{int(hi)}%</b> <span style="color:{color};font-size:.85em">(+{delta:.0f})</span></div>
+  <div style="white-space:nowrap"><span class="muted">{int(current_low)}–{int(current_high)}%</span> <span style="color:{color};font-weight:700;margin:0 4px">{arrow}</span> <b style="color:{color}">{int(lo)}–{int(hi)}%</b> <span style="color:{color};font-size:.85em">({delta:+.0f})</span></div>
 </div>'''
 
     return f'''<div class="card" style="margin-top:18px">
@@ -3290,7 +3290,7 @@ RANKINGS = [
         "slug": "best-overall",
         "title": "Best Overall Universities",
         "blurb": "Top US national universities, ordered to match US News 2026 reference rankings (released Fall 2025).",
-        "order": ["princeton","mit","harvard","stanford","yale","caltech","duke","jhu","northwestern","upenn","cornell","brown","uchicago","columbia","ucla","ucb","dartmouth","notre-dame","vanderbilt","rice","washu","cmu","umich","emory","uva","gatech","unc","usc","georgetown","cmu","nyu","tufts","wake-forest","case","bc","tulane","villanova","ut-austin","wisc","lehigh","umd","wm","uf","brandeis","northeastern","gwu","stevens","miami","fordham","american","bu","binghamton","pitt","clemson","umn","uw","udel","gmu","temple","drexel","ohio-state","penn-state","msu","sc","sdsu","fsu","auburn","purdue","uconn","rutgers","vt","unh","uoregon","uvm"],
+        "order": ["princeton","mit","harvard","stanford","yale","caltech","duke","jhu","northwestern","upenn","cornell","brown","uchicago","columbia","ucla","ucb","dartmouth","notre-dame","vanderbilt","rice","washu","cmu","umich","emory","uva","gatech","unc","usc","georgetown","nyu","tufts","wake-forest","case","bc","tulane","villanova","ut-austin","wisc","lehigh","umd","wm","uf","brandeis","northeastern","gwu","stevens","miami","fordham","american","bu","binghamton","pitt","clemson","umn","uw","udel","gmu","temple","drexel","ohio-state","penn-state","msu","sc","sdsu","fsu","auburn","purdue","uconn","rutgers","vt","unh","uoregon","uvm"],
     },
     {
         "slug": "best-business",
@@ -4166,12 +4166,18 @@ def get_or_evaluate_exceptionality(user_id, profile):
         return bool(profile.get("is_exceptional")), profile.get("exceptional_reason") or ""
     # Otherwise recompute and persist
     is_exc, reason = evaluate_profile_exceptionality(profile)
+    prev_exc = bool(profile.get("is_exceptional"))
     try:
         with db() as conn:
             conn.execute(
                 "UPDATE profiles SET is_exceptional=?, exceptional_reason=?, exceptional_evaluated_at=CURRENT_TIMESTAMP WHERE user_id=?",
                 (1 if is_exc else 0, reason[:500], user_id)
             )
+            # The exceptional flag changes the odds caps in estimate_odds, so any
+            # cached chances were computed under the wrong assumption — drop them
+            # so the next /chances visit recomputes with the correct caps.
+            if is_exc != prev_exc:
+                conn.execute("DELETE FROM saved_chances WHERE user_id=?", (user_id,))
             conn.commit()
     except Exception as e:
         print(f"Exceptionality persist error: {e}")
@@ -5109,6 +5115,14 @@ def parse_pref_weights_form(form):
 
 _LEGACY_COUNT_RE = re.compile(r"\s*(?:[\(\[]?\s*(\d+)\s*x?\s*[\)\]]?|x\s*(\d+))\s*$", re.IGNORECASE)
 
+# Generic words that appear in many school names. The word-subset matcher must
+# never match on these alone — otherwise "university" or "college" would grant
+# a legacy bonus at every school whose name contains that word.
+_LEGACY_GENERIC_WORDS = {
+    "university", "college", "institute", "school", "of", "the", "and",
+    "state", "tech", "technology", "polytechnic", "a", "at",
+}
+
 
 # Common short-name aliases users type → canonical slug. Used to disambiguate
 # "Penn" (UPenn, NOT Penn State) and "MIT" (MIT, NOT Smith), etc. Naive
@@ -5185,8 +5199,11 @@ def legacy_generations_at(profile, school):
                 # 4. Word-boundary subset: every word in user input is a word
                 # in the school's name. Rejects "MIT" → "Smith" and similar
                 # substring traps; accepts "Bowdoin College" → Bowdoin.
+                # Require at least one distinctive word — otherwise generic
+                # input like "university" or "college" matches every school.
                 user_words = set(_re.findall(r"\w+", name))
-                if user_words and user_words.issubset(name_words):
+                distinctive = user_words - _LEGACY_GENERIC_WORDS
+                if distinctive and distinctive.issubset(name_words):
                     matched = True
         if matched:
             best = max(best, count)
@@ -10880,10 +10897,10 @@ SCHOOL_DEADLINE_OVERRIDES = {
     "georgetown":   {"EA":  ("Nov 1, 2026",  2026, 11, 1)},
     "uchicago":     {"EA":  ("Nov 1, 2026",  2026, 11, 1)},
     "notre-dame":   {"REA": ("Nov 1, 2026",  2026, 11, 1)},
-    "michigan":     {"EA":  ("Nov 1, 2026",  2026, 11, 1), "RD": ("Feb 1, 2027", 2027, 2, 1)},
+    "umich":        {"EA":  ("Nov 1, 2026",  2026, 11, 1), "RD": ("Feb 1, 2027", 2027, 2, 1)},
     "unc":          {"EA":  ("Oct 15, 2026", 2026, 10, 15), "RD": ("Jan 15, 2027", 2027, 1, 15)},
     "uva":          {"EA":  ("Nov 1, 2026",  2026, 11, 1)},
-    "berkeley":     {"RD":  ("Nov 30, 2026", 2026, 11, 30)},
+    "ucb":          {"RD":  ("Nov 30, 2026", 2026, 11, 30)},
     "ucla":         {"RD":  ("Nov 30, 2026", 2026, 11, 30)},
     "stanford":     {"REA": ("Nov 1, 2026",  2026, 11, 1)},
 }
@@ -11958,8 +11975,6 @@ def simulate_admissions(uid):
                          "round_label": ROUND_DISPLAY.get(it["round"], "Round undecided")})
 
     expected = sum(probs) if probs else 0.0
-    p_at_least_1 = 1.0 - _poisson_binomial_at_least(probs, 0) if not probs else (1.0 - _poisson_binomial_pmf_zero(probs))
-    # Compute via the dp directly:
     p_at_least_1 = _poisson_binomial_at_least(probs, 1)
     p_at_least_3 = _poisson_binomial_at_least(probs, 3)
 
@@ -11972,13 +11987,6 @@ def simulate_admissions(uid):
         "n_total": len([r for r in sim_rows if r["computed"]]),
         "n_uncomputed": sum(1 for r in sim_rows if not r["computed"]),
     }
-
-
-def _poisson_binomial_pmf_zero(probs):
-    """P(zero successes) — equivalent to product of (1-p_i)."""
-    p = 1.0
-    for x in probs: p *= (1 - x)
-    return p
 
 
 @app.route("/plans/compute-all", methods=["POST"])
