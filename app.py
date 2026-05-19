@@ -10137,6 +10137,7 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
         except Exception:
             return 0
     hero_video_url = url_for('static', filename='hero-campus.mp4') + f"?v={_asset_ver('hero-campus.mp4')}"
+    hero_video_mobile_url = url_for('static', filename='hero-campus-mobile.mp4') + f"?v={_asset_ver('hero-campus-mobile.mp4')}"
     hero_poster_url = url_for('static', filename='hero-campus.jpg') + f"?v={_asset_ver('hero-campus.jpg')}"
     body = f"""
 <script>
@@ -10182,6 +10183,7 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
 <main class="lp-wrap">
   <section class="hero hero-grid">
    <video class="hero-bg-video" muted playsinline preload="auto" poster="{hero_poster_url}" aria-hidden="true" tabindex="-1">
+     <source src="{hero_video_mobile_url}" type="video/mp4" media="(max-width: 768px)">
      <source src="{hero_video_url}" type="video/mp4">
    </video>
    <div class="hero-bg-overlay" aria-hidden="true"></div>
