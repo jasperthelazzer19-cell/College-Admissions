@@ -11714,7 +11714,19 @@ def plans_grade_page():
 
 
 # ─── APPLICATION STRATEGIST (premium AI feature) ──────────
-_STRATEGIST_PROMPT_VERSION = 1
+_STRATEGIST_PROMPT_VERSION = 2
+
+
+def _test_range(c):
+    """Compact admitted-student test ranges for a college, for the strategist
+    prompt. Surfaces the school's real SAT and ACT middle-50% so the model
+    never has to guess medians or convert between the two tests."""
+    parts = []
+    if c.get("sat_25") and c.get("sat_75"):
+        parts.append(f"SAT {c['sat_25']}-{c['sat_75']}")
+    if c.get("act_25") and c.get("act_75"):
+        parts.append(f"ACT {c['act_25']}-{c['act_75']}")
+    return "mid-50%: " + (", ".join(parts) if parts else "n/a")
 
 
 def _strategist_gather(uid):
@@ -11781,14 +11793,15 @@ def generate_strategy(profile, items):
             odds = "odds not yet computed"
         rnd = ROUND_DISPLAY.get(it["round"], "round undecided")
         list_lines.append(
-            f"{c['slug']}|{c['name']}|{round(c['accept']*100,1)}% overall admit|{odds}|{rnd}"
+            f"{c['slug']}|{c['name']}|{round(c['accept']*100,1)}% overall admit|"
+            f"{_test_range(c)}|{odds}|{rnd}"
         )
     if not list_lines:
         return None
     in_list = {it["slug"] for it in items}
     cat_lines = [
         f"{c['slug']}|{c['name']}|{round(c['accept']*100,1)}% admit|"
-        f"{city_state(c)}|{','.join(c.get('majors', [])[:4])}"
+        f"{_test_range(c)}|{city_state(c)}|{','.join(c.get('majors', [])[:4])}"
         for c in COLLEGES if c["slug"] not in in_list
     ]
 
@@ -11802,6 +11815,19 @@ def generate_strategy(profile, items):
         "- Safety: high confidence (>~80%) AND a school they'd be content to "
         "attend. Use the student's computed odds when given; otherwise judge "
         "from the school's admit rate against the student's stats.\n\n"
+        "TEST SCORES — read carefully:\n"
+        "- Every school line includes that school's admitted middle-50% "
+        "ranges for the SAT (out of 1600) and the ACT (out of 36).\n"
+        "- The student may report an SAT score, an ACT score, or both. "
+        "Compare the student's score to the school's range FOR THE SAME TEST "
+        "the student took. If the student reports only an ACT, judge them "
+        "against the school's ACT range — never against its SAT range.\n"
+        "- Do NOT convert between SAT and ACT, and do NOT invent, recall, or "
+        "estimate any test medians. Use ONLY the ranges given in the data.\n"
+        "- A score at/above a school's 75th percentile is a strength; below "
+        "its 25th is a real weakness; in between is on-range. When you "
+        "mention test scores in a note, cite the school's actual range.\n"
+        "- If the student reports no test score, do not speculate about one.\n\n"
         "A balanced list has at least one true safety, several targets, and a "
         "capped number of reaches. Call out top-heavy lists (mostly reaches), "
         "thin lists (under ~6 schools), and lists with no safety.\n\n"
@@ -11831,9 +11857,9 @@ def generate_strategy(profile, items):
         f"Extracurriculars: {(profile.get('ecs') or '—')[:600]}\n"
         f"Leadership: {(profile.get('leadership') or '—')[:300]}\n"
         f"Awards: {(profile.get('awards') or '—')[:300]}\n\n"
-        "CURRENT COLLEGE LIST — slug|name|admit rate|odds|round:\n"
+        "CURRENT COLLEGE LIST — slug|name|admit rate|test ranges|odds|round:\n"
         + "\n".join(list_lines)
-        + "\n\nCANDIDATE catalog for additions — slug|name|admit rate|location|majors:\n"
+        + "\n\nCANDIDATE catalog for additions — slug|name|admit rate|test ranges|location|majors:\n"
         + "\n".join(cat_lines)
     )
     raw = _claude("claude-haiku-4-5-20251001", sys, usr, max_tokens=2600)
