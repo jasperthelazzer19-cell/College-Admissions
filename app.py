@@ -4707,21 +4707,6 @@ def init_db():
                 conn.execute(f"ALTER TABLE profiles ADD COLUMN {col_def}")
             except sqlite3.OperationalError:
                 pass
-        # "What I want in a college" free-text + cached My Match results
-        # (premium feature, May 2026). One AI call ranks all schools against
-        # the free-text; cached by a hash of the text so it regenerates only
-        # when the user rewrites their preferences.
-        try:
-            conn.execute("ALTER TABLE profiles ADD COLUMN pref_freetext TEXT DEFAULT ''")
-        except sqlite3.OperationalError:
-            pass
-        conn.execute("""CREATE TABLE IF NOT EXISTS match_results (
-            user_id INTEGER PRIMARY KEY,
-            prefs_hash TEXT NOT NULL,
-            body TEXT NOT NULL,
-            generated_at TEXT DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
-        )""")
         # Application Strategist (premium, May 2026). One AI call reads the
         # user's whole college list + profile and returns a strategic plan.
         # Cached by a hash of the list + profile so it regenerates only when
@@ -5005,13 +4990,6 @@ def save_profile(user_id, p):
             )
         except Exception as e:
             print(f"subscore save failed: {e}")
-        try:
-            conn.execute(
-                "UPDATE profiles SET pref_freetext=? WHERE user_id=?",
-                (p.get("pref_freetext") or "", user_id),
-            )
-        except Exception as e:
-            print(f"pref_freetext save failed: {e}")
         conn.commit()
 
 
@@ -6035,7 +6013,7 @@ NAV = """<div class="nav"><a class="brand" href="/">""" + CANDOR_LOGO_SVG + """C
 <a href="/improve">Improve</a>
 <a href="/plans">My Colleges</a>
 <a href="/plans/grade">List Grade</a>
-<a href="/match">My Match</a>
+<a href="/plans/strategist">Strategist</a>
 <a href="/upgrade" style="color:#5eead4">Premium</a>
 <span class="sp"></span>
 __USER_LINKS__
@@ -6919,22 +6897,7 @@ def profile_html():
     p = get_profile(current_user()["id"]) or {}
     def v(k): return (p.get(k) if p.get(k) is not None else "")
     _is_paid = bool(current_user().get("is_paid"))
-    if _is_paid:
-        match_section = f'''
-  <h3 id="match">What I want in a college</h3>
-  <p class="muted" style="font-size:.85em;margin:-2px 0 8px">Describe your ideal college in your own words — vibe, location, academics, social scene, anything. Candor's <b>My Match</b> reads this and ranks all schools by how well each one fits what you wrote.</p>
-  <textarea name="pref_freetext" rows="4" placeholder="e.g. I want a medium-sized school with a strong CS program and an entrepreneurial culture — somewhere in or near a city, not too cold, where students are collaborative rather than cutthroat.">{v('pref_freetext')}</textarea>
-  <p class="muted" style="font-size:.78em;margin:4px 0 0">After you save, see your ranked matches on the <a href="/match">My Match</a> page.</p>
-'''
-    else:
-        match_section = '''
-  <h3 id="match">What I want in a college <span style="font-size:.55em;color:#5eead4;border:1px solid rgba(94,234,212,.4);border-radius:4px;padding:2px 6px;vertical-align:middle;letter-spacing:.5px">PREMIUM</span></h3>
-  <p class="muted" style="font-size:.85em;margin:-2px 0 8px">Describe your ideal college in your own words and Candor's <b>My Match</b> ranks every school by how well it fits.</p>
-  <div class="card" style="background:rgba(94,234,212,.06);border-color:rgba(94,234,212,.3);padding:16px">
-    <textarea rows="3" disabled placeholder="Unlock with Premium to describe your ideal college and get every school ranked against it." style="opacity:.6"></textarea>
-    <a class="btn btn-primary btn-sm" href="/upgrade" style="margin-top:8px;display:inline-block">Unlock My Match — $10 once →</a>
-  </div>
-'''
+    match_section = ""
     checked = lambda k: 'checked' if p.get(k) else ''
     return _page(f"""
 <h1>Your profile</h1>
@@ -9441,7 +9404,6 @@ def _read_profile_form(form):
         "ecs": 4000, "leadership": 2000, "awards": 2000,
         "legacy_schools": 500, "major": 200, "state": 100,
         "aps": 2000, "ibs": 2000, "portfolio": 1500,
-        "pref_freetext": 1500,
     }
     try:
         from bleach import clean as _bleach
@@ -9487,7 +9449,6 @@ def _read_profile_form(form):
         "leadership": f("leadership") or "",
         "awards": f("awards") or "",
         "portfolio": f("portfolio") or "",
-        "pref_freetext": f("pref_freetext") or "",
         "legacy_schools": (f("legacy_schools") or "").strip(),
         "first_gen": form.get("first_gen") in ("yes","on","true","1"),
         "athlete": form.get("athlete") in ("yes","on","true","1"),
@@ -11698,204 +11659,6 @@ def plans_add_explain(slug):
     return jsonify({"text": txt.strip()})
 
 
-# ─── PREMIUM: "MY MATCH" — free-text college matcher ───
-# Bump when the My Match prompt changes — invalidates every cached result
-# so users auto-regenerate against the new prompt on their next visit.
-_MATCH_PROMPT_VERSION = "2"
-
-
-def _match_prefs_hash(text):
-    import hashlib
-    keyed = f"{_MATCH_PROMPT_VERSION}|{(text or '').strip()}"
-    return hashlib.sha1(keyed.encode("utf-8")).hexdigest()[:16]
-
-
-def generate_match_results(wish, profile):
-    """One Haiku call: rank every school against the user's free-text
-    description of their ideal college. Returns a list of
-    {slug, score, reason} sorted high-to-low, or None on failure."""
-    lines = []
-    for c in COLLEGES:
-        lines.append(
-            f"{c['slug']}|{c['name']}|{c['type']}|{city_state(c)}|"
-            f"{REGION_BY_STATE.get(c.get('state',''),'?')}|"
-            f"{_size_bucket(c.get('size',0))} ({c.get('size','?')} undergrads)|"
-            f"{','.join(c.get('majors',[])[:5])}|{(c.get('desc','') or '')[:150]}"
-        )
-    catalog = "\n".join(lines)
-    sys = (
-        "You match a student's described ideal college to a catalog of real "
-        "colleges. 'Match' means ONE thing: how well a school's actual "
-        "character fits what THIS student asked for. It is NOT about prestige, "
-        "rank, selectivity, or how strong the school is in general. A famous, "
-        "elite school that does not fit what the student described is a BAD "
-        "match and must score low.\n\n"
-        "How to score each school 0-100:\n"
-        "1. Extract the student's concrete criteria — size, social scene, "
-        "academic vibe, collaboration vs. competition, location, fields of "
-        "interest, school spirit, party culture, etc.\n"
-        "2. Score by how many of THOSE criteria the school actually satisfies.\n"
-        "3. Penalize mismatches hard. Wrong size (they want medium; school is "
-        "small or large) = big deduction. Wrong culture (they want collaborative "
-        "and not cutthroat; school is known as intense/cutthroat/competitive) = "
-        "big deduction — this applies to elite schools too.\n"
-        "4. Ignore prestige and admit rate completely. Never reward a school for "
-        "being famous, highly ranked, or hard to get into.\n"
-        "5. Use the FULL 0-100 range and spread scores out. Fits nearly "
-        "everything = 85-100. Fits about half = 50-70. Fits little = under 40. "
-        "Do NOT cluster every school in the 80s-90s.\n"
-        "6. Actively surface strong-fit schools that are NOT famous names — the "
-        "best match is often not the most well-known school.\n"
-        "7. reason = one honest sentence. If the school fits overall but has a "
-        "real tradeoff against what they asked for, say so plainly.\n\n"
-        "Return ONLY a JSON array of the 30 best matches, each "
-        '{"slug":"...","score":int,"reason":"..."}. No prose, no markdown.'
-    )
-    usr = (f"STUDENT'S IDEAL COLLEGE (their own words):\n{wish}\n\n"
-           f"Intended major: {profile.get('major') or 'undecided'}\n\n"
-           f"Score every school on fit to the description above — not on how "
-           f"good or famous the school is.\n\n"
-           f"CATALOG — slug|name|type|location|region|size|majors|description:\n"
-           f"{catalog}")
-    raw = _claude("claude-haiku-4-5-20251001", sys, usr, max_tokens=2800)
-    if not raw:
-        return None
-    import json, re as _re
-    raw = raw.strip()
-    if raw.startswith("```"):
-        raw = _re.sub(r"^```[a-z]*\n?", "", raw)
-        raw = _re.sub(r"\n?```$", "", raw).strip()
-    try:
-        data = json.loads(raw)
-    except Exception:
-        m = _re.search(r"\[.*\]", raw, _re.S)
-        if not m:
-            return None
-        try:
-            data = json.loads(m.group(0))
-        except Exception:
-            return None
-    out, seen = [], set()
-    for d in data if isinstance(data, list) else []:
-        if not isinstance(d, dict):
-            continue
-        slug = d.get("slug")
-        if slug in COLLEGES_BY_SLUG and slug not in seen:
-            seen.add(slug)
-            try:
-                score = max(0, min(100, int(d.get("score", 0))))
-            except (TypeError, ValueError):
-                score = 0
-            out.append({"slug": slug, "score": score,
-                        "reason": str(d.get("reason", ""))[:300]})
-    out.sort(key=lambda x: x["score"], reverse=True)
-    return out or None
-
-
-def _match_card_html(m):
-    c = COLLEGES_BY_SLUG.get(m["slug"])
-    if not c:
-        return ""
-    sc = m["score"]
-    col = "#86efac" if sc >= 80 else ("#5eead4" if sc >= 60 else ("#fbbf24" if sc >= 40 else "#fca5a5"))
-    from html import escape as _esc
-    return f'''
-<div class="card" style="padding:16px">
-  <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap">
-    <div>
-      <div style="font-weight:700;font-size:1.06em">{c['name']}</div>
-      <div class="muted" style="font-size:.82em">{city_state(c)} · {round(c['accept']*100,1)}% accept</div>
-    </div>
-    <div style="text-align:center">
-      <div style="font-size:1.7em;font-weight:800;color:{col};line-height:1">{sc}</div>
-      <div class="muted" style="font-size:.68em;letter-spacing:.6px">MATCH</div>
-    </div>
-  </div>
-  <div style="margin-top:8px;font-size:.9em;line-height:1.5">{_esc(m['reason'])}</div>
-  <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
-    <form method="post" action="/save/{c['slug']}" style="display:inline">
-      {csrf_input()}
-      <input type="hidden" name="next" value="/match">
-      <button class="btn btn-primary btn-sm" type="submit">+ Add to my list</button>
-    </form>
-    <a class="btn btn-light btn-sm" href="/college/{c['slug']}">View school</a>
-  </div>
-</div>'''
-
-
-@app.route("/match")
-@login_required
-def match_page():
-    user = current_user()
-    if not user.get("is_paid"):
-        return _page('''
-<div class="bar"><a href="/profile">← Back to profile</a></div>
-<h1>My Match</h1>
-<p class="muted">Describe your ideal college in your own words — and Candor ranks every school by how well it fits what you wrote.</p>
-<div class="card" style="background:linear-gradient(135deg,#0f3a37 0%,#0a131c 100%);border:1px solid rgba(94,234,212,.3);padding:28px;margin-top:16px;text-align:center">
-  <div style="font-size:.78em;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#5eead4;margin-bottom:8px">Candor Premium · $10 once</div>
-  <h2 style="margin:0 0 12px">Find the schools that fit what you actually want</h2>
-  <p class="muted" style="margin:0 0 16px">Write a few sentences about your ideal college. Candor reads it and scores every school 0–100 on how well it matches — with a specific reason for each.</p>
-  <a class="btn btn-primary" href="/upgrade" style="padding:12px 28px">Upgrade — $10 once →</a>
-</div>
-''', title="My Match — Candor")
-
-    profile = get_profile(user["id"]) or {}
-    wish = (profile.get("pref_freetext") or "").strip()
-    if not wish:
-        return _page('''
-<div class="bar"><a href="/profile">← Back to profile</a></div>
-<h1>My Match</h1>
-<div class="card">
-  <p class="muted">Tell Candor what you're looking for in a college and it'll rank every school against it.</p>
-  <a class="btn btn-primary" href="/profile#match">Describe my ideal college →</a>
-</div>
-''', title="My Match — Candor")
-
-    h = _match_prefs_hash(wish)
-    regen = request.args.get("regen") == "1"
-    results = None
-    with db() as conn:
-        row = conn.execute(
-            "SELECT prefs_hash, body FROM match_results WHERE user_id=?",
-            (user["id"],)
-        ).fetchone()
-    if row and row["prefs_hash"] == h and not regen:
-        try:
-            results = json.loads(row["body"])
-        except Exception:
-            results = None
-    if results is None:
-        results = generate_match_results(wish, profile)
-        if not results:
-            return _page('''
-<div class="bar"><a href="/profile">← Back to profile</a></div>
-<h1>My Match</h1>
-<div class="card"><p class="muted">Couldn't generate matches just now — please try again in a moment.</p>
-<a class="btn btn-primary" href="/match?regen=1">Try again</a></div>
-''', title="My Match — Candor")
-        with db() as conn:
-            conn.execute(
-                "INSERT INTO match_results (user_id, prefs_hash, body, generated_at) "
-                "VALUES (?,?,?,CURRENT_TIMESTAMP) "
-                "ON CONFLICT(user_id) DO UPDATE SET prefs_hash=excluded.prefs_hash, "
-                "body=excluded.body, generated_at=CURRENT_TIMESTAMP",
-                (user["id"], h, json.dumps(results))
-            )
-            conn.commit()
-
-    from html import escape as _esc
-    cards = "".join(_match_card_html(m) for m in results)
-    return _page(f'''
-<div class="bar"><a href="/profile">← Back to profile</a></div>
-<h1>My Match</h1>
-<p class="muted">Every school, ranked by how well it fits what you described. <a href="/profile#match">Edit what you want</a> · <a href="/match?regen=1">Regenerate</a></p>
-<div class="card" style="background:rgba(94,234,212,.05);border-color:rgba(94,234,212,.25);font-size:.9em">
-  <b style="color:#5eead4">What you told Candor:</b> {_esc(wish)}
-</div>
-<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;margin-top:16px">{cards}</div>
-<p style="margin-top:24px"><a class="btn btn-light" href="/profile">← Back to profile</a></p>
-''', title="My Match — Candor")
 
 
 @app.route("/plans/grade")
