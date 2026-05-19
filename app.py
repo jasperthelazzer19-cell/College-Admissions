@@ -9746,15 +9746,72 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
   .reveal { opacity:0; transform:translateY(16px); transition:opacity .7s ease, transform .7s ease; }
   .reveal.in { opacity:1; transform:translateY(0); }
 
-  /* Two-column hero: text + demo on left (wider), orbit pushed right. */
+  /* Full-bleed cinematic hero: a background video sits behind left-aligned
+     content. The section breaks out of .lp-wrap edge-to-edge; .hero-inner
+     re-centers the content to the same 1500px column as the rest of the page. */
   .hero.hero-grid {
-    display:grid;
-    grid-template-columns: minmax(0, 620px) minmax(0, 1fr);
-    gap:60px;
-    align-items:start;
+    display:block;
+    position:relative;
     max-width:none;
+    margin-left: calc(50% - 50vw);
+    margin-right: calc(50% - 50vw);
+    min-height:100vh;
+    min-height:100svh;
+    padding:118px 0 96px;
+    overflow:hidden;
+    background:#070d14;
+    isolation:isolate;
   }
-  .hero.hero-grid .hero-text { max-width:620px; display:flex; flex-direction:column; gap:14px; }
+  .hero-inner {
+    position:relative; z-index:2;
+    max-width:1500px; margin:0 auto; padding:0 24px;
+  }
+  .hero-bg-video, .hero-bg-overlay {
+    position:absolute; inset:0; width:100%; height:100%;
+    pointer-events:none;
+  }
+  .hero-bg-video {
+    z-index:0; object-fit:cover; object-position:50% 42%;
+    filter:brightness(.84) saturate(1.07);
+    transition:filter 1.1s ease;
+  }
+  /* Layered overlays: teal glow (right) + edge vignette + strong left wash
+     for text readability + top/bottom fades that blend the video into the
+     navy page so it never reads as a separate video box. */
+  .hero-bg-overlay {
+    z-index:1;
+    transition:opacity 1.1s ease;
+    background:
+      radial-gradient(58% 68% at 90% 42%, rgba(45,212,191,.20), transparent 72%),
+      radial-gradient(135% 130% at 38% 36%, transparent 46%, rgba(4,9,15,.92) 100%),
+      linear-gradient(101deg, rgba(7,13,20,.97) 0%, rgba(7,13,20,.88) 30%, rgba(7,13,20,.55) 56%, rgba(7,13,20,.30) 82%, rgba(7,13,20,.42) 100%),
+      linear-gradient(180deg, rgba(7,13,20,.96) 0%, rgba(7,13,20,.30) 16%, transparent 40%, transparent 68%, rgba(7,13,20,.92) 100%);
+  }
+  .hero.hero-grid .hero-text { max-width:600px; display:flex; flex-direction:column; gap:14px; }
+  /* Cinematic intro: nav + hero content stay hidden during the fly-in, then
+     fade in once the camera lands. Toggled on <html> by JS only when motion
+     is allowed -- no-JS and reduced-motion visitors see the full page. */
+  html.intro-armed .nav,
+  html.intro-armed .hero-text > * { opacity:0; }
+  html.intro-armed .nav { transform:translateY(-14px); pointer-events:none; }
+  html.intro-armed .hero-text > * { transform:translateY(26px); }
+  html.landed .nav,
+  html.landed .hero-text > * { opacity:1; transform:translateY(0); }
+  html.landed .nav {
+    pointer-events:auto;
+    transition:opacity .8s ease, transform .8s cubic-bezier(.2,.7,.2,1);
+  }
+  html.landed .hero-text > * {
+    transition:opacity .85s ease, transform .85s cubic-bezier(.2,.7,.2,1);
+  }
+  html.landed .hero-text > *:nth-child(1) { transition-delay:.12s; }
+  html.landed .hero-text > *:nth-child(2) { transition-delay:.26s; }
+  html.landed .hero-text > *:nth-child(3) { transition-delay:.40s; }
+  html.intro-armed:not(.landed) .hero-bg-overlay { opacity:.55; }
+  @media (prefers-reduced-motion: reduce) {
+    html.intro-armed .nav,
+    html.intro-armed .hero-text > * { opacity:1; transform:none; }
+  }
   .hero.hero-grid .hero-text-above { display:flex; flex-direction:column; gap:10px; margin-bottom:6px; }
   .hero.hero-grid h1 { font-size:clamp(1.6em, 2.8vw, 2.1em); margin:8px 0 4px; line-height:1.1; }
   .hero.hero-grid p.lede { font-size:.96em; margin:0 0 12px; line-height:1.5; }
@@ -9765,8 +9822,16 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
   .hero.hero-grid .cta-row a { padding:10px 18px; font-size:.92em; }
   .hero.hero-grid .eyebrow { margin-bottom:0; padding:4px 10px; font-size:.72em; }
   @media (max-width:980px) {
-    .hero.hero-grid { grid-template-columns:1fr; gap:36px; }
+    .hero.hero-grid { padding:92px 0 64px!important; }
     .hero.hero-grid .hero-text { max-width:none; }
+    /* Mobile: content spans full width, so darken the whole frame evenly
+       instead of weighting the wash to the left. */
+    .hero-bg-overlay {
+      background:
+        radial-gradient(120% 80% at 80% 10%, rgba(45,212,191,.16), transparent 70%),
+        linear-gradient(180deg, rgba(7,13,20,.93) 0%, rgba(7,13,20,.80) 38%, rgba(7,13,20,.90) 100%);
+    }
+    .hero-bg-video { filter:brightness(.72) saturate(1.06); }
   }
 
   /* Right-column logo wall (image-based via Clearbit). Tiles are uniform
@@ -9891,8 +9956,12 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
   }
   .demo-card {
     display:grid; grid-template-columns: minmax(220px, 1fr) minmax(220px, 1.05fr); gap:0;
-    background:#0d1620; border:1px solid rgba(255,255,255,.08); border-radius:8px;
+    background:rgba(11,18,27,.66);
+    -webkit-backdrop-filter:blur(16px) saturate(1.4);
+    backdrop-filter:blur(16px) saturate(1.4);
+    border:1px solid rgba(255,255,255,.10); border-radius:10px;
     overflow:hidden;
+    box-shadow:0 28px 70px -24px rgba(0,0,0,.78), inset 0 1px 0 rgba(255,255,255,.05);
   }
   .demo-controls {
     padding:14px 16px; border-right:1px solid rgba(255,255,255,.06);
@@ -10062,7 +10131,47 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
   }
 </style>
 """
+    def _asset_ver(fn):
+        try:
+            return int(os.path.getmtime(os.path.join(app.static_folder, fn)))
+        except Exception:
+            return 0
+    hero_video_url = url_for('static', filename='hero-campus.mp4') + f"?v={_asset_ver('hero-campus.mp4')}"
+    hero_poster_url = url_for('static', filename='hero-campus.jpg') + f"?v={_asset_ver('hero-campus.jpg')}"
     body = f"""
+<script>
+(function(){{
+  var d = document.documentElement;
+  var reduce = false;
+  try {{ reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; }} catch (e) {{}}
+  // Reduced motion: skip the fly-in -- nav and content stay visible, video
+  // holds on its poster (the final courtyard frame).
+  if (reduce) return;
+  // Arm immediately so the nav and hero content never flash in before the
+  // camera lands.
+  d.classList.add('intro-armed');
+  var landed = false;
+  function land(){{
+    if (landed) return;
+    landed = true;
+    d.classList.add('landed');
+  }}
+  // Failsafe: always reveal the page even if the video stalls or errors.
+  setTimeout(land, 14000);
+  function wire(){{
+    var v = document.querySelector('.hero-bg-video');
+    if (!v) {{ land(); return; }}
+    v.addEventListener('timeupdate', function(){{
+      if (v.duration && (v.duration - v.currentTime) < 0.55) land();
+    }});
+    v.addEventListener('ended', land);
+    var pr = v.play();
+    if (pr && typeof pr.catch === 'function') pr.catch(function(){{ land(); }});
+  }}
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wire);
+  else wire();
+}})();
+</script>
 <div class="aurora-wrapper">
   <div class="blob blob-1"></div>
   <div class="blob blob-2"></div>
@@ -10072,6 +10181,11 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
 
 <main class="lp-wrap">
   <section class="hero hero-grid">
+   <video class="hero-bg-video" muted playsinline preload="auto" poster="{hero_poster_url}" aria-hidden="true" tabindex="-1">
+     <source src="{hero_video_url}" type="video/mp4">
+   </video>
+   <div class="hero-bg-overlay" aria-hidden="true"></div>
+   <div class="hero-inner">
    <div class="hero-text">
     <div class="hero-text-above">
       <div class="eyebrow">Built by a high school junior · {school_count}+ schools</div>
@@ -10159,27 +10273,6 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
       </div>
     </div>
    </div>
-   <div class="hero-logos">
-    <div class="hero-logos-label">Verified data for {cds_count}+ schools, including:</div>
-    <div class="logo-orbit">
-      <div class="orbit-center">
-        <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <linearGradient id="orbit-cdr-g" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stop-color="#38bdf8"/>
-              <stop offset="100%" stop-color="#5eead4"/>
-            </linearGradient>
-          </defs>
-          <path d="M 52 16 A 22 22 0 1 0 52 48" stroke="url(#orbit-cdr-g)" stroke-width="6" fill="none" stroke-linecap="round"/>
-          <rect x="22" y="36" width="5.5" height="10" fill="url(#orbit-cdr-g)" rx="1.2"/>
-          <rect x="31" y="28" width="5.5" height="18" fill="url(#orbit-cdr-g)" rx="1.2"/>
-          <rect x="40" y="20" width="5.5" height="26" fill="url(#orbit-cdr-g)" rx="1.2"/>
-        </svg>
-      </div>
-      <div class="orbit-ring">
-        {orbit_items}
-      </div>
-    </div>
    </div>
   </section>
 
@@ -10413,8 +10506,8 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
 {css}
 <style>{orbit_keyframes}</style>
 <style>
-  /* Tweaks so the regular site nav sits cleanly on top of the landing page */
-  .nav {{ position:relative; z-index:5; }}
+  /* Nav floats transparently over the cinematic hero. */
+  .nav {{ position:absolute; top:0; left:0; right:0; z-index:50; background:transparent; box-shadow:none; border:0; }}
   .lp-wrap {{ position:relative; z-index:1; }}
 </style>
 </head><body>{body}</body></html>"""
