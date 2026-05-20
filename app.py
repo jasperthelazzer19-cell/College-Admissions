@@ -9362,6 +9362,18 @@ def _set_visitor_cookie(response):
                             secure=os.getenv("RAILWAY_ENVIRONMENT") is not None)
     return response
 
+
+@app.after_request
+def _allow_framer_embed(response):
+    # Allow embedding inside Framer-hosted sites. X-Frame-Options is a
+    # legacy header that can't express an allowlist, so we drop it and
+    # rely on CSP frame-ancestors, which all modern browsers honor.
+    response.headers.pop("X-Frame-Options", None)
+    response.headers["Content-Security-Policy"] = (
+        "frame-ancestors 'self' https://*.framer.app https://*.framer.website"
+    )
+    return response
+
 # Rate limiting (per-IP). Defaults are generous; sensitive routes (login,
 # signup) get tighter caps via @limiter.limit() decorators.
 try:
