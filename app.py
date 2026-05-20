@@ -9256,13 +9256,16 @@ def school_chat_html(slug):
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
 
-# Secure session cookies. SECURE only kicks in over HTTPS — fine in prod
-# (Railway terminates TLS) and harmless on http://localhost since cookies
-# without Secure still work locally.
+# Secure session cookies. In production we use SameSite=None so the
+# session rides along when the app is embedded in the Framer iframe
+# (cross-site context). SameSite=None requires Secure, which Railway
+# satisfies via its TLS-terminating proxy. Locally we fall back to Lax
+# because browsers reject None-without-Secure on http://localhost.
+_IS_PROD = os.getenv("RAILWAY_ENVIRONMENT") is not None
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
-    SESSION_COOKIE_SAMESITE="Lax",
-    SESSION_COOKIE_SECURE=os.getenv("RAILWAY_ENVIRONMENT") is not None,
+    SESSION_COOKIE_SAMESITE="None" if _IS_PROD else "Lax",
+    SESSION_COOKIE_SECURE=_IS_PROD,
     PERMANENT_SESSION_LIFETIME=timedelta(days=30),
 )
 
@@ -9357,9 +9360,11 @@ def _log_page_visit():
 def _set_visitor_cookie(response):
     new_vid = getattr(request, "_new_cv_id", None)
     if new_vid:
+        _prod = os.getenv("RAILWAY_ENVIRONMENT") is not None
         response.set_cookie("cv_id", new_vid, max_age=60*60*24*365,
-                            httponly=True, samesite="Lax",
-                            secure=os.getenv("RAILWAY_ENVIRONMENT") is not None)
+                            httponly=True,
+                            samesite="None" if _prod else "Lax",
+                            secure=_prod)
     return response
 
 
