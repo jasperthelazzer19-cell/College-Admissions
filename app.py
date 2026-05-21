@@ -7852,7 +7852,20 @@ def _render_facts(body):
 # ─── EXTENDED SUMMARY (Haiku, cached 30 days) ─────────────
 def get_school_summary(c, force=False):
     """2-3 paragraph rich overview of the school, replacing the 1-line desc.
-    Cached 30 days."""
+
+    Lookup order:
+      1. school_summaries.SCHOOL_SUMMARIES (pre-generated dict, ships with the repo)
+      2. school_summary table cache (30-day TTL)
+      3. live Haiku regen (logged-in users only)
+    """
+    if not force:
+        try:
+            from school_summaries import SCHOOL_SUMMARIES
+            pre = SCHOOL_SUMMARIES.get(c["slug"])
+            if pre:
+                return pre
+        except Exception:
+            pass
     with db() as conn:
         if not force:
             cutoff = (datetime.utcnow() - timedelta(days=30)).isoformat()
