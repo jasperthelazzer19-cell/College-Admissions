@@ -9735,6 +9735,71 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
   .problem-card .vs .right .label { color:#5eead4; }
   .problem-card .vs .num { font-size:1.6em; font-weight:700; letter-spacing:-.4px; color:#e6edf3; }
 
+  /* ── Calibration receipt section ── */
+  .proof-section { padding:80px 0 60px; }
+  .proof-eyebrow { font-size:.74em; font-weight:600; letter-spacing:1.6px; text-transform:uppercase; color:#5eead4; margin-bottom:18px; }
+  .proof-h2 { font-family:'Newsreader',Georgia,serif; font-size:clamp(1.9em,3.4vw,2.7em); font-weight:500; letter-spacing:-1px; line-height:1.1; margin:0 0 14px; color:#e6edf3; max-width:880px; }
+  .proof-sub { color:#9aa6b6; font-size:1.05em; line-height:1.55; margin:0 0 40px; max-width:680px; }
+  .proof-sub b { color:#e6edf3; font-weight:600; }
+
+  .proof-chart { background:#0d1620; border:1px solid rgba(255,255,255,.08); border-radius:8px; padding:32px 36px; max-width:880px; }
+  .bar-row { display:grid; grid-template-columns:160px 1fr 200px; gap:18px; align-items:center; padding:10px 0; }
+  .bar-row + .bar-row { border-top:1px solid rgba(255,255,255,.04); }
+  .bar-row-truth { border-top:1px solid rgba(94,234,212,.25)!important; padding-top:18px; margin-top:8px; }
+  .bar-label { font-size:.92em; color:#cbd5e1; font-weight:500; display:flex; align-items:center; gap:8px; }
+  .bar-row-truth .bar-label, .bar-row-candor .bar-label { color:#e6edf3; font-weight:600; }
+  .truth-mark { color:#5eead4; font-weight:700; }
+  .bar-track { background:rgba(255,255,255,.04); height:34px; border-radius:4px; position:relative; overflow:hidden; }
+  .bar-fill { height:100%; display:flex; align-items:center; padding:0 12px; border-radius:4px; transition:width .8s cubic-bezier(.2,.6,.2,1); }
+  .bar-off { background:rgba(244,114,182,.18); border-right:2px solid rgba(244,114,182,.5); }
+  .bar-off .bar-val { color:#f9a8d4; }
+  .bar-truth { background:rgba(94,234,212,.18); border-right:2px solid rgba(94,234,212,.7); }
+  .bar-truth .bar-val { color:#5eead4; }
+  .bar-candor { background:linear-gradient(90deg, rgba(94,234,212,.22), rgba(56,189,248,.22)); border-right:2px solid #5eead4; }
+  .bar-candor .bar-val { color:#5eead4; }
+  .bar-val { font-family:'Newsreader',Georgia,serif; font-weight:600; font-size:1.05em; font-variant-numeric:tabular-nums; letter-spacing:-.3px; }
+  .bar-diff { font-size:.82em; color:#7a8595; font-variant-numeric:tabular-nums; }
+  .bar-row-truth .bar-diff, .bar-row-candor .bar-diff { color:#9aa6b6; }
+
+  .proof-caption {
+    margin-top:24px; padding:18px 24px; max-width:880px;
+    border-left:3px solid #5eead4; background:rgba(94,234,212,.04);
+    color:#cbd5e1; font-size:.98em; line-height:1.55; border-radius:0 6px 6px 0;
+  }
+  .proof-caption b { color:#5eead4; font-weight:700; }
+
+  .proof-preview-wrap { margin-top:54px; max-width:880px; }
+  .proof-preview-label { font-size:.92em; color:#9aa6b6; margin-bottom:14px; }
+  .proof-preview {
+    display:block; background:#0d1620; border:1px solid rgba(255,255,255,.10);
+    border-radius:10px; padding:28px 32px; text-decoration:none; color:#e6edf3;
+    transition:border-color .2s, background .2s, transform .2s;
+    box-shadow: 0 24px 60px rgba(0,0,0,.4), 0 1px 0 rgba(255,255,255,.03) inset;
+  }
+  .proof-preview:hover { border-color:rgba(94,234,212,.35); background:#101a25; text-decoration:none; transform:translateY(-2px); }
+  .prv-head { display:flex; align-items:baseline; gap:14px; flex-wrap:wrap; margin-bottom:6px; }
+  .prv-name { font-family:'Newsreader',Georgia,serif; font-size:2em; font-weight:500; letter-spacing:-.8px; margin:0; color:#e6edf3; }
+  .prv-badge { font-size:.7em; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#031715; background:linear-gradient(135deg,#5eead4,#2dd4bf); padding:4px 10px; border-radius:999px; }
+  .prv-meta { color:#9aa6b6; font-size:.9em; margin-bottom:22px; }
+  .prv-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:1px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.06); border-radius:6px; overflow:hidden; margin-bottom:20px; }
+  .prv-stat { background:#0a121a; padding:16px 18px; }
+  .prv-stat-label { font-size:.7em; color:#7a8595; letter-spacing:1px; text-transform:uppercase; font-weight:600; margin-bottom:6px; }
+  .prv-stat-val { font-family:'Newsreader',Georgia,serif; font-size:1.45em; font-weight:500; letter-spacing:-.5px; color:#e6edf3; font-variant-numeric:tabular-nums; }
+  .prv-tags { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:18px; }
+  .prv-tag { background:rgba(94,234,212,.08); border:1px solid rgba(94,234,212,.18); color:#5eead4; padding:4px 10px; border-radius:5px; font-size:.78em; font-weight:500; }
+  .prv-open { color:#5eead4; font-weight:600; font-size:.92em; }
+
+  @media (max-width:680px) {
+    .proof-section { padding:60px 0 40px; }
+    .proof-chart { padding:22px 18px; }
+    .bar-row { grid-template-columns:100px 1fr; gap:10px; }
+    .bar-diff { grid-column: 2; font-size:.78em; padding-top:2px; }
+    .bar-label { font-size:.82em; }
+    .proof-preview { padding:22px 20px; }
+    .prv-grid { grid-template-columns:repeat(2,1fr); }
+    .prv-name { font-size:1.5em; }
+  }
+
   .features-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:1px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.06); border-radius:4px; overflow:hidden; }
   .feature { background:#0a121a; padding:28px 26px; transition:background .2s; }
   .feature:hover { background:#0d1620; }
@@ -9742,10 +9807,24 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
   .feature h3 { margin:0 0 8px; font-size:1.1em; color:#e6edf3; font-weight:600; letter-spacing:-.2px; }
   .feature p { margin:0; color:#9aa6b6; font-size:.92em; line-height:1.55; }
 
-  .founder { display:grid; grid-template-columns:1fr; gap:24px; align-items:center; background:#0d1620; border:1px solid rgba(255,255,255,.08); border-radius:6px; padding:36px; }
-  .founder p { font-size:1.08em; line-height:1.6; color:#cbd5e1; margin:0 0 12px; }
+  .founder {
+    position:relative; max-width:760px; margin:0 auto;
+    background:transparent; border:0; padding:48px 24px;
+  }
+  .founder::before {
+    content:"\201C"; position:absolute; top:-8px; left:-6px;
+    font-family:'Newsreader',Georgia,serif; font-size:9em; line-height:1;
+    color:rgba(94,234,212,.18); pointer-events:none; user-select:none;
+  }
+  .founder p { font-family:'Newsreader',Georgia,serif; font-size:1.32em; line-height:1.55; color:#e6edf3; margin:0 0 18px; font-weight:400; letter-spacing:-.2px; }
+  .founder p:first-of-type { font-size:1.55em; line-height:1.4; color:#e6edf3; margin-bottom:24px; }
+  .founder p:first-of-type b, .founder p:first-of-type strong { color:#5eead4; }
   .founder p:last-child { margin:0; }
-  .founder .signature { color:#5eead4; font-weight:600; margin-top:16px !important; }
+  .founder .signature {
+    font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;
+    font-size:.9em; color:#5eead4; font-weight:600; letter-spacing:.3px;
+    margin-top:24px !important; padding-top:18px; border-top:1px solid rgba(94,234,212,.18);
+  }
 
   .premium-band {
     background:linear-gradient(135deg,#0f3a37 0%,#0a131c 65%);
@@ -9822,9 +9901,7 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
     max-width:none;
     margin-left: calc(50% - 50vw);
     margin-right: calc(50% - 50vw);
-    min-height:100vh;
-    min-height:100svh;
-    padding:118px 0 96px;
+    padding:118px 0 80px;
     overflow:hidden;
     background:#070d14;
     isolation:isolate;
@@ -10345,6 +10422,69 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
    </div>
   </section>
 
+  <section class="section reveal proof-section">
+    <div class="proof-eyebrow">CALIBRATION RECEIPT</div>
+    <h2 class="proof-h2">Three calculators told me three different things about Vanderbilt.</h2>
+    <p class="proof-sub">All claimed real data. Vanderbilt's actual CDS-reported acceptance rate is <b>5.9%</b>. Here's what the popular ones told me.</p>
+
+    <div class="proof-chart">
+      <div class="bar-row">
+        <div class="bar-label">Calculator A</div>
+        <div class="bar-track"><div class="bar-fill bar-off" style="width:60%"><span class="bar-val">30%</span></div></div>
+        <div class="bar-diff">+24.1pt off</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">Calculator B</div>
+        <div class="bar-track"><div class="bar-fill bar-off" style="width:44%"><span class="bar-val">22%</span></div></div>
+        <div class="bar-diff">+16.1pt off</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">Calculator C</div>
+        <div class="bar-track"><div class="bar-fill bar-off" style="width:16%"><span class="bar-val">8%</span></div></div>
+        <div class="bar-diff">+2.1pt off</div>
+      </div>
+      <div class="bar-row bar-row-truth">
+        <div class="bar-label"><span class="truth-mark">✓</span> CDS truth</div>
+        <div class="bar-track"><div class="bar-fill bar-truth" style="width:12%"><span class="bar-val">5.9%</span></div></div>
+        <div class="bar-diff">Vanderbilt's actual number</div>
+      </div>
+      <div class="bar-row bar-row-candor">
+        <div class="bar-label">Candor</div>
+        <div class="bar-track"><div class="bar-fill bar-candor" style="width:12%"><span class="bar-val">5.9%</span></div></div>
+        <div class="bar-diff">We use the actual number</div>
+      </div>
+    </div>
+
+    <div class="proof-caption">
+      One of those calculators was off by <b>24 percentage points</b>. That's the difference between "safety" and "ED-only reach." If your list is built on those numbers, your strategy is built on fiction.
+    </div>
+
+    <div class="proof-preview-wrap">
+      <div class="proof-preview-label">Here's what every school page looks like — real CDS data, no guesswork.</div>
+      <a href="/college/vanderbilt" class="proof-preview" aria-label="Open Vanderbilt page">
+        <div class="prv-head">
+          <h3 class="prv-name">Vanderbilt</h3>
+          <span class="prv-badge">CDS VERIFIED</span>
+        </div>
+        <div class="prv-meta">Nashville, Tennessee · 7,221 undergrad · Private</div>
+        <div class="prv-grid">
+          <div class="prv-stat"><div class="prv-stat-label">ACCEPTANCE</div><div class="prv-stat-val">5.9%</div></div>
+          <div class="prv-stat"><div class="prv-stat-label">SAT MID-50%</div><div class="prv-stat-val">1510–1560</div></div>
+          <div class="prv-stat"><div class="prv-stat-label">GPA RANGE</div><div class="prv-stat-val">3.85–4.00</div></div>
+          <div class="prv-stat"><div class="prv-stat-label">ACT MID-50%</div><div class="prv-stat-val">34–35</div></div>
+        </div>
+        <div class="prv-tags">
+          <span class="prv-tag">Economics</span>
+          <span class="prv-tag">HOD</span>
+          <span class="prv-tag">Engineering</span>
+          <span class="prv-tag">Biology</span>
+          <span class="prv-tag">Political Science</span>
+        </div>
+        <div class="prv-open">Open the full Vanderbilt page →</div>
+      </a>
+    </div>
+  </section>
+
   <section class="section reveal">
     <h2>What's different</h2>
     <p class="sub">No vibes-based admissions math. Every number has a source.</p>
@@ -10384,7 +10524,7 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
 
   <section class="section reveal">
     <div class="founder">
-      <p>I'm a high school junior. Last semester I spent hours on every chances calculator on the internet trying to figure out where I actually stood for college, and the numbers were all over the place — one said 30% at Vanderbilt, another said 8%, another said 22%.</p>
+      <p>I'm a high school junior. Last semester I spent hours on every chances calculator on the internet trying to figure out where I actually stood for college, and the numbers were all over the place — one said <b>30%</b> at Vanderbilt, another said <b>8%</b>, another said <b>22%</b>.</p>
       <p>I started digging into why, and turns out most of them either use federal data that lags 1-2 years, have AI just make up stats, or use a fit model so generic it's basically useless. So I spent a few weeks pulling the actual Common Data Set PDFs from each school's website and built my own.</p>
       <p>The goal is calibration, not telling you what you want to hear. If your odds at Stanford are 4%, you should know that — so you can spend your ED slot somewhere it'll actually matter.</p>
       <p class="signature">— Jasper, Candor's founder</p>
