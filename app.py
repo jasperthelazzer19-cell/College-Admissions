@@ -8454,7 +8454,7 @@ def profiles_index_html():
 
 <h2 style="margin-top:24px">Pick a school to see profiles</h2>
 <div class="grid">{cards}</div>
-<p style="margin-top:18px"><a class="btn btn-light" href="/colleges">Browse all 155 colleges &rarr;</a></p>
+<p style="margin-top:18px"><a class="btn btn-light" href="/colleges">Browse all 334 colleges &rarr;</a></p>
 """, title="Real Profiles — Candor")
 
 
@@ -10570,6 +10570,7 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
 
 
 @app.route("/colleges")
+@app.route("/browse")
 def colleges_page():
     return colleges_html()
 
@@ -12890,9 +12891,9 @@ def _chat_api_send_legacy_disabled():
                        f'<div style="font-weight:600;color:var(--teal);margin-bottom:8px">'
                        f"You've used your {FREE_TRIAL_MESSAGES} free trial messages.</div>"
                        f'<div style="color:var(--text-2);font-size:.92em;margin-bottom:12px">'
-                       f"Upgrade to Candor Premium ($5/mo) for {PAID_MONTHLY_LIMIT} messages "
+                       f"Upgrade to Candor Premium ($10 once) for {PAID_MONTHLY_LIMIT} messages "
                        f"per month with the AI Advisor — personalized college admissions help "
-                       f"informed by your full profile and any of 155 schools.</div>"
+                       f"informed by your full profile and any of 334 schools.</div>"
                        f'<a href="/upgrade" class="btn btn-primary btn-sm" style="text-decoration:none">'
                        f'Upgrade →</a></div>')
             return jsonify({"error": "free_exhausted", "html": paywall}), 402
@@ -12969,7 +12970,7 @@ def upgrade_page():
     if for_parent:
         headline = "Help your kid apply to the right schools."
         sub = ("Most chances calculators give a flattering number that doesn't help anyone decide anything. "
-               "Candor uses verified Common Data Set data from 220+ schools and tells you the truth — "
+               "Candor uses verified Common Data Set data from 295+ schools and tells you the truth — "
                "so the ED slot, the test retake, and the supplemental essay time actually go where they matter. "
                "One $10 payment, no subscription.")
         social = ('<p class="muted" style="font-size:.85em;margin:18px 0 0">'
