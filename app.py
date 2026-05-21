@@ -6740,39 +6740,62 @@ def _auth_hook_html():
 
 
 def signup_html():
+    from html import escape as _esc
+    from urllib.parse import quote as _q
     hook = _auth_hook_html()
+    nxt = (request.args.get("next") or "").strip()
+    safe_path = nxt if nxt.startswith("/") and "\n" not in nxt and "\r" not in nxt else ""
+    if safe_path == "/upgrade":
+        headline = "Save your spot before checkout."
+        sub = "One last step — create your account so we can attach your Premium plan to it."
+        cta_label = "Create account & continue to checkout"
+    else:
+        headline = "Get your real chances — free."
+        sub = "Verified Common Data Set numbers from 334+ schools. No credit card, no spam."
+        cta_label = "Create account"
+    nxt_hidden = f'<input type="hidden" name="next" value="{_esc(safe_path, quote=True)}">' if safe_path else ""
+    nxt_qs = f"?next={_q(safe_path, safe='/')}" if safe_path else ""
     return _page(f"""
 <div class="bar"><a href="/">&larr; back</a></div>
-<h1>Create your account</h1>
-<p class="muted">Saves your profile so you can come back without re-entering everything.</p>
+<h1>{headline}</h1>
+<p class="muted">{sub}</p>
 {hook}
 <form method="post" action="/signup" class="card" style="max-width:440px">
   {csrf_input()}
+  {nxt_hidden}
   <label style="margin-top:0">Email</label>
   <input type="email" name="email" required autofocus>
   <label>Password</label>
   <input type="password" name="password" minlength="8" required>
   <p class="muted" style="font-size:.78em;margin-top:6px">8+ characters. We never email you marketing.</p>
-  <button class="btn btn-primary" type="submit">Create account</button>
-  <p class="muted" style="font-size:.85em;margin-top:14px">Already registered? <a href="/login">Log in</a>.</p>
+  <button class="btn btn-primary" type="submit">{cta_label}</button>
+  <p class="muted" style="font-size:.85em;margin-top:14px">Already registered? <a href="/login{nxt_qs}">Log in</a>.</p>
 </form>
+<p class="muted" style="font-size:.85em;margin-top:16px"><a href="/#demo" style="color:var(--text-2)">← Just try the free calculator first</a></p>
 """, title="Sign up — Candor")
 
 
 def login_html():
+    from html import escape as _esc
+    from urllib.parse import quote as _q
     hook = _auth_hook_html()
+    nxt = (request.args.get("next") or "").strip()
+    safe_path = nxt if nxt.startswith("/") and "\n" not in nxt and "\r" not in nxt else ""
+    nxt_hidden = f'<input type="hidden" name="next" value="{_esc(safe_path, quote=True)}">' if safe_path else ""
+    nxt_qs = f"?next={_q(safe_path, safe='/')}" if safe_path else ""
     return _page(f"""
 <div class="bar"><a href="/">&larr; back</a></div>
 <h1>Log in</h1>
 {hook}
 <form method="post" action="/login" class="card" style="max-width:440px">
   {csrf_input()}
+  {nxt_hidden}
   <label style="margin-top:0">Email</label>
   <input type="email" name="email" required autofocus>
   <label>Password</label>
   <input type="password" name="password" required>
   <button class="btn btn-primary" type="submit">Log in</button>
-  <p class="muted" style="font-size:.85em;margin-top:14px">No account? <a href="/signup">Sign up</a>.</p>
+  <p class="muted" style="font-size:.85em;margin-top:14px">No account? <a href="/signup{nxt_qs}">Sign up</a>.</p>
 </form>
 """, title="Log in — Candor")
 
@@ -9956,6 +9979,13 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
     html.intro-armed .nav,
     html.intro-armed .hero-text > * { opacity:1; transform:none; }
   }
+  /* Mobile: skip the cinematic intro so the calculator is visible immediately.
+     The 8s video reveal was killing TikTok/Reddit drive-by traffic before
+     they saw the hero copy or the inline demo. */
+  @media (max-width: 768px) {
+    html.intro-armed .nav,
+    html.intro-armed .hero-text > * { opacity:1!important; transform:none!important; }
+  }
   .hero.hero-grid .hero-text-above { display:flex; flex-direction:column; gap:10px; margin-bottom:6px; }
   .hero.hero-grid h1 { font-size:clamp(1.6em, 2.8vw, 2.1em); margin:8px 0 4px; line-height:1.1; }
   .hero.hero-grid p.lede { font-size:.96em; margin:0 0 12px; line-height:1.5; }
@@ -10338,7 +10368,7 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
       <h1>The college admissions calculator that uses <span class="accent">real data</span>, not guesses.</h1>
       <p class="lede">Most chances calculators tell everyone they have a 25-30% shot at every T20. Stanford accepts 3.6%. The math doesn't work. Candor uses verified Common Data Set figures from {cds_count}+ schools and odds calibrated to be honest, not optimistic.</p>
       <div class="cta-row">
-        <a href="/signup" class="primary">Get your chances →</a>
+        <a href="#demo" class="primary" data-scroll-to-demo>Get your chances →</a>
         <a href="/colleges" class="secondary">Browse schools</a>
       </div>
       <div class="stats">
@@ -10347,7 +10377,7 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
         <div class="stat"><span class="num"><span class="accent">{activation_pct}%</span></span>complete their profile</div>
       </div>
     </div>
-    <div class="demo-eyebrow">Try it · no signup needed</div>
+    <div class="demo-eyebrow" id="demo">Try it · no signup needed</div>
     <div class="demo-card">
       <div class="demo-controls">
         <label class="demo-field">
@@ -10598,6 +10628,24 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
       }});
     }}, {{ threshold: 0.12 }});
     document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+  }})();
+
+  // Smooth-scroll the hero "Get your chances" CTA to the inline calculator
+  // and focus the school dropdown so keyboard users land on a control.
+  (function(){{
+    document.querySelectorAll('[data-scroll-to-demo]').forEach(a => {{
+      a.addEventListener('click', (e) => {{
+        const target = document.getElementById('demo');
+        if (!target) return;
+        e.preventDefault();
+        const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        target.scrollIntoView({{ behavior: reduce ? 'auto' : 'smooth', block: 'start' }});
+        setTimeout(() => {{
+          const sel = document.getElementById('demo-school');
+          if (sel) sel.focus({{ preventScroll: true }});
+        }}, reduce ? 0 : 600);
+      }});
+    }});
   }})();
 
   // Interactive demo on the landing — calls /api/demo-odds on input change
