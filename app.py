@@ -9936,14 +9936,14 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
 
   /* ─── Stagger entry on feature boxes (scroll-driven where supported) ─── */
   .features-grid .feature {
-    animation: featureIn .8s cubic-bezier(.2,.7,.2,1) both;
+    animation: featureIn 1.1s cubic-bezier(.2,.7,.2,1) both;
     animation-timeline: view();
-    animation-range: entry 0% cover 25%;
+    animation-range: entry 0% cover 40%;
   }
-  .features-grid .feature:nth-child(odd)  { --fx: -18px; }
-  .features-grid .feature:nth-child(even) { --fx:  18px; }
+  .features-grid .feature:nth-child(odd)  { --fx: -36px; }
+  .features-grid .feature:nth-child(even) { --fx:  36px; }
   @keyframes featureIn {
-    from { opacity:0; transform: translateX(var(--fx, 0)) translateY(12px); }
+    from { opacity:0; transform: translateX(var(--fx, 0)) translateY(24px); }
     to   { opacity:1; transform: translateX(0) translateY(0); }
   }
   /* Fallback for browsers w/o animation-timeline support: use the existing
@@ -9955,9 +9955,9 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
   /* ─── Bar-fill scroll animation on the proof chart ─── */
   .proof-chart .bar-fill {
     transform-origin: left center;
-    animation: barGrow .9s cubic-bezier(.2,.7,.2,1) both;
+    animation: barGrow 1.3s cubic-bezier(.2,.7,.2,1) both;
     animation-timeline: view();
-    animation-range: entry 10% cover 40%;
+    animation-range: entry 15% cover 55%;
   }
   @keyframes barGrow {
     from { clip-path: inset(0 100% 0 0); }
@@ -10865,7 +10865,7 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
   // ─── Stats counter ──────────────────────────────────────────────
   // Counts up from 0 to data-count-to when an element enters view.
   (function(){{
-    const nums = document.querySelectorAll('.num[data-count-to]');
+    const nums = document.querySelectorAll('[data-count-to]');
     if (!nums.length || !('IntersectionObserver' in window)) return;
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const animate = (el) => {{
