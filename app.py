@@ -9917,6 +9917,56 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
   /* No-JS fallback: never strand below-fold content invisible if JS fails to load. */
   .no-js .reveal { opacity:1 !important; transform:none !important; transition:none !important; }
 
+  /* ─── Calculator auto-cycle "live demo" pill ─────────────────── */
+  .live-pill {
+    position:absolute; top:14px; right:14px; z-index:3;
+    font-family:var(--mono,inherit);
+    font-size:10px; letter-spacing:.16em; text-transform:uppercase;
+    color:#5eead4; padding:4px 10px;
+    border:1px solid rgba(94,234,212,.3); border-radius:999px;
+    animation:livePulse 2s ease-in-out infinite;
+    pointer-events:none;
+  }
+  .live-pill.gone { opacity:0; transition:opacity .6s ease; }
+  @keyframes livePulse { 0%,100% { opacity:1; } 50% { opacity:.5; } }
+  .demo-card { position:relative; }
+  /* swap effect when calculator auto-cycles */
+  .demo-odds, .demo-fit, .demo-tier, #demo-school { transition:opacity .2s ease, transform .2s ease; }
+  .demo-odds.swap, .demo-fit.swap, .demo-tier.swap, #demo-school.swap { opacity:.4; transform:scale(.98); }
+
+  /* ─── Stagger entry on feature boxes (scroll-driven where supported) ─── */
+  .features-grid .feature {
+    animation: featureIn .8s cubic-bezier(.2,.7,.2,1) both;
+    animation-timeline: view();
+    animation-range: entry 0% cover 25%;
+  }
+  .features-grid .feature:nth-child(odd)  { --fx: -18px; }
+  .features-grid .feature:nth-child(even) { --fx:  18px; }
+  @keyframes featureIn {
+    from { opacity:0; transform: translateX(var(--fx, 0)) translateY(12px); }
+    to   { opacity:1; transform: translateX(0) translateY(0); }
+  }
+  /* Fallback for browsers w/o animation-timeline support: use the existing
+     section .reveal mechanism (parent fades in once); features just appear. */
+  @supports not (animation-timeline: view()) {
+    .features-grid .feature { animation: none; }
+  }
+
+  /* ─── Bar-fill scroll animation on the proof chart ─── */
+  .proof-chart .bar-fill {
+    transform-origin: left center;
+    animation: barGrow .9s cubic-bezier(.2,.7,.2,1) both;
+    animation-timeline: view();
+    animation-range: entry 10% cover 40%;
+  }
+  @keyframes barGrow {
+    from { clip-path: inset(0 100% 0 0); }
+    to   { clip-path: inset(0 0 0 0); }
+  }
+  @supports not (animation-timeline: view()) {
+    .proof-chart .bar-fill { animation: none; }
+  }
+
   /* Full-bleed cinematic hero: a background video sits behind left-aligned
      content. The section breaks out of .lp-wrap edge-to-edge; .hero-inner
      re-centers the content to the same 1500px column as the rest of the page. */
@@ -10374,13 +10424,14 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
         <a href="/colleges" class="secondary">Browse schools</a>
       </div>
       <div class="stats">
-        <div class="stat"><span class="num">100+</span>active users</div>
-        <div class="stat"><span class="num">{cds_count}</span>CDS-verified schools</div>
-        <div class="stat"><span class="num"><span class="accent">{activation_pct}%</span></span>complete their profile</div>
+        <div class="stat"><span class="num" data-count-to="100" data-suffix="+">100+</span>active users</div>
+        <div class="stat"><span class="num" data-count-to="{cds_count}">{cds_count}</span>CDS-verified schools</div>
+        <div class="stat"><span class="num"><span class="accent" data-count-to="{activation_pct}" data-suffix="%">{activation_pct}%</span></span>complete their profile</div>
       </div>
     </div>
     <div class="demo-eyebrow" id="demo">Try it · no signup needed</div>
     <div class="demo-card">
+      <div class="live-pill" id="live-demo-pill" aria-hidden="true">▸ live demo</div>
       <div class="demo-controls">
         <label class="demo-field">
           <span class="demo-label">School</span>
@@ -10757,6 +10808,86 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
     sat.addEventListener('input', () => {{ if (activeTest==='sat') scoreOut.textContent = sat.value; schedule(); }});
     act.addEventListener('input', () => {{ if (activeTest==='act') scoreOut.textContent = act.value; schedule(); }});
     fetchOdds(); // initial render
+  }})();
+
+  // ─── Calculator auto-cycle ──────────────────────────────────────
+  // Demos the product on load by cycling through a small school list.
+  // Stops permanently on any user interaction with the card.
+  (function(){{
+    const slug = document.getElementById('demo-school');
+    const card = document.querySelector('.demo-card');
+    const pill = document.getElementById('live-demo-pill');
+    if (!slug || !card) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {{
+      if (pill) pill.classList.add('gone');
+      return;
+    }}
+    const cycle = ['cornell','harvard','stanford','yale','mit','upenn'];
+    let idx = cycle.indexOf(slug.value);
+    if (idx < 0) idx = 0;
+    let stopped = false, cycles = 0, visible = true;
+    const MAX_CYCLES = 2;
+    const stop = () => {{
+      if (stopped) return;
+      stopped = true;
+      if (pill) pill.classList.add('gone');
+    }};
+    ['click','touchstart','keydown'].forEach(ev =>
+      card.addEventListener(ev, stop, {{ passive: true, once: true }})
+    );
+    if ('IntersectionObserver' in window) {{
+      new IntersectionObserver(es => {{ visible = es[0].isIntersecting; }},
+        {{ threshold: 0.25 }}).observe(card);
+    }}
+    const SWAP_IDS = ['demo-odds','demo-fit','demo-tier'];
+    const swapEls = SWAP_IDS.map(id => document.getElementById(id)).filter(Boolean);
+    swapEls.push(slug);
+    const flick = () => {{
+      swapEls.forEach(el => el.classList.add('swap'));
+      setTimeout(() => swapEls.forEach(el => el.classList.remove('swap')), 600);
+    }};
+    const step = () => {{
+      if (stopped) return;
+      if (!visible) {{ setTimeout(step, 800); return; }}
+      idx = (idx + 1) % cycle.length;
+      if (idx === 0) {{
+        cycles++;
+        if (cycles >= MAX_CYCLES) {{ stop(); return; }}
+      }}
+      flick();
+      slug.value = cycle[idx];
+      slug.dispatchEvent(new Event('change', {{ bubbles: true }}));
+      setTimeout(step, 3000);
+    }};
+    setTimeout(step, 2500); // let the initial fetchOdds settle first
+  }})();
+
+  // ─── Stats counter ──────────────────────────────────────────────
+  // Counts up from 0 to data-count-to when an element enters view.
+  (function(){{
+    const nums = document.querySelectorAll('.num[data-count-to]');
+    if (!nums.length || !('IntersectionObserver' in window)) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const animate = (el) => {{
+      const target = parseFloat(el.dataset.countTo);
+      if (!isFinite(target)) return;
+      const suffix = el.dataset.suffix || '';
+      const start = performance.now();
+      const duration = 1400;
+      const tick = (now) => {{
+        const p = Math.min(1, (now - start) / duration);
+        const eased = 1 - Math.pow(1 - p, 3);
+        el.textContent = Math.round(target * eased) + suffix;
+        if (p < 1) requestAnimationFrame(tick);
+      }};
+      requestAnimationFrame(tick);
+    }};
+    const io = new IntersectionObserver(entries => {{
+      entries.forEach(e => {{
+        if (e.isIntersecting) {{ animate(e.target); io.unobserve(e.target); }}
+      }});
+    }}, {{ threshold: 0.4 }});
+    nums.forEach(n => io.observe(n));
   }})();
 </script>
 """
