@@ -9914,6 +9914,8 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
 
   .reveal { opacity:0; transform:translateY(16px); transition:opacity .7s ease, transform .7s ease; }
   .reveal.in { opacity:1; transform:translateY(0); }
+  /* No-JS fallback: never strand below-fold content invisible if JS fails to load. */
+  .no-js .reveal { opacity:1 !important; transform:none !important; transition:none !important; }
 
   /* Full-bleed cinematic hero: a background video sits behind left-aligned
      content. The section breaks out of .lp-wrap edge-to-edge; .hero-inner
@@ -10364,7 +10366,7 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
    <div class="hero-inner">
    <div class="hero-text">
     <div class="hero-text-above">
-      <div class="eyebrow">Built by a high school junior · {school_count}+ schools</div>
+      <div class="eyebrow">Built by a high school junior · {cds_count}+ CDS-verified schools</div>
       <h1>The college admissions calculator that uses <span class="accent">real data</span>, not guesses.</h1>
       <p class="lede">Most chances calculators tell everyone they have a 25-30% shot at every T20. Stanford accepts 3.6%. The math doesn't work. Candor uses verified Common Data Set figures from {cds_count}+ schools and odds calibrated to be honest, not optimistic.</p>
       <div class="cta-row">
@@ -10618,16 +10620,19 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
 <script>
   // Reveal-on-scroll without any library
   (function(){{
-    if (!('IntersectionObserver' in window)) {{
-      document.querySelectorAll('.reveal').forEach(el => el.classList.add('in'));
-      return;
-    }}
+    const all = document.querySelectorAll('.reveal');
+    const showAll = () => all.forEach(el => el.classList.add('in'));
+    if (!('IntersectionObserver' in window)) {{ showAll(); return; }}
     const io = new IntersectionObserver((entries) => {{
       entries.forEach(e => {{
         if (e.isIntersecting) {{ e.target.classList.add('in'); io.unobserve(e.target); }}
       }});
     }}, {{ threshold: 0.12 }});
-    document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+    all.forEach(el => io.observe(el));
+    // Safety net: if observers never fire (script error after load, broken
+    // observer impl, headless screenshot tools, etc.) force everything visible
+    // after 2.5s so below-fold content is never stranded invisible.
+    setTimeout(showAll, 2500);
   }})();
 
   // Smooth-scroll the hero "Get your chances" CTA to the inline calculator
@@ -10767,6 +10772,7 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
   .nav {{ position:absolute; top:0; left:0; right:0; z-index:50; background:transparent; box-shadow:none; border:0; }}
   .lp-wrap {{ position:relative; z-index:1; }}
 </style>
+<noscript><style>.reveal{{opacity:1!important;transform:none!important;transition:none!important}}</style></noscript>
 </head><body>{body}</body></html>"""
 
 
