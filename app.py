@@ -9967,6 +9967,60 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
     .proof-chart .bar-fill { animation: none; }
   }
 
+  /* ─── Hero particle field — drifts forever once the video lands ─── */
+  .hero .particles {
+    position: absolute; inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    overflow: hidden;
+    opacity: 0;
+    transition: opacity 1.8s ease;
+  }
+  html.landed .hero .particles { opacity: 1; }
+  .hero .particles span {
+    position: absolute;
+    width: 3px; height: 3px;
+    background: #5eead4;
+    border-radius: 50%;
+    box-shadow: 0 0 6px rgba(94,234,212,0.55), 0 0 14px rgba(94,234,212,0.25);
+    opacity: 0;
+    animation: heroDrift 14s linear infinite;
+  }
+  .hero .particles span:nth-child(1)  { left:  4%; --dx:  18px; animation-duration: 16s; animation-delay:  -0.0s; }
+  .hero .particles span:nth-child(2)  { left:  9%; --dx: -22px; animation-duration: 13s; animation-delay:  -2.4s; }
+  .hero .particles span:nth-child(3)  { left: 14%; --dx:  30px; animation-duration: 18s; animation-delay:  -1.1s; }
+  .hero .particles span:nth-child(4)  { left: 18%; --dx: -14px; animation-duration: 15s; animation-delay:  -5.8s; }
+  .hero .particles span:nth-child(5)  { left: 22%; --dx:  24px; animation-duration: 11s; animation-delay:  -3.2s; }
+  .hero .particles span:nth-child(6)  { left: 27%; --dx: -28px; animation-duration: 17s; animation-delay:  -0.7s; }
+  .hero .particles span:nth-child(7)  { left: 31%; --dx:  12px; animation-duration: 14s; animation-delay:  -4.5s; }
+  .hero .particles span:nth-child(8)  { left: 36%; --dx: -18px; animation-duration: 19s; animation-delay:  -8.2s; }
+  .hero .particles span:nth-child(9)  { left: 40%; --dx:  26px; animation-duration: 12s; animation-delay:  -1.8s; }
+  .hero .particles span:nth-child(10) { left: 45%; --dx: -22px; animation-duration: 16s; animation-delay:  -6.4s; }
+  .hero .particles span:nth-child(11) { left: 49%; --dx:  16px; animation-duration: 13s; animation-delay:  -2.1s; }
+  .hero .particles span:nth-child(12) { left: 53%; --dx: -30px; animation-duration: 18s; animation-delay:  -7.6s; }
+  .hero .particles span:nth-child(13) { left: 58%; --dx:  20px; animation-duration: 15s; animation-delay:  -3.9s; }
+  .hero .particles span:nth-child(14) { left: 62%; --dx: -14px; animation-duration: 11s; animation-delay:  -0.3s; }
+  .hero .particles span:nth-child(15) { left: 66%; --dx:  28px; animation-duration: 17s; animation-delay:  -5.1s; }
+  .hero .particles span:nth-child(16) { left: 71%; --dx: -24px; animation-duration: 14s; animation-delay:  -8.8s; }
+  .hero .particles span:nth-child(17) { left: 75%; --dx:  18px; animation-duration: 19s; animation-delay:  -1.5s; }
+  .hero .particles span:nth-child(18) { left: 80%; --dx: -16px; animation-duration: 12s; animation-delay:  -4.2s; }
+  .hero .particles span:nth-child(19) { left: 84%; --dx:  22px; animation-duration: 16s; animation-delay:  -6.9s; }
+  .hero .particles span:nth-child(20) { left: 89%; --dx: -26px; animation-duration: 13s; animation-delay:  -2.7s; }
+  .hero .particles span:nth-child(21) { left: 93%; --dx:  14px; animation-duration: 18s; animation-delay:  -7.3s; }
+  .hero .particles span:nth-child(22) { left:  6%; --dx: -20px; animation-duration: 15s; animation-delay:  -3.6s; }
+  .hero .particles span:nth-child(23) { left: 19%; --dx:  26px; animation-duration: 11s; animation-delay:  -9.1s; }
+  .hero .particles span:nth-child(24) { left: 33%; --dx: -18px; animation-duration: 17s; animation-delay:  -1.2s; }
+  .hero .particles span:nth-child(25) { left: 47%; --dx:  24px; animation-duration: 14s; animation-delay:  -4.8s; }
+  .hero .particles span:nth-child(26) { left: 61%; --dx: -22px; animation-duration: 19s; animation-delay:  -7.4s; }
+  .hero .particles span:nth-child(27) { left: 76%; --dx:  16px; animation-duration: 12s; animation-delay:  -2.5s; }
+  .hero .particles span:nth-child(28) { left: 91%; --dx: -28px; animation-duration: 16s; animation-delay:  -5.9s; }
+  @keyframes heroDrift {
+    0%   { transform: translate(0, 100vh) scale(0.6); opacity: 0; }
+    12%  { opacity: 0.85; }
+    78%  { opacity: 0.7; }
+    100% { transform: translate(var(--dx, 0), -10vh) scale(1.1); opacity: 0; }
+  }
+
   /* Full-bleed cinematic hero: a background video sits behind left-aligned
      content. The section breaks out of .lp-wrap edge-to-edge; .hero-inner
      re-centers the content to the same 1500px column as the rest of the page. */
@@ -10362,9 +10416,9 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
             return int(os.path.getmtime(os.path.join(app.static_folder, fn)))
         except Exception:
             return 0
-    hero_video_url = url_for('static', filename='hero-campus.mp4') + f"?v={_asset_ver('hero-campus.mp4')}"
-    hero_video_mobile_url = url_for('static', filename='hero-campus-mobile.mp4') + f"?v={_asset_ver('hero-campus-mobile.mp4')}"
-    hero_poster_url = url_for('static', filename='hero-campus.jpg') + f"?v={_asset_ver('hero-campus.jpg')}"
+    hero_video_url = url_for('static', filename='hero-aurora.mp4') + f"?v={_asset_ver('hero-aurora.mp4')}"
+    hero_video_mobile_url = url_for('static', filename='hero-aurora-mobile.mp4') + f"?v={_asset_ver('hero-aurora-mobile.mp4')}"
+    hero_poster_url = url_for('static', filename='hero-aurora.jpg') + f"?v={_asset_ver('hero-aurora.jpg')}"
     body = f"""
 <script>
 (function(){{
@@ -10413,6 +10467,12 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
      <source src="{hero_video_url}" type="video/mp4">
    </video>
    <div class="hero-bg-overlay" aria-hidden="true"></div>
+   <div class="particles" aria-hidden="true">
+     <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+     <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+     <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+     <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+   </div>
    <div class="hero-inner">
    <div class="hero-text">
     <div class="hero-text-above">
