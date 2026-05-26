@@ -946,7 +946,7 @@ ADMISSIONS_DETAIL = {
     "parsons": {"rounds": ['ED', 'EA', 'RD'], "rates": {"ED": 0.6800, "EA": 0.6100, "RD": 0.5800}},
     "risd": {"rounds": ['ED', 'RD'], "rates": {"ED": 0.3000, "RD": 0.1700}},
     "saic": {"rounds": ['EA', 'RD'], "rates": {"EA": 0.7300, "RD": 0.6900}},
-    "babson": {"rounds": ['ED', 'ED2', 'EA', 'RD'], "rates": {"ED": 0.4300, "ED2": 0.3500, "EA": 0.2650, "RD": 0.1800}},
+    "babson": {"rounds": ['ED', 'ED2', 'EA', 'RD'], "rates": {"ED": 0.2750, "ED2": 0.2750, "EA": 0.2080, "RD": 0.1570}},
     "bentley": {"rounds": ['ED1', 'ED2', 'EA', 'RD'], "rates": {"ED": 0.6100, "EA": 0.6100, "RD": 0.4400}},
     "pepperdine": {"rounds": ['ED1', 'ED2', 'EA', 'RD'], "rates": {"RD": 0.6290}},
     "scu": {"rounds": ['ED', 'ED2', 'EA', 'RD'], "rates": {"ED": 0.6200, "ED2": 0.5500, "EA": 0.5000, "RD": 0.4900}},
@@ -12297,8 +12297,9 @@ def generate_strategy(profile, items):
         + "\n\nCANDIDATE catalog for additions — slug|name|admit rate|test ranges|location|majors:\n"
         + "\n".join(cat_lines)
     )
-    raw = _claude("claude-haiku-4-5-20251001", sys, usr, max_tokens=2600)
+    raw = _claude("claude-haiku-4-5-20251001", sys, usr, max_tokens=4500)
     if not raw:
+        print("[STRATEGIST] empty response from Claude")
         return None
     import json as _json
     import re as _re
@@ -12311,12 +12312,15 @@ def generate_strategy(profile, items):
     except Exception:
         m = _re.search(r"\{.*\}", raw, _re.S)
         if not m:
+            print(f"[STRATEGIST] no JSON object found, raw[-200:]={raw[-200:]!r}")
             return None
         try:
             data = _json.loads(m.group(0))
-        except Exception:
+        except Exception as e:
+            print(f"[STRATEGIST] JSON parse failed ({e}); raw len={len(raw)} tail={raw[-200:]!r}")
             return None
     if not isinstance(data, dict):
+        print(f"[STRATEGIST] response was not a dict, type={type(data).__name__}")
         return None
     # Validate / sanitize
     schools = []
@@ -12340,6 +12344,8 @@ def generate_strategy(profile, items):
             additions.append({"slug": slug, "reason": str(a.get("reason", ""))[:300]})
     priorities = [str(p)[:240] for p in (data.get("priorities") or []) if str(p).strip()]
     if not schools:
+        print(f"[STRATEGIST] zero valid schools survived filter; in_list={sorted(in_list)} "
+              f"returned={[s.get('slug') for s in (data.get('schools') or [])]}")
         return None
     return {
         "headline": str(data.get("headline", "Your application strategy"))[:160],
