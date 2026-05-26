@@ -12195,7 +12195,7 @@ def plans_grade_page():
 
 
 # ─── APPLICATION STRATEGIST (premium AI feature) ──────────
-_STRATEGIST_PROMPT_VERSION = 5
+_STRATEGIST_PROMPT_VERSION = 6
 
 
 def _test_range(c):
@@ -12380,19 +12380,30 @@ def generate_strategy(profile, items):
         "- Safety: high confidence (>~80%) AND a school they'd be content to "
         "attend. Use the student's computed odds when given; otherwise judge "
         "from the school's admit rate against the student's stats.\n\n"
-        "ACTION LABELS — each school gets ONE of four actions:\n"
-        "- \"Anchor\": top-priority application. Best combo of fit + odds + "
-        "round leverage. Reserve for the 3-5 schools the student should "
-        "build the rest of the strategy around (typically 2-3 reaches the "
-        "ED/EA round actually makes viable, the strongest 1-2 targets, "
-        "and the safety they'd actually attend).\n"
-        "- \"Keep\": solid app, worth the slot, not the headline.\n"
-        "- \"Watch\": marginal — keep ONLY if it's a dream school. Use for "
-        "reaches where ED leverage is weak, scores are below 25th, or fit "
-        "is thin.\n"
-        "- \"Cut\": drop or swap. Use for reaches that are effectively "
-        "lottery (no ED leverage AND below 25th percentile) and for any "
-        "school that adds no strategic value.\n\n"
+        "ACTION LABELS — each school gets ONE of four actions. THE DEFAULT "
+        "IS \"Keep\". Anchor, Watch, and Cut are all sparingly-used special "
+        "cases. If you're unsure, the answer is \"Keep\".\n"
+        "- \"Anchor\" (rare — 3-5 schools across the WHOLE list): the "
+        "highest-priority applications the strategy is built around. Best "
+        "combo of fit + odds + ED/EA leverage. Typically 2-3 reaches that "
+        "ED makes viable, the strongest 1-2 targets, and the true safety.\n"
+        "- \"Keep\" (DEFAULT — the majority of the list): solid app, worth "
+        "the slot. ANY reach the student saved AND that's not pure lottery "
+        "AND that they haven't bottom-ranked themselves stays Keep. Reaches "
+        "in the 5-20% admit range with reasonable score fit (at/around the "
+        "25th-75th percentile band) are Keep, not Cut.\n"
+        "- \"Watch\" (the safety valve for marginal reaches): use for "
+        "reaches where odds are weak AND ED leverage is missing AND fit "
+        "is thin. The note should say \"keep only if it's a dream school\" "
+        "or similar — Watch means \"on the bubble\", not \"drop\".\n"
+        "- \"Cut\" (RESERVED — should be the smallest bucket): only when "
+        "the school adds no realistic value. Strict criteria — must meet "
+        "AT LEAST TWO of: (a) overall admit <5% AND no ED leverage at all "
+        "AND student well below the 25th percentile, (b) student ranked it "
+        "near the bottom of their preferences, (c) the school is a near-"
+        "duplicate of another, better-positioned school on the list. NEVER "
+        "Cut more than ~25% of the reach pile, and NEVER Cut a school the "
+        "student ranked in their top 5 unless it's literally impossible.\n\n"
         "TEST SCORES — read carefully:\n"
         "- Every school line includes a pre-computed `score-vs-school:` "
         "label like `ACT 33 ABOVE the 75th percentile of 29-32` or "
@@ -12431,23 +12442,25 @@ def generate_strategy(profile, items):
         "are remotely viable. Even a low-odds school at rank #1 should "
         "usually be \"Watch\" (or Anchor if ED makes it real), NEVER Cut "
         "unless it is genuinely impossible.\n"
-        "- Bottom-quartile ranks (the lowest-ranked ~25% of the list) "
-        "with weak odds and no ED leverage are prime Cut candidates — "
-        "the student isn't excited and the numbers don't justify the "
-        "slot.\n"
+        "- Bottom-ranked schools (very last few in their list) with weak "
+        "odds and no ED leverage are reasonable Cut candidates IF they "
+        "also meet the strict Cut criteria above. Low preference alone "
+        "is not enough to Cut — combine with bad odds + no leverage.\n"
         "- Between two reaches with similar odds/fit, the higher-"
-        "preference school wins for Keep/Anchor; the lower-preference "
-        "loses.\n"
+        "preference school wins for Anchor; the lower-preference can "
+        "drop to Watch. Don't escalate ties to Cut.\n"
         "- The ED pick should almost always come from rank #1-#3 unless "
         "their top picks have catastrophic ED leverage (no ED option, "
         "or ED rate not meaningfully above RD).\n"
-        "- Unranked schools = treat as middle-of-the-pack preference. "
-        "Don't punish them, but if the student bothered to rank some, "
-        "the ranked ones carry more signal.\n"
-        "- Mention preference explicitly in notes/game_plan/ed_pick "
-        "reasoning when it changes the call (e.g. \"your #1 — worth "
-        "the Anchor slot despite mid odds\", or \"ranked last and only "
-        "8% admit, cut\").\n\n"
+        "- Unranked schools = NEUTRAL preference. They default to Keep. "
+        "Do not punish a school just because the student hasn't ranked "
+        "it yet — most users won't rank everything.\n"
+        "- If NO schools are ranked (everything unranked), preference "
+        "doesn't enter the decision at all — judge purely on fit, odds, "
+        "and ED leverage.\n"
+        "- Mention preference explicitly in notes/game_plan/ed_pick when "
+        "it changes the call (e.g. \"your #1 — worth Anchor despite mid "
+        "odds\"). Don't mention preference for unranked schools.\n\n"
         "WRITING THE PER-SCHOOL NOTE — this is the most important part. "
         "Each note is ONE sharp sentence (~22-35 words). Follow these rules:\n"
         "1. NEVER open with score math. Do NOT start any note with \"ACT X "
@@ -12471,26 +12484,26 @@ def generate_strategy(profile, items):
         "a callout under the note. Use ONLY when the round matters strategically "
         "— e.g. \"ED here: 54% admit, your highest-leverage app\" or \"EA "
         "non-binding, gives early answer + same odds\". Leave empty otherwise.\n\n"
-        "ACTION CONSISTENCY: action and note MUST agree.\n"
-        "- Never say \"Hail Mary\", \"long shot\", \"near-impossible\", "
-        "\"unrealistic\", or \"only 5-9% odds\" in a note where action is "
-        "\"Anchor\" or \"Keep\". If the logic says the school isn't worth "
-        "the slot, the action MUST be \"Watch\" or \"Cut\".\n"
-        "- A school with <8% overall admit AND no ED leverage AND the "
-        "student not above its 75th percentile is almost always \"Cut\" "
-        "unless explicitly a dream school (\"Watch\").\n"
+        "ACTION CONSISTENCY: action and note MUST agree on energy.\n"
+        "- Don't write \"Hail Mary\", \"near-impossible\", or \"unrealistic\" "
+        "in a Keep/Anchor note — that's a Watch or Cut framing.\n"
         "- A school with strong ED leverage (ED rate >2x overall) AND the "
-        "student at/above its 75th percentile is \"Anchor\" — never \"Cut\".\n\n"
+        "student at/above its 75th percentile is \"Anchor\" — never \"Cut\".\n"
+        "- A note that explains a legitimate strategic angle (ED leverage, "
+        "program fit, EA non-binding, etc.) supports Keep or Anchor — even "
+        "if odds look thin on paper. Default to Keep when the angle exists.\n\n"
         "LIST BALANCE & STATS:\n"
-        "- A balanced list has at least one true safety, 5-8 targets, and "
-        "3-5 reaches actively worth pursuing.\n"
-        "- Limit \"Anchor\" to 3-5 schools across the WHOLE list — these "
-        "are the ones the strategy is built around.\n"
-        "- If the list has >7 reaches, most beyond the top 3-4 should be "
-        "\"Watch\" or \"Cut\".\n"
+        "- Limit \"Anchor\" to 3-5 schools across the WHOLE list.\n"
+        "- \"Cut\" should be the smallest bucket — usually 0-3 schools. "
+        "Most of the list (often 60-80%) is \"Keep\". A long reach pile is "
+        "fine; the user can apply to 8-10 reaches if they're motivated.\n"
+        "- For top-heavy lists, the fix is usually \"add a safety / a few "
+        "targets\" — NOT \"cut half your reaches\". Surface that in the "
+        "assessment and additions, not by mass-cutting.\n"
         "- Compute stats {reaches, targets, safeties, list_size}.\n"
         "- Call out top-heavy lists, thin lists (<6 schools), and lists "
-        "with no safety in the assessment.\n\n"
+        "with no safety in the assessment — these are diagnostics, not "
+        "mandates to start cutting.\n\n"
         "ED PICK — single most important strategic decision.\n"
         "- Identify the ONE school the student should ED to (or null if "
         "no genuinely good ED candidate exists, e.g. all reaches are "
@@ -12601,6 +12614,22 @@ def generate_strategy(profile, items):
         print(f"[STRATEGIST] zero valid schools survived filter; in_list={sorted(in_list)} "
               f"returned={[s.get('slug') for s in (data.get('schools') or [])]}")
         return None
+
+    # Safety net for cut-happy outputs: if the model marked too many
+    # schools as Cut, downgrade the excess to Watch. The model isn't
+    # allowed to nuke the list even if its prompt-following slips.
+    # Cap = max(1, ceil(0.3 * len(schools))). Excess Cuts are chosen by
+    # their position in the response (later = downgraded first), which
+    # tends to keep the model's most-confident cuts.
+    import math as _math
+    cuts = [i for i, s in enumerate(schools) if s["action"] == "Cut"]
+    cut_cap = max(1, _math.ceil(0.30 * len(schools)))
+    if len(cuts) > cut_cap:
+        excess = cuts[cut_cap:]
+        for i in excess:
+            schools[i]["action"] = "Watch"
+        print(f"[STRATEGIST] cut-cap: downgraded {len(excess)} Cut→Watch "
+              f"(had {len(cuts)} cuts in {len(schools)} schools, cap={cut_cap})")
 
     # ed_pick — must reference a slug that's in their list; null otherwise.
     ed_pick = None
