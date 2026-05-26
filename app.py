@@ -12155,7 +12155,7 @@ def plans_grade_page():
 
 
 # ─── APPLICATION STRATEGIST (premium AI feature) ──────────
-_STRATEGIST_PROMPT_VERSION = 2
+_STRATEGIST_PROMPT_VERSION = 4
 
 
 def _test_range(c):
@@ -12168,6 +12168,75 @@ def _test_range(c):
     if c.get("act_25") and c.get("act_75"):
         parts.append(f"ACT {c['act_25']}-{c['act_75']}")
     return "mid-50%: " + (", ".join(parts) if parts else "n/a")
+
+
+def _score_position_label(score, lo, hi):
+    """Deterministic percentile-position label so the LLM never does this
+    math itself. The mid-50% range maps to 25th..75th; scores at/outside
+    the bounds get the boundary labels; scores strictly inside the range
+    are bucketed by the midpoint."""
+    try:
+        score = float(score); lo = float(lo); hi = float(hi)
+    except (TypeError, ValueError):
+        return None
+    if hi <= lo:
+        return None
+    if score > hi:
+        return "ABOVE the 75th percentile"
+    if score == hi:
+        return "AT the 75th percentile"
+    if score < lo:
+        return "BELOW the 25th percentile"
+    if score == lo:
+        return "AT the 25th percentile"
+    mid = (lo + hi) / 2.0
+    if score > mid:
+        return "between the 50th and 75th percentile"
+    if score < mid:
+        return "between the 25th and 50th percentile"
+    return "AT the 50th percentile"
+
+
+def _round_rates_str(c):
+    """Compact per-round admit-rate string for the strategist prompt, e.g.
+    'ED 54%, EA 28%, RD ~12%'. Pulled from ADMISSIONS_DETAIL so the model
+    sees the real ED/EA leverage instead of judging on overall admit only.
+    Returns empty string when no curated breakdown exists for the school."""
+    d = ADMISSIONS_DETAIL.get(c.get("slug")) or {}
+    rates = d.get("rates") or {}
+    if not rates:
+        return ""
+    order = ["ED", "ED1", "ED2", "REA", "EA", "RD"]
+    seen = set()
+    parts = []
+    for r in order:
+        if r in rates and r not in seen:
+            parts.append(f"{r} {round(rates[r] * 100)}%")
+            seen.add(r)
+    for r, v in rates.items():
+        if r not in seen:
+            parts.append(f"{r} {round(v * 100)}%")
+            seen.add(r)
+    return ", ".join(parts)
+
+
+def _score_vs_school(profile, c):
+    """Pre-computed score-vs-school comparison string for the strategist
+    prompt. Format: 'ACT 33 ABOVE the 75th percentile of 29-32'. Returns
+    one entry per test the student reports that the school has a range
+    for. The LLM is told to use ONLY this label, never recompute."""
+    parts = []
+    sat = profile.get("sat")
+    if sat:
+        lbl = _score_position_label(sat, c.get("sat_25"), c.get("sat_75"))
+        if lbl:
+            parts.append(f"SAT {sat} {lbl} of {c['sat_25']}-{c['sat_75']}")
+    act = profile.get("act")
+    if act:
+        lbl = _score_position_label(act, c.get("act_25"), c.get("act_75"))
+        if lbl:
+            parts.append(f"ACT {act} {lbl} of {c['act_25']}-{c['act_75']}")
+    return "; ".join(parts) if parts else "no test comparison available"
 
 
 def _strategist_gather(uid):
@@ -12233,9 +12302,12 @@ def generate_strategy(profile, items):
         else:
             odds = "odds not yet computed"
         rnd = ROUND_DISPLAY.get(it["round"], "round undecided")
+        rr = _round_rates_str(c)
+        round_rates_field = f"per-round: {rr}" if rr else "per-round: not available"
         list_lines.append(
             f"{c['slug']}|{c['name']}|{round(c['accept']*100,1)}% overall admit|"
-            f"{_test_range(c)}|{odds}|{rnd}"
+            f"{_test_range(c)}|score-vs-school: {_score_vs_school(profile, c)}|"
+            f"{round_rates_field}|{odds}|{rnd}"
         )
     if not list_lines:
         return None
@@ -12247,47 +12319,137 @@ def generate_strategy(profile, items):
     ]
 
     sys = (
-        "You are a seasoned, blunt college admissions strategist. A student "
-        "gives you their academic profile and current college list. Produce a "
-        "concrete, honest strategic plan — not generic encouragement.\n\n"
+        "You are a seasoned, opinionated college admissions strategist. A "
+        "student gives you their academic profile and current college list. "
+        "Build them a TIGHT strategic plan — concrete moves, ordered by "
+        "priority, with the single highest-leverage decision (their ED pick) "
+        "called out separately. No generic encouragement. No hedging.\n\n"
         "Tier definitions (classify EVERY school in their list):\n"
         "- Reach: realistic admit chance well under ~35% for THIS student.\n"
         "- Target: roughly 35-75% — where most acceptances should come from.\n"
         "- Safety: high confidence (>~80%) AND a school they'd be content to "
         "attend. Use the student's computed odds when given; otherwise judge "
         "from the school's admit rate against the student's stats.\n\n"
+        "ACTION LABELS — each school gets ONE of four actions:\n"
+        "- \"Anchor\": top-priority application. Best combo of fit + odds + "
+        "round leverage. Reserve for the 3-5 schools the student should "
+        "build the rest of the strategy around (typically 2-3 reaches the "
+        "ED/EA round actually makes viable, the strongest 1-2 targets, "
+        "and the safety they'd actually attend).\n"
+        "- \"Keep\": solid app, worth the slot, not the headline.\n"
+        "- \"Watch\": marginal — keep ONLY if it's a dream school. Use for "
+        "reaches where ED leverage is weak, scores are below 25th, or fit "
+        "is thin.\n"
+        "- \"Cut\": drop or swap. Use for reaches that are effectively "
+        "lottery (no ED leverage AND below 25th percentile) and for any "
+        "school that adds no strategic value.\n\n"
         "TEST SCORES — read carefully:\n"
-        "- Every school line includes that school's admitted middle-50% "
-        "ranges for the SAT (out of 1600) and the ACT (out of 36).\n"
-        "- The student may report an SAT score, an ACT score, or both. "
-        "Compare the student's score to the school's range FOR THE SAME TEST "
-        "the student took. If the student reports only an ACT, judge them "
-        "against the school's ACT range — never against its SAT range.\n"
-        "- Do NOT convert between SAT and ACT, and do NOT invent, recall, or "
-        "estimate any test medians. Use ONLY the ranges given in the data.\n"
-        "- A score at/above a school's 75th percentile is a strength; below "
-        "its 25th is a real weakness; in between is on-range. When you "
-        "mention test scores in a note, cite the school's actual range.\n"
-        "- If the student reports no test score, do not speculate about one.\n\n"
-        "A balanced list has at least one true safety, several targets, and a "
-        "capped number of reaches. Call out top-heavy lists (mostly reaches), "
-        "thin lists (under ~6 schools), and lists with no safety.\n\n"
-        "Round strategy: Early Decision is binding and gives the biggest odds "
-        "bump — recommend ONE school to ED only if it's strong-but-reachable "
-        "and the student would genuinely commit. Early Action is non-binding; "
-        "encourage using it. Name specific schools.\n\n"
+        "- Every school line includes a pre-computed `score-vs-school:` "
+        "label like `ACT 33 ABOVE the 75th percentile of 29-32` or "
+        "`SAT 1450 between the 25th and 50th percentile of 1430-1530`. "
+        "These labels are CORRECT and authoritative. **You MUST use them "
+        "verbatim** when describing the student's score position relative "
+        "to a school.\n"
+        "- NEVER recompute, restate, or override the percentile position "
+        "yourself. NEVER write things like \"ACT 33 is at the 25th of "
+        "29-32\" when the label says ABOVE the 75th — that contradicts the "
+        "data and is wrong.\n"
+        "- Do NOT convert between SAT and ACT, and do NOT invent or "
+        "estimate any test medians.\n"
+        "- A score ABOVE the 75th percentile is a real strength; BELOW the "
+        "25th is a real weakness; the in-between buckets are on-range.\n"
+        "- If the student reports no test score, do not speculate.\n\n"
+        "ED / EA LEVERAGE — this is critical and the most-missed factor:\n"
+        "- Each school line includes a `per-round:` field with the school's "
+        "actual admit rate by round (ED, ED2, EA, REA, RD). USE THIS.\n"
+        "- A school with an ED rate >2x its overall rate (e.g. Villanova ED "
+        "~54% vs ~27% overall, Lehigh ED ~52%, Northeastern ED ~47%) is a "
+        "powerful ED play. If the student is also AT or ABOVE that school's "
+        "75th percentile on their test, the school is a strong KEEP — do "
+        "NOT mark it Reconsider just because the overall admit looks low.\n"
+        "- Conversely, a school with a low ED rate AND the student below "
+        "its 25th percentile is genuinely Reconsider territory.\n"
+        "- When you reference odds in a note, prefer the relevant round "
+        "rate (ED/EA/RD) over the overall rate when the round is named in "
+        "the student's plan or when ED leverage changes the verdict.\n\n"
+        "WRITING THE PER-SCHOOL NOTE — this is the most important part. "
+        "Each note is ONE sharp sentence (~22-35 words). Follow these rules:\n"
+        "1. NEVER open with score math. Do NOT start any note with \"ACT X "
+        "is in/below Y's range\", \"Your X falls within…\", or any other "
+        "percentile template. That is filler.\n"
+        "2. Lead with something SPECIFIC to this school for THIS student — "
+        "a program strength tied to their major, a culture/geography fit "
+        "tied to their ECs or background, a concrete opportunity (co-op, "
+        "research, dual-degree, scholarship), the strategic role on their "
+        "list (anchor reach, ED leverage, regional safety), or a specific "
+        "fit signal from their awards/leadership.\n"
+        "3. End with a SHORT blunt verdict clause matching the action — "
+        "WHY anchor/keep, WHY watch (\"keep only if dream\"), WHY cut "
+        "(\"drop\", \"swap for ___\", \"effectively lottery\").\n"
+        "4. Vary sentence openers. No two notes may start the same way. "
+        "Do not use the same adjective (\"strong\", \"solid\", \"realistic\") "
+        "more than twice across the whole list.\n"
+        "5. Score math allowed at most ONCE per note, never as the lead, "
+        "only when it changes the call.\n\n"
+        "ROUND_PITCH (optional, <12 words): a short ED/EA framing shown as "
+        "a callout under the note. Use ONLY when the round matters strategically "
+        "— e.g. \"ED here: 54% admit, your highest-leverage app\" or \"EA "
+        "non-binding, gives early answer + same odds\". Leave empty otherwise.\n\n"
+        "ACTION CONSISTENCY: action and note MUST agree.\n"
+        "- Never say \"Hail Mary\", \"long shot\", \"near-impossible\", "
+        "\"unrealistic\", or \"only 5-9% odds\" in a note where action is "
+        "\"Anchor\" or \"Keep\". If the logic says the school isn't worth "
+        "the slot, the action MUST be \"Watch\" or \"Cut\".\n"
+        "- A school with <8% overall admit AND no ED leverage AND the "
+        "student not above its 75th percentile is almost always \"Cut\" "
+        "unless explicitly a dream school (\"Watch\").\n"
+        "- A school with strong ED leverage (ED rate >2x overall) AND the "
+        "student at/above its 75th percentile is \"Anchor\" — never \"Cut\".\n\n"
+        "LIST BALANCE & STATS:\n"
+        "- A balanced list has at least one true safety, 5-8 targets, and "
+        "3-5 reaches actively worth pursuing.\n"
+        "- Limit \"Anchor\" to 3-5 schools across the WHOLE list — these "
+        "are the ones the strategy is built around.\n"
+        "- If the list has >7 reaches, most beyond the top 3-4 should be "
+        "\"Watch\" or \"Cut\".\n"
+        "- Compute stats {reaches, targets, safeties, list_size}.\n"
+        "- Call out top-heavy lists, thin lists (<6 schools), and lists "
+        "with no safety in the assessment.\n\n"
+        "ED PICK — single most important strategic decision.\n"
+        "- Identify the ONE school the student should ED to (or null if "
+        "no genuinely good ED candidate exists, e.g. all reaches are "
+        "lottery, or all ED options are dream-school risks).\n"
+        "- Best ED pick = high ED admit rate (ideally >2x overall) + "
+        "student at/above 75th percentile + real fit (major / EC / "
+        "geography). Villanova at ED 54%, Lehigh ED 52%, Northeastern "
+        "ED 47% are typical strong picks when fit lines up.\n"
+        "- ed_pick.reason MUST cite the specific ED admit rate and the "
+        "student's score position from the pre-computed label. 2 sentences.\n\n"
+        "GAME PLAN — 3-5 concrete ordered moves the student does NEXT. "
+        "Reference schools by name. Each item is one short imperative "
+        "sentence. Examples: \"ED to Villanova by Nov 15 — 54% admit and "
+        "you're above their ACT median\", \"Cut Tufts, Cornell, and "
+        "Northeastern from RD — effectively lottery without an ED slot\", "
+        "\"Add Pitt or Penn State as a true safety — your current list "
+        "has none\". This is the headline call to action.\n\n"
         "Return ONLY JSON, no markdown, no prose outside the object:\n"
-        '{"headline": "<=12 word verdict on the list", '
-        '"assessment": "2-4 honest sentences on the list overall", '
-        '"schools": [{"slug": "...", "tier": "Reach|Target|Safety", '
-        '"action": "Keep|Reconsider", "note": "one specific sentence"}], '
-        '"round_strategy": "2-3 sentences naming specific schools to ED/EA", '
-        '"additions": [{"slug": "...", "reason": "..."}], '
-        '"priorities": ["3-5 concrete next steps, most important first"]}\n'
-        "Include every school from their list in \"schools\". Pick 2-4 "
-        "\"additions\" from the CANDIDATE catalog that fill real gaps. Every "
-        "slug MUST come exactly from the lists provided. You may use **bold** "
-        "inside assessment/note/round_strategy/priorities text."
+        "{\n"
+        '  "headline": "<=14 word punchy verdict on the list",\n'
+        '  "assessment": "2-3 honest sentences on overall shape, gaps, strengths",\n'
+        '  "stats": {"reaches": <int>, "targets": <int>, "safeties": <int>, "list_size": <int>},\n'
+        '  "ed_pick": null OR {"slug": "...", "headline": "<8 word framing", "reason": "2 sentences citing ED rate + score position"},\n'
+        '  "game_plan": ["3-5 concrete ordered moves, most important first"],\n'
+        '  "schools": [{"slug": "...", "tier": "Reach|Target|Safety", "action": "Anchor|Keep|Watch|Cut", "note": "one specific sentence", "round_pitch": "optional short ED/EA callout or empty"}],\n'
+        '  "round_strategy": "2-3 sentences naming specific schools to ED/EA",\n'
+        '  "additions": [{"slug": "...", "reason": "..."}],\n'
+        '  "priorities": ["3-5 next steps for the student"]\n'
+        "}\n"
+        "Include EVERY school from their list in \"schools\". Pick 2-4 "
+        "\"additions\" from the CANDIDATE catalog that fill real gaps "
+        "(missing safety, no Midwest options, weak ED leverage anywhere, "
+        "etc.). Every slug MUST come exactly from the lists provided. You "
+        "may use **bold** in assessment/note/round_pitch/round_strategy/"
+        "priorities/game_plan/ed_pick.reason."
     )
     usr = (
         "STUDENT PROFILE:\n"
@@ -12298,7 +12460,9 @@ def generate_strategy(profile, items):
         f"Extracurriculars: {(profile.get('ecs') or '—')[:600]}\n"
         f"Leadership: {(profile.get('leadership') or '—')[:300]}\n"
         f"Awards: {(profile.get('awards') or '—')[:300]}\n\n"
-        "CURRENT COLLEGE LIST — slug|name|admit rate|test ranges|odds|round:\n"
+        "CURRENT COLLEGE LIST — slug|name|overall admit|test ranges|"
+        "score-vs-school (pre-computed, use verbatim)|per-round admit rates|"
+        "this student's odds|round they're applying:\n"
         + "\n".join(list_lines)
         + "\n\nCANDIDATE catalog for additions — slug|name|admit rate|test ranges|location|majors:\n"
         + "\n".join(cat_lines)
@@ -12329,6 +12493,7 @@ def generate_strategy(profile, items):
         print(f"[STRATEGIST] response was not a dict, type={type(data).__name__}")
         return None
     # Validate / sanitize
+    valid_actions = ("Anchor", "Keep", "Watch", "Cut")
     schools = []
     for s in data.get("schools") or []:
         if not isinstance(s, dict):
@@ -12337,9 +12502,14 @@ def generate_strategy(profile, items):
         if slug not in in_list:
             continue
         tier = s.get("tier") if s.get("tier") in ("Reach", "Target", "Safety") else "Target"
-        action = s.get("action") if s.get("action") in ("Keep", "Reconsider") else "Keep"
-        schools.append({"slug": slug, "tier": tier, "action": action,
-                        "note": str(s.get("note", ""))[:300]})
+        action = s.get("action") if s.get("action") in valid_actions else "Keep"
+        schools.append({
+            "slug": slug,
+            "tier": tier,
+            "action": action,
+            "note": str(s.get("note", ""))[:320],
+            "round_pitch": str(s.get("round_pitch", ""))[:120].strip(),
+        })
     additions, seen = [], set()
     for a in data.get("additions") or []:
         if not isinstance(a, dict):
@@ -12349,13 +12519,49 @@ def generate_strategy(profile, items):
             seen.add(slug)
             additions.append({"slug": slug, "reason": str(a.get("reason", ""))[:300]})
     priorities = [str(p)[:240] for p in (data.get("priorities") or []) if str(p).strip()]
+    game_plan = [str(p)[:240] for p in (data.get("game_plan") or []) if str(p).strip()][:6]
     if not schools:
         print(f"[STRATEGIST] zero valid schools survived filter; in_list={sorted(in_list)} "
               f"returned={[s.get('slug') for s in (data.get('schools') or [])]}")
         return None
+
+    # ed_pick — must reference a slug that's in their list; null otherwise.
+    ed_pick = None
+    raw_ep = data.get("ed_pick")
+    if isinstance(raw_ep, dict) and raw_ep.get("slug") in in_list:
+        ed_pick = {
+            "slug": raw_ep["slug"],
+            "headline": str(raw_ep.get("headline", ""))[:80],
+            "reason": str(raw_ep.get("reason", ""))[:420],
+        }
+
+    # stats — accept what the LLM gave, but recompute from schools as a
+    # safety net so the page is always internally consistent.
+    raw_stats = data.get("stats") if isinstance(data.get("stats"), dict) else {}
+    def _ci(v):
+        try:
+            return int(v)
+        except (TypeError, ValueError):
+            return None
+    counted = {
+        "reaches": sum(1 for s in schools if s["tier"] == "Reach"),
+        "targets": sum(1 for s in schools if s["tier"] == "Target"),
+        "safeties": sum(1 for s in schools if s["tier"] == "Safety"),
+        "list_size": len(schools),
+    }
+    stats = {
+        "reaches": _ci(raw_stats.get("reaches")) if _ci(raw_stats.get("reaches")) is not None else counted["reaches"],
+        "targets": _ci(raw_stats.get("targets")) if _ci(raw_stats.get("targets")) is not None else counted["targets"],
+        "safeties": _ci(raw_stats.get("safeties")) if _ci(raw_stats.get("safeties")) is not None else counted["safeties"],
+        "list_size": _ci(raw_stats.get("list_size")) if _ci(raw_stats.get("list_size")) is not None else counted["list_size"],
+    }
+
     return {
-        "headline": str(data.get("headline", "Your application strategy"))[:160],
+        "headline": str(data.get("headline", "Your application strategy"))[:180],
         "assessment": str(data.get("assessment", ""))[:900],
+        "stats": stats,
+        "ed_pick": ed_pick,
+        "game_plan": game_plan,
         "schools": schools,
         "round_strategy": str(data.get("round_strategy", ""))[:900],
         "additions": additions,
@@ -12372,12 +12578,101 @@ def _strategist_render(strategy):
 
     headline = _esc(strategy.get("headline") or "Your application strategy")
     assessment = _bold(strategy.get("assessment") or "")
+    stats = strategy.get("stats") or {}
 
+    # ── stat badges ────────────────────────────────────────────────
+    def _badge(label, n, col):
+        return (
+            f'<div style="display:inline-flex;align-items:baseline;gap:6px;'
+            f'padding:6px 12px;border:1px solid {col}33;border-radius:999px;'
+            f'background:{col}14">'
+            f'<span style="font-weight:700;color:{col};font-size:1.05em">{int(n)}</span>'
+            f'<span style="font-size:.78em;color:#94a3b8">{label}</span></div>'
+        )
+    badges = " ".join([
+        _badge("reaches", stats.get("reaches", 0), "#fbbf24"),
+        _badge("targets", stats.get("targets", 0), "#5eead4"),
+        _badge("safeties", stats.get("safeties", 0), "#86efac"),
+    ])
+
+    # ── ED pick callout ───────────────────────────────────────────
+    ed_pick_html = ""
+    ed = strategy.get("ed_pick")
+    if ed and ed.get("slug") in COLLEGES_BY_SLUG:
+        c = COLLEGES_BY_SLUG[ed["slug"]]
+        d = ADMISSIONS_DETAIL.get(c["slug"]) or {}
+        rates = d.get("rates") or {}
+        ed_rate_label = ""
+        for key in ("ED", "ED1", "REA"):
+            if key in rates:
+                ed_rate_label = f"{key} {round(rates[key]*100)}%"
+                break
+        if not ed_rate_label and "EA" in rates:
+            ed_rate_label = f"EA {round(rates['EA']*100)}%"
+        rate_chip = (
+            f'<span style="color:#5eead4;font-weight:700">{ed_rate_label}</span>'
+            if ed_rate_label else ""
+        )
+        sep = " · " if rate_chip else ""
+        ep_headline = _esc(ed.get("headline") or "Your highest-leverage application")
+        ed_pick_html = f'''
+<div class="card" style="background:linear-gradient(135deg,#0e2a4a 0%,#0a131c 100%);border:1px solid rgba(94,234,212,.4);padding:22px;margin-top:18px">
+  <div style="font-size:.7em;letter-spacing:.18em;font-weight:700;color:#5eead4;text-transform:uppercase;margin-bottom:10px">★ Your ED pick</div>
+  <div style="font-size:1.35em;font-weight:700;margin-bottom:4px">{_esc(c["name"])}</div>
+  <div class="muted" style="font-size:.85em;margin-bottom:6px">{city_state(c)} · {round(c["accept"]*100,1)}% overall{sep}{rate_chip}</div>
+  <div style="font-size:.92em;color:#cbd5e1;margin-bottom:10px;font-style:italic">{ep_headline}</div>
+  <div style="line-height:1.6;font-size:1em">{_bold(ed.get("reason") or "")}</div>
+</div>'''
+
+    # ── game plan ─────────────────────────────────────────────────
+    plan_items = strategy.get("game_plan") or []
+    plan_html = ""
+    if plan_items:
+        items = "".join(
+            f'''<li style="margin:0;padding:14px 0 14px 14px;border-left:2px solid #5eead4;
+                          list-style:none;line-height:1.55;counter-increment:plan">
+                  <span style="display:inline-block;width:22px;height:22px;border-radius:50%;
+                               background:#5eead4;color:#0a131c;font-weight:700;font-size:.78em;
+                               text-align:center;line-height:22px;margin-right:10px;
+                               vertical-align:middle">{i+1}</span>{_bold(p)}</li>'''
+            for i, p in enumerate(plan_items)
+        )
+        plan_html = f'''
+<h2 style="margin-top:32px">Your move, in order</h2>
+<div class="card" style="padding:6px 18px"><ul style="padding:0;margin:0;list-style:none">{items}</ul></div>'''
+
+    # ── schools, sorted within tier by action priority ────────────
+    action_order = {"Anchor": 0, "Keep": 1, "Watch": 2, "Cut": 3}
+    action_col = {"Anchor": "#5eead4", "Keep": "#86efac", "Watch": "#fbbf24", "Cut": "#fca5a5"}
+    action_label = {"Anchor": "★ ANCHOR", "Keep": "KEEP", "Watch": "WATCH", "Cut": "CUT"}
     tier_col = {"Reach": "#fbbf24", "Target": "#5eead4", "Safety": "#86efac"}
+    tier_blurb = {
+        "Reach": "Hard to get in — most accept rates here are below 35%.",
+        "Target": "Where most of your acceptances should come from.",
+        "Safety": "High confidence and a place you'd actually attend.",
+    }
+
     groups = {"Reach": [], "Target": [], "Safety": []}
     for s in strategy.get("schools") or []:
         if s.get("tier") in groups:
             groups[s["tier"]].append(s)
+    for tier in groups:
+        groups[tier].sort(key=lambda s: (action_order.get(s.get("action"), 9), s.get("slug") or ""))
+
+    def _round_chip(c):
+        """Inline 'ED 54%' chip when ED admit is meaningfully higher than RD."""
+        d = ADMISSIONS_DETAIL.get(c.get("slug")) or {}
+        rates = d.get("rates") or {}
+        if not rates:
+            return ""
+        rd = rates.get("RD")
+        for key in ("ED", "ED1", "REA"):
+            if key in rates:
+                v = rates[key]
+                if rd is None or v >= rd * 1.3:
+                    return f' · <span style="color:#5eead4;font-weight:600">{key} {round(v*100)}%</span>'
+                return ""
+        return ""
 
     schools_html = ""
     for tier in ("Reach", "Target", "Safety"):
@@ -12391,22 +12686,49 @@ def _strategist_render(strategy):
             if not c:
                 continue
             action = s.get("action") or "Keep"
-            acol = "#fca5a5" if action == "Reconsider" else "#86efac"
-            cards += f'''
-<div class="card" style="padding:14px;border-left:3px solid {col}">
-  <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">
-    <div style="font-weight:700">{c["name"]}</div>
-    <span style="font-size:.74em;font-weight:700;color:{acol};white-space:nowrap">{_esc(action)}</span>
-  </div>
-  <div class="muted" style="font-size:.82em;margin-top:2px">{city_state(c)} · {round(c["accept"]*100,1)}% accept</div>
-  <div style="margin-top:8px;font-size:.9em;line-height:1.5">{_bold(s.get("note") or "")}</div>
-</div>'''
-        schools_html += (
-            f'<h2 style="margin-top:24px">{tier} '
-            f'<span class="muted" style="font-size:.6em;font-weight:400">({len(grp)})</span></h2>'
-            f'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px">{cards}</div>'
-        )
+            if action not in action_col:
+                action = "Keep"
+            acol = action_col[action]
+            alabel = action_label[action]
 
+            # card border + opacity for visual hierarchy
+            if action == "Anchor":
+                card_style = (
+                    f"padding:14px;border:1px solid {acol}88;"
+                    f"border-left:3px solid {acol};"
+                    f"box-shadow:0 0 0 1px rgba(94,234,212,.10),0 8px 24px -12px rgba(94,234,212,.25)"
+                )
+            elif action == "Cut":
+                card_style = f"padding:14px;border-left:3px solid {acol};opacity:.72"
+            else:
+                card_style = f"padding:14px;border-left:3px solid {col}"
+
+            round_pitch = (s.get("round_pitch") or "").strip()
+            round_pitch_html = (
+                f'<div style="margin-top:10px;padding:8px 10px;background:rgba(94,234,212,.08);'
+                f'border-radius:6px;font-size:.82em;color:#5eead4;font-weight:600">'
+                f'→ {_bold(round_pitch)}</div>'
+                if round_pitch else ""
+            )
+
+            cards += f'''
+<div class="card" style="{card_style}">
+  <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:flex-start">
+    <div style="font-weight:700">{_esc(c["name"])}</div>
+    <span style="font-size:.68em;font-weight:700;color:{acol};white-space:nowrap;letter-spacing:.08em">{alabel}</span>
+  </div>
+  <div class="muted" style="font-size:.82em;margin-top:2px">{city_state(c)} · {round(c["accept"]*100,1)}% accept{_round_chip(c)}</div>
+  <div style="margin-top:8px;font-size:.9em;line-height:1.5">{_bold(s.get("note") or "")}</div>
+  {round_pitch_html}
+</div>'''
+        schools_html += f'''
+<div style="margin-top:32px;display:flex;align-items:baseline;gap:14px;flex-wrap:wrap">
+  <h2 style="margin:0">{tier} <span class="muted" style="font-size:.6em;font-weight:400">({len(grp)})</span></h2>
+  <div class="muted" style="font-size:.85em">{tier_blurb[tier]}</div>
+</div>
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-top:12px">{cards}</div>'''
+
+    # ── additions ─────────────────────────────────────────────────
     add_cards = ""
     for a in strategy.get("additions") or []:
         c = COLLEGES_BY_SLUG.get(a.get("slug"))
@@ -12414,8 +12736,8 @@ def _strategist_render(strategy):
             continue
         add_cards += f'''
 <div class="card" style="padding:14px">
-  <div style="font-weight:700">{c["name"]}</div>
-  <div class="muted" style="font-size:.82em">{city_state(c)} · {round(c["accept"]*100,1)}% accept</div>
+  <div style="font-weight:700">{_esc(c["name"])}</div>
+  <div class="muted" style="font-size:.82em">{city_state(c)} · {round(c["accept"]*100,1)}% accept{_round_chip(c)}</div>
   <div style="margin-top:8px;font-size:.9em;line-height:1.5">{_bold(a.get("reason") or "")}</div>
   <form method="post" action="/save/{c['slug']}" style="margin-top:10px">
     {csrf_input()}
@@ -12426,7 +12748,7 @@ def _strategist_render(strategy):
     add_section = ""
     if add_cards:
         add_section = (
-            '<h2 style="margin-top:24px">Schools to consider adding</h2>'
+            '<h2 style="margin-top:32px">Schools to consider adding</h2>'
             '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px">'
             f'{add_cards}</div>'
         )
@@ -12439,25 +12761,30 @@ def _strategist_render(strategy):
 
     return _page(f'''
 <div class="bar"><a href="/plans">← Back to My colleges</a></div>
-<h1>Application strategist</h1>
-<p class="muted">An AI read of your full list and profile — tier balance, round strategy, gaps, and what to do next. <a href="/plans/strategist?regen=1">Regenerate</a></p>
+<h1 style="margin-bottom:4px">Application strategist</h1>
+<p class="muted" style="margin-top:0">An AI read of your full list and profile — your ED move, ordered next steps, and where to cut. <a href="/plans/strategist?regen=1">Regenerate</a></p>
 
 <div class="card" style="background:linear-gradient(135deg,#0f3a37 0%,#0a131c 100%);border:1px solid rgba(94,234,212,.3);padding:24px">
-  <div style="font-size:1.15em;font-weight:700;color:#5eead4;margin-bottom:8px">{headline}</div>
-  <div style="line-height:1.6">{assessment}</div>
+  <div style="font-size:1.2em;font-weight:700;color:#5eead4;margin-bottom:10px;line-height:1.35">{headline}</div>
+  <div style="line-height:1.6;margin-bottom:14px">{assessment}</div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">{badges}</div>
 </div>
+
+{ed_pick_html}
+
+{plan_html}
 
 {schools_html}
 
-<h2 style="margin-top:24px">Round strategy</h2>
+<h2 style="margin-top:32px">Round strategy</h2>
 <div class="card"><div style="line-height:1.6">{round_html}</div></div>
 
 {add_section}
 
-<h2 style="margin-top:24px">Your priorities</h2>
+<h2 style="margin-top:32px">Your priorities</h2>
 <div class="card"><ol style="padding-left:20px;margin:0">{prio_html or '<li>No specific actions — your list looks solid.</li>'}</ol></div>
 
-<p style="margin-top:24px"><a class="btn btn-light" href="/plans">← Back to My colleges</a> <a class="btn btn-primary" href="/plans/grade">See list grade →</a></p>
+<p style="margin-top:32px"><a class="btn btn-light" href="/plans">← Back to My colleges</a> <a class="btn btn-primary" href="/plans/grade">See list grade →</a></p>
 ''', title="Application strategist — Candor")
 
 
