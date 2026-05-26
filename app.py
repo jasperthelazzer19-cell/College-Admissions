@@ -4807,6 +4807,13 @@ def init_db():
             conn.execute("ALTER TABLE saved_chances ADD COLUMN application_round TEXT")
         except sqlite3.OperationalError:
             pass
+        # User-set preference rank on each saved school. 1 = most wanted to
+        # attend, 2 = next, etc. NULL = unranked. Fed to the strategist so
+        # dream schools become Anchors and bottom-ranked reaches get cut.
+        try:
+            conn.execute("ALTER TABLE saved_schools ADD COLUMN preference_rank INTEGER")
+        except sqlite3.OperationalError:
+            pass
         # Premium subscription flag on users — gates the /plans page (My Plans
         # dashboard with simulator + grader). Free users still get individual
         # chances calc and college pages; premium adds the cross-list view.
@@ -11505,6 +11512,39 @@ def save_school(slug):
     return redirect(nxt)
 
 
+@app.route("/plans/rank", methods=["POST"])
+@login_required
+def plans_rank_reorder():
+    """Accept a JSON body {slugs: [...]} ordered top→bottom (most → least
+    wanted) and persist as preference_rank 1..N on saved_schools. Any of
+    the user's saved schools NOT in the payload keep their existing rank
+    (or stay NULL if never ranked). Returns {ok: true, ranked: N}."""
+    uid = current_user()["id"]
+    payload = request.get_json(silent=True) or {}
+    raw = payload.get("slugs")
+    if not isinstance(raw, list):
+        return jsonify({"ok": False, "error": "slugs must be a list"}), 400
+    # Sanitize: only keep slugs that are actually saved by this user,
+    # de-duped, preserving the submitted order.
+    with db() as conn:
+        rows = conn.execute(
+            "SELECT college_slug FROM saved_schools WHERE user_id=?", (uid,)
+        ).fetchall()
+        saved = {r["college_slug"] for r in rows}
+        ordered, seen = [], set()
+        for s in raw:
+            if isinstance(s, str) and s in saved and s not in seen:
+                ordered.append(s); seen.add(s)
+        for slug, rank in zip(ordered, range(1, len(ordered) + 1)):
+            conn.execute(
+                "UPDATE saved_schools SET preference_rank=? "
+                "WHERE user_id=? AND college_slug=?",
+                (rank, uid, slug)
+            )
+        conn.commit()
+    return jsonify({"ok": True, "ranked": len(ordered)})
+
+
 @app.route("/unsave/<slug>", methods=["POST"])
 @login_required
 def unsave_school(slug):
@@ -12155,7 +12195,7 @@ def plans_grade_page():
 
 
 # ─── APPLICATION STRATEGIST (premium AI feature) ──────────
-_STRATEGIST_PROMPT_VERSION = 4
+_STRATEGIST_PROMPT_VERSION = 5
 
 
 def _test_range(c):
@@ -12242,7 +12282,8 @@ def _score_vs_school(profile, c):
 def _strategist_gather(uid):
     """Merge the user's college list from saved_chances + saved_schools.
     Returns (profile, items) where each item has slug, round, computed
-    odds (or None), and whether chances were computed."""
+    odds (or None), preference_rank (1=most wanted, None=unranked),
+    and whether chances were computed."""
     profile = get_profile(uid) or {}
     with db() as conn:
         chances = conn.execute(
@@ -12251,9 +12292,11 @@ def _strategist_gather(uid):
             (uid, SAVED_CHANCES_MIN_VALID_AT)
         ).fetchall()
         saved = conn.execute(
-            "SELECT college_slug, application_round FROM saved_schools WHERE user_id=?",
+            "SELECT college_slug, application_round, preference_rank "
+            "FROM saved_schools WHERE user_id=?",
             (uid,)
         ).fetchall()
+    pref_by_slug = {r["college_slug"]: r["preference_rank"] for r in saved}
     chance_slugs = {r["college_slug"] for r in chances}
     items = []
     for r in chances:
@@ -12261,6 +12304,7 @@ def _strategist_gather(uid):
             "slug": r["college_slug"], "tier": r["tier"],
             "odds_low": r["odds_low"], "odds_high": r["odds_high"],
             "round": r["application_round"], "computed": True,
+            "preference_rank": pref_by_slug.get(r["college_slug"]),
         })
     for r in saved:
         if r["college_slug"] in chance_slugs:
@@ -12269,6 +12313,7 @@ def _strategist_gather(uid):
             "slug": r["college_slug"], "tier": None,
             "odds_low": None, "odds_high": None,
             "round": r["application_round"], "computed": False,
+            "preference_rank": r["preference_rank"],
         })
     return profile, items
 
@@ -12282,7 +12327,10 @@ def _strategist_input_hash(profile, items):
               "ecs", "leadership", "awards"):
         parts.append(f"{k}={profile.get(k)}")
     for it in sorted(items, key=lambda x: x["slug"]):
-        parts.append(f"{it['slug']}:{it['round']}:{it['odds_low']}:{it['odds_high']}")
+        parts.append(
+            f"{it['slug']}:{it['round']}:{it['odds_low']}:{it['odds_high']}:"
+            f"pref{it.get('preference_rank')}"
+        )
     return hashlib.sha1("|".join(parts).encode("utf-8")).hexdigest()[:16]
 
 
@@ -12304,10 +12352,12 @@ def generate_strategy(profile, items):
         rnd = ROUND_DISPLAY.get(it["round"], "round undecided")
         rr = _round_rates_str(c)
         round_rates_field = f"per-round: {rr}" if rr else "per-round: not available"
+        pr = it.get("preference_rank")
+        pref_field = f"student-preference: #{pr}" if pr else "student-preference: unranked"
         list_lines.append(
             f"{c['slug']}|{c['name']}|{round(c['accept']*100,1)}% overall admit|"
             f"{_test_range(c)}|score-vs-school: {_score_vs_school(profile, c)}|"
-            f"{round_rates_field}|{odds}|{rnd}"
+            f"{round_rates_field}|{odds}|{rnd}|{pref_field}"
         )
     if not list_lines:
         return None
@@ -12372,6 +12422,32 @@ def generate_strategy(profile, items):
         "- When you reference odds in a note, prefer the relevant round "
         "rate (ED/EA/RD) over the overall rate when the round is named in "
         "the student's plan or when ED leverage changes the verdict.\n\n"
+        "STUDENT PREFERENCE RANK — each line ends with "
+        "`student-preference: #N` (1=most-wanted school) or "
+        "`student-preference: unranked`. THIS REFLECTS HOW MUCH THE "
+        "STUDENT WANTS TO ATTEND. Apply it like this:\n"
+        "- Rank #1-#3 = dream/top schools. They get the benefit of the "
+        "doubt: prefer them for Anchor and for the ED pick if odds/fit "
+        "are remotely viable. Even a low-odds school at rank #1 should "
+        "usually be \"Watch\" (or Anchor if ED makes it real), NEVER Cut "
+        "unless it is genuinely impossible.\n"
+        "- Bottom-quartile ranks (the lowest-ranked ~25% of the list) "
+        "with weak odds and no ED leverage are prime Cut candidates — "
+        "the student isn't excited and the numbers don't justify the "
+        "slot.\n"
+        "- Between two reaches with similar odds/fit, the higher-"
+        "preference school wins for Keep/Anchor; the lower-preference "
+        "loses.\n"
+        "- The ED pick should almost always come from rank #1-#3 unless "
+        "their top picks have catastrophic ED leverage (no ED option, "
+        "or ED rate not meaningfully above RD).\n"
+        "- Unranked schools = treat as middle-of-the-pack preference. "
+        "Don't punish them, but if the student bothered to rank some, "
+        "the ranked ones carry more signal.\n"
+        "- Mention preference explicitly in notes/game_plan/ed_pick "
+        "reasoning when it changes the call (e.g. \"your #1 — worth "
+        "the Anchor slot despite mid odds\", or \"ranked last and only "
+        "8% admit, cut\").\n\n"
         "WRITING THE PER-SCHOOL NOTE — this is the most important part. "
         "Each note is ONE sharp sentence (~22-35 words). Follow these rules:\n"
         "1. NEVER open with score math. Do NOT start any note with \"ACT X "
@@ -12462,7 +12538,8 @@ def generate_strategy(profile, items):
         f"Awards: {(profile.get('awards') or '—')[:300]}\n\n"
         "CURRENT COLLEGE LIST — slug|name|overall admit|test ranges|"
         "score-vs-school (pre-computed, use verbatim)|per-round admit rates|"
-        "this student's odds|round they're applying:\n"
+        "this student's odds|round they're applying|student preference rank "
+        "(1=most-wanted; lower numbers = student wants it more):\n"
         + "\n".join(list_lines)
         + "\n\nCANDIDATE catalog for additions — slug|name|admit rate|test ranges|location|majors:\n"
         + "\n".join(cat_lines)
@@ -12569,12 +12646,16 @@ def generate_strategy(profile, items):
     }
 
 
-def _strategist_render(strategy):
+def _strategist_render(strategy, items=None):
     from html import escape as _esc
     import re as _re
 
     def _bold(s):
         return _re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', _esc(str(s)))
+
+    # Build the action-by-slug lookup so the rank list can show each school's
+    # current strategist verdict (Anchor / Keep / Watch / Cut).
+    action_by_slug = {s.get("slug"): s.get("action") for s in (strategy.get("schools") or []) if s.get("slug")}
 
     headline = _esc(strategy.get("headline") or "Your application strategy")
     assessment = _bold(strategy.get("assessment") or "")
@@ -12628,7 +12709,7 @@ def _strategist_render(strategy):
     plan_items = strategy.get("game_plan") or []
     plan_html = ""
     if plan_items:
-        items = "".join(
+        plan_lis = "".join(
             f'''<li style="margin:0;padding:14px 0 14px 14px;border-left:2px solid #5eead4;
                           list-style:none;line-height:1.55;counter-increment:plan">
                   <span style="display:inline-block;width:22px;height:22px;border-radius:50%;
@@ -12639,7 +12720,166 @@ def _strategist_render(strategy):
         )
         plan_html = f'''
 <h2 style="margin-top:32px">Your move, in order</h2>
-<div class="card" style="padding:6px 18px"><ul style="padding:0;margin:0;list-style:none">{items}</ul></div>'''
+<div class="card" style="padding:6px 18px"><ul style="padding:0;margin:0;list-style:none">{plan_lis}</ul></div>'''
+
+    # ── preference rank list (drag to reorder) ────────────────────
+    rank_html = ""
+    if items:
+        action_col = {"Anchor": "#5eead4", "Keep": "#86efac", "Watch": "#fbbf24", "Cut": "#fca5a5"}
+        # Sort: ranked items first by rank ascending, then unranked items
+        # by alphabetical name (stable). User can drag to override.
+        ranked_items = [it for it in items if it.get("preference_rank")]
+        unranked = [it for it in items if not it.get("preference_rank")]
+        ranked_items.sort(key=lambda it: it["preference_rank"])
+        unranked.sort(key=lambda it: (COLLEGES_BY_SLUG.get(it["slug"], {}).get("name") or it["slug"]).lower())
+        ordered = ranked_items + unranked
+
+        rows = ""
+        for i, it in enumerate(ordered, start=1):
+            c = COLLEGES_BY_SLUG.get(it["slug"])
+            if not c:
+                continue
+            action = action_by_slug.get(it["slug"]) or ""
+            badge_html = ""
+            if action in action_col:
+                badge_html = (
+                    f'<span class="pref-action-badge" style="font-size:.66em;'
+                    f'font-weight:700;color:{action_col[action]};letter-spacing:.06em;'
+                    f'white-space:nowrap">{_esc(action.upper())}</span>'
+                )
+            rd = ROUND_DISPLAY.get(it.get("round"), "")
+            rd_html = f' · {_esc(rd)}' if rd and rd != "Round undecided" else ""
+            rows += f'''
+<li class="pref-row" draggable="true" data-slug="{_esc(c["slug"])}"
+    style="display:flex;align-items:center;gap:12px;padding:12px 14px;
+           border:1px solid #1f2937;border-radius:8px;background:#0a131c;
+           margin-bottom:8px;cursor:grab;user-select:none">
+  <span class="pref-rank-num" style="display:inline-flex;align-items:center;justify-content:center;
+        width:28px;height:28px;border-radius:50%;background:#1f2937;color:#94a3b8;
+        font-weight:700;font-size:.85em;flex-shrink:0">{i}</span>
+  <span style="color:#475569;font-size:1.2em;letter-spacing:-2px;flex-shrink:0" aria-hidden="true">⋮⋮</span>
+  <div style="flex:1;min-width:0">
+    <div style="font-weight:600;font-size:.95em">{_esc(c["name"])}</div>
+    <div class="muted" style="font-size:.78em">{city_state(c)} · {round(c["accept"]*100,1)}% accept{rd_html}</div>
+  </div>
+  {badge_html}
+</li>'''
+
+        any_ranked = bool(ranked_items)
+        helper = (
+            "Drag to reorder. The strategist treats your top picks as "
+            "Anchors and bottom ones as cuts. Click Apply to regenerate."
+        )
+        # Inline CSRF token so the fetch() can include it as a header
+        # without depending on a meta tag elsewhere in the layout.
+        _csrf_tok = ""
+        if _CSRF_ON:
+            try:
+                from flask_wtf.csrf import generate_csrf as _gen_csrf
+                _csrf_tok = _gen_csrf()
+            except Exception:
+                _csrf_tok = ""
+        rank_html = f'''
+<div class="card" id="pref-rank-card" style="margin-top:32px;padding:22px;border:1px solid rgba(94,234,212,.25)">
+  <div style="display:flex;align-items:baseline;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:6px">
+    <h2 style="margin:0">Rank your schools <span class="muted" style="font-size:.55em;font-weight:400">top = most wanted</span></h2>
+    <span id="pref-dirty-indicator" style="display:none;font-size:.78em;color:#fbbf24;font-weight:600">● unsaved changes</span>
+  </div>
+  <p class="muted" style="margin:6px 0 14px;font-size:.88em">{helper}</p>
+  <ul id="pref-list" style="list-style:none;padding:0;margin:0">{rows}</ul>
+  <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
+    <button id="pref-apply-btn" class="btn btn-primary" type="button" disabled
+            style="opacity:.55;cursor:not-allowed">
+      {"Apply rankings &amp; regenerate" if any_ranked else "Save rankings &amp; generate"}
+    </button>
+    <span id="pref-status" class="muted" style="font-size:.85em;align-self:center"></span>
+  </div>
+</div>
+<style>
+  .pref-row.dragging {{ opacity:.35 }}
+  .pref-row.drop-target-above {{ box-shadow: 0 -2px 0 0 #5eead4 inset; }}
+  .pref-row.drop-target-below {{ box-shadow: 0 2px 0 0 #5eead4 inset; }}
+  .pref-row:hover {{ border-color:#334155 !important; }}
+</style>
+<script>
+(function() {{
+  var list = document.getElementById('pref-list');
+  if (!list) return;
+  var dirty = document.getElementById('pref-dirty-indicator');
+  var applyBtn = document.getElementById('pref-apply-btn');
+  var statusEl = document.getElementById('pref-status');
+  var dragged = null;
+
+  function markDirty() {{
+    if (dirty) dirty.style.display = 'inline';
+    if (applyBtn) {{
+      applyBtn.disabled = false;
+      applyBtn.style.opacity = '1';
+      applyBtn.style.cursor = 'pointer';
+    }}
+  }}
+  function renumber() {{
+    Array.prototype.forEach.call(list.children, function(li, i) {{
+      var n = li.querySelector('.pref-rank-num');
+      if (n) n.textContent = (i + 1);
+    }});
+  }}
+  list.addEventListener('dragstart', function(e) {{
+    var li = e.target.closest('li.pref-row');
+    if (!li) return;
+    dragged = li;
+    li.classList.add('dragging');
+    if (e.dataTransfer) {{ e.dataTransfer.effectAllowed = 'move'; }}
+  }});
+  list.addEventListener('dragend', function() {{
+    if (dragged) dragged.classList.remove('dragging');
+    Array.prototype.forEach.call(list.querySelectorAll('.drop-target-above,.drop-target-below'),
+      function(el) {{ el.classList.remove('drop-target-above','drop-target-below'); }});
+    dragged = null;
+    renumber();
+  }});
+  list.addEventListener('dragover', function(e) {{
+    e.preventDefault();
+    if (!dragged) return;
+    var over = e.target.closest('li.pref-row');
+    if (!over || over === dragged) return;
+    var rect = over.getBoundingClientRect();
+    var below = (e.clientY - rect.top) > rect.height / 2;
+    Array.prototype.forEach.call(list.querySelectorAll('.drop-target-above,.drop-target-below'),
+      function(el) {{ el.classList.remove('drop-target-above','drop-target-below'); }});
+    over.classList.add(below ? 'drop-target-below' : 'drop-target-above');
+  }});
+  list.addEventListener('drop', function(e) {{
+    e.preventDefault();
+    if (!dragged) return;
+    var over = e.target.closest('li.pref-row');
+    if (!over || over === dragged) return;
+    var rect = over.getBoundingClientRect();
+    var below = (e.clientY - rect.top) > rect.height / 2;
+    over.parentNode.insertBefore(dragged, below ? over.nextSibling : over);
+    markDirty();
+  }});
+  if (applyBtn) {{
+    applyBtn.addEventListener('click', function() {{
+      var slugs = Array.prototype.map.call(list.children, function(li) {{ return li.dataset.slug; }});
+      applyBtn.disabled = true; applyBtn.style.opacity = '.55';
+      if (statusEl) statusEl.textContent = 'Saving & regenerating…';
+      var headers = {{ 'Content-Type': 'application/json' }};
+      var tok = '{_csrf_tok}';
+      if (tok) headers['X-CSRFToken'] = tok;
+      fetch('/plans/rank', {{
+        method: 'POST', headers: headers, body: JSON.stringify({{slugs: slugs}}), credentials: 'same-origin'
+      }}).then(function(r) {{
+        if (!r.ok) throw new Error('save failed');
+        window.location.href = '/plans/strategist?regen=1';
+      }}).catch(function() {{
+        if (statusEl) statusEl.textContent = 'Save failed — try again.';
+        applyBtn.disabled = false; applyBtn.style.opacity = '1';
+      }});
+    }});
+  }}
+}})();
+</script>'''
 
     # ── schools, sorted within tier by action priority ────────────
     action_order = {"Anchor": 0, "Keep": 1, "Watch": 2, "Cut": 3}
@@ -12774,6 +13014,8 @@ def _strategist_render(strategy):
 
 {plan_html}
 
+{rank_html}
+
 {schools_html}
 
 <h2 style="margin-top:32px">Round strategy</h2>
@@ -12835,7 +13077,7 @@ def plans_strategist_page():
                 (uid, h, json.dumps(strategy))
             )
             conn.commit()
-    return _strategist_render(strategy)
+    return _strategist_render(strategy, items=items)
 
 
 def _poisson_binomial_at_least(probs, k):
