@@ -1992,7 +1992,13 @@ def personalize_round_odds(user_id, school, detail, profile, user_low_pct, user_
     # Sub-school slug also goes in the cache key so switching majors
     # invalidates the cached round rates
     sub_key = sub_school["name"][:40] if sub_school else "_none_"
-    cache_key = f"{pv}:{sub_key}"
+    # Rates hash invalidates the cache when school round-rate data changes
+    # (e.g. a CDS refresh). Without it, the AI keeps anchoring on stale
+    # published rates and the round breakdown stays wrong indefinitely.
+    rates_sig = hashlib.sha1(
+        json.dumps({"rounds": rounds, "rates": pub_rates}, sort_keys=True).encode("utf-8")
+    ).hexdigest()[:8]
+    cache_key = f"{pv}:{sub_key}:{rates_sig}"
 
     # Cache lookup
     try:
