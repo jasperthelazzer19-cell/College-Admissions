@@ -826,7 +826,7 @@ ADMISSIONS_DETAIL = {
     "wake-forest": {"rounds": ['ED', 'ED2', 'RD'], "rates": {"ED": 0.4500, "ED2": 0.3000, "RD": 0.1900}},
     "bc": {"rounds": ['ED', 'ED2', 'RD'], "rates": {"ED": 0.3340, "ED2": 0.2440, "RD": 0.1380}},
     "tulane": {"rounds": ['ED', 'EA', 'RD'], "rates": {"ED": 0.4200, "EA": 0.1100, "RD": 0.0800}},
-    "villanova": {"rounds": ['EA', 'ED1', 'ED2', 'RD'], "rates": {"EA": 0.2800, "ED": 0.5600}},
+    "villanova": {"rounds": ['EA', 'ED1', 'ED2', 'RD'], "rates": {"EA": 0.2800, "ED": 0.5425, "ED2": 0.5425}},
     "lehigh": {"rounds": ['ED', 'ED2', 'RD'], "rates": {"ED": 0.5210, "ED2": 0.3790, "RD": 0.2900}},
     "case": {"rounds": ['ED1', 'ED2', 'EA', 'RD'], "rates": {"ED": 0.3600, "ED2": 0.3200, "EA": 0.2200, "RD": 0.2500}},
     "northeastern": {"rounds": ['ED', 'ED2', 'EA', 'RD'], "rates": {"ED": 0.4730, "ED2": 0.3440, "EA": 0.1250, "RD": 0.0250}},
