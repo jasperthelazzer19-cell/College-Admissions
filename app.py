@@ -112,7 +112,7 @@ COLLEGES = [
     {"name":"Boston College","slug":"bc","accept":0.1619,"gpa_lo":3.74,"gpa_hi":3.95,"sat_25":1460,"sat_75":1510,"act_25":32,"act_75":34,"tier":3,"type":"private","state":"Massachusetts","size":9500,"tuition":70702,"desc":"Jesuit university outside Boston. Carroll School of Management, strong undergrad business and finance recruiting.","majors":["Finance","Economics","Communication","Biology","Political Science"]},
     {"name":"Wake Forest","slug":"wake-forest","accept":0.2076,"gpa_lo":3.70,"gpa_hi":3.95,"sat_25":1420,"sat_75":1500,"act_25":32,"act_75":34,"tier":3,"type":"private","state":"North Carolina","size":5500,"tuition":67000,"desc":"Mid-sized private with strong undergrad business. Test-optional pioneer; strong honor culture.","majors":["Business","Communication","Economics","Politics","Biology"]},
     {"name":"William & Mary","slug":"wm","accept":0.37,"gpa_lo":3.78,"gpa_hi":4.00,"sat_25":1410,"sat_75":1520,"act_25":33,"act_75":35,"tier":3,"type":"public","state":"Virginia","size":6700,"tuition":24000,"desc":"Second-oldest US college. Public liberal arts feel, strong government/IR, smaller than peers.","majors":["Government","Business","Biology","Psychology","Economics"]},
-    {"name":"University of Florida","slug":"uf","accept":0.242,"gpa_lo":3.90,"gpa_hi":4.45,"sat_25":1320,"sat_75":1470,"act_25":29,"act_75":33,"tier":3,"type":"public","state":"Florida","size":34000,"tuition":6400,"desc":"Florida flagship with strong agriculture, journalism, and engineering programs. In-state tuition is among the cheapest in the country for the value.","majors":["Biology","Business","Engineering","Health Sciences","Psychology"]},
+    {"name":"University of Florida","slug":"uf","accept":0.242,"gpa_lo":3.80,"gpa_hi":4.00,"sat_25":1320,"sat_75":1470,"act_25":29,"act_75":33,"tier":3,"type":"public","state":"Florida","size":34000,"tuition":6400,"desc":"Florida flagship with strong agriculture, journalism, and engineering programs. In-state tuition is among the cheapest in the country for the value.","majors":["Biology","Business","Engineering","Health Sciences","Psychology"]},
     {"name":"University of Wisconsin","slug":"wisc","accept":0.4517,"gpa_lo":3.65,"gpa_hi":3.97,"sat_25":1370,"sat_75":1490,"act_25":28,"act_75":32,"tier":3,"type":"public","state":"Wisconsin","size":37198,"tuition":11000,"desc":"Madison campus, strong engineering and biological sciences. Big Ten with a famous bar district adjacent to campus.","majors":["Biology","Computer Science","Economics","Business","Engineering"]},
     {"name":"University of Washington","slug":"uw","accept":0.3914,"gpa_lo":3.74,"gpa_hi":3.95,"sat_25":1333,"sat_75":1500,"act_25":28,"act_75":33,"tier":3,"type":"public","state":"Washington","size":36000,"tuition":12000,"desc":"Pacific Northwest research powerhouse. Strong CS (Allen School), biomedicine, and aerospace pipelines.","majors":["Computer Science","Biology","Business","Engineering","Psychology"]},
     {"name":"University of Texas at Austin","slug":"ut-austin","accept":0.2664,"gpa_lo":3.69,"gpa_hi":3.96,"sat_25":1240,"sat_75":1460,"act_25":27,"act_75":33,"tier":3,"type":"public","state":"Texas","size":42000,"tuition":11000,"desc":"Texas flagship with extreme size and breadth. McCombs business, top engineering, Cockrell, strong CS.","majors":["Business","Computer Science","Engineering","Biology","Economics"]},
@@ -122,7 +122,7 @@ COLLEGES = [
     {"name":"Penn State","slug":"penn-state","accept":0.61,"gpa_lo":3.55,"gpa_hi":3.97,"sat_25":1250,"sat_75":1410,"act_25":27,"act_75":32,"tier":4,"type":"public","state":"Pennsylvania","size":42619,"tuition":19000,"desc":"Smeal business, top-tier engineering, large alumni network. Very strong PA-state pipeline; OOS still well-priced.","majors":["Business","Engineering","Biology","Communication","Information Sciences"]},
     {"name":"Ohio State","slug":"osu","accept":0.6057,"gpa_lo":3.65,"gpa_hi":3.95,"sat_25":1310,"sat_75":1480,"act_25":28,"act_75":32,"tier":4,"type":"public","state":"Ohio","size":46815,"tuition":12000,"desc":"Massive public flagship. Fisher (business) and engineering are strong; Big Ten sports culture.","majors":["Business","Biology","Engineering","Psychology","Communication"]},
     {"name":"Michigan State","slug":"msu","accept":0.848,"gpa_lo":3.60,"gpa_hi":3.94,"sat_25":1100,"sat_75":1310,"act_25":24,"act_75":30,"tier":4,"type":"public","state":"Michigan","size":52089,"tuition":15000,"desc":"Big Ten public with Eli Broad business, supply-chain management is nationally top-3, strong veterinary and ag programs.","majors":["Business","Communication","Biology","Psychology","Engineering"]},
-    {"name":"Florida State","slug":"fsu","accept":0.242,"gpa_lo":3.85,"gpa_hi":4.40,"sat_25":1290,"sat_75":1400,"act_25":29,"act_75":32,"tier":4,"type":"public","state":"Florida","size":34271,"tuition":6500,"desc":"Tallahassee flagship. Strong film, criminology, hospitality. Bright Futures funding makes in-state extremely cheap.","majors":["Criminology","Business","Psychology","Biology","Communication"]},
+    {"name":"Florida State","slug":"fsu","accept":0.242,"gpa_lo":3.50,"gpa_hi":3.95,"sat_25":1290,"sat_75":1400,"act_25":29,"act_75":32,"tier":4,"type":"public","state":"Florida","size":34271,"tuition":6500,"desc":"Tallahassee flagship. Strong film, criminology, hospitality. Bright Futures funding makes in-state extremely cheap.","majors":["Criminology","Business","Psychology","Biology","Communication"]},
     {"name":"Indiana University","slug":"iu","accept":0.7589,"gpa_lo":3.51,"gpa_hi":3.93,"sat_25":1200,"sat_75":1410,"act_25":27,"act_75":33,"tier":5,"type":"public","state":"Indiana","size":33000,"tuition":11000,"desc":"Bloomington flagship. Kelley business school is a top undergrad direct-admit, music school is world-renowned.","majors":["Business","Biology","Communication","Psychology","Music"]},
     {"name":"Arizona State","slug":"asu","accept":0.8989,"gpa_lo":3.39,"gpa_hi":3.86,"sat_25":1130,"sat_75":1360,"act_25":22,"act_75":28,"tier":5,"type":"public","state":"Arizona","size":65450,"tuition":12000,"desc":"Massive scale, online-friendly, growing reputation. W.P. Carey business and Cronkite journalism are highlights.","majors":["Business","Engineering","Biology","Psychology","Communication"]},
     {"name":"Purdue","slug":"purdue","accept":0.499,"gpa_lo":3.50,"gpa_hi":3.95,"sat_25":1220,"sat_75":1480,"act_25":28,"act_75":34,"tier":3,"type":"public","state":"Indiana","size":37000,"tuition":10000,"desc":"Strong engineering and aviation programs. Frozen tuition since 2012 makes it a notable value.","majors":["Engineering","Computer Science","Business","Aviation","Agriculture"]},
@@ -161,7 +161,7 @@ COLLEGES = [
     {"name":"University of Tennessee","slug":"utk","accept":0.416,"gpa_lo":3.80,"gpa_hi":4.30,"sat_25":1210,"sat_75":1370,"act_25":25,"act_75":32,"tier":4,"type":"public","state":"Tennessee","size":31000,"tuition":13000,"desc":"Knoxville flagship. Strong nuclear engineering (Oak Ridge tie), business, school spirit.","majors":["Business","Engineering","Biology","Communication","Psychology"]},
     {"name":"San Diego State","slug":"sdsu","accept":0.3598,"gpa_lo":3.70,"gpa_hi":4.05,"sat_25":1140,"sat_75":1320,"act_25":23,"act_75":29,"tier":4,"type":"public","state":"California","size":31000,"tuition":8000,"desc":"Southern Cal CSU. Strong international business, hospitality, journalism. Good weather and price for Californians.","majors":["Business","Psychology","Biology","Communication","Criminal Justice"]},
     {"name":"University of Arizona","slug":"arizona","accept":0.8614,"gpa_lo":3.40,"gpa_hi":3.85,"sat_25":1140,"sat_75":1360,"act_25":21,"act_75":29,"tier":5,"type":"public","state":"Arizona","size":40407,"tuition":13000,"desc":"Tucson flagship. Strong astronomy and optical sciences (massive observatory partnership), business, nursing.","majors":["Business","Biology","Psychology","Engineering","Communication"]},
-    {"name":"Northeastern","slug":"northeastern","accept":0.052,"gpa_lo":3.85,"gpa_hi":4.20,"sat_25":1450,"sat_75":1520,"act_25":33,"act_75":35,"tier":2,"type":"private","state":"Massachusetts","size":16000,"tuition":62000,"desc":"Boston private with mandatory co-op program (~6 months at a real employer). Acceptance rate has plummeted in recent years.","majors":["Business","Computer Science","Engineering","Psychology","Health Sciences"]},
+    {"name":"Northeastern","slug":"northeastern","accept":0.052,"gpa_lo":3.85,"gpa_hi":4.00,"sat_25":1450,"sat_75":1520,"act_25":33,"act_75":35,"tier":2,"type":"private","state":"Massachusetts","size":16000,"tuition":62000,"desc":"Boston private with mandatory co-op program (~6 months at a real employer). Acceptance rate has plummeted in recent years.","majors":["Business","Computer Science","Engineering","Psychology","Health Sciences"]},
     {"name":"Case Western","slug":"case","accept":0.3531,"gpa_lo":3.80,"gpa_hi":4.10,"sat_25":1450,"sat_75":1530,"act_25":32,"act_75":35,"tier":3,"type":"private","state":"Ohio","size":6186,"tuition":68660,"desc":"Cleveland private research university. Strong pre-med (Cleveland Clinic ties), engineering, music.","majors":["Engineering","Biology","Computer Science","Business","Psychology"]},
     {"name":"Lehigh","slug":"lehigh","accept":0.2593,"gpa_lo":3.80,"gpa_hi":4.10,"sat_25":1380,"sat_75":1490,"act_25":31,"act_75":34,"tier":3,"type":"private","state":"Pennsylvania","size":5500,"tuition":63000,"desc":"Mid-sized private with strong engineering, business, integrated business+engineering programs. Greek-heavy social scene.","majors":["Engineering","Business","Computer Science","Biology","Finance"]},
     {"name":"Bucknell","slug":"bucknell","accept":0.289,"gpa_lo":3.50,"gpa_hi":3.85,"sat_25":1170,"sat_75":1360,"act_25":25,"act_75":33,"tier":3,"type":"private","state":"Pennsylvania","size":3617,"tuition":64620,"desc":"Liberal arts plus engineering. Heavy finance recruiting for an LAC-sized school.","majors":["Business","Engineering","Biology","Economics","Psychology"]},
@@ -253,7 +253,7 @@ COLLEGES = [
     {"name":"SMU","slug":"smu","accept":0.6335,"gpa_lo":3.62,"gpa_hi":3.95,"sat_25":1340,"sat_75":1490,"act_25":30,"act_75":34,"tier":3,"type":"private","state":"Texas","size":7000,"tuition":61000,"desc":"Southern Methodist. Wealthy student body, strong Cox business school, Dallas location is the draw.","majors":["Business","Engineering","Communication","Economics","Psychology"]},
     {"name":"Liberty","slug":"liberty","accept":0.99,"gpa_lo":3.30,"gpa_hi":3.85,"sat_25":1010,"sat_75":1240,"act_25":21,"act_75":28,"tier":5,"type":"private","state":"Virginia","size":15000,"tuition":24000,"desc":"Largest evangelical Christian university. Strict honor code, strong online programs, conservative campus culture.","majors":["Business","Psychology","Nursing","Education","Aviation"]},
     {"name":"UMass Amherst","slug":"umass","accept":0.599,"gpa_lo":3.79,"gpa_hi":4.10,"sat_25":1330,"sat_75":1480,"act_25":29,"act_75":33,"tier":3,"type":"public","state":"Massachusetts","size":24000,"tuition":17000,"desc":"Flagship of the Five College Consortium. Strong CS, isenberg business, and food science. Big sports culture.","majors":["Computer Science","Business","Psychology","Biology","Engineering"]},
-    {"name":"NC State","slug":"ncsu","accept":0.42,"gpa_lo":4.10,"gpa_hi":4.62,"sat_25":1290,"sat_75":1440,"act_25":25,"act_75":32,"tier":3,"type":"public","state":"North Carolina","size":28422,"tuition":9000,"desc":"Top engineering and ag school in the Research Triangle. Very strong CS, textiles, and design. Hard to crack from out of state.","majors":["Engineering","Computer Science","Business","Biology","Agriculture"]},
+    {"name":"NC State","slug":"ncsu","accept":0.42,"gpa_lo":3.60,"gpa_hi":4.00,"sat_25":1290,"sat_75":1440,"act_25":25,"act_75":32,"tier":3,"type":"public","state":"North Carolina","size":28422,"tuition":9000,"desc":"Top engineering and ag school in the Research Triangle. Very strong CS, textiles, and design. Hard to crack from out of state.","majors":["Engineering","Computer Science","Business","Biology","Agriculture"]},
     {"name":"Syracuse","slug":"syracuse","accept":0.4592,"gpa_lo":3.60,"gpa_hi":3.95,"sat_25":1270,"sat_75":1440,"act_25":29,"act_75":32,"tier":4,"type":"private","state":"New York","size":15739,"tuition":62000,"desc":"Newhouse (communications) is one of the top journalism schools. Strong architecture and information studies too. Cold winters.","majors":["Communication","Business","Engineering","Psychology","Information Studies"]},
     {"name":"Hampton","slug":"hampton","accept":0.6225,"gpa_lo":3.30,"gpa_hi":3.75,"sat_25":980,"sat_75":1090,"act_25":13,"act_75":22,"tier":4,"type":"private","state":"Virginia","size":3255,"tuition":30592,"desc":"Historic HBCU on the Chesapeake. Strong nursing, journalism, and marine science. Tight-knit alumni network.","majors":["Nursing","Business","Biology","Communication","Psychology"]},
     {"name":"Holy Cross","slug":"holy-cross","accept":0.22,"gpa_lo":3.70,"gpa_hi":4.00,"sat_25":1340,"sat_75":1490,"act_25":31,"act_75":33,"tier":3,"type":"private","state":"Massachusetts","size":3100,"tuition":63000,"desc":"Jesuit LAC. Strong pre-law and pre-med. No business or engineering majors — pure liberal arts. Wall Street pipeline.","majors":["Economics","Political Science","English","Psychology","Biology"]},
@@ -812,7 +812,7 @@ ADMISSIONS_DETAIL = {
     "cornell": {"rounds": ['ED', 'RD'], "rates": {"ED": 0.1700, "RD": 0.0550}},
     "northwestern": {"rounds": ['ED', 'RD'], "rates": {"ED": 0.2300, "RD": 0.0590}},
     "uchicago": {"rounds": ['ED', 'ED2', 'EA', 'RD'], "rates": {"ED": 0.1800, "ED2": 0.1400, "EA": 0.0750, "RD": 0.0350}},
-    "vanderbilt": {"rounds": ['ED', 'ED2', 'RD'], "rates": {"ED": 0.1190, "ED2": 0.1400, "RD": 0.0280}},
+    "vanderbilt": {"rounds": ['ED', 'ED2', 'RD'], "rates": {"ED": 0.1190, "ED2": 0.0990, "RD": 0.0280}},  # Class of 2030: combined ED 11.9%, RD 2.8% (official admissions blog). ED2 est. below ED1; Vandy publishes combined ED only.
     "rice": {"rounds": ['ED', 'ED2', 'RD'], "rates": {"ED": 0.1370, "ED2": 0.1000, "RD": 0.0600}},
     "jhu": {"rounds": ['ED', 'ED2', 'RD'], "rates": {"ED": 0.2650, "ED2": 0.1750, "RD": 0.0450}},
     "washu": {"rounds": ['ED', 'ED2', 'RD'], "rates": {"ED": 0.2780, "ED2": 0.2020, "RD": 0.0980}},
@@ -826,13 +826,13 @@ ADMISSIONS_DETAIL = {
     "wake-forest": {"rounds": ['ED', 'ED2', 'RD'], "rates": {"ED": 0.4500, "ED2": 0.3000, "RD": 0.1900}},
     "bc": {"rounds": ['ED', 'ED2', 'RD'], "rates": {"ED": 0.3340, "ED2": 0.2440, "RD": 0.1380}},
     "tulane": {"rounds": ['ED', 'EA', 'RD'], "rates": {"ED": 0.4200, "EA": 0.1100, "RD": 0.0800}},
-    "villanova": {"rounds": ['EA', 'ED1', 'ED2', 'RD'], "rates": {"EA": 0.2800, "ED": 0.5425, "ED2": 0.5425}},
+    "villanova": {"rounds": ['EA', 'ED1', 'ED2', 'RD'], "rates": {"EA": 0.2770, "ED": 0.5425, "ED2": 0.5000, "RD": 0.1800}},  # ED combined 54.25% (CDS 2024-25), EA 27.7% (Class 2030, official), overall 27.4%. ED2/RD est. (only combined ED published).
     "lehigh": {"rounds": ['ED', 'ED2', 'RD'], "rates": {"ED": 0.5210, "ED2": 0.3790, "RD": 0.2900}},
-    "case": {"rounds": ['ED1', 'ED2', 'EA', 'RD'], "rates": {"ED": 0.3600, "ED2": 0.3200, "EA": 0.2200, "RD": 0.2500}},
-    "northeastern": {"rounds": ['ED', 'ED2', 'EA', 'RD'], "rates": {"ED": 0.4730, "ED2": 0.3440, "EA": 0.1250, "RD": 0.0250}},
+    "case": {"rounds": ['ED1', 'ED2', 'EA', 'RD'], "rates": {"ED": 0.2498, "ED2": 0.2200, "EA": 0.2300, "RD": 0.3560}},  # Class of 2029: combined ED 25%, RD 35.6% (RD>ED is real for CWRU), overall 35.3%. EA est. (discontinued from public reporting); ED2 est.
+    "northeastern": {"rounds": ['ED', 'ED2', 'EA', 'RD'], "rates": {"ED": 0.4305, "ED2": 0.3800, "EA": 0.1000, "RD": 0.0380}},  # CDS 2024-25: combined ED 43%, RD ~3.8% (calculated; was wrongly 2.5%), overall ~5.6%. ED2/EA est. (NEU publishes ED only).
     "bu": {"rounds": ['ED', 'ED2', 'RD'], "rates": {"ED": 0.3100, "ED2": 0.2260, "RD": 0.0800}},
     "miami": {"rounds": ['ED', 'ED2', 'EA', 'RD'], "rates": {"ED": 0.4300, "ED2": 0.3000, "EA": 0.2000, "RD": 0.1900}},
-    "brandeis": {"rounds": ['ED', 'ED2', 'RD'], "rates": {"ED": 0.4640, "ED2": 0.3380, "RD": 0.4030}},
+    "brandeis": {"rounds": ['ED', 'ED2', 'RD'], "rates": {"ED": 0.4220, "ED2": 0.4000, "RD": 0.3850}},  # CDS 2024-25: combined ED 42.2%, overall 40.5%. No EA. ED2/RD est. (only combined ED published).
     "fordham": {"rounds": ['ED', 'ED2', 'EA', 'RD'], "rates": {"ED": 0.6600, "ED2": 0.6000, "EA": 0.5800, "RD": 0.5300}},
     "gwu": {"rounds": ['ED', 'ED2', 'RD'], "rates": {"ED": 0.6900, "ED2": 0.6100, "RD": 0.4800}},
     "american": {"rounds": ['ED', 'ED2', 'RD'], "rates": {"ED": 0.8700, "ED2": 0.8000, "RD": 0.5100}},
@@ -857,7 +857,7 @@ ADMISSIONS_DETAIL = {
     "ucsb": {"rounds": ['RD'], "rates": {"RD": 0.3300}, "in_state_rate": 0.3100, "out_of_state_rate": 0.2000},
     "uci": {"rounds": ['RD'], "rates": {"RD": 0.2900}, "in_state_rate": 0.3200, "out_of_state_rate": 0.2600},
     "ucdavis": {"rounds": ['RD'], "rates": {"RD": 0.4200}, "in_state_rate": 0.4500, "out_of_state_rate": 0.3900},
-    "gatech": {"rounds": ['EA', 'RD'], "rates": {"EA": 0.1258, "RD": 0.1400}, "in_state_rate": 0.3600, "out_of_state_rate": 0.1300},
+    "gatech": {"rounds": ['EA', 'RD'], "rates": {"EA": 0.1258, "RD": 0.1470}, "in_state_rate": 0.2800, "out_of_state_rate": 0.0900},  # Class of 2030: overall 13.2%, in-state 28%, OOS 9% (official GT). Combined EA 12.6% (EA2/OOS track drags it below RD — real). RD ~14.7% (Class 2029).
     "wm": {"rounds": ['ED', 'ED2', 'RD'], "rates": {"ED": 0.5200, "ED2": 0.4000, "RD": 0.3100}, "in_state_rate": 0.4000, "out_of_state_rate": 0.2700},
     "ut-austin": {"rounds": ['EA', 'RD'], "rates": {"EA": 0.3100, "RD": 0.2900}, "in_state_rate": 0.3600, "out_of_state_rate": 0.1000},
     "wisc": {"rounds": ['EA', 'RD'], "rates": {"EA": 0.5100, "RD": 0.4500}, "in_state_rate": 0.6200, "out_of_state_rate": 0.3900},
@@ -899,7 +899,7 @@ ADMISSIONS_DETAIL = {
     "udel": {"rounds": ['EA', 'RD'], "rates": {"EA": 0.7300, "RD": 0.7000}, "in_state_rate": 0.7900, "out_of_state_rate": 0.6600},
     "calpoly-slo": {"rounds": ['RD'], "rates": {"RD": 0.2880}, "in_state_rate": 0.3100, "out_of_state_rate": 0.2700},
     "sdsu": {"rounds": ['RD'], "rates": {"RD": 0.3590}, "in_state_rate": 0.4000, "out_of_state_rate": 0.3200},
-    "sjsu": {"rounds": ['RD'], "rates": {"RD": 0.8461}, "in_state_rate": 0.8100, "out_of_state_rate": 0.6200},
+    "sjsu": {"rounds": ['RD'], "rates": {"RD": 0.8460}, "in_state_rate": 0.8510, "out_of_state_rate": 0.7760},  # CDS 2024-25: overall 84.6%, in-state (CA) 85.1%, OOS 77.6% (calculated from CDS C1 residency counts). Fixes prior impossible split.
     "csulb": {"rounds": ['RD'], "rates": {"RD": 0.4200}, "in_state_rate": 0.4600, "out_of_state_rate": 0.3100},
     "iowa-state": {"rounds": ['EA', 'RD'], "rates": {"EA": 0.9200, "RD": 0.9000}, "in_state_rate": 0.9300, "out_of_state_rate": 0.8700},
     "temple": {"rounds": ['EA', 'RD'], "rates": {"EA": 0.8300, "RD": 0.8000}, "in_state_rate": 0.8500, "out_of_state_rate": 0.7400},
@@ -918,13 +918,13 @@ ADMISSIONS_DETAIL = {
     "mt-holyoke": {"rounds": ['ED', 'ED2', 'RD'], "rates": {"ED": 0.6200, "ED2": 0.4500, "RD": 0.3800}},
     "bryn-mawr": {"rounds": ['ED', 'ED2', 'RD'], "rates": {"ED": 0.6200, "ED2": 0.4800, "RD": 0.3300}},
     "trinity-ct": {"rounds": ['ED', 'ED2', 'RD'], "rates": {"ED": 0.6200, "ED2": 0.5000, "RD": 0.3800}},
-    "conn-college": {"rounds": ['ED', 'ED2', 'RD'], "rates": {"ED": 0.4520, "ED2": 0.3290, "RD": 0.3680}},
+    "conn-college": {"rounds": ['ED', 'ED2', 'RD'], "rates": {"ED": 0.4110, "ED2": 0.3700, "RD": 0.3450}},  # CDS 2024-25: combined ED 41.1%, overall 37%. ED2/RD est. (only combined ED published).
     "skidmore": {"rounds": ['ED', 'ED2', 'RD'], "rates": {"ED": 0.4550, "ED2": 0.3310, "RD": 0.1950}},
     "macalester": {"rounds": ['ED', 'ED2', 'EA', 'RD'], "rates": {"ED": 0.4500, "ED2": 0.3300, "EA": 0.2900, "RD": 0.2500}},
-    "reed": {"rounds": ['ED1', 'ED2', 'EA', 'RD'], "rates": {"EA": 0.1520, "RD": 0.2510}},
+    "reed": {"rounds": ['ED1', 'ED2', 'EA', 'RD'], "rates": {"ED": 0.4800, "ED2": 0.4200, "EA": 0.2700, "RD": 0.2500}},  # Overall 29.2% (Class 2029, official). Reed publishes no round rates ("ED ~2x more likely") — all est.
     "grinnell": {"rounds": ['ED', 'ED2', 'RD'], "rates": {"ED": 0.3760, "ED2": 0.2740, "RD": 0.1270}},
     "kenyon": {"rounds": ['ED', 'ED2', 'RD'], "rates": {"ED": 0.4800, "ED2": 0.3800, "RD": 0.2600}},
-    "oberlin": {"rounds": ['ED', 'ED2', 'EA', 'RD'], "rates": {"ED": 0.4260, "ED2": 0.3100, "EA": 0.3050, "RD": 0.3000}},
+    "oberlin": {"rounds": ['ED', 'ED2', 'RD'], "rates": {"ED": 0.4500, "ED2": 0.4000, "RD": 0.3000}},  # Class of 2029 overall 34% (official). Oberlin offers NO EA (removed phantom round). Round rates not published — ED1/ED2/RD est.
     "whitman": {"rounds": ['ED', 'ED2', 'RD'], "rates": {}},
     "pitzer": {"rounds": ['ED', 'ED2', 'RD'], "rates": {"ED": 0.4640, "ED2": 0.3380, "RD": 0.2280}},
     "scripps": {"rounds": ['ED', 'ED2', 'RD'], "rates": {"ED": 0.5170, "ED2": 0.3760, "RD": 0.3740}},
@@ -933,8 +933,8 @@ ADMISSIONS_DETAIL = {
     "oxy": {"rounds": ['ED', 'ED2', 'EA', 'RD'], "rates": {"ED": 0.5000, "ED2": 0.3500, "EA": 0.3050, "RD": 0.2600}},
     "wesleyan": {"rounds": ['ED', 'ED2', 'RD'], "rates": {"ED": 0.4200, "ED2": 0.3000, "RD": 0.1400}},
     "bucknell": {"rounds": ['ED', 'ED2', 'RD'], "rates": {"ED": 0.6100, "ED2": 0.4440, "RD": 0.2580}},
-    "rpi": {"rounds": ['ED1', 'ED2', 'EA', 'RD'], "rates": {"EA": 0.5790, "RD": 0.6350}},
-    "wpi": {"rounds": ['ED1', 'ED2', 'EA', 'RD'], "rates": {"ED": 0.7560, "EA": 0.6890}},
+    "rpi": {"rounds": ['ED1', 'ED2', 'EA', 'RD'], "rates": {"ED": 0.5800, "ED2": 0.5200, "EA": 0.6600, "RD": 0.6500}},  # Overall 67% (Class 2029); combined ED ~58% (Class 2028). RPI publishes no round split — ED1/ED2/EA est.
+    "wpi": {"rounds": ['ED1', 'ED2', 'EA', 'RD'], "rates": {"ED": 0.7560, "ED2": 0.6800, "EA": 0.6890, "RD": 0.5500}},  # ED1/EA from prior data; ED2/RD est. (WPI publishes no full round split).
     "rose-hulman": {"rounds": ['EA', 'RD'], "rates": {"EA": 0.7300, "RD": 0.7000}},
     "olin": {"rounds": ['RD'], "rates": {"RD": 0.1400}},
     "stevens": {"rounds": ['ED', 'ED2', 'EA', 'RD'], "rates": {"ED": 0.6600, "ED2": 0.5400, "EA": 0.4800, "RD": 0.4200}},
@@ -947,8 +947,8 @@ ADMISSIONS_DETAIL = {
     "risd": {"rounds": ['ED', 'RD'], "rates": {"ED": 0.3000, "RD": 0.1700}},
     "saic": {"rounds": ['EA', 'RD'], "rates": {"EA": 0.7300, "RD": 0.6900}},
     "babson": {"rounds": ['ED', 'ED2', 'EA', 'RD'], "rates": {"ED": 0.2750, "ED2": 0.2750, "EA": 0.2080, "RD": 0.1570}},
-    "bentley": {"rounds": ['ED1', 'ED2', 'EA', 'RD'], "rates": {"ED": 0.6100, "EA": 0.6100, "RD": 0.4400}},
-    "pepperdine": {"rounds": ['ED1', 'ED2', 'EA', 'RD'], "rates": {"RD": 0.6290}},
+    "bentley": {"rounds": ['ED1', 'ED2', 'EA', 'RD'], "rates": {"ED": 0.6100, "ED2": 0.5500, "EA": 0.6100, "RD": 0.4400}},  # ED1/EA/RD from prior data; ED2 est. below ED1.
+    "pepperdine": {"rounds": ['ED', 'EA', 'RD'], "rates": {"ED": 0.7000, "EA": 0.6700, "RD": 0.6290}},  # Pepperdine offers NO ED2 (removed phantom rounds). Overall ~67% (Class 2029). Round rates not published — ED/EA est.
     "scu": {"rounds": ['ED', 'ED2', 'EA', 'RD'], "rates": {"ED": 0.6200, "ED2": 0.5500, "EA": 0.5000, "RD": 0.4900}},
     "lmu": {"rounds": ['ED', 'ED2', 'EA', 'RD'], "rates": {"ED": 0.5800, "ED2": 0.5000, "EA": 0.4600, "RD": 0.4300}},
     "howard": {"rounds": ['ED', 'EA', 'RD'], "rates": {"ED": 0.5600, "EA": 0.4000, "RD": 0.3000}},
@@ -1562,7 +1562,8 @@ def _render_counterfactual_card(profile, school, current_low, current_high):
             ))
 
     # Scenario 2: raise SAT (or ACT) toward the school's 75th percentile
-    if sat is not None and sat < school["sat_75"]:
+    # (skip for test-blind schools where sat_75 is None).
+    if sat is not None and school.get("sat_75") is not None and sat < school["sat_75"]:
         target_sat = min(1600, sat + 50)
         new_low, new_high = counterfactual_lift(profile, school, sat=target_sat)
         scenarios.append((
@@ -1915,6 +1916,10 @@ def render_admissions_breakdown(school, detail, dark=False, scale=1.0, personali
     rows = ""
     for r in detail.get("rounds", []):
         pub_rate = rates.get(r)
+        # ED1/ED2 rounds fall back to the single "ED" rate when no split rate is
+        # stored — data keys ED for the round-recommender while rounds list ED1/ED2.
+        if pub_rate is None and r in ("ED1", "ED2"):
+            pub_rate = rates.get("ED")
         adj = None
         if use_ai and personalized_rates.get(r) is not None:
             adj = max(0.005, min(0.95, float(personalized_rates[r])))
@@ -1961,7 +1966,7 @@ def _profile_version_hash(profile):
     # Only the fields that actually move chances per round
     keys = ['gpa','gpa_scale','uw_gpa','weighted_gpa',
             'gpa_freshman','gpa_sophomore','gpa_junior','gpa_senior',
-            'sat','act','rigor','race','first_gen',
+            'sat','act','rigor','first_gen',
             'state','household_income','intended_major','is_exceptional',
             'extracurriculars','awards','legacy_schools']
     payload = json.dumps({k: profile.get(k) for k in keys}, sort_keys=True, default=str)
@@ -2024,7 +2029,8 @@ def personalize_round_odds(user_id, school, detail, profile, user_low_pct, user_
     if profile.get("sat"): parts.append(f"SAT: {profile.get('sat')}")
     if profile.get("act"): parts.append(f"ACT: {profile.get('act')}")
     if profile.get("rigor"): parts.append(f"Rigor: {profile.get('rigor')}")
-    if profile.get("race"): parts.append(f"Race: {profile.get('race')}")
+    # NOTE: race is intentionally NOT fed to the odds model. Post-SFFA it is not
+    # a usable admissions factor, and the model would only confabulate a delta.
     if profile.get("first_gen"): parts.append("First-gen")
     if profile.get("state"): parts.append(f"State: {profile.get('state')}")
     if profile.get("intended_major"): parts.append(f"Major: {profile.get('intended_major')}")
@@ -2063,7 +2069,12 @@ def personalize_round_odds(user_id, school, detail, profile, user_low_pct, user_
     sub_ratio = 1.0
     if sub_school and sub_school.get("accept") and school.get("accept"):
         sub_ratio = sub_school["accept"] / school["accept"]
-    effective_pub_rates = {r: pub_rates.get(r, 0) * sub_ratio for r in rounds}
+    def _round_rate(rd):
+        v = pub_rates.get(rd)
+        if v is None and rd in ("ED1", "ED2"):
+            v = pub_rates.get("ED")  # fall back to single ED rate for split rounds
+        return v or 0
+    effective_pub_rates = {r: _round_rate(r) * sub_ratio for r in rounds}
 
     rate_lines = "\n".join(
         f"  - {ROUND_LABELS.get(r, r)} ({r}): rate {round(effective_pub_rates[r]*100,1)}%"
@@ -3961,7 +3972,10 @@ def compute_fit(profile, school):
         score += delta
         components["gpa"] = round(delta, 1)
     sat_eq = _normalize_score(profile.get("sat"), profile.get("act"))
-    if sat_eq:
+    # Test-blind schools (e.g. UC Berkeley) store sat_25/sat_75 as None — treat
+    # a submitted score as if no usable range exists and fall through to the
+    # test-optional branch rather than crashing on None arithmetic.
+    if sat_eq and school.get("sat_25") is not None and school.get("sat_75") is not None:
         mid = (school["sat_25"] + school["sat_75"]) / 2
         spread = max(40, school["sat_75"] - school["sat_25"])
         delta = max(-22, min(22, (sat_eq - mid) / spread * 22))
@@ -4161,7 +4175,7 @@ REASON: <one short sentence — if YES, name the credential; if NO, briefly expl
     try:
         response = _claude_client.messages.create(
             model="claude-haiku-4-5-20251001",
-            max_tokens=200,
+            max_tokens=280,
             system="You are a strict college admissions evaluator. Default to NO. Only flag truly exceptional, nationally/internationally recognized credentials. Be skeptical — students often inflate. Look for specific verifiable accomplishments.",
             messages=[{"role":"user","content": user_msg}],
         )
@@ -4381,7 +4395,7 @@ def generate_bullets(profile, school, fit, components, tier, odds):
     test_compare = "Student did not submit a test score."
     sat = profile.get("sat")
     act = profile.get("act")
-    if sat:
+    if sat and school.get("sat_25") is not None and school.get("sat_75") is not None:
         test_str = f"SAT {sat}"
         if sat >= school["sat_75"]:
             test_compare = f"SAT {sat} is AT OR ABOVE the 75th percentile ({school['sat_75']}) of admits — top of the range."
@@ -4390,7 +4404,7 @@ def generate_bullets(profile, school, fit, components, tier, odds):
         else:
             gap = school["sat_25"] - sat
             test_compare = f"SAT {sat} is BELOW the 25th percentile ({school['sat_25']}) of admits — gap of {gap} points."
-    elif act:
+    elif act and school.get("act_25") is not None and school.get("act_75") is not None:
         test_str = f"ACT {act}"
         if act >= school["act_75"]:
             test_compare = f"ACT {act} is AT OR ABOVE the 75th percentile ({school['act_75']}) of admits — top of the range."
@@ -4399,6 +4413,11 @@ def generate_bullets(profile, school, fit, components, tier, odds):
         else:
             gap = school["act_25"] - act
             test_compare = f"ACT {act} is BELOW the 25th percentile ({school['act_25']}) of admits — gap of {gap} points."
+    elif sat or act:
+        # Test-blind / test-free school (no published score range). A submitted
+        # score isn't evaluated, so don't compare it to a range.
+        test_str = f"SAT {sat}" if sat else f"ACT {act}"
+        test_compare = f"{school['name']} does not consider test scores in admissions, so this score isn't compared to an admit range."
     # GPA narrative: show the FLAT GPA (the number on the user's transcript)
     # but include trajectory context so the bullet explains why the gap
     # matters less than it looks (or worse than it looks).
@@ -4459,7 +4478,7 @@ def generate_bullets(profile, school, fit, components, tier, odds):
 - Awards: {profile.get('awards','(blank)') or '(blank)'}
 - Hooks for THIS school: legacy_generations={legacy_generations_at(profile, school)} (0 means no legacy here, even if the student has legacy elsewhere), first_gen={profile.get('first_gen')}, athlete={profile.get('athlete')}
 
-Target: {school['name']} (acceptance {round(school['accept']*100,1)}%, GPA midpoint ~{round((school['gpa_lo']+school['gpa_hi'])/2,2)}, SAT mid-50% {school['sat_25']}-{school['sat_75']}, ACT mid-50% {school['act_25']}-{school['act_75']}).
+Target: {school['name']} (acceptance {round(school['accept']*100,1)}%, GPA midpoint ~{round((school['gpa_lo']+school['gpa_hi'])/2,2)}, {('test-blind — scores not considered' if school.get('sat_25') is None else f"SAT mid-50% {school['sat_25']}-{school['sat_75']}, ACT mid-50% {school['act_25']}-{school['act_75']}")}).
 Computed fit: {fit}/100. Tier: {tier}. Odds: {odds[0]}-{odds[1]}%.
 
 PRE-COMPUTED COMPARISONS (use these exactly, do NOT recompute):
@@ -4494,10 +4513,22 @@ def _fallback_bullets(profile, school, fit, components, tier):
     # but the model already used effective_gpa for the components scoring.
     gpa = profile.get("uw_gpa") or 0
     school_gpa_mid = round((school["gpa_lo"]+school["gpa_hi"])/2, 2)
+    # Cite the range matching what the student actually submitted (ACT-only
+    # students shouldn't be told about the SAT range), and guard test-blind
+    # schools whose ranges are None.
+    _sat, _act = profile.get("sat"), profile.get("act")
+    if _act and not _sat and school.get("act_25") is not None:
+        test_range_str = f"ACT {school['act_25']}–{school['act_75']}"
+    elif school.get("sat_25") is not None:
+        test_range_str = f"SAT {school['sat_25']}–{school['sat_75']}"
+    else:
+        test_range_str = ""
     if components.get("gpa", 0) > 5:
         strength = f"Your GPA of {gpa} is meaningfully above {school['name']}'s typical midpoint of {school_gpa_mid}, the strongest signal in your favor."
     elif components.get("test", 0) > 8:
-        strength = f"Your test score sits comfortably above the middle-50% range at {school['name']} ({school['sat_25']}–{school['sat_75']}), a real academic edge."
+        strength = (f"Your test score sits comfortably above the middle-50% range at {school['name']} ({test_range_str}), a real academic edge."
+                    if test_range_str else
+                    f"Your test score is a clear academic strength for {school['name']}.")
     elif components.get("hooks", 0) > 0:
         hooks = [k for k in ("legacy","first_gen","athlete") if profile.get(k)]
         strength = f"Your hook(s) — {', '.join(hooks)} — measurably move the needle here."
@@ -4506,7 +4537,9 @@ def _fallback_bullets(profile, school, fit, components, tier):
     if components.get("gpa", 0) < -3:
         weakness = f"Your GPA of {gpa} is below the typical applicant; this is the gap to close hardest."
     elif components.get("test", 0) < -5:
-        weakness = f"Your test score is below the middle-50% range ({school['sat_25']}–{school['sat_75']}) — a retake would meaningfully change odds."
+        weakness = (f"Your test score is below the middle-50% range ({test_range_str}) — a retake would meaningfully change odds."
+                    if test_range_str else
+                    f"Your test score is below where it needs to be for {school['name']} — a retake would meaningfully change odds.")
     elif components.get("ecs", 0) <= 0:
         weakness = f"Your extracurriculars read thin for {school['name']}'s admit pool."
     else:
@@ -4621,6 +4654,7 @@ def init_db():
             college_slug TEXT NOT NULL,
             body TEXT NOT NULL,
             generated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            profile_hash TEXT,
             UNIQUE(user_id, college_slug),
             FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
         )""")
@@ -4796,6 +4830,12 @@ def init_db():
                 conn.execute(f"ALTER TABLE profiles ADD COLUMN {col} INTEGER")
             except sqlite3.OperationalError:
                 pass
+        # Profile-version hash on cached tailored advice so it invalidates when
+        # the student edits the stats the advice was built on (GPA, scores, ECs).
+        try:
+            conn.execute("ALTER TABLE tailored_advice ADD COLUMN profile_hash TEXT")
+        except sqlite3.OperationalError:
+            pass
         # Application round on each saved school. NULL = undecided.
         # Values: 'ED1','ED2','EA','REA','RD'. Used for the simulator and for
         # categorizing the My Plans page.
@@ -6075,7 +6115,28 @@ def _flash():
     return "\n".join(msgs)
 
 
-def _page(body_html, title="Candor"):
+def _page(body_html, title="Candor", description=None):
+    from html import escape as _esc
+    description = description or "Honest college admissions chances, calibrated to verified Common Data Set data. Built by a HS junior to tell you the truth, not a flattering number."
+    try:
+        og_image = request.url_root.rstrip("/") + url_for("static", filename="hero-aurora.jpg")
+        page_url = request.url_root.rstrip("/") + request.path
+    except Exception:
+        og_image = "/static/hero-aurora.jpg"
+        page_url = "/"
+    social_meta = (
+        f'<meta name="description" content="{_esc(description, quote=True)}">'
+        f'<meta property="og:type" content="website">'
+        f'<meta property="og:site_name" content="Candor">'
+        f'<meta property="og:title" content="{_esc(title, quote=True)}">'
+        f'<meta property="og:description" content="{_esc(description, quote=True)}">'
+        f'<meta property="og:image" content="{og_image}">'
+        f'<meta property="og:url" content="{page_url}">'
+        f'<meta name="twitter:card" content="summary_large_image">'
+        f'<meta name="twitter:title" content="{_esc(title, quote=True)}">'
+        f'<meta name="twitter:description" content="{_esc(description, quote=True)}">'
+        f'<meta name="twitter:image" content="{og_image}">'
+    )
     csrf_meta = ""
     if _CSRF_ON:
         try:
@@ -6098,8 +6159,9 @@ made by a high school junior. found a bug? something looks wrong? tell me on the
 <a href="https://www.reddit.com/user/Zestyclose_Tower_380" style="color:var(--text-2)">reddit</a>.
 free chances calculator. <a href="/upgrade" style="color:var(--text-2)">Candor Premium</a> is $10 once for the strategy on top.
 </div>"""
-    return f"""<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+    return f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 {favicon}
+{social_meta}
 {csrf_meta}<title>{title}</title><style>{BASE_CSS}</style></head>
 <body>{_nav()}<div class="wrap">{_flash()}{body_html}</div>{footer}</body></html>"""
 
@@ -6253,7 +6315,7 @@ def college_detail_html(slug):
     </div>
     <div>{type_pill} {tier_pill}</div>
   </div>
-  <div id="summary-block" style="margin:14px 0 6px;color:#444">{c['desc']}<div class="muted" style="font-size:.82em;margin-top:4px"><i>Loading extended overview…</i></div></div>
+  <div id="summary-block" style="margin:14px 0 6px;color:var(--text-2)">{c['desc']}<div class="muted" style="font-size:.82em;margin-top:4px"><i>Loading extended overview…</i></div></div>
   <div class="tag-list">{majors_tags}</div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
     <a class="btn btn-primary" href="/college/{c['slug']}/plan">★ Calculate my chances</a>
@@ -7887,7 +7949,7 @@ def get_school_summary(c, force=False):
             )
             response = _claude_client.messages.create(
                 model="claude-haiku-4-5-20251001",
-                max_tokens=600,
+                max_tokens=800,
                 system=f"You write substantive, honest college overviews like a knowledgeable older sibling explaining a school to a high schooler. Specific, slightly opinionated, acknowledges downsides. No marketing language. No em-dashes.\n\n{_date_context()}",
                 messages=[{"role":"user","content": user_msg}],
             )
@@ -8224,6 +8286,15 @@ SCHOOL_VERIFIED_FACTS = {
 def get_tailored_advice(user_id, school, profile, force=False):
     """Return Claude-generated, profile-specific advice for this school.
     Cached 7 days. Falls back to a templated bullet list if no key."""
+    # Profile-version hash: cached advice only serves if the stats it was built
+    # on are unchanged, so editing GPA/scores/ECs invalidates stale advice
+    # within the 7-day TTL instead of serving day-old numbers.
+    import hashlib as _hl
+    phash = _hl.sha1("|".join(str(profile.get(k)) for k in (
+        "uw_gpa","weighted_gpa","sat","act","major","ecs","leadership","awards",
+        "legacy","first_gen","athlete","is_international","state",
+        "sat_math","sat_ebrw","act_math","act_english","act_reading","act_science",
+    )).encode()).hexdigest()[:16]
     with db() as conn:
         if not force:
             cutoff = (datetime.utcnow() - timedelta(days=TAILORED_ADVICE_TTL_DAYS)).isoformat()
@@ -8231,8 +8302,8 @@ def get_tailored_advice(user_id, school, profile, force=False):
             # entries from before the prompt fix are treated as stale.
             effective_cutoff = max(cutoff, TAILORED_ADVICE_MIN_VALID_AT)
             row = conn.execute(
-                "SELECT body, generated_at FROM tailored_advice WHERE user_id=? AND college_slug=? AND generated_at >= ?",
-                (user_id, school["slug"], effective_cutoff)
+                "SELECT body, generated_at FROM tailored_advice WHERE user_id=? AND college_slug=? AND generated_at >= ? AND profile_hash=?",
+                (user_id, school["slug"], effective_cutoff, phash)
             ).fetchone()
             if row:
                 return row["body"]
@@ -8401,11 +8472,11 @@ No preamble, no closing line."""
             bullets.append(f"Out-of-state public: tuition ${school.get('tuition',0):,} is the OOS rate. Check whether your stats qualify for merit aid before applying.")
         body = "\n".join(f"- {b}" for b in bullets[:8])
     with db() as conn:
-        conn.execute("""INSERT INTO tailored_advice (user_id, college_slug, body, generated_at)
-            VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+        conn.execute("""INSERT INTO tailored_advice (user_id, college_slug, body, generated_at, profile_hash)
+            VALUES (?, ?, ?, CURRENT_TIMESTAMP, ?)
             ON CONFLICT(user_id, college_slug) DO UPDATE SET
-                body=excluded.body, generated_at=CURRENT_TIMESTAMP""",
-            (user_id, school["slug"], body))
+                body=excluded.body, generated_at=CURRENT_TIMESTAMP, profile_hash=excluded.profile_hash""",
+            (user_id, school["slug"], body, phash))
         conn.commit()
     return body
 
@@ -8692,10 +8763,21 @@ def school_plan_html(slug):
       {match_rows}
     </div>"""
 
-    # 3) Tailored advice (Claude-generated, cached 7 days)
-    force_refresh = request.args.get("refresh") == "1"
-    advice_body = get_tailored_advice(user["id"], school, prof, force=force_refresh)
-    advice_html = _render_tailored_advice(advice_body)
+    # 3) Tailored advice (Claude-generated, cached 7 days) — PREMIUM ONLY.
+    # The chances + My Fit cards above are the free teaser; the personalized
+    # AI strategy is the advertised paid feature, so we gate it (and skip the
+    # Claude call entirely for free users).
+    if bool(user.get("is_paid")):
+        force_refresh = request.args.get("refresh") == "1"
+        advice_body = get_tailored_advice(user["id"], school, prof, force=force_refresh)
+        advice_html = _render_tailored_advice(advice_body)
+    else:
+        advice_html = f"""<div class="card" style="background:linear-gradient(135deg,#0f3a37 0%,#0a131c 100%);border:1px solid rgba(94,234,212,.3)">
+          <div style="font-size:.74em;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#5eead4;margin-bottom:6px">Candor Premium · $10 once</div>
+          <h3 style="margin:0 0 8px">Your personalized strategy for {school['name']}</h3>
+          <p class="muted" style="margin:0 0 14px">Get AI strategy calibrated to your stats, ECs, and what {school['name']} actually weights — what to highlight, what to fix, and where this school fits your list. Plus the score predictor, list grader, and admissions simulator.</p>
+          <a class="btn btn-primary" href="/upgrade" style="display:inline-block">Unlock my strategy — $10 once &rarr;</a>
+        </div>"""
 
     # 4) School-specific notes (curated values + essay strategy)
     note = get_school_strategy(school)
@@ -8854,7 +8936,7 @@ def plans_index_html():
   </ul>
   <p class="muted" style="font-size:.88em">You currently have <b style="color:#e6edf3">{n_schools}</b> school{'' if n_schools==1 else 's'} in your list. Upgrade to organize, simulate, and strategize.</p>
   <a class="btn btn-primary" href="/upgrade" style="font-size:1em;padding:12px 28px;margin-top:18px;display:inline-block">Upgrade — $10 once →</a>
-  <p class="muted" style="font-size:.78em;margin-top:12px">Cancel any time. Your saved schools and chances stay accessible on each college's page.</p>
+  <p class="muted" style="font-size:.78em;margin-top:12px">One $10 payment, no subscription. Your saved schools and chances stay accessible on each college's page.</p>
 </div>
 
 <p style="margin-top:18px"><a class="btn btn-light" href="/colleges">+ Add another school</a></p>
@@ -9109,7 +9191,7 @@ def chat_send(conversation_id, user_message, kind, profile, school=None):
         try:
             response = _claude_client.messages.create(
                 model="claude-haiku-4-5-20251001",
-                max_tokens=600,
+                max_tokens=1000,
                 system=_build_system_prompt(kind, profile, school),
                 messages=msgs,
             )
@@ -10387,6 +10469,10 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
     hero_video_url = url_for('static', filename='hero-aurora.mp4') + f"?v={_asset_ver('hero-aurora.mp4')}"
     hero_video_mobile_url = url_for('static', filename='hero-aurora-mobile.mp4') + f"?v={_asset_ver('hero-aurora-mobile.mp4')}"
     hero_poster_url = url_for('static', filename='hero-aurora.jpg') + f"?v={_asset_ver('hero-aurora.jpg')}"
+    # Live user count instead of a hardcoded "100+" that silently lies once the
+    # real number passes it. Floor to a clean number for social proof (>=100),
+    # exact below that — honest either way.
+    users_display = (user_count // 50) * 50 if user_count >= 100 else user_count
     body = f"""
 <script>
 (function(){{
@@ -10406,7 +10492,10 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
     d.classList.add('landed');
   }}
   // Failsafe: always reveal the page even if the video stalls or errors.
-  setTimeout(land, 14000);
+  // Kept short so a slow/broken video never leaves the page blank for long
+  // (this previously cost us TikTok/Reddit traffic). The poster is the final
+  // courtyard frame, so revealing over it looks correct.
+  setTimeout(land, 6000);
   function wire(){{
     var v = document.querySelector('.hero-bg-video');
     if (!v) {{ land(); return; }}
@@ -10414,6 +10503,10 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
       if (v.duration && (v.duration - v.currentTime) < 0.55) land();
     }});
     v.addEventListener('ended', land);
+    // A genuinely broken or stalled video should reveal the page immediately
+    // rather than waiting out the failsafe.
+    v.addEventListener('error', land);
+    v.addEventListener('stalled', function(){{ setTimeout(land, 1500); }});
     var pr = v.play();
     if (pr && typeof pr.catch === 'function') pr.catch(function(){{ land(); }});
   }}
@@ -10452,7 +10545,7 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
         <a href="/colleges" class="secondary">Browse schools</a>
       </div>
       <div class="stats">
-        <div class="stat"><span class="num" data-count-to="100" data-suffix="+">100+</span>active users</div>
+        <div class="stat"><span class="num" data-count-to="{users_display}" data-suffix="+">{users_display}+</span>active users</div>
         <div class="stat"><span class="num" data-count-to="{cds_count}">{cds_count}</span>CDS-verified schools</div>
         <div class="stat"><span class="num"><span class="accent" data-count-to="{activation_pct}" data-suffix="%">{activation_pct}%</span></span>complete their profile</div>
       </div>
@@ -10919,10 +11012,23 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
   }})();
 </script>
 """
-    return f"""<!doctype html><html><head><meta charset="utf-8">
+    _og_img = request.url_root.rstrip("/") + url_for("static", filename="hero-aurora.jpg")
+    _site_url = request.url_root.rstrip("/") + "/"
+    _og_desc = f"College chances calculator with verified Common Data Set figures from {cds_count}+ schools. Built by a HS junior to be honest, not optimistic."
+    return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Candor — College admissions chances, calibrated</title>
-<meta name="description" content="College chances calculator with verified Common Data Set figures from {cds_count}+ schools. Built by a HS junior to be honest, not optimistic.">
+<meta name="description" content="{_og_desc}">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Candor">
+<meta property="og:title" content="Candor — College admissions chances, calibrated">
+<meta property="og:description" content="{_og_desc}">
+<meta property="og:image" content="{_og_img}">
+<meta property="og:url" content="{_site_url}">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Candor — College admissions chances, calibrated">
+<meta name="twitter:description" content="{_og_desc}">
+<meta name="twitter:image" content="{_og_img}">
 <style>{BASE_CSS}</style>
 {css}
 <style>{orbit_keyframes}</style>
@@ -11318,6 +11424,20 @@ def predictor_page():
     profile = get_profile(user["id"])
     if not profile:
         return redirect(url_for("profile_page"))
+    # Premium gate: the full score predictor is the "Score push impact" feature
+    # advertised on the upgrade page. Free users get the chances calculator;
+    # the what-if simulator across their whole list is premium.
+    if not bool(user.get("is_paid")):
+        return _page("""
+<h1>Score predictor</h1>
+<p class="muted">See exactly how a +60 SAT, +2 ACT, or higher GPA would move your odds at every school on your list — so you can decide if a retake is worth the time.</p>
+<div class="card" style="background:linear-gradient(135deg,#0f3a37 0%,#0a131c 100%);border:1px solid rgba(94,234,212,.3);padding:32px;max-width:620px">
+  <div style="font-size:.78em;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#5eead4;margin-bottom:8px">Candor Premium · $10 once</div>
+  <h2 style="margin:0 0 14px">Score push impact is a premium feature</h2>
+  <p class="muted" style="margin:0 0 18px">Unlock the what-if simulator plus per-school AI strategy, the list grader, and the admissions simulator — one $10 payment, no subscription.</p>
+  <a class="btn btn-primary" href="/upgrade" style="font-size:1em;padding:12px 28px;display:inline-block">Upgrade — $10 once &rarr;</a>
+</div>
+""", title="Score predictor — Candor")
     # What schools to simulate over: saved schools, or top-N fits
     saved = get_saved_schools(user["id"])
     if saved:
@@ -11396,10 +11516,10 @@ SCHOOL_DEADLINE_OVERRIDES = {
     "georgetown":   {"EA":  ("Nov 1, 2026",  2026, 11, 1)},
     "uchicago":     {"EA":  ("Nov 1, 2026",  2026, 11, 1)},
     "notre-dame":   {"REA": ("Nov 1, 2026",  2026, 11, 1)},
-    "michigan":     {"EA":  ("Nov 1, 2026",  2026, 11, 1), "RD": ("Feb 1, 2027", 2027, 2, 1)},
+    "umich":        {"EA":  ("Nov 1, 2026",  2026, 11, 1), "RD": ("Feb 1, 2027", 2027, 2, 1)},
     "unc":          {"EA":  ("Oct 15, 2026", 2026, 10, 15), "RD": ("Jan 15, 2027", 2027, 1, 15)},
     "uva":          {"EA":  ("Nov 1, 2026",  2026, 11, 1)},
-    "berkeley":     {"RD":  ("Nov 30, 2026", 2026, 11, 30)},
+    "ucb":          {"RD":  ("Nov 30, 2026", 2026, 11, 30)},
     "ucla":         {"RD":  ("Nov 30, 2026", 2026, 11, 30)},
     "stanford":     {"REA": ("Nov 1, 2026",  2026, 11, 1)},
 }
@@ -12132,7 +12252,7 @@ def plans_add_explain(slug):
            f"intended major {profile.get('major') or 'undecided'}.\n"
            f"For this student at {c['name']}: fit {fit}/100, tier {tier}, odds {lo}-{hi}%.\n"
            f"Schools already on their list: {', '.join(saved_names) or 'none'}.")
-    txt = _claude("claude-haiku-4-5-20251001", sys, usr, max_tokens=220)
+    txt = _claude("claude-haiku-4-5-20251001", sys, usr, max_tokens=340)
     if not txt:
         txt = (f"{c['name']} is a {tier.lower()} for your profile "
                f"({fit}/100 fit, ~{lo}-{hi}% odds). It fits the kind of schools "
@@ -12557,7 +12677,11 @@ def generate_strategy(profile, items):
         + "\n\nCANDIDATE catalog for additions — slug|name|admit rate|test ranges|location|majors:\n"
         + "\n".join(cat_lines)
     )
-    raw = _claude("claude-haiku-4-5-20251001", sys, usr, max_tokens=4500)
+    # Output must include every school in the list (slug/tier/action/note/pitch)
+    # plus additions — a 15-20 school list can blow past 4500 tokens and get the
+    # JSON cut mid-object, so give generous headroom. (Input is fine: Haiku 4.5
+    # has a 200k window, so the full candidate catalog is not a constraint.)
+    raw = _claude("claude-haiku-4-5-20251001", sys, usr, max_tokens=7000)
     if not raw:
         print("[STRATEGIST] empty response from Claude")
         return None
@@ -13924,9 +14048,10 @@ def upgrade_page():
           <div class="stat-card" style="margin-bottom:14px">
             <div class="label">Plan</div>
             <div class="value accent">Candor Premium</div>
-            <div class="delta">{status['month_used']} / {PAID_MONTHLY_LIMIT} messages this month</div>
+            <div class="delta">Unlocked — one-time $10, no recurring charge</div>
           </div>
-          <p class="muted" style="margin:0">You're all set. Manage or cancel through the Stripe email receipt you received.</p>
+          <p class="muted" style="margin:0 0 14px">You're all set. Every premium feature is unlocked on your account. Keep your Stripe email receipt for your records.</p>
+          <a href="/plans" class="btn btn-primary">Go to my plan &rarr;</a>
         </div>"""
         return _page(body, title="Upgrade — Candor")
 
@@ -13971,6 +14096,55 @@ def upgrade_page():
     return _page(body, title="Upgrade — Candor")
 
 
+@app.route("/api/paid-status")
+def api_paid_status():
+    user = current_user()
+    return jsonify({"paid": bool(user.get("is_paid")) if user else False,
+                    "logged_in": bool(user)})
+
+
+@app.route("/upgrade/thanks")
+def upgrade_thanks():
+    """Post-checkout landing. Set this as the Stripe Payment Link success URL
+    (Stripe dashboard → Payment Link → After payment → Redirect) so paying
+    users see a confirmation instead of bouncing back to the buy button while
+    the webhook (which grants premium) catches up ~30s later."""
+    user = current_user()
+    if user and bool(user.get("is_paid")):
+        body = """<div class="card" style="max-width:560px;text-align:center">
+          <div style="font-size:2.4em;line-height:1">🎉</div>
+          <h1 style="margin:.3em 0 .2em">You're Candor Premium</h1>
+          <p class="muted" style="margin:0 0 18px">Every premium feature is unlocked — per-school AI strategy, the score predictor, list grader, and admissions simulator.</p>
+          <a href="/plans" class="btn btn-primary">Go to my plan &rarr;</a>
+        </div>"""
+        return _page(body, title="Thanks — Candor")
+    # Paid but webhook hasn't landed yet (or not logged in on this device).
+    poll = "" if not user else """
+      <script>
+      (function(){
+        var tries=0;
+        var t=setInterval(function(){
+          tries++;
+          fetch('/api/paid-status').then(function(r){return r.json()}).then(function(d){
+            if(d.paid){clearInterval(t);location.href='/upgrade/thanks';}
+            else if(tries>20){clearInterval(t);var e=document.getElementById('slow');if(e)e.style.display='block';}
+          }).catch(function(){});
+        },3000);
+      })();
+      </script>"""
+    note = ("" if user else
+            '<p class="muted" style="font-size:.85em;margin-top:14px">Not seeing it? Log in with the same email you paid with — your purchase is tied to that address.</p>')
+    body = f"""<div class="card" style="max-width:560px;text-align:center">
+      <h1 style="margin:0 0 .3em">Payment received — activating…</h1>
+      <p class="muted" style="margin:0 0 8px">Thanks! We're unlocking your account. This usually takes under a minute.</p>
+      <div class="muted" style="font-size:1.6em;margin:10px 0">⏳</div>
+      <p id="slow" style="display:none;color:var(--text);font-size:.9em">Still activating — it can take a couple of minutes. This page refreshes automatically, or email support and we'll unlock it manually.</p>
+      {note}
+      <p style="margin-top:16px"><a href="/plans" class="btn btn-light">Go to my plan</a></p>
+    </div>{poll}"""
+    return _page(body, title="Thanks — Candor")
+
+
 _csrf_exempt = csrf.exempt if _CSRF_ON else (lambda f: f)
 
 
@@ -13982,18 +14156,26 @@ def stripe_webhook():
     the signing secret in STRIPE_WEBHOOK_SECRET env var."""
     payload = request.get_data(as_text=True)
     sig_header = request.headers.get("Stripe-Signature", "")
-    if STRIPE_WEBHOOK_SECRET:
-        try:
-            import hmac as _hmac, hashlib as _hashlib
-            ts = next((p.split("=",1)[1] for p in sig_header.split(",") if p.startswith("t=")), "")
-            sigs = [p.split("=",1)[1] for p in sig_header.split(",") if p.startswith("v1=")]
-            signed = f"{ts}.{payload}".encode()
-            expected = _hmac.new(STRIPE_WEBHOOK_SECRET.encode(), signed, _hashlib.sha256).hexdigest()
-            if not any(_hmac.compare_digest(expected, s) for s in sigs):
-                return ("invalid signature", 400)
-        except Exception as e:
-            print(f"stripe webhook signature error: {e}")
-            return ("signature error", 400)
+    # SECURITY: never trust an unsigned webhook. Without the signing secret we
+    # cannot verify the request actually came from Stripe, so an attacker could
+    # POST a fake checkout.session.completed and self-grant premium. If the
+    # secret isn't configured we 503 — Stripe retries for ~3 days, so once the
+    # env var is set the queued events still land. (Manual fallback meanwhile:
+    # /admin/grant-paid?email=...)
+    if not STRIPE_WEBHOOK_SECRET:
+        print("WARNING: STRIPE_WEBHOOK_SECRET unset — rejecting webhook (set it in Railway env)")
+        return ("webhook secret not configured", 503)
+    try:
+        import hmac as _hmac, hashlib as _hashlib
+        ts = next((p.split("=",1)[1] for p in sig_header.split(",") if p.startswith("t=")), "")
+        sigs = [p.split("=",1)[1] for p in sig_header.split(",") if p.startswith("v1=")]
+        signed = f"{ts}.{payload}".encode()
+        expected = _hmac.new(STRIPE_WEBHOOK_SECRET.encode(), signed, _hashlib.sha256).hexdigest()
+        if not any(_hmac.compare_digest(expected, s) for s in sigs):
+            return ("invalid signature", 400)
+    except Exception as e:
+        print(f"stripe webhook signature error: {e}")
+        return ("signature error", 400)
     try:
         event = json.loads(payload)
     except Exception:
@@ -14003,6 +14185,7 @@ def stripe_webhook():
     if etype == "checkout.session.completed":
         ref = obj.get("client_reference_id")
         cust = obj.get("customer")
+        granted = False
         if ref:
             try:
                 uid = int(ref)
@@ -14010,14 +14193,30 @@ def stripe_webhook():
                     conn.execute("UPDATE users SET is_paid=1, stripe_customer_id=? WHERE id=?",
                                  (cust, uid))
                     conn.commit()
+                granted = True
             except (ValueError, TypeError):
                 pass
+        # Fallback: a payment made through a shared/bookmarked Stripe link has
+        # no client_reference_id. Match the paying email to an existing account
+        # so the purchase still unlocks premium instead of vanishing.
+        if not granted:
+            email = ((obj.get("customer_details") or {}).get("email")
+                     or obj.get("customer_email") or "").strip().lower()
+            if email:
+                with db() as conn:
+                    cur = conn.execute(
+                        "UPDATE users SET is_paid=1, stripe_customer_id=? WHERE LOWER(email)=?",
+                        (cust, email))
+                    conn.commit()
+                    if cur.rowcount:
+                        granted = True
+            if not granted:
+                print(f"stripe webhook: paid checkout could not be matched to a user "
+                      f"(ref={ref!r} email={email!r}) — grant manually via /admin/grant-paid")
+    # One-time product: a checkout is never revoked by subscription events.
+    # Log only, so a stray event can't silently strip a paying customer.
     elif etype in ("customer.subscription.deleted", "invoice.payment_failed"):
-        cust = obj.get("customer")
-        if cust:
-            with db() as conn:
-                conn.execute("UPDATE users SET is_paid=0 WHERE stripe_customer_id=?", (cust,))
-                conn.commit()
+        print(f"stripe webhook: ignoring {etype} (Candor is one-time, no revocation)")
     return ("ok", 200)
 
 
@@ -14222,6 +14421,18 @@ def admin_stats():
         paid_users = conn.execute(
             "SELECT COUNT(*) c FROM users WHERE is_paid=1"
         ).fetchone()["c"]
+        # Conversion funnel: how many unique browsers reached the upgrade page,
+        # and what fraction of them ended up paying. Pulled from page_visits
+        # (path is stored without query string, so /upgrade?for=parent counts too).
+        try:
+            upgrade_views = conn.execute(
+                "SELECT COUNT(DISTINCT visitor_id) c FROM page_visits WHERE path='/upgrade'"
+            ).fetchone()["c"]
+            upgrade_views_24h = conn.execute(
+                "SELECT COUNT(DISTINCT visitor_id) c FROM page_visits WHERE path='/upgrade' AND ts >= datetime('now','-24 hours')"
+            ).fetchone()["c"]
+        except Exception:
+            upgrade_views = upgrade_views_24h = 0
         # Anonymous visitor counts (separate from signups). page_visits.ts is
         # UTC (SQLite CURRENT_TIMESTAMP), and datetime('now','-1 hour') is
         # also UTC, so the math doesn't need a TZ offset.
@@ -14299,9 +14510,19 @@ def admin_stats():
     <div class="delta">unique user-school pairs</div>
   </div>
   <div class="stat-card">
-    <div class="label">Paid subscribers</div>
+    <div class="label">Premium unlocks</div>
     <div class="value accent">{paid_users}</div>
-    <div class="delta">${paid_users * 5}/mo recurring</div>
+    <div class="delta">${paid_users * 10} total · $10 one-time</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">Upgrade page views</div>
+    <div class="value">{upgrade_views}</div>
+    <div class="delta">{upgrade_views_24h} in last 24h · unique browsers</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">Upgrade → paid conversion</div>
+    <div class="value">{round(paid_users / max(1, upgrade_views) * 100, 1)}%</div>
+    <div class="delta">{paid_users} of {upgrade_views} who saw /upgrade</div>
   </div>
 </div>
 <div class="card" style="margin-top:18px">
