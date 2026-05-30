@@ -1,0 +1,158 @@
+[
+  {
+    "slug": "berklee",
+    "ed_offered": null
+  },
+  {
+    "slug": "binghamton",
+    "ed_offered": null
+  },
+  {
+    "slug": "brandeis",
+    "ed_offered": null
+  },
+  {
+    "slug": "bryn-mawr",
+    "ed_offered": null
+  },
+  {
+    "slug": "calpoly-slo",
+    "ed_offered": null
+  },
+  {
+    "slug": "case",
+    "ed_offered": null
+  },
+  {
+    "slug": "lehigh",
+    "ed_offered": null
+  },
+  {
+    "slug": "oberlin",
+    "error": "no_pdf"
+  },
+  {
+    "slug": "reed",
+    "ed_offered": null
+  },
+  {
+    "slug": "rpi",
+    "error": "no_pdf"
+  },
+  {
+    "slug": "ucsb",
+    "error": "no_pdf"
+  },
+  {
+    "slug": "ut-austin",
+    "error": "no_pdf"
+  },
+  {
+    "slug": "uw",
+    "error": "no_pdf"
+  },
+  {
+    "slug": "villanova",
+    "error": "no_pdf"
+  },
+  {
+    "slug": "wpi",
+    "ed_offered": null
+  },
+  {
+    "slug": "bentley",
+    "error": "no_pdf"
+  },
+  {
+    "slug": "clemson",
+    "error": "no_pdf"
+  },
+  {
+    "slug": "conn-college",
+    "ed_offered": null
+  },
+  {
+    "slug": "famu",
+    "error": "no_text"
+  },
+  {
+    "slug": "morehouse",
+    "ed_offered": null
+  },
+  {
+    "slug": "osu",
+    "ed_offered": null
+  },
+  {
+    "slug": "pepperdine",
+    "ed_offered": null
+  },
+  {
+    "slug": "pitt",
+    "ed_offered": null
+  },
+  {
+    "slug": "pratt",
+    "ed_offered": null
+  },
+  {
+    "slug": "sc",
+    "ed_offered": null
+  },
+  {
+    "slug": "sdsu",
+    "ed_offered": null
+  },
+  {
+    "slug": "tamu",
+    "error": "no_pdf"
+  },
+  {
+    "slug": "tuskegee",
+    "ed_offered": null
+  },
+  {
+    "slug": "udel",
+    "error": "no_pdf"
+  },
+  {
+    "slug": "uprm",
+    "error": "no_pdf"
+  },
+  {
+    "slug": "utk",
+    "ed_offered": null
+  },
+  {
+    "slug": "whitman",
+    "ed_offered": null
+  },
+  {
+    "slug": "alabama",
+    "ed_offered": null
+  },
+  {
+    "slug": "hawaii",
+    "ed_offered": null
+  },
+  {
+    "slug": "lsu",
+    "ed_offered": null
+  },
+  {
+    "slug": "missou",
+    "error": "no_pdf"
+  },
+  {
+    "slug": "sjsu",
+    "ed_offered": null
+  },
+  {
+    "slug": "uh",
+    "ed_offered": null
+  },
+  {
+    "slug": "uiowa",
+    "ed_offered": null
+  }
+]

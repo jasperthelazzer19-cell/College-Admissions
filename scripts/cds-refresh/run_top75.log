@@ -1,0 +1,13 @@
+[22:37:04] start: 3 schools, concurrency=3, cached_urls available: 3
+[22:37:04] -> harvard: fetch https://oira.harvard.edu/common-data-set/
+[22:37:04] -> stanford: fetch https://irds.stanford.edu/data-findings/cds
+[22:37:04] -> mit: fetch https://mitadmissions.org/blogs/entry/mit-regular-action-decisions-now-available-online-2026/
+[22:37:35]   fetch+extract returned nothing useful -> falling back to web_search
+[22:37:35] -> stanford: web_search fallback
+[22:37:35]   ok (fetch): class=2030 overall=0.0458 ED1=None ED2=None ED=None EA=None REA=None RD=None conf=high
+[22:37:35]   fetch+extract returned nothing useful -> falling back to web_search
+[22:37:35] -> harvard: web_search fallback
+[22:37:44]   ok (search): class=2030 overall=None ED1=None ED2=None ED=None EA=None REA=None RD=None conf=high
+[22:37:45]   ok (search): class=2030 overall=None ED1=None ED2=None ED=None EA=None REA=None RD=None conf=high
+[22:37:45] progress: 3/3
+[22:37:45] done. wrote results_top75.jsonl

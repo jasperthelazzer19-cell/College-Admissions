@@ -1,0 +1,1491 @@
+{
+  "overall": [
+    {
+      "slug": "bates",
+      "name": "Bates",
+      "new_overall": 0.0433,
+      "new_ed": null,
+      "new_ed2": null,
+      "new_ea": null,
+      "new_rea": null,
+      "new_rd": null,
+      "class_year": "2030",
+      "src_type": "press_release",
+      "overall_conf": "medium",
+      "rounds_conf": "low",
+      "rounds": [
+        "ED1",
+        "ED2",
+        "RD"
+      ],
+      "cur": 0.133,
+      "delta": -0.0897
+    },
+    {
+      "slug": "middlebury",
+      "name": "Middlebury",
+      "new_overall": 0.1746,
+      "new_ed": null,
+      "new_ed2": null,
+      "new_ea": null,
+      "new_rea": null,
+      "new_rd": null,
+      "class_year": "2030",
+      "src_type": "press_release",
+      "overall_conf": "high",
+      "rounds_conf": "medium",
+      "rounds": [
+        "ED1",
+        "ED2",
+        "RD"
+      ],
+      "cur": 0.1075,
+      "delta": 0.0671
+    },
+    {
+      "slug": "uva",
+      "name": "UVA",
+      "new_overall": 0.1253,
+      "new_ed": 0.24,
+      "new_ed2": null,
+      "new_ea": 0.124,
+      "new_rea": null,
+      "new_rd": 0.0708,
+      "class_year": "2030",
+      "src_type": "student_newspaper",
+      "overall_conf": "high",
+      "rounds_conf": "high",
+      "rounds": [
+        "ED",
+        "EA",
+        "RD"
+      ],
+      "cur": 0.168,
+      "delta": -0.042700000000000016
+    },
+    {
+      "slug": "colorado-college",
+      "name": "Colorado College",
+      "new_overall": 0.22,
+      "new_ed": null,
+      "new_ed2": null,
+      "new_ea": null,
+      "new_rea": null,
+      "new_rd": null,
+      "class_year": "2029",
+      "src_type": "class_profile",
+      "overall_conf": "high",
+      "rounds_conf": "low",
+      "rounds": [
+        "ED",
+        "EA",
+        "RD"
+      ],
+      "cur": 0.1847,
+      "delta": 0.0353
+    },
+    {
+      "slug": "vassar",
+      "name": "Vassar",
+      "new_overall": 0.18,
+      "new_ed": null,
+      "new_ed2": null,
+      "new_ea": null,
+      "new_rea": null,
+      "new_rd": null,
+      "class_year": "2030",
+      "src_type": "other",
+      "overall_conf": "medium",
+      "rounds_conf": "low",
+      "rounds": [
+        "ED1",
+        "ED2",
+        "RD"
+      ],
+      "cur": 0.2093,
+      "delta": -0.02930000000000002
+    },
+    {
+      "slug": "notre-dame",
+      "name": "Notre Dame",
+      "new_overall": 0.09,
+      "new_ed": null,
+      "new_ed2": null,
+      "new_ea": 0.1179,
+      "new_rea": 0.1179,
+      "new_rd": null,
+      "class_year": "2030",
+      "src_type": "press_release",
+      "overall_conf": "high",
+      "rounds_conf": "medium",
+      "rounds": [
+        "REA",
+        "RD"
+      ],
+      "cur": 0.1127,
+      "delta": -0.022699999999999998
+    },
+    {
+      "slug": "amherst",
+      "name": "Amherst",
+      "new_overall": 0.0678,
+      "new_ed": 0.43,
+      "new_ed2": null,
+      "new_ea": null,
+      "new_rea": null,
+      "new_rd": null,
+      "class_year": "2030",
+      "src_type": "student_newspaper",
+      "overall_conf": "high",
+      "rounds_conf": "medium",
+      "rounds": [
+        "ED",
+        "RD"
+      ],
+      "cur": 0.0901,
+      "delta": -0.0223
+    },
+    {
+      "slug": "emory",
+      "name": "Emory",
+      "new_overall": 0.1229,
+      "new_ed": 0.29,
+      "new_ed2": null,
+      "new_ea": null,
+      "new_rea": null,
+      "new_rd": null,
+      "class_year": "2030",
+      "src_type": "press_release",
+      "overall_conf": "high",
+      "rounds_conf": "medium",
+      "rounds": [
+        "ED1",
+        "ED2",
+        "RD"
+      ],
+      "cur": 0.1029,
+      "delta": 0.01999999999999999
+    },
+    {
+      "slug": "colgate",
+      "name": "Colgate",
+      "new_overall": 0.12,
+      "new_ed": 0.35,
+      "new_ed2": null,
+      "new_ea": null,
+      "new_rea": null,
+      "new_rd": 0.06,
+      "class_year": "2030",
+      "src_type": "other",
+      "overall_conf": "low",
+      "rounds_conf": "medium",
+      "rounds": [
+        "ED1",
+        "ED2",
+        "RD"
+      ],
+      "cur": 0.1388,
+      "delta": -0.01880000000000001
+    },
+    {
+      "slug": "usc",
+      "name": "USC",
+      "new_overall": 0.1166,
+      "new_ed": null,
+      "new_ed2": null,
+      "new_ea": 0.095,
+      "new_rea": null,
+      "new_rd": null,
+      "class_year": "2030",
+      "src_type": "student_newspaper",
+      "overall_conf": "high",
+      "rounds_conf": "medium",
+      "rounds": [
+        "EA",
+        "RD"
+      ],
+      "cur": 0.0981,
+      "delta": 0.01849999999999999
+    },
+    {
+      "slug": "vanderbilt",
+      "name": "Vanderbilt",
+      "new_overall": 0.0408,
+      "new_ed": 0.119,
+      "new_ed2": null,
+      "new_ea": null,
+      "new_rea": null,
+      "new_rd": 0.028,
+      "class_year": "2030",
+      "src_type": "class_profile",
+      "overall_conf": "high",
+      "rounds_conf": "high",
+      "rounds": [
+        "ED1",
+        "ED2",
+        "RD"
+      ],
+      "cur": 0.0586,
+      "delta": -0.017799999999999996
+    },
+    {
+      "slug": "tufts",
+      "name": "Tufts",
+      "new_overall": 0.1,
+      "new_ed": null,
+      "new_ed2": null,
+      "new_ea": null,
+      "new_rea": null,
+      "new_rd": null,
+      "class_year": "2030",
+      "src_type": "press_release",
+      "overall_conf": "high",
+      "rounds_conf": "low",
+      "rounds": [
+        "ED1",
+        "ED2",
+        "RD"
+      ],
+      "cur": 0.1149,
+      "delta": -0.014899999999999997
+    },
+    {
+      "slug": "nyu",
+      "name": "NYU",
+      "new_overall": 0.077,
+      "new_ed": null,
+      "new_ed2": null,
+      "new_ea": null,
+      "new_rea": null,
+      "new_rd": null,
+      "class_year": "2029",
+      "src_type": "cds",
+      "overall_conf": "high",
+      "rounds_conf": "low",
+      "rounds": [
+        "ED1",
+        "ED2",
+        "RD"
+      ],
+      "cur": 0.0906,
+      "delta": -0.013600000000000001
+    },
+    {
+      "slug": "jhu",
+      "name": "Johns Hopkins",
+      "new_overall": 0.0514,
+      "new_ed": 0.1049,
+      "new_ed2": null,
+      "new_ea": null,
+      "new_rea": null,
+      "new_rd": 0.0417,
+      "class_year": "2029",
+      "src_type": "cds",
+      "overall_conf": "high",
+      "rounds_conf": "low",
+      "rounds": [
+        "ED1",
+        "ED2",
+        "RD"
+      ],
+      "cur": 0.0644,
+      "delta": -0.012999999999999998
+    },
+    {
+      "slug": "caltech",
+      "name": "Caltech",
+      "new_overall": 0.0378,
+      "new_ed": null,
+      "new_ed2": null,
+      "new_ea": null,
+      "new_rea": null,
+      "new_rd": null,
+      "class_year": "2029",
+      "src_type": "other",
+      "overall_conf": "high",
+      "rounds_conf": "low",
+      "rounds": [
+        "REA",
+        "RD"
+      ],
+      "cur": 0.0257,
+      "delta": 0.0121
+    },
+    {
+      "slug": "barnard",
+      "name": "Barnard",
+      "new_overall": 0.1005,
+      "new_ed": null,
+      "new_ed2": null,
+      "new_ea": null,
+      "new_rea": null,
+      "new_rd": null,
+      "class_year": "2029",
+      "src_type": "cds",
+      "overall_conf": "high",
+      "rounds_conf": "low",
+      "rounds": [
+        "ED",
+        "RD"
+      ],
+      "cur": 0.0884,
+      "delta": 0.0121
+    },
+    {
+      "slug": "georgetown",
+      "name": "Georgetown",
+      "new_overall": 0.13,
+      "new_ed": null,
+      "new_ed2": null,
+      "new_ea": null,
+      "new_rea": null,
+      "new_rd": null,
+      "class_year": "2030",
+      "src_type": "student_newspaper",
+      "overall_conf": "high",
+      "rounds_conf": "medium",
+      "rounds": [
+        "EA",
+        "RD"
+      ],
+      "cur": 0.119,
+      "delta": 0.01100000000000001
+    },
+    {
+      "slug": "duke",
+      "name": "Duke",
+      "new_overall": 0.047,
+      "new_ed": 0.138,
+      "new_ed2": null,
+      "new_ea": null,
+      "new_rea": null,
+      "new_rd": 0.037,
+      "class_year": "2030",
+      "src_type": "press_release",
+      "overall_conf": "high",
+      "rounds_conf": null,
+      "rounds": null,
+      "cur": 0.0571,
+      "delta": -0.010099999999999998
+    },
+    {
+      "slug": "haverford",
+      "name": "Haverford",
+      "new_overall": 0.133,
+      "new_ed": null,
+      "new_ed2": null,
+      "new_ea": null,
+      "new_rea": null,
+      "new_rd": null,
+      "class_year": "2029",
+      "src_type": "other",
+      "overall_conf": "high",
+      "rounds_conf": "medium",
+      "rounds": [
+        "ED1",
+        "ED2",
+        "RD"
+      ],
+      "cur": 0.1237,
+      "delta": 0.009300000000000003
+    },
+    {
+      "slug": "colby",
+      "name": "Colby",
+      "new_overall": 0.08,
+      "new_ed": null,
+      "new_ed2": null,
+      "new_ea": null,
+      "new_rea": null,
+      "new_rd": null,
+      "class_year": "2030",
+      "src_type": "press_release",
+      "overall_conf": "high",
+      "rounds_conf": "low",
+      "rounds": [
+        "ED1",
+        "ED2",
+        "RD"
+      ],
+      "cur": 0.0709,
+      "delta": 0.009099999999999997
+    },
+    {
+      "slug": "umich",
+      "name": "University of Michigan",
+      "new_overall": 0.1642,
+      "new_ed": null,
+      "new_ed2": null,
+      "new_ea": null,
+      "new_rea": null,
+      "new_rd": null,
+      "class_year": "2029",
+      "src_type": "other",
+      "overall_conf": "high",
+      "rounds_conf": "high",
+      "rounds": [
+        "ED",
+        "EA",
+        "RD"
+      ],
+      "cur": 0.1564,
+      "delta": 0.007800000000000001
+    },
+    {
+      "slug": "wesleyan",
+      "name": "Wesleyan",
+      "new_overall": 0.1577,
+      "new_ed": null,
+      "new_ed2": null,
+      "new_ea": null,
+      "new_rea": null,
+      "new_rd": 0.143,
+      "class_year": "2030",
+      "src_type": "student_newspaper",
+      "overall_conf": "high",
+      "rounds_conf": "high",
+      "rounds": [
+        "ED",
+        "RD"
+      ],
+      "cur": 0.1649,
+      "delta": -0.007199999999999984
+    },
+    {
+      "slug": "northwestern",
+      "name": "Northwestern",
+      "new_overall": 0.07,
+      "new_ed": null,
+      "new_ed2": null,
+      "new_ea": null,
+      "new_rea": null,
+      "new_rd": null,
+      "class_year": "2030",
+      "src_type": "other",
+      "overall_conf": "high",
+      "rounds_conf": "medium",
+      "rounds": [
+        "ED",
+        "RD"
+      ],
+      "cur": 0.0769,
+      "delta": -0.0068999999999999895
+    },
+    {
+      "slug": "bowdoin",
+      "name": "Bowdoin",
+      "new_overall": 0.065,
+      "new_ed": 0.131,
+      "new_ed2": null,
+      "new_ea": null,
+      "new_rea": null,
+      "new_rd": 0.051,
+      "class_year": "2030",
+      "src_type": "student_newspaper",
+      "overall_conf": "high",
+      "rounds_conf": "high",
+      "rounds": [
+        "ED",
+        "RD"
+      ],
+      "cur": 0.0713,
+      "delta": -0.0063
+    },
+    {
+      "slug": "cmu",
+      "name": "Carnegie Mellon",
+      "new_overall": 0.1107,
+      "new_ed": 0.2063,
+      "new_ed2": null,
+      "new_ea": null,
+      "new_rea": null,
+      "new_rd": 0.1027,
+      "class_year": "2029",
+      "src_type": "cds",
+      "overall_conf": "high",
+      "rounds_conf": "low",
+      "rounds": [
+        "ED",
+        "RD"
+      ],
+      "cur": 0.1167,
+      "delta": -0.0059999999999999915
+    },
+    {
+      "slug": "harvard",
+      "name": "Harvard",
+      "new_overall": 0.042,
+      "new_ed": null,
+      "new_ed2": null,
+      "new_ea": null,
+      "new_rea": null,
+      "new_rd": null,
+      "class_year": "2029",
+      "src_type": "cds",
+      "overall_conf": "high",
+      "rounds_conf": "high",
+      "rounds": [
+        "REA",
+        "RD"
+      ],
+      "cur": 0.0364,
+      "delta": 0.005600000000000001
+    },
+    {
+      "slug": "tulane",
+      "name": "Tulane",
+      "new_overall": 0.15,
+      "new_ed": null,
+      "new_ed2": null,
+      "new_ea": null,
+      "new_rea": null,
+      "new_rd": null,
+      "class_year": "2030",
+      "src_type": "student_newspaper",
+      "overall_conf": "medium",
+      "rounds_conf": "low",
+      "rounds": [
+        "ED1",
+        "ED2",
+        "EA",
+        "RD"
+      ],
+      "cur": 0.1446,
+      "delta": 0.005399999999999988
+    },
+    {
+      "slug": "west-point",
+      "name": "United States Military Academy",
+      "new_overall": 0.12,
+      "new_ed": null,
+      "new_ed2": null,
+      "new_ea": null,
+      "new_rea": null,
+      "new_rd": null,
+      "class_year": null,
+      "src_type": "other",
+      "overall_conf": "low",
+      "rounds_conf": "low",
+      "rounds": null,
+      "cur": 0.1246,
+      "delta": -0.004600000000000007
+    },
+    {
+      "slug": "carleton",
+      "name": "Carleton",
+      "new_overall": 0.2,
+      "new_ed": null,
+      "new_ed2": null,
+      "new_ea": null,
+      "new_rea": null,
+      "new_rd": null,
+      "class_year": "2029",
+      "src_type": "class_profile",
+      "overall_conf": "high",
+      "rounds_conf": "low",
+      "rounds": [
+        "ED1",
+        "ED2",
+        "RD"
+      ],
+      "cur": 0.2041,
+      "delta": -0.0040999999999999925
+    },
+    {
+      "slug": "dartmouth",
+      "name": "Dartmouth",
+      "new_overall": 0.058,
+      "new_ed": null,
+      "new_ed2": null,
+      "new_ea": null,
+      "new_rea": null,
+      "new_rd": null,
+      "class_year": "2030",
+      "src_type": "press_release",
+      "overall_conf": "high",
+      "rounds_conf": "low",
+      "rounds": [
+        "ED",
+        "RD"
+      ],
+      "cur": 0.054,
+      "delta": 0.0040000000000000036
+    },
+    {
+      "slug": "wellesley",
+      "name": "Wellesley",
+      "new_overall": 0.137,
+      "new_ed": null,
+      "new_ed2": null,
+      "new_ea": null,
+      "new_rea": null,
+      "new_rd": null,
+      "class_year": "2029",
+      "src_type": "other",
+      "overall_conf": "high",
+      "rounds_conf": "low",
+      "rounds": [
+        "ED1",
+        "ED2",
+        "RD"
+      ],
+      "cur": 0.1405,
+      "delta": -0.003500000000000003
+    },
+    {
+      "slug": "yale",
+      "name": "Yale",
+      "new_overall": 0.042,
+      "new_ed": null,
+      "new_ed2": null,
+      "new_ea": 0.1091,
+      "new_rea": 0.1091,
+      "new_rd": 0.029,
+      "class_year": "2030",
+      "src_type": "press_release",
+      "overall_conf": "high",
+      "rounds_conf": "high",
+      "rounds": [
+        "REA",
+        "RD"
+      ],
+      "cur": 0.0387,
+      "delta": 0.0033000000000000043
+    },
+    {
+      "slug": "harvey-mudd",
+      "name": "Harvey Mudd",
+      "new_overall": 0.1233,
+      "new_ed": 0.1835,
+      "new_ed2": null,
+      "new_ea": null,
+      "new_rea": null,
+      "new_rd": null,
+      "class_year": "2029",
+      "src_type": "other",
+      "overall_conf": "high",
+      "rounds_conf": "low",
+      "rounds": [
+        "ED",
+        "RD"
+      ],
+      "cur": 0.1266,
+      "delta": -0.0032999999999999835
+    },
+    {
+      "slug": "ucb",
+      "name": "UC Berkeley",
+      "new_overall": 0.11,
+      "new_ed": null,
+      "new_ed2": null,
+      "new_ea": null,
+      "new_rea": null,
+      "new_rd": 0.11,
+      "class_year": "2030",
+      "src_type": "other",
+      "overall_conf": "medium",
+      "rounds_conf": "medium",
+      "rounds": [
+        "RD"
+      ],
+      "cur": 0.1132,
+      "delta": -0.0031999999999999945
+    },
+    {
+      "slug": "rice",
+      "name": "Rice",
+      "new_overall": 0.077,
+      "new_ed": null,
+      "new_ed2": null,
+      "new_ea": null,
+      "new_rea": null,
+      "new_rd": null,
+      "class_year": "2030",
+      "src_type": "student_newspaper",
+      "overall_conf": "high",
+      "rounds_conf": "low",
+      "rounds": [
+        "ED1",
+        "ED2",
+        "RD"
+      ],
+      "cur": 0.08,
+      "delta": -0.0030000000000000027
+    },
+    {
+      "slug": "columbia",
+      "name": "Columbia",
+      "new_overall": 0.0423,
+      "new_ed": null,
+      "new_ed2": null,
+      "new_ea": null,
+      "new_rea": null,
+      "new_rd": null,
+      "class_year": "2030",
+      "src_type": "press_release",
+      "overall_conf": "high",
+      "rounds_conf": "medium",
+      "rounds": [
+        "ED",
+        "RD"
+      ],
+      "cur": 0.04,
+      "delta": 0.0022999999999999965
+    },
+    {
+      "slug": "princeton",
+      "name": "Princeton",
+      "new_overall": 0.0441,
+      "new_ed": null,
+      "new_ed2": null,
+      "new_ea": null,
+      "new_rea": null,
+      "new_rd": null,
+      "class_year": "2029",
+      "src_type": "cds",
+      "overall_conf": "high",
+      "rounds_conf": "high",
+      "rounds": [
+        "REA",
+        "RD"
+      ],
+      "cur": 0.0462,
+      "delta": -0.0020999999999999977
+    },
+    {
+      "slug": "pomona",
+      "name": "Pomona",
+      "new_overall": 0.069,
+      "new_ed": 0.1371,
+      "new_ed2": null,
+      "new_ea": null,
+      "new_rea": null,
+      "new_rd": 0.0586,
+      "class_year": "2029",
+      "src_type": "cds",
+      "overall_conf": "high",
+      "rounds_conf": "low",
+      "rounds": [
+        "ED1",
+        "ED2",
+        "RD"
+      ],
+      "cur": 0.0708,
+      "delta": -0.001799999999999996
+    },
+    {
+      "slug": "cmc",
+      "name": "Claremont McKenna",
+      "new_overall": 0.0944,
+      "new_ed": 0.22,
+      "new_ed2": null,
+      "new_ea": null,
+      "new_rea": null,
+      "new_rd": null,
+      "class_year": "2029",
+      "src_type": "cds",
+      "overall_conf": "high",
+      "rounds_conf": "low",
+      "rounds": [
+        "ED1",
+        "ED2",
+        "RD"
+      ],
+      "cur": 0.0959,
+      "delta": -0.0015000000000000013
+    },
+    {
+      "slug": "washu",
+      "name": "Wash U St. Louis",
+      "new_overall": 0.1192,
+      "new_ed": null,
+      "new_ed2": null,
+      "new_ea": null,
+      "new_rea": null,
+      "new_rd": null,
+      "class_year": "2029",
+      "src_type": "other",
+      "overall_conf": "high",
+      "rounds_conf": "low",
+      "rounds": [
+        "ED1",
+        "ED2",
+        "RD"
+      ],
+      "cur": 0.1206,
+      "delta": -0.0013999999999999985
+    },
+    {
+      "slug": "hamilton",
+      "name": "Hamilton",
+      "new_overall": 0.135,
+      "new_ed": null,
+      "new_ed2": null,
+      "new_ea": null,
+      "new_rea": null,
+      "new_rd": null,
+      "class_year": "2029",
+      "src_type": "other",
+      "overall_conf": "high",
+      "rounds_conf": "high",
+      "rounds": [
+        "ED1",
+        "ED2",
+        "RD"
+      ],
+      "cur": 0.1362,
+      "delta": -0.0011999999999999789
+    },
+    {
+      "slug": "gatech",
+      "name": "Georgia Tech",
+      "new_overall": 0.128,
+      "new_ed": null,
+      "new_ed2": null,
+      "new_ea": 0.1258,
+      "new_rea": null,
+      "new_rd": null,
+      "class_year": "2030",
+      "src_type": "press_release",
+      "overall_conf": "high",
+      "rounds_conf": "high",
+      "rounds": [
+        "EA1",
+        "EA2",
+        "RD"
+      ],
+      "cur": 0.127,
+      "delta": 0.0010000000000000009
+    },
+    {
+      "slug": "swarthmore",
+      "name": "Swarthmore",
+      "new_overall": 0.0744,
+      "new_ed": 0.1849,
+      "new_ed2": null,
+      "new_ea": null,
+      "new_rea": null,
+      "new_rd": null,
+      "class_year": "2030",
+      "src_type": "student_newspaper",
+      "overall_conf": "high",
+      "rounds_conf": "medium",
+      "rounds": [
+        "ED",
+        "RD"
+      ],
+      "cur": 0.0752,
+      "delta": -0.000800000000000009
+    },
+    {
+      "slug": "mit",
+      "name": "MIT",
+      "new_overall": 0.046,
+      "new_ed": null,
+      "new_ed2": null,
+      "new_ea": 0.055,
+      "new_rea": null,
+      "new_rd": 0.0391,
+      "class_year": "2030",
+      "src_type": "press_release",
+      "overall_conf": "high",
+      "rounds_conf": "high",
+      "rounds": [
+        "EA",
+        "RD"
+      ],
+      "cur": 0.0455,
+      "delta": 0.0005000000000000004
+    },
+    {
+      "slug": "brown",
+      "name": "Brown",
+      "new_overall": 0.0535,
+      "new_ed": 0.165,
+      "new_ed2": null,
+      "new_ea": null,
+      "new_rea": null,
+      "new_rd": 0.0394,
+      "class_year": "2030",
+      "src_type": "press_release",
+      "overall_conf": "high",
+      "rounds_conf": null,
+      "rounds": null,
+      "cur": 0.054,
+      "delta": -0.0005000000000000004
+    },
+    {
+      "slug": "wlu",
+      "name": "Washington and Lee",
+      "new_overall": 0.14,
+      "new_ed": null,
+      "new_ed2": null,
+      "new_ea": null,
+      "new_rea": null,
+      "new_rd": null,
+      "class_year": "2029",
+      "src_type": "other",
+      "overall_conf": "medium",
+      "rounds_conf": "low",
+      "rounds": [
+        "ED1",
+        "ED2",
+        "RD"
+      ],
+      "cur": 0.1397,
+      "delta": 0.00030000000000002247
+    },
+    {
+      "slug": "cornell",
+      "name": "Cornell",
+      "new_overall": 0.0838,
+      "new_ed": 0.1878,
+      "new_ed2": null,
+      "new_ea": null,
+      "new_rea": null,
+      "new_rd": 0.067,
+      "class_year": "2029",
+      "src_type": "cds",
+      "overall_conf": "high",
+      "rounds_conf": "low",
+      "rounds": [
+        "ED",
+        "RD"
+      ],
+      "cur": 0.0841,
+      "delta": -0.0002999999999999947
+    },
+    {
+      "slug": "northeastern",
+      "name": "Northeastern",
+      "new_overall": 0.052,
+      "new_ed": null,
+      "new_ed2": null,
+      "new_ea": null,
+      "new_rea": null,
+      "new_rd": null,
+      "class_year": "2030",
+      "src_type": "other",
+      "overall_conf": "medium",
+      "rounds_conf": "low",
+      "rounds": [
+        "ED1",
+        "ED2",
+        "RD"
+      ],
+      "cur": 0.0521,
+      "delta": -0.00010000000000000286
+    },
+    {
+      "slug": "uchicago",
+      "name": "University of Chicago",
+      "new_overall": 0.0448,
+      "new_ed": null,
+      "new_ed2": null,
+      "new_ea": null,
+      "new_rea": null,
+      "new_rd": null,
+      "class_year": "2028",
+      "src_type": "cds",
+      "overall_conf": "high",
+      "rounds_conf": "low",
+      "rounds": [
+        "SSEN",
+        "ED1",
+        "ED2",
+        "EA",
+        "RD"
+      ],
+      "cur": 0.0448,
+      "delta": 0.0
+    },
+    {
+      "slug": "upenn",
+      "name": "UPenn",
+      "new_overall": 0.054,
+      "new_ed": null,
+      "new_ed2": null,
+      "new_ea": null,
+      "new_rea": null,
+      "new_rd": null,
+      "class_year": "2030",
+      "src_type": "press_release",
+      "overall_conf": "medium",
+      "rounds_conf": "medium",
+      "rounds": [
+        "ED",
+        "RD"
+      ],
+      "cur": 0.054,
+      "delta": 0.0
+    },
+    {
+      "slug": "stanford",
+      "name": "Stanford",
+      "new_overall": 0.0361,
+      "new_ed": null,
+      "new_ed2": null,
+      "new_ea": null,
+      "new_rea": null,
+      "new_rd": null,
+      "class_year": "2028",
+      "src_type": "cds",
+      "overall_conf": "high",
+      "rounds_conf": "high",
+      "rounds": [
+        "REA",
+        "RD"
+      ],
+      "cur": 0.0361,
+      "delta": 0.0
+    },
+    {
+      "slug": "williams",
+      "name": "Williams",
+      "new_overall": 0.074,
+      "new_ed": 0.252,
+      "new_ed2": null,
+      "new_ea": null,
+      "new_rea": null,
+      "new_rd": 0.063,
+      "class_year": "2030",
+      "src_type": "student_newspaper",
+      "overall_conf": "high",
+      "rounds_conf": null,
+      "rounds": null,
+      "cur": 0.074,
+      "delta": 0.0
+    },
+    {
+      "slug": "davidson",
+      "name": "Davidson",
+      "new_overall": 0.126,
+      "new_ed": null,
+      "new_ed2": null,
+      "new_ea": null,
+      "new_rea": null,
+      "new_rd": null,
+      "class_year": "2029",
+      "src_type": "other",
+      "overall_conf": "high",
+      "rounds_conf": "low",
+      "rounds": [
+        "ED1",
+        "ED2",
+        "RD"
+      ],
+      "cur": 0.126,
+      "delta": 0.0
+    },
+    {
+      "slug": "cooper",
+      "name": "Cooper Union",
+      "new_overall": 0.11,
+      "new_ed": null,
+      "new_ed2": null,
+      "new_ea": null,
+      "new_rea": null,
+      "new_rd": null,
+      "class_year": "2029",
+      "src_type": "class_profile",
+      "overall_conf": "high",
+      "rounds_conf": "low",
+      "rounds": [
+        "ED",
+        "RD"
+      ],
+      "cur": 0.11,
+      "delta": 0.0
+    }
+  ],
+  "rounds": [
+    {
+      "slug": "amherst",
+      "round": "ED",
+      "cur": 0.294,
+      "new": 0.43,
+      "delta": 0.136,
+      "conf": "medium"
+    },
+    {
+      "slug": "amherst",
+      "round": "ED1",
+      "cur": null,
+      "new": 0.43,
+      "conf": "medium"
+    },
+    {
+      "slug": "bowdoin",
+      "round": "ED",
+      "cur": 0.149,
+      "new": 0.131,
+      "delta": -0.017999999999999988,
+      "conf": "high"
+    },
+    {
+      "slug": "bowdoin",
+      "round": "ED1",
+      "cur": null,
+      "new": 0.131,
+      "conf": "high"
+    },
+    {
+      "slug": "bowdoin",
+      "round": "RD",
+      "cur": 0.06,
+      "new": 0.051,
+      "delta": -0.009000000000000001,
+      "conf": "high"
+    },
+    {
+      "slug": "brown",
+      "round": "ED",
+      "cur": 0.129,
+      "new": 0.165,
+      "delta": 0.036000000000000004,
+      "conf": null
+    },
+    {
+      "slug": "brown",
+      "round": "ED1",
+      "cur": null,
+      "new": 0.165,
+      "conf": null
+    },
+    {
+      "slug": "brown",
+      "round": "RD",
+      "cur": 0.046,
+      "new": 0.0394,
+      "delta": -0.006600000000000002,
+      "conf": null
+    },
+    {
+      "slug": "cmc",
+      "round": "ED",
+      "cur": 0.26,
+      "new": 0.22,
+      "delta": -0.04000000000000001,
+      "conf": "low"
+    },
+    {
+      "slug": "cmc",
+      "round": "ED1",
+      "cur": null,
+      "new": 0.22,
+      "conf": "low"
+    },
+    {
+      "slug": "cmu",
+      "round": "ED",
+      "cur": 0.138,
+      "new": 0.2063,
+      "delta": 0.0683,
+      "conf": "low"
+    },
+    {
+      "slug": "cmu",
+      "round": "ED1",
+      "cur": null,
+      "new": 0.2063,
+      "conf": "low"
+    },
+    {
+      "slug": "cmu",
+      "round": "RD",
+      "cur": 0.113,
+      "new": 0.1027,
+      "delta": -0.010300000000000004,
+      "conf": "low"
+    },
+    {
+      "slug": "colgate",
+      "round": "ED",
+      "cur": 0.3,
+      "new": 0.35,
+      "delta": 0.04999999999999999,
+      "conf": "medium"
+    },
+    {
+      "slug": "colgate",
+      "round": "ED1",
+      "cur": null,
+      "new": 0.35,
+      "conf": "medium"
+    },
+    {
+      "slug": "colgate",
+      "round": "RD",
+      "cur": 0.11,
+      "new": 0.06,
+      "delta": -0.05,
+      "conf": "medium"
+    },
+    {
+      "slug": "cornell",
+      "round": "ED",
+      "cur": 0.17,
+      "new": 0.1878,
+      "delta": 0.017799999999999983,
+      "conf": "low"
+    },
+    {
+      "slug": "cornell",
+      "round": "ED1",
+      "cur": null,
+      "new": 0.1878,
+      "conf": "low"
+    },
+    {
+      "slug": "cornell",
+      "round": "RD",
+      "cur": 0.055,
+      "new": 0.067,
+      "delta": 0.012000000000000004,
+      "conf": "low"
+    },
+    {
+      "slug": "duke",
+      "round": "ED",
+      "cur": 0.144,
+      "new": 0.138,
+      "delta": -0.005999999999999978,
+      "conf": null
+    },
+    {
+      "slug": "duke",
+      "round": "ED1",
+      "cur": null,
+      "new": 0.138,
+      "conf": null
+    },
+    {
+      "slug": "emory",
+      "round": "ED",
+      "cur": 0.256,
+      "new": 0.29,
+      "delta": 0.033999999999999975,
+      "conf": "medium"
+    },
+    {
+      "slug": "emory",
+      "round": "ED1",
+      "cur": null,
+      "new": 0.29,
+      "conf": "medium"
+    },
+    {
+      "slug": "gatech",
+      "round": "EA",
+      "cur": 0.22,
+      "new": 0.1258,
+      "delta": -0.0942,
+      "conf": "high"
+    },
+    {
+      "slug": "harvey-mudd",
+      "round": "ED",
+      "cur": 0.19,
+      "new": 0.1835,
+      "delta": -0.006500000000000006,
+      "conf": "low"
+    },
+    {
+      "slug": "harvey-mudd",
+      "round": "ED1",
+      "cur": null,
+      "new": 0.1835,
+      "conf": "low"
+    },
+    {
+      "slug": "jhu",
+      "round": "ED",
+      "cur": 0.265,
+      "new": 0.1049,
+      "delta": -0.16010000000000002,
+      "conf": "low"
+    },
+    {
+      "slug": "jhu",
+      "round": "ED1",
+      "cur": null,
+      "new": 0.1049,
+      "conf": "low"
+    },
+    {
+      "slug": "mit",
+      "round": "RD",
+      "cur": 0.045,
+      "new": 0.0391,
+      "delta": -0.0058999999999999955,
+      "conf": "high"
+    },
+    {
+      "slug": "notre-dame",
+      "round": "EA",
+      "cur": null,
+      "new": 0.1179,
+      "conf": "medium"
+    },
+    {
+      "slug": "notre-dame",
+      "round": "REA",
+      "cur": 0.17,
+      "new": 0.1179,
+      "delta": -0.05210000000000001,
+      "conf": "medium"
+    },
+    {
+      "slug": "notre-dame",
+      "round": "SCEA",
+      "cur": null,
+      "new": 0.1179,
+      "conf": "medium"
+    },
+    {
+      "slug": "pomona",
+      "round": "ED",
+      "cur": 0.15,
+      "new": 0.1371,
+      "delta": -0.012899999999999995,
+      "conf": "low"
+    },
+    {
+      "slug": "pomona",
+      "round": "ED1",
+      "cur": null,
+      "new": 0.1371,
+      "conf": "low"
+    },
+    {
+      "slug": "swarthmore",
+      "round": "ED",
+      "cur": 0.198,
+      "new": 0.1849,
+      "delta": -0.0131,
+      "conf": "medium"
+    },
+    {
+      "slug": "swarthmore",
+      "round": "ED1",
+      "cur": null,
+      "new": 0.1849,
+      "conf": "medium"
+    },
+    {
+      "slug": "ucb",
+      "round": "RD",
+      "cur": 0.115,
+      "new": 0.11,
+      "delta": -0.0050000000000000044,
+      "conf": "medium"
+    },
+    {
+      "slug": "usc",
+      "round": "EA",
+      "cur": 0.11,
+      "new": 0.095,
+      "delta": -0.015,
+      "conf": "medium"
+    },
+    {
+      "slug": "uva",
+      "round": "EA",
+      "cur": 0.18,
+      "new": 0.124,
+      "delta": -0.055999999999999994,
+      "conf": "high"
+    },
+    {
+      "slug": "uva",
+      "round": "ED",
+      "cur": 0.279,
+      "new": 0.24,
+      "delta": -0.039000000000000035,
+      "conf": "high"
+    },
+    {
+      "slug": "uva",
+      "round": "ED1",
+      "cur": null,
+      "new": 0.24,
+      "conf": "high"
+    },
+    {
+      "slug": "uva",
+      "round": "RD",
+      "cur": 0.15,
+      "new": 0.0708,
+      "delta": -0.07919999999999999,
+      "conf": "high"
+    },
+    {
+      "slug": "vanderbilt",
+      "round": "ED",
+      "cur": 0.167,
+      "new": 0.119,
+      "delta": -0.048000000000000015,
+      "conf": "high"
+    },
+    {
+      "slug": "vanderbilt",
+      "round": "ED1",
+      "cur": null,
+      "new": 0.119,
+      "conf": "high"
+    },
+    {
+      "slug": "vanderbilt",
+      "round": "RD",
+      "cur": 0.045,
+      "new": 0.028,
+      "delta": -0.016999999999999998,
+      "conf": "high"
+    },
+    {
+      "slug": "williams",
+      "round": "ED",
+      "cur": 0.26,
+      "new": 0.252,
+      "delta": -0.008000000000000007,
+      "conf": null
+    },
+    {
+      "slug": "williams",
+      "round": "ED1",
+      "cur": null,
+      "new": 0.252,
+      "conf": null
+    },
+    {
+      "slug": "williams",
+      "round": "RD",
+      "cur": 0.08,
+      "new": 0.063,
+      "delta": -0.017,
+      "conf": null
+    },
+    {
+      "slug": "yale",
+      "round": "EA",
+      "cur": null,
+      "new": 0.1091,
+      "conf": "high"
+    },
+    {
+      "slug": "yale",
+      "round": "REA",
+      "cur": 0.094,
+      "new": 0.1091,
+      "delta": 0.015100000000000002,
+      "conf": "high"
+    },
+    {
+      "slug": "yale",
+      "round": "SCEA",
+      "cur": null,
+      "new": 0.1091,
+      "conf": "high"
+    }
+  ]
+}

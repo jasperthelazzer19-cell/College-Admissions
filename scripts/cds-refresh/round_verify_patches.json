@@ -1,0 +1,285 @@
+{
+  "berklee": {
+    "rounds": [
+      "EA",
+      "RD"
+    ],
+    "rates": {
+      "RD": 0.435
+    }
+  },
+  "calpoly-slo": {
+    "rounds": [
+      "RD"
+    ],
+    "rates": {
+      "RD": 0.288
+    }
+  },
+  "binghamton": {
+    "rounds": [
+      "EA",
+      "RD"
+    ],
+    "rates": {
+      "EA": 0.5,
+      "RD": 0.38
+    }
+  },
+  "oberlin": {
+    "rounds": [
+      "ED1",
+      "ED2",
+      "EA",
+      "RD"
+    ],
+    "rates": {}
+  },
+  "reed": {
+    "rounds": [
+      "ED1",
+      "ED2",
+      "EA",
+      "RD"
+    ],
+    "rates": {
+      "EA": 0.152,
+      "RD": 0.251
+    }
+  },
+  "lehigh": {
+    "rounds": [
+      "ED1",
+      "ED2",
+      "RD"
+    ],
+    "rates": {}
+  },
+  "rpi": {
+    "rounds": [
+      "ED1",
+      "ED2",
+      "EA",
+      "RD"
+    ],
+    "rates": {
+      "EA": 0.579,
+      "RD": 0.635
+    }
+  },
+  "case": {
+    "rounds": [
+      "ED1",
+      "ED2",
+      "EA",
+      "RD"
+    ],
+    "rates": {
+      "ED": 0.2498,
+      "EA": 0.2343,
+      "RD": 0.356
+    }
+  },
+  "ucsb": {
+    "rounds": [
+      "RD"
+    ],
+    "rates": {
+      "RD": 0.33
+    }
+  },
+  "uw": {
+    "rounds": [
+      "RD"
+    ],
+    "rates": {
+      "RD": 0.43
+    }
+  },
+  "villanova": {
+    "rounds": [
+      "EA",
+      "ED1",
+      "ED2",
+      "RD"
+    ],
+    "rates": {
+      "EA": 0.28,
+      "ED": 0.56
+    }
+  },
+  "clemson": {
+    "rounds": [
+      "EA",
+      "RD"
+    ],
+    "rates": {
+      "RD": 0.42
+    }
+  },
+  "wpi": {
+    "rounds": [
+      "ED1",
+      "ED2",
+      "EA",
+      "RD"
+    ],
+    "rates": {
+      "ED": 0.756,
+      "EA": 0.689
+    }
+  },
+  "bentley": {
+    "rounds": [
+      "ED1",
+      "ED2",
+      "EA",
+      "RD"
+    ],
+    "rates": {
+      "ED": 0.61,
+      "EA": 0.61,
+      "RD": 0.44
+    }
+  },
+  "morehouse": {
+    "rounds": [
+      "ED",
+      "EA",
+      "RD"
+    ],
+    "rates": {
+      "ED": 0.66,
+      "EA": 0.655,
+      "RD": 0.25
+    }
+  },
+  "osu": {
+    "rounds": [
+      "EA",
+      "RD"
+    ],
+    "rates": {
+      "RD": 0.606
+    }
+  },
+  "pepperdine": {
+    "rounds": [
+      "ED1",
+      "ED2",
+      "EA",
+      "RD"
+    ],
+    "rates": {
+      "RD": 0.629
+    }
+  },
+  "pitt": {
+    "rounds": [
+      "EA",
+      "RD"
+    ],
+    "rates": {
+      "RD": 0.581
+    }
+  },
+  "tuskegee": {
+    "rounds": [
+      "RD"
+    ],
+    "rates": {
+      "RD": 0.4868
+    }
+  },
+  "sdsu": {
+    "rounds": [
+      "RD"
+    ],
+    "rates": {
+      "RD": 0.359
+    }
+  },
+  "sc": {
+    "rounds": [
+      "EA",
+      "RD"
+    ],
+    "rates": {
+      "RD": 0.602
+    }
+  },
+  "pratt": {
+    "rounds": [
+      "EA",
+      "RD"
+    ],
+    "rates": {
+      "RD": 0.7325
+    }
+  },
+  "tamu": {
+    "rounds": [
+      "EA",
+      "RD"
+    ],
+    "rates": {
+      "RD": 0.5743
+    }
+  },
+  "uprm": {
+    "rounds": [
+      "RD"
+    ],
+    "rates": {
+      "RD": 0.52
+    }
+  },
+  "whitman": {
+    "rounds": [
+      "ED1",
+      "ED2",
+      "RD"
+    ],
+    "rates": {}
+  },
+  "alabama": {
+    "rounds": [
+      "RD"
+    ],
+    "rates": {
+      "RD": 0.8
+    }
+  },
+  "utk": {
+    "rounds": [
+      "EA",
+      "RD"
+    ],
+    "rates": {}
+  },
+  "sjsu": {
+    "rounds": [
+      "RD"
+    ],
+    "rates": {
+      "RD": 0.8461
+    }
+  },
+  "hawaii": {
+    "rounds": [
+      "RD"
+    ],
+    "rates": {
+      "RD": 0.86
+    }
+  },
+  "uiowa": {
+    "rounds": [
+      "EA",
+      "RD"
+    ],
+    "rates": {
+      "RD": 0.836
+    }
+  }
+}

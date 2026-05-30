@@ -1,0 +1,379 @@
+[22:21:49] start: 58 colleges, concurrency=4
+[22:21:52] -> harvard (Harvard)
+[22:21:52] -> stanford (Stanford)
+[22:21:52] -> yale (Yale)
+[22:21:52] -> mit (MIT)
+[22:21:59]   ok: class=2030 accept=0.042 src_type=press_release conf=high
+[22:21:59]   ok: class=2030 accept=0.046 src_type=press_release conf=high
+[22:21:59] -> princeton (Princeton)
+[22:21:59] -> columbia (Columbia)
+[22:22:01]   ok: class=2029 accept=0.042 src_type=cds conf=high
+[22:22:01] -> uchicago (University of Chicago)
+[22:22:03]   ok: class=2030 accept=0.0423 src_type=press_release conf=high
+[22:22:03] -> upenn (UPenn)
+[22:22:12]   ok: class=2028 accept=0.0448 src_type=cds conf=high
+[22:22:12]   ok: class=2029 accept=0.0441 src_type=cds conf=high
+[22:22:12] -> dartmouth (Dartmouth)
+[22:22:12] -> brown (Brown)
+[22:22:12] progress: 5/58
+[22:22:13]   ok: class=2030 accept=0.054 src_type=press_release conf=medium
+[22:22:13] -> duke (Duke)
+[22:22:13]   ok: class=2028 accept=0.0361 src_type=cds conf=high
+[22:22:13] -> northwestern (Northwestern)
+[22:22:17]   ok: class=2030 accept=0.0535 src_type=press_release conf=high
+[22:22:17] -> caltech (Caltech)
+[22:22:18]   ok: class=2030 accept=0.058 src_type=press_release conf=high
+[22:22:18] -> cornell (Cornell)
+[22:22:18] progress: 10/58
+[22:22:20]   ok: class=2030 accept=0.047 src_type=press_release conf=high
+[22:22:20] -> jhu (Johns Hopkins)
+[22:22:21]   ok: class=2030 accept=0.07 src_type=other conf=high
+[22:22:21] -> vanderbilt (Vanderbilt)
+[22:22:25]   ok: class=2029 accept=0.0378 src_type=other conf=high
+[22:22:25] -> rice (Rice)
+[22:22:26]   ok: class=2029 accept=0.0838 src_type=cds conf=high
+[22:22:26] -> notre-dame (Notre Dame)
+[22:22:28]   ok: class=2029 accept=0.0514 src_type=cds conf=high
+[22:22:28] -> cmu (Carnegie Mellon)
+[22:22:28] progress: 15/58
+[22:22:30]   ok: class=2030 accept=0.0408 src_type=class_profile conf=high
+[22:22:30] -> usc (USC)
+[22:22:30]   ok: class=2030 accept=0.077 src_type=student_newspaper conf=high
+[22:22:30] -> nyu (NYU)
+[22:22:33]   ok: class=2030 accept=0.09 src_type=press_release conf=high
+[22:22:33] -> georgetown (Georgetown)
+[22:22:37]   ok: class=2029 accept=0.1107 src_type=cds conf=high
+[22:22:37] -> ucb (UC Berkeley)
+[22:22:38]   ok: class=2029 accept=0.077 src_type=cds conf=high
+[22:22:38]   ok: class=2030 accept=0.1166 src_type=student_newspaper conf=high
+[22:22:38] -> ucla (UCLA)
+[22:22:38] -> umich (University of Michigan)
+[22:22:38] progress: 20/58
+[22:22:43]   ok: class=2030 accept=0.13 src_type=student_newspaper conf=high
+[22:22:43] -> uva (UVA)
+[22:22:47]   ok: class=2030 accept=None src_type=other conf=low
+[22:22:47] -> gatech (Georgia Tech)
+[22:22:47]   ok: class=2030 accept=0.11 src_type=other conf=medium
+[22:22:47] -> tufts (Tufts)
+[22:22:47]   ok: class=2029 accept=0.1642 src_type=other conf=high
+[22:22:47] -> washu (Wash U St. Louis)
+[22:22:47] progress: 25/58
+[22:22:49]   ok: class=2030 accept=0.1253 src_type=student_newspaper conf=high
+[22:22:49] -> emory (Emory)
+[22:22:52]   ok: class=2030 accept=0.1 src_type=press_release conf=high
+[22:22:52] -> williams (Williams)
+[22:22:53]   ok: class=2030 accept=0.128 src_type=press_release conf=high
+[22:22:53] -> amherst (Amherst)
+[22:22:58]   ok: class=2030 accept=0.074 src_type=student_newspaper conf=high
+[22:22:58]   ok: class=2029 accept=0.1192 src_type=other conf=high
+[22:22:58] -> swarthmore (Swarthmore)
+[22:22:58] -> pomona (Pomona)
+[22:22:58] progress: 30/58
+[22:23:01]   ok: class=2030 accept=0.0678 src_type=student_newspaper conf=high
+[22:23:01]   ok: class=2030 accept=0.1229 src_type=press_release conf=high
+[22:23:01] -> wellesley (Wellesley)
+[22:23:01] -> bowdoin (Bowdoin)
+[22:23:08]   ok: class=2030 accept=0.065 src_type=student_newspaper conf=high
+[22:23:08] -> middlebury (Middlebury)
+[22:23:11]   ok: class=2029 accept=0.137 src_type=other conf=high
+[22:23:11] -> carleton (Carleton)
+[22:23:12]   ok: class=2030 accept=0.0744 src_type=student_newspaper conf=high
+[22:23:12]   ok: class=2029 accept=0.069 src_type=cds conf=high
+[22:23:12] -> haverford (Haverford)
+[22:23:12] -> vassar (Vassar)
+[22:23:12] progress: 35/58
+[22:23:26]   ok: class=2030 accept=0.1746 src_type=press_release conf=high
+[22:23:26] -> northeastern (Northeastern)
+[22:23:27]   ok: class=2029 accept=0.133 src_type=other conf=high
+[22:23:27] -> tulane (Tulane)
+[22:23:28]   ok: class=2029 accept=0.2 src_type=class_profile conf=high
+[22:23:28] -> wesleyan (Wesleyan)
+[22:23:31]   ok: class=2030 accept=0.18 src_type=other conf=medium
+[22:23:31] -> hamilton (Hamilton)
+[22:23:32] progress: 40/58
+[22:23:45]   ok: class=2030 accept=0.15 src_type=student_newspaper conf=medium
+[22:23:45] -> davidson (Davidson)
+[22:23:46]   ok: class=2030 accept=0.1577 src_type=student_newspaper conf=high
+[22:23:46]   ok: class=2029 accept=0.135 src_type=other conf=high
+[22:23:46] -> colgate (Colgate)
+[22:23:46] -> bates (Bates)
+[22:23:48]   ok: class=2030 accept=0.052 src_type=other conf=medium
+[22:23:48] -> colby (Colby)
+[22:24:02]   ok: class=2030 accept=0.12 src_type=other conf=low
+[22:24:02]   ok: class=2029 accept=0.126 src_type=other conf=high
+[22:24:02] -> grinnell (Grinnell)
+[22:24:02] -> harvey-mudd (Harvey Mudd)
+[22:24:02] progress: 45/58
+[22:24:02]   ok: class=2030 accept=0.0433 src_type=press_release conf=medium
+[22:24:02] -> cmc (Claremont McKenna)
+[22:24:05]   ok: class=2030 accept=0.08 src_type=press_release conf=high
+[22:24:05] -> barnard (Barnard)
+[22:24:16]   ok: class=2029 accept=0.0944 src_type=cds conf=high
+[22:24:17] -> olin (Olin College)
+[22:24:17]   ok: class=None accept=None src_type=None conf=low
+[22:24:17] -> cooper (Cooper Union)
+[22:24:17] progress: 50/58
+[22:24:18]   ok: class=2029 accept=0.1005 src_type=cds conf=high
+[22:24:18] -> juilliard (Juilliard)
+[22:24:21]   ok: class=2029 accept=0.1233 src_type=other conf=high
+[22:24:21] -> colorado-college (Colorado College)
+[22:24:32]   ok: class=2029 accept=0.11 src_type=class_profile conf=high
+[22:24:32]   ok: class=2029 accept=0.22 src_type=class_profile conf=high
+[22:24:32] -> wlu (Washington and Lee)
+[22:24:32] -> west-point (United States Military Academy)
+[22:24:34]   ok: class=2030 accept=None src_type=press_release conf=low
+[22:24:34] progress: 55/58
+[22:24:35]   ok: class=None accept=None src_type=other conf=low
+[22:24:46]   ok: class=None accept=0.12 src_type=other conf=low
+[22:24:46]   ok: class=2029 accept=0.14 src_type=other conf=medium
+[22:24:46] progress: 58/58
+[22:24:46] done. wrote results_class2030.jsonl
+[22:51:15] start: 112 colleges, concurrency=5
+[22:51:15] -> ucsd (UC San Diego)
+[22:51:15] -> osu (Ohio State)
+[22:51:15] -> wpi (WPI)
+[22:51:15] -> purdue (Purdue)
+[22:51:15] -> rose-hulman (Rose-Hulman)
+[22:51:22]   ok: class=2029 accept=0.499 src_type=cds conf=high
+[22:51:22] -> uoregon (University of Oregon)
+[22:51:24]   ok: class=None accept=None src_type=None conf=high
+[22:51:24] -> rutgers (Rutgers)
+[22:51:24]   ok: class=2029 accept=0.2841 src_type=other conf=high
+[22:51:24] -> pitt (University of Pittsburgh)
+[22:51:24]   ok: class=None accept=None src_type=None conf=low
+[22:51:24] -> tamu (Texas A&M)
+[22:51:25]   ok: class=None accept=None src_type=cds conf=low
+[22:51:25] -> sdsu (San Diego State)
+[22:51:25] progress: 5/112
+[22:51:31]   ok: class=2029 accept=0.883 src_type=cds conf=high
+[22:51:31] -> case (Case Western)
+[22:51:32]   ok: class=None accept=None src_type=None conf=low
+[22:51:32] -> neiu (Northeastern Illinois)
+[22:51:32]   ok: class=2029 accept=0.581 src_type=cds conf=high
+[22:51:32] -> mt-holyoke (Mount Holyoke)
+[22:51:33]   ok: class=None accept=None src_type=None conf=low
+[22:51:33] -> trinity-ct (Trinity College)
+[22:51:33]   ok: class=2030 accept=0.44 src_type=other conf=medium
+[22:51:33] -> pepperdine (Pepperdine)
+[22:51:33] progress: 10/112
+[22:51:40]   ok: class=None accept=0.7 src_type=other conf=low
+[22:51:40] -> lmu (Loyola Marymount)
+[22:51:40]   ok: class=2029 accept=0.3531 src_type=class_profile conf=high
+[22:51:40] -> berklee (Berklee College of Music)
+[22:51:41]   ok: class=2030 accept=None src_type=student_newspaper conf=low
+[22:51:41] -> pratt (Pratt Institute)
+[22:51:41]   ok: class=2028 accept=0.36 src_type=other conf=medium
+[22:51:41] -> parsons (Parsons (The New School))
+[22:51:41]   ok: class=None accept=None src_type=None conf=low
+[22:51:41] -> saic (School of the Art Institute of Chicago)
+[22:51:41] progress: 15/112
+[22:51:47]   ok: class=2029 accept=0.4 src_type=other conf=medium
+[22:51:47] -> uky (University of Kentucky)
+[22:51:49]   ok: class=None accept=0.5 src_type=cds conf=low
+[22:51:49] -> sc (University of South Carolina)
+[22:51:50]   ok: class=None accept=None src_type=other conf=low
+[22:51:50] -> missou (University of Missouri)
+[22:51:50]   ok: class=None accept=0.53 src_type=cds conf=low
+[22:51:50] -> udel (University of Delaware)
+[22:51:53]   ok: class=None accept=0.76 src_type=other conf=low
+[22:51:53] -> sjsu (San Jose State)
+[22:51:53] progress: 20/112
+[22:51:55]   ok: class=None accept=None src_type=None conf=low
+[22:51:55] -> uh (University of Houston)
+[22:51:57]   ok: class=2029 accept=0.7847 src_type=other conf=medium
+[22:51:57] -> utah (University of Utah)
+[22:51:58]   ok: class=2030 accept=0.117 src_type=other conf=medium
+[22:51:58] -> hawaii (University of Hawaii Manoa)
+[22:51:58]   ok: class=2029 accept=0.706 src_type=cds conf=medium
+[22:51:58] -> umaine (University of Maine)
+[22:52:01]   ok: class=None accept=None src_type=cds conf=low
+[22:52:01] -> spelman (Spelman)
+[22:52:01] progress: 25/112
+[22:52:07]   ok: class=2029 accept=0.74 src_type=cds conf=low
+[22:52:07] -> morehouse (Morehouse)
+[22:52:07]   ok: class=None accept=None src_type=None conf=low
+[22:52:07] -> famu (Florida A&M)
+[22:52:08]   ok: class=None accept=None src_type=None conf=low
+[22:52:08] -> uprm (University of Puerto Rico Mayagüez)
+[22:52:08]   ok: class=None accept=0.96 src_type=cds conf=low
+[22:52:08] -> ucsb (UC Santa Barbara)
+[22:52:20]   ok: class=None accept=0.522 src_type=other conf=low
+[22:52:20] -> ucr (UC Riverside)
+[22:52:20] progress: 30/112
+[22:52:23]   ok: class=2029 accept=0.33 src_type=other conf=high
+[22:52:23] -> liberty (Liberty)
+[22:52:24]   ok: class=None accept=None src_type=other conf=low
+[22:52:24] -> umass (UMass Amherst)
+[22:52:24]   ok: class=2029 accept=0.2055 src_type=cds conf=medium
+[22:52:24] -> lafayette (Lafayette)
+[22:52:25]   ok: class=None accept=None src_type=None conf=low
+[22:52:25] -> sewanee (Sewanee)
+[22:52:42]   ok: class=None accept=None src_type=None conf=low
+[22:52:42] -> marquette (Marquette)
+[22:52:42] progress: 35/112
+[22:52:42]   ok: class=2030 accept=0.0678 src_type=student_newspaper conf=medium
+[22:52:42] -> depaul (DePaul)
+[22:52:43]   ok: class=2030 accept=0.3227 src_type=student_newspaper conf=high
+[22:52:43] -> calpoly-pomona (Cal Poly Pomona)
+[22:52:43]   ok: class=None accept=None src_type=None conf=low
+[22:52:43] -> suny-buffalo (SUNY Buffalo)
+[22:52:45]   ok: class=2029 accept=0.736 src_type=cds conf=medium
+[22:52:45] -> colorado-state (Colorado State)
+[22:53:05]   ok: class=2028 accept=0.76 src_type=other conf=medium
+[22:53:05] -> vcu (VCU)
+[22:53:05] progress: 40/112
+[22:53:06]   ok: class=2030 accept=0.69 src_type=other conf=low
+[22:53:06] -> unm (University of New Mexico)
+[22:53:07]   ok: class=None accept=None src_type=other conf=low
+[22:53:07] -> gsu (Georgia State)
+[22:53:08]   ok: class=2029 accept=None src_type=cds conf=low
+[22:53:08] -> wvu (West Virginia)
+[22:53:09]   ok: class=None accept=None src_type=None conf=low
+[22:53:09] -> louisville (University of Louisville)
+[22:53:24]   ok: class=None accept=None src_type=None conf=low
+[22:53:24] -> oklahoma-state (Oklahoma State)
+[22:53:24] progress: 45/112
+[22:53:25]   ok: class=None accept=None src_type=None conf=low
+[22:53:25] -> wsu (Washington State)
+[22:53:25]   ok: class=None accept=None src_type=None conf=low
+[22:53:25] -> ecu (East Carolina)
+[22:53:25]   ok: class=None accept=None src_type=None conf=low
+[22:53:25] -> kent-state (Kent State)
+[22:53:27]   ok: class=None accept=None src_type=None conf=low
+[22:53:27] -> app-state (Appalachian State)
+[22:53:51]   ok: class=None accept=None src_type=None conf=low
+[22:53:51] -> odu (Old Dominion)
+[22:53:51] progress: 50/112
+[22:53:52]   ok: class=2029 accept=0.9014 src_type=other conf=medium
+[22:53:52] -> miss-state (Mississippi State)
+[22:53:52]   ok: class=None accept=None src_type=cds conf=low
+[22:53:52] -> umbc (UMBC)
+[22:53:52]   ok: class=2029 accept=0.8536 src_type=other conf=medium
+[22:53:52] -> uri (University of Rhode Island)
+[22:53:53]   ok: class=None accept=None src_type=None conf=low
+[22:53:53] -> wmu (Western Michigan)
+[22:54:11]   ok: class=2029 accept=0.722 src_type=cds conf=medium
+[22:54:11]   ok: class=2030 accept=0.85 src_type=other conf=medium
+[22:54:11] -> ohio-u (Ohio University)
+[22:54:11] -> slu (Saint Louis University)
+[22:54:11] progress: 55/112
+[22:54:11]   ok: class=2029 accept=0.72 src_type=cds conf=low
+[22:54:11] -> tulsa (University of Tulsa)
+[22:54:12]   ok: class=None accept=None src_type=cds conf=low
+[22:54:12] -> dayton (University of Dayton)
+[22:54:13]   ok: class=2029 accept=0.9 src_type=cds conf=low
+[22:54:13] -> usd (University of San Diego)
+[22:54:29]   ok: class=None accept=None src_type=None conf=low
+[22:54:29] -> catholic (Catholic University)
+[22:54:29] progress: 60/112
+[22:54:30]   ok: class=None accept=None src_type=None conf=low
+[22:54:30] -> embry-riddle (Embry-Riddle)
+[22:54:31]   ok: class=None accept=None src_type=None conf=low
+[22:54:31] -> drake (Drake)
+[22:54:31]   ok: class=None accept=None src_type=None conf=low
+[22:54:31] -> butler (Butler)
+[22:54:34]   ok: class=2029 accept=0.58 src_type=cds conf=medium
+[22:54:34] -> mercer (Mercer)
+[22:54:50]   ok: class=2028 accept=0.688 src_type=cds conf=medium
+[22:54:50] -> belmont (Belmont)
+[22:54:50] progress: 65/112
+[22:54:51]   ok: class=None accept=None src_type=other conf=low
+[22:54:51] -> elon (Elon)
+[22:54:51]   ok: class=None accept=None src_type=None conf=low
+[22:54:51] -> quinnipiac (Quinnipiac)
+[22:54:53]   ok: class=None accept=0.64 src_type=cds conf=medium
+[22:54:53] -> marist (Marist)
+[22:54:53]   ok: class=2026 accept=None src_type=other conf=low
+[22:54:53] -> loyola-md (Loyola Maryland)
+[22:55:10]   ok: class=None accept=None src_type=None conf=low
+[22:55:10]   ok: class=None accept=None src_type=None conf=low
+[22:55:10] -> creighton (Creighton)
+[22:55:10] -> xavier (Xavier (Cincinnati))
+[22:55:10] progress: 70/112
+[22:55:10]   ok: class=None accept=None src_type=None conf=low
+[22:55:10] -> providence (Providence)
+[22:55:11]   ok: class=None accept=None src_type=None conf=low
+[22:55:11] -> manhattan (Manhattan College)
+[22:55:16]   ok: class=None accept=None src_type=None conf=low
+[22:55:16] -> stjohns (St. John's)
+[22:55:32]   ok: class=2029 accept=None src_type=class_profile conf=low
+[22:55:32] -> loyola-no (Loyola NOLA)
+[22:55:32] progress: 75/112
+[22:55:33]   ok: class=None accept=None src_type=other conf=low
+[22:55:33] -> bard (Bard)
+[22:55:34]   ok: class=None accept=None src_type=None conf=low
+[22:55:34] -> hope (Hope)
+[22:55:34]   ok: class=None accept=0.78 src_type=other conf=low
+[22:55:34] -> beloit (Beloit)
+[22:55:34]   ok: class=2029 accept=0.2305 src_type=cds conf=high
+[22:55:34] -> depauw (DePauw)
+[22:55:49]   ok: class=None accept=None src_type=other conf=low
+[22:55:49] -> dickinson (Dickinson)
+[22:55:49] progress: 80/112
+[22:55:50]   ok: class=None accept=0.397 src_type=other conf=low
+[22:55:50] -> hampshire (Hampshire)
+[22:55:50]   ok: class=2028 accept=0.931 src_type=other conf=medium
+[22:55:50] -> iit (Illinois Tech)
+[22:55:50]   ok: class=2029 accept=0.519 src_type=cds conf=medium
+[22:55:50] -> unt (University of North Texas)
+[22:55:55]   ok: class=2029 accept=0.6304 src_type=other conf=low
+[22:55:55] -> xula (Xavier Louisiana)
+[22:56:12]   ok: class=None accept=None src_type=other conf=low
+[22:56:12] -> ncat (NC A&T)
+[22:56:12] progress: 85/112
+[22:56:13]   ok: class=None accept=None src_type=None conf=low
+[22:56:13] -> tnstate (Tennessee State)
+[22:56:13]   ok: class=None accept=None src_type=other conf=low
+[22:56:13] -> jackson-state (Jackson State)
+[22:56:14]   ok: class=2030 accept=None src_type=press_release conf=low
+[22:56:14] -> pvamu (Prairie View A&M)
+[22:56:15]   ok: class=None accept=None src_type=None conf=low
+[22:56:15] -> knox (Knox)
+[22:56:34]   ok: class=None accept=None src_type=None conf=low
+[22:56:34] -> allegheny (Allegheny)
+[22:56:34] progress: 90/112
+[22:56:35]   ok: class=None accept=None src_type=None conf=low
+[22:56:35] -> bryant (Bryant)
+[22:56:36]   ok: class=None accept=None src_type=None conf=low
+[22:56:36] -> csu-fullerton (California State University Fullerton)
+[22:56:37]   ok: class=None accept=None src_type=None conf=low
+[22:56:37] -> tcnj (College of New Jersey)
+[22:56:40]   ok: class=None accept=0.71 src_type=other conf=low
+[22:56:40] -> lake-forest (Lake Forest College)
+[22:56:53]   ok: class=2029 accept=0.57 src_type=cds conf=medium
+[22:56:53] -> lewis-clark (Lewis & Clark College)
+[22:56:53] progress: 95/112
+[22:56:53]   ok: class=2029 accept=0.9052 src_type=other conf=low
+[22:56:53] -> rollins (Rollins College)
+[22:56:53]   ok: class=None accept=None src_type=class_profile conf=low
+[22:56:53] -> st-marys-ca (Saint Mary's College of California)
+[22:56:54]   ok: class=None accept=None src_type=None conf=low
+[22:56:54] -> southwestern (Southwestern University)
+[22:56:56]   ok: class=2030 accept=0.6214 src_type=other conf=medium
+[22:56:56] -> suny-albany (SUNY Albany)
+[22:57:12]   ok: class=None accept=None src_type=None conf=low
+[22:57:12]   ok: class=None accept=None src_type=other conf=low
+[22:57:12] -> suny-oswego (SUNY Oswego)
+[22:57:12] progress: 100/112
+[22:57:12]   ok: class=2029 accept=0.39 src_type=class_profile conf=low
+[22:57:12] -> suny-purchase (SUNY Purchase)
+[22:57:12] -> suny-oneonta (SUNY Oneonta)
+[22:57:13]   ok: class=2028 accept=None src_type=other conf=low
+[22:57:13] -> ucmerced (University of California Merced)
+[22:57:16]   ok: class=2030 accept=0.4754 src_type=other conf=medium
+[22:57:16] -> umass-lowell (University of Massachusetts Lowell)
+[22:57:25]   ERROR: Error code: 429 - {'type': 'error', 'error': {'type': 'rate_limit_error', 'message': "This request would exceed your organization's rate limit of 450,000 input tokens per minute (org: 6a62f922-dba9-4365-9d5d-fc2b8ce35116, model: claude-haiku-4-5-20251001). For details, refer to: https://docs.claude.com/en/api/rate-limits. You can see the response headers for current usage. Reduce the prompt length or the maximum tokens requested, or try again later. View your current limits at https://console.anthropic.com/settings/limits. To raise this limit, purchase credits to advance to the next usage tier at https://console.anthropic.com/settings/billing."}, 'request_id': 'req_011CbQfbkWqq84C7SLLTWB5N'}
+[22:57:25] -> portland (University of Portland)
+[22:57:25] progress: 105/112
+[22:57:33]   ok: class=None accept=0.83 src_type=other conf=low
+[22:57:33] -> puget-sound (University of Puget Sound)
+[22:57:33]   ok: class=None accept=None src_type=other conf=low
+[22:57:33] -> denver (University of Denver)
+[22:57:33]   ok: class=None accept=None src_type=None conf=low
+[22:57:34]   ok: class=None accept=None src_type=None conf=low
+[22:57:36]   ok: class=2029 accept=0.804 src_type=other conf=low
+[22:57:36] progress: 110/112
+[22:57:53]   ok: class=None accept=None src_type=None conf=low
+[22:57:53]   ok: class=None accept=None src_type=other conf=low
+[22:57:53] progress: 112/112
+[22:57:53] done. wrote results_class2030.jsonl

@@ -1,0 +1,407 @@
+[
+  {
+    "slug": "berklee",
+    "urls": "https://www.berklee.edu/institutional-assessment/common-data-set",
+    "pdf_url": "https://www.berklee.edu/sites/default/files/2026-02/CDS_2025-2026.pdf",
+    "ed": {
+      "ed_apps": 949,
+      "ed_admits": 594,
+      "ed_rate": 0.6259220231822972
+    },
+    "overall": {
+      "apps": 4423,
+      "admits": 2416,
+      "rate": 0.5462355867058557
+    }
+  },
+  {
+    "slug": "binghamton",
+    "urls": "https://www.binghamton.edu/offices/oir/institutional-data/cds2025.pdf",
+    "pdf_url": "https://www.binghamton.edu/offices/oir/institutional-data/cds2025.pdf",
+    "ed": {
+      "ed_apps": 2024,
+      "ed_admits": 853,
+      "ed_rate": 0.4214426877470356
+    },
+    "overall": {
+      "apps": 33728,
+      "admits": 27436,
+      "rate": 0.8134487666034156
+    }
+  },
+  {
+    "slug": "brandeis",
+    "urls": "https://www.brandeis.edu/institutional-research/docs/cds-2024-25.pdf",
+    "pdf_url": "https://www.brandeis.edu/institutional-research/docs/cds-2024-25.pdf",
+    "ed": {
+      "ed_apps": 765,
+      "ed_admits": 323,
+      "ed_rate": 0.4222222222222222
+    },
+    "overall": {
+      "apps": 5888,
+      "admits": 4566,
+      "rate": 0.7754755434782609
+    }
+  },
+  {
+    "slug": "bryn-mawr",
+    "urls": "https://www.brynmawr.edu/sites/default/files/media/documents/2024-12/CDS-2024-2025-Bryn%20Mawr%20Read%20Only.pdf",
+    "pdf_url": "https://www.brynmawr.edu/sites/default/files/media/documents/2024-12/CDS-2024-2025-Bryn%20Mawr%20Read%20Only.pdf",
+    "ed": {
+      "ed_apps": 456,
+      "ed_admits": 22,
+      "ed_rate": 0.04824561403508772
+    },
+    "overall": {
+      "apps": 4094,
+      "admits": 1205,
+      "rate": 0.29433317049340496
+    }
+  },
+  {
+    "slug": "calpoly-slo",
+    "urls": "https://ir.calpoly.edu/content/publications_reports/cds/index",
+    "pdf_url": "https://content-calpoly-edu.s3.amazonaws.com/ir/1/images/CDS-PDF-2025-2026_final_nonfillable_web.pdf",
+    "ed": {
+      "ed_admits": 22
+    },
+    "overall": {
+      "apps": 6100,
+      "admits": 3624,
+      "rate": 0.5940983606557377
+    }
+  },
+  {
+    "slug": "case",
+    "urls": "https://case.edu/ir/common-data-set-0",
+    "pdf_url": "https://case.edu/ir/sites/default/files/2026-02/CDS%202025-26%20Adjusted%20Final.pdf",
+    "ed": {
+      "ed_apps": 661,
+      "ed_admits": 369,
+      "ed_rate": 0.5582450832072617
+    },
+    "overall": {
+      "apps": 19890,
+      "admits": 19442,
+      "rate": 0.9774761186525892
+    }
+  },
+  {
+    "slug": "lehigh",
+    "urls": "https://data.lehigh.edu/sites/data.lehigh.edu/files/4.18.2025_CDS-2024-2025_FINAL.pdf",
+    "pdf_url": "https://data.lehigh.edu/sites/data.lehigh.edu/files/4.18.2025_CDS-2024-2025_FINAL.pdf",
+    "ed": {
+      "ed_admits": 22
+    },
+    "overall": {}
+  },
+  {
+    "slug": "oberlin",
+    "urls": "https://bigfuture.collegeboard.org/colleges/oberlin-college/admissions",
+    "error": "no_pdf_found"
+  },
+  {
+    "slug": "reed",
+    "urls": "https://www.reed.edu/ir/cds/index24.html",
+    "pdf_url": "https://www.reed.edu/ir/cds/cds2425/CDS_secD_202425.pdf",
+    "ed": {},
+    "overall": {}
+  },
+  {
+    "slug": "rpi",
+    "urls": "https://www.collegetransitions.com/blog/how-to-get-into-rpi-rensselaer/ and multiple secondary sources",
+    "error": "no_pdf_found"
+  },
+  {
+    "slug": "ucsb",
+    "urls": "https://admission.universityofcalifornia.edu/campuses-majors/santa-barbara/first-year-admit-data.html",
+    "error": "no_pdf_found"
+  },
+  {
+    "slug": "ut-austin",
+    "urls": "https://reports.utexas.edu/common-data-set",
+    "error": "no_pdf_found"
+  },
+  {
+    "slug": "uw",
+    "urls": "https://admit.washington.edu/apply/first-year/by-the-numbers/",
+    "error": "no_pdf_found"
+  },
+  {
+    "slug": "villanova",
+    "urls": "https://www1.villanova.edu/content/dam/villanova/provost/decision_support/2024-2025-CDS_v2.pdf",
+    "pdf_url": "https://www1.villanova.edu/content/dam/villanova/provost/decision_support/2024-2025-CDS_v2.pdf",
+    "error": "download_failed"
+  },
+  {
+    "slug": "wpi",
+    "urls": "https://www.wpi.edu/sites/default/files/2025-02/WPI_CDS_2024-2025_2-27-25.pdf",
+    "pdf_url": "https://www.wpi.edu/sites/default/files/2025-02/WPI_CDS_2024-2025_2-27-25.pdf",
+    "ed": {
+      "ed_apps": 279,
+      "ed_admits": 211,
+      "ed_rate": 0.7562724014336918
+    },
+    "overall": {
+      "apps": 12559,
+      "admits": 8795,
+      "rate": 0.700294609443427
+    }
+  },
+  {
+    "slug": "bentley",
+    "urls": "https://www.bentley.edu/offices/business-intelligence-and-enrollment-systems/reports",
+    "error": "no_pdf_found"
+  },
+  {
+    "slug": "clemson",
+    "urls": "https://open.clemson.edu/cds/18/",
+    "error": "no_pdf_found"
+  },
+  {
+    "slug": "conn-college",
+    "urls": "https://www.conncoll.edu/media/Common-Data-Set-2024-25.pdf",
+    "pdf_url": "https://www.conncoll.edu/media/Common-Data-Set-2024-25.pdf",
+    "ed": {
+      "ed_apps": 526,
+      "ed_admits": 216,
+      "ed_rate": 0.41064638783269963
+    },
+    "overall": {
+      "apps": 7950,
+      "admits": 4473,
+      "rate": 0.5626415094339623
+    }
+  },
+  {
+    "slug": "famu",
+    "urls": "https://www.famu.edu/administration/strategic-planning-analysis-and-institutional-effectiveness/institutional-research/surveys/pdf/cds/CDS_2024-2025.pdf",
+    "pdf_url": "https://www.famu.edu/administration/strategic-planning-analysis-and-institutional-effectiveness/institutional-research/surveys/pdf/cds/CDS_2024-2025.pdf",
+    "error": "text_extraction_failed"
+  },
+  {
+    "slug": "morehouse",
+    "urls": "https://morehouse.edu/about/offices-and-services/data-analytics-institutional-research-and-effectiveness/common-data-set/",
+    "pdf_url": "https://morehouse.edu/wp-content/uploads/2023/09/StudentLife-22-23.pdf",
+    "ed": {},
+    "overall": {}
+  },
+  {
+    "slug": "osu",
+    "urls": "https://irp.osu.edu/sites/default/files/documents/2025/11/CDS-2024-2025-The-Ohio-State-University-Columbus.pdf",
+    "pdf_url": "https://irp.osu.edu/sites/default/files/documents/2025/11/CDS-2024-2025-The-Ohio-State-University-Columbus.pdf",
+    "ed": {
+      "ed_apps": 202,
+      "ed_admits": 22,
+      "ed_rate": 0.10891089108910891
+    },
+    "overall": {}
+  },
+  {
+    "slug": "pepperdine",
+    "urls": "https://www.pepperdine.edu/oie/institutional-research/common-data-set.htm",
+    "pdf_url": "https://www.pepperdine.edu/oie/content/pdf/heoa_mandated-reporting.pdf",
+    "ed": {},
+    "overall": {}
+  },
+  {
+    "slug": "pitt",
+    "urls": "https://www.ir.pitt.edu/university-information/common-data-set",
+    "pdf_url": "https://www.ir.pitt.edu/sites/default/files/2026-05/2025-2026%20Pittsburgh%20Common%20Data%20Set_0.pdf",
+    "ed": {
+      "ed_apps": 722,
+      "ed_admits": 22,
+      "ed_rate": 0.030470914127423823
+    },
+    "overall": {
+      "apps": 36992,
+      "admits": 27732,
+      "rate": 0.7496756055363322
+    }
+  },
+  {
+    "slug": "pratt",
+    "urls": "https://www.pratt.edu/administrative-departments/office-of-the-provost/office-of-institutional-research-and-assessment/institute-and-ipeds-reports/",
+    "pdf_url": "https://www.pratt.edu/wp-content/uploads/2023/05/CDS_2022-2023_Pratt.pdf",
+    "ed": {
+      "ed_apps": 697,
+      "ed_admits": 22,
+      "ed_rate": 0.03156384505021521
+    },
+    "overall": {
+      "apps": 8278,
+      "admits": 6187,
+      "rate": 0.7474027542884755
+    }
+  },
+  {
+    "slug": "sc",
+    "urls": "http://oiraa.dw.sc.edu/cds/cds2024/cds_2024-2025.pdf",
+    "pdf_url": "http://oiraa.dw.sc.edu/cds/cds2024/cds_2024-2025.pdf",
+    "ed": {
+      "ed_apps": 961,
+      "ed_admits": 752,
+      "ed_rate": 0.7825182101977107
+    },
+    "overall": {
+      "apps": 32041,
+      "admits": 31701,
+      "rate": 0.9893885958615524
+    }
+  },
+  {
+    "slug": "sdsu",
+    "urls": "https://asir.sdsu.edu/Documents/CommonDataSets/CDS_2025-26.pdf",
+    "pdf_url": "https://asir.sdsu.edu/Documents/CommonDataSets/CDS_2025-26.pdf",
+    "ed": {
+      "ed_apps": 716,
+      "ed_admits": 614,
+      "ed_rate": 0.8575418994413407
+    },
+    "overall": {
+      "apps": 56120,
+      "admits": 37873,
+      "rate": 0.6748574483250178
+    }
+  },
+  {
+    "slug": "tamu",
+    "urls": "https://abpa.tamu.edu/getattachment/439f54fe-1105-48af-955a-405775f80872/CDS-2024-2025_TexasA-M.pdf",
+    "pdf_url": "https://abpa.tamu.edu/getattachment/439f54fe-1105-48af-955a-405775f80872/CDS-2024-2025_TexasA-M.pdf",
+    "error": "download_failed"
+  },
+  {
+    "slug": "tuskegee",
+    "urls": "https://www.tuskegee.edu/institutional-effectiveness/",
+    "pdf_url": "https://sacscoc.org/app/uploads/2024/02/2024-POA-Resource-Manual.pdf",
+    "ed": {},
+    "overall": {}
+  },
+  {
+    "slug": "udel",
+    "urls": "https://ire.udel.edu/common-data-set/",
+    "error": "no_pdf_found"
+  },
+  {
+    "slug": "uprm",
+    "urls": "https://www.uprm.edu",
+    "error": "no_pdf_found"
+  },
+  {
+    "slug": "utk",
+    "urls": "https://irsa.utk.edu/wp-content/uploads/sites/107/2025/02/CDS_2024-2025_C-.pdf",
+    "pdf_url": "https://irsa.utk.edu/wp-content/uploads/sites/107/2025/02/CDS_2024-2025_C-.pdf",
+    "ed": {},
+    "overall": {
+      "apps": 35827,
+      "admits": 24863,
+      "rate": 0.6939738186284088
+    }
+  },
+  {
+    "slug": "whitman",
+    "urls": "https://www.whitman.edu/documents/offices/institutional-research/2024/whitman-cds-2024-2025.pdf",
+    "pdf_url": "https://www.whitman.edu/documents/offices/institutional-research/2024/whitman-cds-2024-2025.pdf",
+    "ed": {
+      "ed_apps": 599,
+      "ed_admits": 152,
+      "ed_rate": 0.25375626043405675
+    },
+    "overall": {
+      "apps": 7243,
+      "admits": 3957,
+      "rate": 0.546320585392793
+    }
+  },
+  {
+    "slug": "alabama",
+    "urls": "https://oira.ua.edu/d/sites/all/files/reports25/CDS%202024-25%20FINAL.pdf and https://admissions.ua.edu/freshman/requirements/",
+    "pdf_url": "https://oira.ua.edu/d/sites/all/files/reports25/CDS%202024-25%20FINAL.pdf",
+    "ed": {
+      "ed_apps": 569,
+      "ed_admits": 429,
+      "ed_rate": 0.7539543057996485
+    },
+    "overall": {
+      "apps": 56795,
+      "admits": 43531,
+      "rate": 0.7664583149925169
+    }
+  },
+  {
+    "slug": "hawaii",
+    "urls": "https://manoa.hawaii.edu/miro/wp-content/uploads/2025/07/Common_Data_Set_2024-2025.pdf",
+    "pdf_url": "https://manoa.hawaii.edu/miro/wp-content/uploads/2025/07/Common_Data_Set_2024-2025.pdf",
+    "ed": {
+      "ed_admits": 22
+    },
+    "overall": {
+      "apps": 11316,
+      "admits": 9883,
+      "rate": 0.8733651466949452
+    }
+  },
+  {
+    "slug": "lsu",
+    "urls": "https://www.lsu.edu/data/common-data-set/2024/3_2425_admissions.pdf",
+    "pdf_url": "https://www.lsu.edu/data/common-data-set/2024/3_2425_admissions.pdf",
+    "ed": {
+      "ed_admits": 22
+    },
+    "overall": {
+      "apps": 29864,
+      "admits": 24838,
+      "rate": 0.8317037235467453
+    }
+  },
+  {
+    "slug": "missou",
+    "urls": "https://www.collegetuitioncompare.com/edu/178396/university-of-missouri-columbia/admission/",
+    "error": "no_pdf_found"
+  },
+  {
+    "slug": "sjsu",
+    "urls": "https://www.sjsu.edu/irsa/common-data-set/index.php",
+    "pdf_url": "https://www.sjsu.edu/irsa/docs/cds/20250411_CDS_2024-2025%20FINAL.pdf",
+    "ed": {
+      "ed_apps": 974,
+      "ed_admits": 952,
+      "ed_rate": 0.9774127310061602
+    },
+    "overall": {
+      "apps": 18545,
+      "admits": 18464,
+      "rate": 0.9956322458883796
+    }
+  },
+  {
+    "slug": "uh",
+    "urls": "https://www.uh.edu/ir/reports/common-data-sets/",
+    "pdf_url": "https://www.uh.edu/ir/reports/common-data-sets/cds-data/cds_1997_1998.pdf",
+    "ed": {
+      "ed_apps": 950,
+      "ed_admits": 753,
+      "ed_rate": 0.7926315789473685
+    },
+    "overall": {
+      "apps": 4529,
+      "admits": 3554,
+      "rate": 0.7847206888937955
+    }
+  },
+  {
+    "slug": "uiowa",
+    "urls": "https://provost.uiowa.edu/data-and-reports/common-data-set",
+    "pdf_url": "https://provost.uiowa.edu/sites/provost.uiowa.edu/files/2026-04/cds_1617.pdf",
+    "ed": {
+      "ed_apps": 895,
+      "ed_admits": 2016
+    },
+    "overall": {
+      "apps": 14953,
+      "admits": 13541,
+      "rate": 0.9055707884705411
+    }
+  }
+]

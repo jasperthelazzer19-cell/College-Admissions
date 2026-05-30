@@ -1,0 +1,165 @@
+[22:38:57] start: 75 colleges, concurrency=5
+[22:38:57] -> harvard (Harvard)
+[22:38:57] -> stanford (Stanford)
+[22:38:57] -> mit (MIT)
+[22:38:57] -> yale (Yale)
+[22:38:57] -> princeton (Princeton)
+[22:39:03]   ok: class=2030 rounds=['REA', 'RD'] ED1=None ED2=None EA=None REA=0.1091 RD=0.029 conf=high
+[22:39:03] -> columbia (Columbia)
+[22:39:03]   ok: class=2030 rounds=['REA', 'RD'] ED1=None ED2=None EA=None REA=None RD=None conf=high
+[22:39:03] -> uchicago (University of Chicago)
+[22:39:06]   ok: class=None rounds=['REA', 'RD'] ED1=None ED2=None EA=None REA=None RD=None conf=high
+[22:39:06] -> upenn (UPenn)
+[22:39:06]   ok: class=2030 rounds=['EA', 'RD'] ED1=None ED2=None EA=0.055 REA=None RD=0.0391 conf=high
+[22:39:06] -> brown (Brown)
+[22:39:07]   ok: class=2030 rounds=['REA', 'RD'] ED1=None ED2=None EA=None REA=None RD=None conf=high
+[22:39:07] -> dartmouth (Dartmouth)
+[22:39:07] progress: 5/75
+[22:39:12]   ok: class=2030 rounds=['ED', 'RD'] ED1=None ED2=None EA=None REA=None RD=None conf=medium
+[22:39:12] -> duke (Duke)
+[22:39:13]   ok: class=None rounds=['SSEN', 'ED1', 'ED2', 'EA', 'RD'] ED1=None ED2=None EA=None REA=None RD=None conf=low
+[22:39:13] -> northwestern (Northwestern)
+[22:39:13] -> caltech (Caltech)
+[22:39:15]   ok: class=2030 rounds=['ED', 'RD'] ED1=None ED2=None EA=None REA=None RD=None conf=medium
+[22:39:15] -> cornell (Cornell)
+[22:39:19]   ok: class=2030 rounds=['ED', 'RD'] ED1=None ED2=None EA=None REA=None RD=None conf=low
+[22:39:19] -> jhu (Johns Hopkins)
+[22:39:19] progress: 10/75
+[22:39:22]   ok: class=2030 rounds=['ED', 'RD'] ED1=None ED2=None EA=None REA=None RD=None conf=medium
+[22:39:22] -> vanderbilt (Vanderbilt)
+[22:39:23]   ok: class=2030 rounds=['REA', 'RD'] ED1=None ED2=None EA=None REA=None RD=None conf=low
+[22:39:23] -> rice (Rice)
+[22:39:24]   ERROR: Extra data: line 16 column 1 (char 676)
+[22:39:24] -> notre-dame (Notre Dame)
+[22:39:26]   ok: class=2030 rounds=['ED', 'RD'] ED1=None ED2=None EA=None REA=None RD=None conf=low
+[22:39:26] -> cmu (Carnegie Mellon)
+[22:39:27]   ok: class=2030 rounds=['ED1', 'ED2', 'RD'] ED1=None ED2=None EA=None REA=None RD=None conf=low
+[22:39:27] -> usc (USC)
+[22:39:27] progress: 15/75
+[22:39:30]   ok: class=2030 rounds=['ED1', 'ED2', 'RD'] ED1=None ED2=None EA=None REA=None RD=0.028 conf=high
+[22:39:30] -> nyu (NYU)
+[22:39:33]   ok: class=2030 rounds=['ED1', 'ED2', 'RD'] ED1=None ED2=None EA=None REA=None RD=None conf=low
+[22:39:33] -> georgetown (Georgetown)
+[22:39:33]   ok: class=2030 rounds=['REA', 'RD'] ED1=None ED2=None EA=None REA=0.1179 RD=None conf=medium
+[22:39:33] -> ucb (UC Berkeley)
+[22:39:35]   ok: class=2030 rounds=['ED', 'RD'] ED1=None ED2=None EA=None REA=None RD=None conf=low
+[22:39:35] -> ucla (UCLA)
+[22:39:37]   ok: class=2030 rounds=['EA', 'RD'] ED1=None ED2=None EA=0.095 REA=None RD=None conf=medium
+[22:39:37] -> umich (University of Michigan)
+[22:39:37] progress: 20/75
+[22:39:43]   ok: class=2030 rounds=['RD'] ED1=None ED2=None EA=None REA=None RD=0.11 conf=medium
+[22:39:43] -> uva (UVA)
+[22:39:44]   ok: class=2030 rounds=['ED1', 'ED2', 'RD'] ED1=None ED2=None EA=None REA=None RD=None conf=low
+[22:39:44] -> gatech (Georgia Tech)
+[22:39:45]   ok: class=2030 rounds=['RD'] ED1=None ED2=None EA=None REA=None RD=None conf=low
+[22:39:45] -> tufts (Tufts)
+[22:39:45]   ok: class=2030 rounds=['EA', 'RD'] ED1=None ED2=None EA=None REA=None RD=None conf=medium
+[22:39:45] -> washu (Wash U St. Louis)
+[22:39:46]   ok: class=2030 rounds=['ED', 'EA', 'RD'] ED1=None ED2=None EA=None REA=None RD=None conf=high
+[22:39:46] -> emory (Emory)
+[22:39:46] progress: 25/75
+[22:40:08]   ok: class=2030 rounds=['ED', 'EA', 'RD'] ED1=None ED2=None EA=0.124 REA=None RD=0.0708 conf=high
+[22:40:08] -> unc (UNC Chapel Hill)
+[22:40:09]   ok: class=2030 rounds=['ED1', 'ED2', 'RD'] ED1=0.29 ED2=None EA=None REA=None RD=None conf=medium
+[22:40:09] -> bu (Boston University)
+[22:40:09]   ok: class=None rounds=['ED1', 'ED2', 'RD'] ED1=None ED2=None EA=None REA=None RD=None conf=low
+[22:40:09] -> bc (Boston College)
+[22:40:11]   ok: class=2030 rounds=['EA1', 'EA2', 'RD'] ED1=None ED2=None EA=None REA=None RD=None conf=high
+[22:40:11] -> wake-forest (Wake Forest)
+[22:40:12]   ok: class=2030 rounds=['ED1', 'ED2', 'RD'] ED1=None ED2=None EA=None REA=None RD=None conf=low
+[22:40:12] -> uf (University of Florida)
+[22:40:12] progress: 30/75
+[22:40:32]   ok: class=2030 rounds=['ED1', 'ED2', 'RD'] ED1=None ED2=None EA=None REA=None RD=None conf=high
+[22:40:32] -> ut-austin (University of Texas at Austin)
+[22:40:33]   ok: class=2030 rounds=['ED1', 'ED2', 'EA', 'RD'] ED1=None ED2=None EA=None REA=None RD=None conf=medium
+[22:40:33] -> williams (Williams)
+[22:40:33]   ok: class=2030 rounds=['EA', 'RD'] ED1=None ED2=None EA=None REA=None RD=None conf=low
+[22:40:33] -> amherst (Amherst)
+[22:40:34]   ok: class=2029 rounds=['ED1', 'ED2', 'RD'] ED1=None ED2=None EA=None REA=None RD=None conf=high
+[22:40:34] -> swarthmore (Swarthmore)
+[22:40:39]   ok: class=2030 rounds=['EA', 'RD'] ED1=None ED2=None EA=0.395 REA=None RD=None conf=low
+[22:40:39] -> pomona (Pomona)
+[22:40:39] progress: 35/75
+[22:40:54]   ok: class=2030 rounds=['EA', 'RD'] ED1=None ED2=None EA=None REA=None RD=None conf=low
+[22:40:54] -> bowdoin (Bowdoin)
+[22:40:55]   ok: class=2029 rounds=['ED1', 'ED2', 'RD'] ED1=None ED2=None EA=None REA=None RD=0.0586 conf=low
+[22:40:55] -> wellesley (Wellesley)
+[22:40:56]   ok: class=2030 rounds=['ED', 'RD'] ED1=None ED2=None EA=None REA=None RD=None conf=medium
+[22:40:56] -> middlebury (Middlebury)
+[22:40:56]   ok: class=2030 rounds=['ED', 'RD'] ED1=None ED2=None EA=None REA=None RD=None conf=medium
+[22:40:56] -> carleton (Carleton)
+[22:41:13]   ERROR: Extra data: line 17 column 1 (char 769)
+[22:41:13] -> haverford (Haverford)
+[22:41:13] progress: 40/75
+[22:41:14]   ok: class=None rounds=['ED1', 'ED2', 'RD'] ED1=None ED2=None EA=None REA=None RD=None conf=low
+[22:41:14] -> vassar (Vassar)
+[22:41:15]   ok: class=None rounds=['ED1', 'ED2', 'RD'] ED1=None ED2=None EA=None REA=None RD=None conf=low
+[22:41:15] -> babson (Babson)
+[22:41:15]   ok: class=2030 rounds=['ED1', 'ED2', 'RD'] ED1=None ED2=None EA=None REA=None RD=None conf=medium
+[22:41:15] -> northeastern (Northeastern)
+[22:41:18]   ok: class=2030 rounds=['ED', 'RD'] ED1=None ED2=None EA=None REA=None RD=0.051 conf=high
+[22:41:18] -> lehigh (Lehigh)
+[22:41:36]   ok: class=2030 rounds=['ED1', 'ED2', 'EA', 'RD'] ED1=None ED2=None EA=None REA=None RD=None conf=low
+[22:41:36] -> tulane (Tulane)
+[22:41:36] progress: 45/75
+[22:41:37]   ok: class=2029 rounds=['ED1', 'ED2', 'RD'] ED1=None ED2=None EA=None REA=None RD=None conf=medium
+[22:41:37] -> miami (University of Miami)
+[22:41:38]   ok: class=2029 rounds=['ED', 'RD'] ED1=None ED2=None EA=None REA=None RD=0.268 conf=medium
+[22:41:38] -> wesleyan (Wesleyan)
+[22:41:47]   ok: class=2030 rounds=['ED1', 'ED2', 'RD'] ED1=None ED2=None EA=None REA=None RD=None conf=low
+[22:41:47] -> hamilton (Hamilton)
+[22:41:55]   ok: class=2030 rounds=['ED1', 'ED2', 'EA', 'RD'] ED1=None ED2=None EA=None REA=None RD=None conf=low
+[22:41:55] -> davidson (Davidson)
+[22:41:56]   ok: class=2030 rounds=['ED1', 'ED2', 'RD'] ED1=None ED2=None EA=None REA=None RD=None conf=low
+[22:41:56] -> colgate (Colgate)
+[22:41:56] progress: 50/75
+[22:41:56]   ok: class=2028 rounds=['ED', 'RD'] ED1=None ED2=None EA=None REA=None RD=0.143 conf=high
+[22:41:56] -> smith (Smith)
+[22:41:58]   ok: class=2030 rounds=['ED1', 'ED2', 'RD'] ED1=None ED2=None EA=None REA=None RD=None conf=low
+[22:41:58] -> bates (Bates)
+[22:41:58]   ok: class=2029 rounds=['ED1', 'ED2', 'RD'] ED1=None ED2=None EA=None REA=None RD=None conf=high
+[22:41:58] -> colby (Colby)
+[22:42:15]   ok: class=2030 rounds=['ED1', 'ED2', 'RD'] ED1=0.35 ED2=None EA=None REA=None RD=0.06 conf=medium
+[22:42:15] -> skidmore (Skidmore)
+[22:42:15]   ok: class=2029 rounds=['ED1', 'ED2', 'RD'] ED1=None ED2=None EA=None REA=None RD=None conf=medium
+[22:42:15] -> grinnell (Grinnell)
+[22:42:15] progress: 55/75
+[22:42:16]   ok: class=2030 rounds=['ED1', 'ED2', 'RD'] ED1=None ED2=None EA=None REA=None RD=None conf=low
+[22:42:16] -> pitzer (Pitzer)
+[22:42:16]   ok: class=2030 rounds=['ED1', 'ED2', 'RD'] ED1=None ED2=None EA=None REA=None RD=None conf=low
+[22:42:16] -> harvey-mudd (Harvey Mudd)
+[22:42:17]   ok: class=2030 rounds=['ED1', 'ED2', 'RD'] ED1=None ED2=None EA=None REA=None RD=None conf=low
+[22:42:17] -> cmc (Claremont McKenna)
+[22:42:36]   ok: class=None rounds=['ED1', 'ED2', 'RD'] ED1=None ED2=None EA=None REA=None RD=None conf=low
+[22:42:36] -> oxy (Occidental)
+[22:42:36]   ok: class=2030 rounds=['ED', 'RD'] ED1=None ED2=None EA=None REA=None RD=None conf=low
+[22:42:36] -> barnard (Barnard)
+[22:42:36] progress: 60/75
+[22:42:37]   ok: class=None rounds=['ED', 'RD'] ED1=None ED2=None EA=None REA=None RD=None conf=low
+[22:42:37] -> olin (Olin College)
+[22:42:37]   ok: class=2030 rounds=['ED1', 'ED2', 'RD'] ED1=None ED2=None EA=None REA=None RD=None conf=low
+[22:42:37] -> cooper (Cooper Union)
+[22:42:38]   ok: class=2030 rounds=['ED1', 'ED2', 'RD'] ED1=None ED2=None EA=None REA=None RD=None conf=low
+[22:42:38] -> juilliard (Juilliard)
+[22:42:58]   ok: class=2030 rounds=['ED', 'RD'] ED1=None ED2=None EA=None REA=None RD=None conf=low
+[22:42:58] -> risd (Rhode Island School of Design)
+[22:42:59]   ok: class=2029 rounds=['ED1', 'ED2', 'RD'] ED1=None ED2=None EA=None REA=None RD=None conf=low
+[22:42:59] -> holy-cross (Holy Cross)
+[22:42:59] progress: 65/75
+[22:42:59] -> colorado-college (Colorado College)
+[22:43:02]   ok: class=2030 rounds=['ED', 'RD'] ED1=None ED2=None EA=None REA=None RD=None conf=low
+[22:43:02] -> trinity-tx (Trinity University)
+[22:43:03]   ok: class=2030 rounds=None ED1=None ED2=None EA=None REA=None RD=None conf=low
+[22:43:03] -> richmond (University of Richmond)
+[22:43:19]   ok: class=None rounds=['ED1', 'ED2', 'EA', 'RD'] ED1=None ED2=None EA=None REA=None RD=None conf=low
+[22:43:19] -> wlu (Washington and Lee)
+[22:43:19]   ok: class=None rounds=['ED', 'EA', 'RD'] ED1=None ED2=None EA=None REA=None RD=None conf=low
+[22:43:19] -> west-point (United States Military Academy)
+[22:43:19] progress: 70/75
+[22:43:21]   ok: class=2030 rounds=['ED1', 'ED2', 'RD'] ED1=0.297 ED2=0.057 EA=None REA=None RD=None conf=medium
+[22:43:21]   ok: class=None rounds=['ED', 'RD'] ED1=None ED2=None EA=None REA=None RD=None conf=low
+[22:43:21]   ok: class=2030 rounds=['ED', 'RD'] ED1=None ED2=None EA=None REA=None RD=None conf=low
+[22:43:37]   ok: class=None rounds=['ED1', 'ED2', 'RD'] ED1=None ED2=None EA=None REA=None RD=None conf=low
+[22:43:38]   ok: class=None rounds=None ED1=None ED2=None EA=None REA=None RD=None conf=low
+[22:43:38] progress: 75/75
+[22:43:38] done. wrote results_rounds_2030.jsonl

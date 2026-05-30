@@ -1,0 +1,187 @@
+[
+  {
+    "slug": "berklee",
+    "ed_apps": null,
+    "ed_admits": null
+  },
+  {
+    "slug": "binghamton",
+    "ed_apps": null,
+    "ed_admits": null
+  },
+  {
+    "slug": "brandeis",
+    "ed_apps": 765,
+    "ed_admits": 323,
+    "ed_rate": 0.4222222222222222
+  },
+  {
+    "slug": "bryn-mawr",
+    "ed_apps": null,
+    "ed_admits": null
+  },
+  {
+    "slug": "calpoly-slo",
+    "ed_apps": null,
+    "ed_admits": null
+  },
+  {
+    "slug": "case",
+    "ed_apps": null,
+    "ed_admits": null
+  },
+  {
+    "slug": "lehigh",
+    "ed_apps": null,
+    "ed_admits": null
+  },
+  {
+    "slug": "oberlin",
+    "error": "no_pdf"
+  },
+  {
+    "slug": "reed",
+    "ed_apps": null,
+    "ed_admits": null
+  },
+  {
+    "slug": "rpi",
+    "error": "no_pdf"
+  },
+  {
+    "slug": "ucsb",
+    "error": "no_pdf"
+  },
+  {
+    "slug": "ut-austin",
+    "error": "no_pdf"
+  },
+  {
+    "slug": "uw",
+    "error": "no_pdf"
+  },
+  {
+    "slug": "villanova",
+    "error": "no_pdf"
+  },
+  {
+    "slug": "wpi",
+    "ed_apps": 279,
+    "ed_admits": 211,
+    "ed_rate": 0.7562724014336918
+  },
+  {
+    "slug": "bentley",
+    "error": "no_pdf"
+  },
+  {
+    "slug": "clemson",
+    "error": "no_pdf"
+  },
+  {
+    "slug": "conn-college",
+    "ed_apps": 15,
+    "ed_admits": null
+  },
+  {
+    "slug": "famu",
+    "error": "bad_text"
+  },
+  {
+    "slug": "morehouse",
+    "ed_apps": null,
+    "ed_admits": null
+  },
+  {
+    "slug": "osu",
+    "ed_apps": null,
+    "ed_admits": null
+  },
+  {
+    "slug": "pepperdine",
+    "ed_apps": null,
+    "ed_admits": null
+  },
+  {
+    "slug": "pitt",
+    "ed_apps": null,
+    "ed_admits": null
+  },
+  {
+    "slug": "pratt",
+    "ed_apps": null,
+    "ed_admits": null,
+    "ed_empty": true
+  },
+  {
+    "slug": "sc",
+    "ed_apps": null,
+    "ed_admits": null
+  },
+  {
+    "slug": "sdsu",
+    "ed_apps": null,
+    "ed_admits": null
+  },
+  {
+    "slug": "tamu",
+    "error": "no_pdf"
+  },
+  {
+    "slug": "tuskegee",
+    "ed_apps": null,
+    "ed_admits": null
+  },
+  {
+    "slug": "udel",
+    "error": "no_pdf"
+  },
+  {
+    "slug": "uprm",
+    "error": "no_pdf"
+  },
+  {
+    "slug": "utk",
+    "ed_apps": null,
+    "ed_admits": null
+  },
+  {
+    "slug": "whitman",
+    "ed_apps": null,
+    "ed_admits": 12
+  },
+  {
+    "slug": "alabama",
+    "ed_apps": 2024,
+    "ed_admits": null
+  },
+  {
+    "slug": "hawaii",
+    "ed_apps": null,
+    "ed_admits": null
+  },
+  {
+    "slug": "lsu",
+    "ed_apps": null,
+    "ed_admits": null
+  },
+  {
+    "slug": "missou",
+    "error": "no_pdf"
+  },
+  {
+    "slug": "sjsu",
+    "ed_apps": 22,
+    "ed_admits": null
+  },
+  {
+    "slug": "uh",
+    "ed_apps": null,
+    "ed_admits": null
+  },
+  {
+    "slug": "uiowa",
+    "ed_apps": null,
+    "ed_admits": 2016
+  }
+]

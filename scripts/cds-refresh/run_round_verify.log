@@ -1,0 +1,82 @@
+[07:38:32] start: 39 schools
+[07:38:32] -> berklee (Berklee College of Music)
+[07:38:32] -> binghamton (Binghamton University)
+[07:38:32] -> brandeis (Brandeis)
+[07:38:32] -> bryn-mawr (Bryn Mawr)
+[07:38:32] -> calpoly-slo (Cal Poly San Luis Obispo)
+[07:38:40]    rounds=['EA', 'RD'] rates={'ED1': None, 'ED2': None, 'ED': None, 'EA': None, 'REA': None, 'SCEA': None, 'RD': 0.435} conf=high
+[07:38:40] -> case (Case Western)
+[07:38:41]    rounds=['ED1', 'ED2', 'EA', 'RD'] rates={'ED1': None, 'ED2': None, 'EA': None, 'RD': None, 'ED': 0.42} conf=low
+[07:38:41] -> lehigh (Lehigh)
+[07:38:42]    rounds=['RD'] rates={'ED1': None, 'ED2': None, 'ED': None, 'EA': None, 'REA': None, 'SCEA': None, 'RD': 0.288} conf=high
+[07:38:42] -> oberlin (Oberlin)
+[07:38:42] -> reed (Reed)
+[07:38:43]    rounds=['EA', 'RD'] rates={'ED1': None, 'ED2': None, 'ED': None, 'EA': 0.5, 'REA': None, 'SCEA': None, 'RD': 0.38} conf=high
+[07:38:43] -> rpi (RPI)
+[07:38:43] progress: 5/39
+[07:38:50]    rounds=['ED1', 'ED2', 'EA', 'RD'] rates={'ED1': None, 'ED2': None, 'EA': None, 'RD': None} conf=medium
+[07:38:50] -> ucsb (UC Santa Barbara)
+[07:38:51]    rounds=['ED1', 'ED2', 'EA', 'RD'] rates={'ED1': None, 'ED2': None, 'EA': 0.152, 'RD': 0.251} conf=high
+[07:38:51] -> ut-austin (University of Texas at Austin)
+[07:38:51]    rounds=['ED1', 'ED2', 'RD'] rates={'ED1': None, 'ED2': None, 'ED': None, 'EA': None, 'REA': None, 'SCEA': None, 'RD': None} conf=high
+[07:38:51] -> uw (University of Washington)
+[07:38:55]    rounds=['ED1', 'ED2', 'EA', 'RD'] rates={'ED1': None, 'ED2': None, 'ED': None, 'EA': 0.579, 'REA': None, 'SCEA': None, 'RD': 0.635} conf=medium
+[07:38:55] -> villanova (Villanova)
+[07:38:56]    rounds=['ED1', 'ED2', 'EA', 'RD'] rates={'ED1': None, 'ED2': None, 'ED': 0.2498, 'EA': 0.2343, 'REA': None, 'SCEA': None, 'RD': 0.356} conf=medium
+[07:38:56] -> wpi (WPI)
+[07:38:56] progress: 10/39
+[07:38:58]    rounds=['RD'] rates={'ED1': None, 'ED2': None, 'ED': None, 'EA': None, 'REA': None, 'SCEA': None, 'RD': 0.33} conf=high
+[07:38:58] -> bentley (Bentley)
+[07:38:59]    rounds=['RD'] rates={'ED1': None, 'ED2': None, 'ED': None, 'EA': None, 'REA': None, 'SCEA': None, 'RD': 0.43} conf=high
+[07:38:59] -> clemson (Clemson)
+[07:38:59] -> conn-college (Connecticut College)
+[07:39:06]    rounds=['EA', 'ED1', 'ED2', 'RD'] rates={'ED1': None, 'ED2': None, 'EA': 0.28, 'ED': 0.56, 'REA': None, 'SCEA': None, 'RD': None} conf=medium
+[07:39:06] -> famu (Florida A&M)
+[07:39:07]    rounds=['EA', 'RD'] rates={'ED1': None, 'ED2': None, 'ED': None, 'EA': None, 'REA': None, 'SCEA': None, 'RD': 0.42} conf=high
+[07:39:07] -> morehouse (Morehouse)
+[07:39:07] progress: 15/39
+[07:39:07]    rounds=['ED1', 'ED2', 'EA', 'RD'] rates={'ED1': None, 'ED2': None, 'ED': 0.756, 'EA': 0.689, 'REA': None, 'SCEA': None, 'RD': None} conf=medium
+[07:39:07] -> osu (Ohio State)
+[07:39:08]    rounds=['ED1', 'ED2', 'EA', 'RD'] rates={'ED1': None, 'ED2': None, 'ED': 0.61, 'EA': 0.61, 'REA': None, 'SCEA': None, 'RD': 0.44} conf=medium
+[07:39:08] -> pepperdine (Pepperdine)
+[07:39:08]    rounds=['ED1', 'ED2', 'EA', 'RD'] rates={'ED1': None, 'ED2': None, 'EA': None, 'RD': None} conf=low
+[07:39:08] -> pitt (University of Pittsburgh)
+[07:39:15]    rounds=['ED', 'EA', 'RD'] rates={'ED1': None, 'ED2': None, 'ED': 0.66, 'EA': 0.655, 'REA': None, 'SCEA': None, 'RD': 0.25} conf=medium
+[07:39:15] -> pratt (Pratt Institute)
+[07:39:16] -> sc (University of South Carolina)
+[07:39:16] progress: 20/39
+[07:39:16]    rounds=['EA', 'RD'] rates={'ED1': None, 'ED2': None, 'ED': None, 'EA': None, 'REA': None, 'SCEA': None, 'RD': 0.606} conf=medium
+[07:39:16] -> sdsu (San Diego State)
+[07:39:18]    rounds=['ED1', 'ED2', 'EA', 'RD'] rates={'ED1': None, 'ED2': None, 'EA': None, 'RD': 0.629} conf=medium
+[07:39:18] -> tamu (Texas A&M)
+[07:39:19]    rounds=['EA', 'RD'] rates={'ED1': None, 'ED2': None, 'ED': None, 'EA': None, 'REA': None, 'SCEA': None, 'RD': 0.581} conf=medium
+[07:39:19] -> tuskegee (Tuskegee)
+[07:39:25]    rounds=['RD'] rates={'ED1': None, 'ED2': None, 'ED': None, 'EA': None, 'REA': None, 'SCEA': None, 'RD': 0.4868} conf=high
+[07:39:25] -> udel (University of Delaware)
+[07:39:29]    rounds=['RD'] rates={'ED1': None, 'ED2': None, 'ED': None, 'EA': None, 'REA': None, 'SCEA': None, 'RD': 0.359} conf=high
+[07:39:29] -> uprm (University of Puerto Rico Mayagüez)
+[07:39:29] progress: 25/39
+[07:39:30]    rounds=['EA', 'RD'] rates={'ED1': None, 'ED2': None, 'ED': None, 'EA': None, 'REA': None, 'SCEA': None, 'RD': 0.602} conf=medium
+[07:39:30] -> utk (University of Tennessee)
+[07:39:30]    rounds=['EA', 'RD'] rates={'ED1': None, 'ED2': None, 'ED': None, 'EA': None, 'REA': None, 'SCEA': None, 'RD': 0.7325} conf=medium
+[07:39:30] -> whitman (Whitman)
+[07:39:31]    rounds=['EA', 'RD'] rates={'ED1': None, 'ED2': None, 'ED': None, 'EA': None, 'REA': None, 'SCEA': None, 'RD': 0.5743} conf=high
+[07:39:31] -> alabama (University of Alabama)
+[07:39:48] -> hawaii (University of Hawaii Manoa)
+[07:39:49]    rounds=['RD'] rates={'ED1': None, 'ED2': None, 'ED': None, 'EA': None, 'REA': None, 'SCEA': None, 'RD': 0.52} conf=medium
+[07:39:49] -> lsu (LSU)
+[07:39:49] progress: 30/39
+[07:39:50]    rounds=['ED1', 'ED2', 'RD'] rates={'ED1': None, 'ED2': None, 'EA': None, 'REA': None, 'SCEA': None, 'RD': None} conf=medium
+[07:39:50] -> missou (University of Missouri)
+[07:39:50]    rounds=['RD'] rates={'ED1': None, 'ED2': None, 'ED': None, 'EA': None, 'REA': None, 'SCEA': None, 'RD': 0.8} conf=high
+[07:39:50] -> sjsu (San Jose State)
+[07:39:52]    rounds=['EA', 'RD'] rates={'ED1': None, 'ED2': None, 'ED': None, 'EA': None, 'REA': None, 'SCEA': None, 'RD': None} conf=high
+[07:39:52] -> uh (University of Houston)
+[07:40:07] -> uiowa (University of Iowa)
+[07:40:09]    rounds=['RD'] rates={'ED1': None, 'ED2': None, 'ED': None, 'EA': None, 'REA': None, 'SCEA': None, 'RD': 0.8461} conf=high
+[07:40:09] progress: 35/39
+[07:40:11]    rounds=['RD'] rates={'ED1': None, 'ED2': None, 'ED': None, 'EA': None, 'REA': None, 'SCEA': None, 'RD': 0.86} conf=high
+[07:40:12]    rounds=['EA', 'RD'] rates={'ED1': None, 'ED2': None, 'ED': None, 'EA': None, 'REA': None, 'SCEA': None, 'RD': None} conf=low
+[07:40:35]    rounds=['EA', 'RD'] rates={'ED1': None, 'ED2': None, 'ED': None, 'EA': None, 'REA': None, 'SCEA': None, 'RD': 0.836} conf=medium
+[07:40:35] progress: 39/39
+[07:40:35] done.

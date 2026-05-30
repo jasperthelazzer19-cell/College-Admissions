@@ -1,0 +1,326 @@
+{
+  "overall": [
+    {
+      "slug": "purdue",
+      "cur": 0.4343,
+      "new": 0.499,
+      "conf": "high"
+    },
+    {
+      "slug": "ucsd",
+      "cur": 0.2856,
+      "new": 0.2841,
+      "conf": "high"
+    },
+    {
+      "slug": "uoregon",
+      "cur": 0.88,
+      "new": 0.883,
+      "conf": "high"
+    },
+    {
+      "slug": "pitt",
+      "cur": 0.5945,
+      "new": 0.581,
+      "conf": "high"
+    },
+    {
+      "slug": "case",
+      "cur": 0.3654,
+      "new": 0.3531,
+      "conf": "high"
+    },
+    {
+      "slug": "mt-holyoke",
+      "cur": 0.3603,
+      "new": 0.36,
+      "conf": "medium"
+    },
+    {
+      "slug": "missou",
+      "cur": 0.7847,
+      "new": 0.7847,
+      "conf": "medium"
+    },
+    {
+      "slug": "ucsb",
+      "cur": 0.3296,
+      "new": 0.33,
+      "conf": "high"
+    },
+    {
+      "slug": "famu",
+      "cur": 0.2056,
+      "new": 0.2055,
+      "conf": "medium"
+    },
+    {
+      "slug": "lafayette",
+      "cur": 0.3145,
+      "new": 0.3227,
+      "conf": "high"
+    },
+    {
+      "slug": "depaul",
+      "cur": 0.78,
+      "new": 0.76,
+      "conf": "medium"
+    },
+    {
+      "slug": "app-state",
+      "cur": 0.9014,
+      "new": 0.9014,
+      "conf": "medium"
+    },
+    {
+      "slug": "uri",
+      "cur": 0.7216,
+      "new": 0.722,
+      "conf": "medium"
+    },
+    {
+      "slug": "mercer",
+      "cur": 0.69,
+      "new": 0.688,
+      "conf": "medium"
+    },
+    {
+      "slug": "tcnj",
+      "cur": 0.6235,
+      "new": 0.6214,
+      "conf": "medium"
+    },
+    {
+      "slug": "rollins",
+      "cur": 0.4755,
+      "new": 0.4754,
+      "conf": "medium"
+    }
+  ],
+  "skipped": [
+    {
+      "slug": "tamu",
+      "cur": 0.5166,
+      "new": 0.44,
+      "conf": "medium",
+      "reason": "medium_conf_large_delta"
+    },
+    {
+      "slug": "neiu",
+      "cur": 0.88,
+      "new": 0.7,
+      "conf": "low",
+      "reason": "low_conf"
+    },
+    {
+      "slug": "lmu",
+      "cur": 0.4508,
+      "new": 0.4,
+      "conf": "medium",
+      "reason": "medium_conf_large_delta"
+    },
+    {
+      "slug": "berklee",
+      "cur": 0.435,
+      "new": 0.5,
+      "conf": "low",
+      "reason": "low_conf"
+    },
+    {
+      "slug": "pratt",
+      "cur": 0.701,
+      "new": 0.53,
+      "conf": "low",
+      "reason": "low_conf"
+    },
+    {
+      "slug": "saic",
+      "cur": 0.76,
+      "new": 0.76,
+      "conf": "low",
+      "reason": "low_conf"
+    },
+    {
+      "slug": "sc",
+      "cur": 0.6015,
+      "new": 0.117,
+      "conf": "medium",
+      "reason": "medium_conf_large_delta"
+    },
+    {
+      "slug": "udel",
+      "cur": 0.66,
+      "new": 0.706,
+      "conf": "medium",
+      "reason": "medium_conf_large_delta"
+    },
+    {
+      "slug": "uh",
+      "cur": 0.7392,
+      "new": 0.74,
+      "conf": "low",
+      "reason": "low_conf"
+    },
+    {
+      "slug": "umaine",
+      "cur": 0.9664,
+      "new": 0.96,
+      "conf": "low",
+      "reason": "low_conf"
+    },
+    {
+      "slug": "uprm",
+      "cur": 0.5217,
+      "new": 0.522,
+      "conf": "low",
+      "reason": "low_conf"
+    },
+    {
+      "slug": "umass",
+      "cur": 0.599,
+      "new": 0.0678,
+      "conf": "medium",
+      "reason": "medium_conf_large_delta"
+    },
+    {
+      "slug": "ucr",
+      "cur": 0.7685,
+      "new": 0.736,
+      "conf": "medium",
+      "reason": "medium_conf_large_delta"
+    },
+    {
+      "slug": "suny-buffalo",
+      "cur": 0.67,
+      "new": 0.69,
+      "conf": "low",
+      "reason": "low_conf"
+    },
+    {
+      "slug": "wsu",
+      "cur": 0.3915,
+      "new": 0.8536,
+      "conf": "medium",
+      "reason": "medium_conf_large_delta"
+    },
+    {
+      "slug": "wmu",
+      "cur": 0.3407,
+      "new": 0.85,
+      "conf": "medium",
+      "reason": "medium_conf_large_delta"
+    },
+    {
+      "slug": "umbc",
+      "cur": 0.69,
+      "new": 0.72,
+      "conf": "low",
+      "reason": "low_conf"
+    },
+    {
+      "slug": "odu",
+      "cur": 0.95,
+      "new": 0.9,
+      "conf": "low",
+      "reason": "low_conf"
+    },
+    {
+      "slug": "tulsa",
+      "cur": 0.39,
+      "new": 0.58,
+      "conf": "medium",
+      "reason": "medium_conf_large_delta"
+    },
+    {
+      "slug": "drake",
+      "cur": 0.71,
+      "new": 0.64,
+      "conf": "medium",
+      "reason": "medium_conf_large_delta"
+    },
+    {
+      "slug": "manhattan",
+      "cur": 0.785,
+      "new": 0.78,
+      "conf": "low",
+      "reason": "low_conf"
+    },
+    {
+      "slug": "stjohns",
+      "cur": 0.74,
+      "new": 0.2305,
+      "conf": "high",
+      "reason": "high_conf_but_huge_delta"
+    },
+    {
+      "slug": "bard",
+      "cur": 0.42,
+      "new": 0.397,
+      "conf": "low",
+      "reason": "low_conf"
+    },
+    {
+      "slug": "loyola-no",
+      "cur": 0.81,
+      "new": 0.931,
+      "conf": "medium",
+      "reason": "medium_conf_large_delta"
+    },
+    {
+      "slug": "depauw",
+      "cur": 0.69,
+      "new": 0.519,
+      "conf": "medium",
+      "reason": "medium_conf_large_delta"
+    },
+    {
+      "slug": "beloit",
+      "cur": 0.6304,
+      "new": 0.6304,
+      "conf": "low",
+      "reason": "low_conf"
+    },
+    {
+      "slug": "knox",
+      "cur": 0.7722,
+      "new": 0.71,
+      "conf": "low",
+      "reason": "low_conf"
+    },
+    {
+      "slug": "lake-forest",
+      "cur": 0.65,
+      "new": 0.57,
+      "conf": "medium",
+      "reason": "medium_conf_large_delta"
+    },
+    {
+      "slug": "csu-fullerton",
+      "cur": 0.9052,
+      "new": 0.9052,
+      "conf": "low",
+      "reason": "low_conf"
+    },
+    {
+      "slug": "southwestern",
+      "cur": 0.4305,
+      "new": 0.39,
+      "conf": "low",
+      "reason": "low_conf"
+    },
+    {
+      "slug": "umass-lowell",
+      "cur": 0.8296,
+      "new": 0.83,
+      "conf": "low",
+      "reason": "low_conf"
+    },
+    {
+      "slug": "suny-oswego",
+      "cur": 0.65,
+      "new": 0.804,
+      "conf": "low",
+      "reason": "low_conf"
+    }
+  ]
+}

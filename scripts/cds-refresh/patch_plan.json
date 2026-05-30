@@ -1,0 +1,133 @@
+{
+  "overall": [
+    {
+      "slug": "purdue",
+      "cur": 0.4343,
+      "new": 0.499,
+      "delta": 0.06469999999999998,
+      "class": null,
+      "src": "priority_refresh"
+    },
+    {
+      "slug": "ucsd",
+      "cur": 0.2856,
+      "new": 0.2841,
+      "delta": -0.0015000000000000013,
+      "class": null,
+      "src": "priority_refresh"
+    },
+    {
+      "slug": "uoregon",
+      "cur": 0.88,
+      "new": 0.883,
+      "delta": 0.0030000000000000027,
+      "class": null,
+      "src": "priority_refresh"
+    },
+    {
+      "slug": "pitt",
+      "cur": 0.5945,
+      "new": 0.581,
+      "delta": -0.013500000000000068,
+      "class": null,
+      "src": "priority_refresh"
+    },
+    {
+      "slug": "case",
+      "cur": 0.3654,
+      "new": 0.3531,
+      "delta": -0.012299999999999978,
+      "class": null,
+      "src": "priority_refresh"
+    },
+    {
+      "slug": "mt-holyoke",
+      "cur": 0.3603,
+      "new": 0.36,
+      "delta": -0.00030000000000002247,
+      "class": null,
+      "src": "priority_refresh"
+    },
+    {
+      "slug": "missou",
+      "cur": 0.7847,
+      "new": 0.7847,
+      "delta": 0.0,
+      "class": null,
+      "src": "priority_refresh"
+    },
+    {
+      "slug": "ucsb",
+      "cur": 0.3296,
+      "new": 0.33,
+      "delta": 0.00040000000000001146,
+      "class": null,
+      "src": "priority_refresh"
+    },
+    {
+      "slug": "famu",
+      "cur": 0.2056,
+      "new": 0.2055,
+      "delta": -0.00010000000000001674,
+      "class": null,
+      "src": "priority_refresh"
+    },
+    {
+      "slug": "lafayette",
+      "cur": 0.3145,
+      "new": 0.3227,
+      "delta": 0.008199999999999985,
+      "class": null,
+      "src": "priority_refresh"
+    },
+    {
+      "slug": "depaul",
+      "cur": 0.78,
+      "new": 0.76,
+      "delta": -0.020000000000000018,
+      "class": null,
+      "src": "priority_refresh"
+    },
+    {
+      "slug": "app-state",
+      "cur": 0.9014,
+      "new": 0.9014,
+      "delta": 0.0,
+      "class": null,
+      "src": "priority_refresh"
+    },
+    {
+      "slug": "uri",
+      "cur": 0.7216,
+      "new": 0.722,
+      "delta": 0.00039999999999995595,
+      "class": null,
+      "src": "priority_refresh"
+    },
+    {
+      "slug": "mercer",
+      "cur": 0.69,
+      "new": 0.688,
+      "delta": -0.0020000000000000018,
+      "class": null,
+      "src": "priority_refresh"
+    },
+    {
+      "slug": "tcnj",
+      "cur": 0.6235,
+      "new": 0.6214,
+      "delta": -0.002100000000000102,
+      "class": null,
+      "src": "priority_refresh"
+    },
+    {
+      "slug": "rollins",
+      "cur": 0.4755,
+      "new": 0.4754,
+      "delta": -9.999999999998899e-05,
+      "class": null,
+      "src": "priority_refresh"
+    }
+  ],
+  "rounds": []
+}
