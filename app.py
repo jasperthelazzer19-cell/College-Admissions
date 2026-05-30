@@ -6079,6 +6079,7 @@ CANDOR_LOGO_SVG = """<svg viewBox="0 0 64 64" width="22" height="22" xmlns="http
 </svg>"""
 
 NAV = """<div class="nav"><a class="brand" href="/">""" + CANDOR_LOGO_SVG + """Candor</a>
+<a href="/rankings/my-fit">★ My Fit</a>
 <a href="/colleges">Browse</a>
 <a href="/rankings">Rankings</a>
 <a href="/compare">Compare</a>
