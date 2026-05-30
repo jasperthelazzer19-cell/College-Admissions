@@ -10109,7 +10109,7 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
       radial-gradient(58% 68% at 90% 42%, rgba(45,212,191,.20), transparent 72%),
       radial-gradient(135% 130% at 38% 36%, transparent 46%, rgba(4,9,15,.92) 100%),
       linear-gradient(101deg, rgba(7,13,20,.97) 0%, rgba(7,13,20,.88) 30%, rgba(7,13,20,.55) 56%, rgba(7,13,20,.30) 82%, rgba(7,13,20,.42) 100%),
-      linear-gradient(180deg, rgba(7,13,20,.96) 0%, rgba(7,13,20,.30) 16%, transparent 40%, transparent 68%, rgba(7,13,20,.92) 100%);
+      linear-gradient(180deg, rgba(7,13,20,.38) 0%, rgba(7,13,20,.10) 12%, transparent 26%, transparent 68%, rgba(7,13,20,.92) 100%);
   }
   .hero.hero-grid .hero-text { max-width:600px; display:flex; flex-direction:column; gap:14px; }
   /* Cinematic intro: nav + hero content stay hidden during the fly-in, then
@@ -10163,6 +10163,22 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
         linear-gradient(180deg, rgba(7,13,20,.93) 0%, rgba(7,13,20,.80) 38%, rgba(7,13,20,.90) 100%);
     }
     .hero-bg-video { filter:brightness(.72) saturate(1.06); }
+  }
+
+  /* Phone (<=768px): NO video/animation. On a phone the landscape clip only
+     crops to a dark center slice, and the 8s intro delayed the demo (which was
+     hurting TikTok/Reddit drive-by traffic). So drop it entirely -- the hero is
+     a clean navy panel with a soft teal glow, and the headline + live demo are
+     visible instantly. Desktop keeps the full cinematic intro. */
+  @media (max-width:768px) {
+    .hero-bg-video { display:none; }
+    .hero.hero-grid {
+      background:
+        radial-gradient(115% 60% at 80% 4%, rgba(45,212,191,.12), transparent 60%),
+        #070d14;
+    }
+    /* No video to scrim, and no intro fade on mobile -- keep the panel steady. */
+    .hero-bg-overlay { display:none; }
   }
 
   /* Right-column logo wall (image-based via Clearbit). Tiles are uniform
@@ -10493,10 +10509,14 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
     d.classList.add('landed');
   }}
   // Failsafe: always reveal the page even if the video stalls or errors.
-  // Kept short so a slow/broken video never leaves the page blank for long
-  // (this previously cost us TikTok/Reddit traffic). The poster is the final
-  // courtyard frame, so revealing over it looks correct.
-  setTimeout(land, 6000);
+  // The intro is an 8s cinematic that ends on the CANDOR title settling into
+  // the colonnade hero plate, and the timeupdate handler below reveals the
+  // page ~0.55s before the true end (~7.45s) so content fades in as the shot
+  // lands. This failsafe sits just past that as a pure safety net for a
+  // broken/stalled video -- it must NOT preempt the natural end-reveal, or the
+  // page would cut in at 6s mid-title. The poster is the final frame, so
+  // revealing over it always looks correct.
+  setTimeout(land, 9000);
   function wire(){{
     var v = document.querySelector('.hero-bg-video');
     if (!v) {{ land(); return; }}
