@@ -7869,6 +7869,9 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
   html.intro-armed .hero-text > * { transform:translateY(26px); }
   html.landed .nav,
   html.landed .hero-text > * { opacity:1; transform:translateY(0); }
+  /* Hard guarantee: once landed, the nav is ALWAYS interactive, at every
+     breakpoint — overrides any lingering intro-armed pointer-events:none. */
+  html.landed .nav { pointer-events:auto !important; }
   html.landed .nav {
     pointer-events:auto;
     transition:opacity .8s ease, transform .8s cubic-bezier(.2,.7,.2,1);
@@ -8255,6 +8258,9 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
     if (landed) return;
     landed = true;
     d.classList.add('landed');
+    // Also REMOVE intro-armed so its pointer-events:none / opacity:0 rules
+    // can never keep winning over .landed (esp. inside mobile @media blocks).
+    d.classList.remove('intro-armed');
   }}
   // Failsafe: always reveal the page even if the video stalls or errors.
   // The intro is an 8s cinematic that ends on the CANDOR title settling into
