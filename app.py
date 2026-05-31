@@ -1626,7 +1626,7 @@ def _render_counterfactual_card(profile, school, current_low, current_high):
             color = "#fbbf24"
             arrow = "↗"
         else:
-            color = "#5eead4"
+            color = "#5fc9b6"
             arrow = "↑"
         rows += f'''<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-top:1px solid var(--border);font-size:.92em;gap:12px;flex-wrap:wrap">
   <div style="flex:1;min-width:160px">{label}</div>
@@ -1681,7 +1681,7 @@ def _render_earnings_card(school):
     ratio = earnings_to_cost_ratio(school)
     ratio_str = ""
     if ratio:
-        ratio_color = "#5eead4" if ratio < 2.0 else ("#fbbf24" if ratio < 3.5 else "#fca5a5")
+        ratio_color = "#5fc9b6" if ratio < 2.0 else ("#fbbf24" if ratio < 3.5 else "#fca5a5")
         ratio_str = f'<div class="muted" style="font-size:.82em;margin-top:4px">≈ <b style="color:{ratio_color}">{ratio:.1f} years</b> of post-grad earnings cover 4 yrs of attendance</div>'
     return f'''<div class="card">
   <h3 style="margin-top:0">Median earnings (10-yr)</h3>
@@ -1710,7 +1710,7 @@ def _render_sub_school_block(slug, highlight_keywords=None):
     rows = ""
     for i, e in enumerate(subs):
         is_match = (i == matched_idx)
-        bg = "background:rgba(94,234,212,.06);border-left:2px solid var(--teal);padding-left:10px;margin-left:-12px;" if is_match else ""
+        bg = "background:rgba(95,201,182,.06);border-left:2px solid var(--teal);padding-left:10px;margin-left:-12px;" if is_match else ""
         match_pill = ' <span style="font-size:.7em;color:var(--teal);font-weight:600;letter-spacing:.3px">YOUR MAJOR</span>' if is_match else ""
         note = e.get("note","")
         note_html = f'<div class="muted" style="font-size:.78em;line-height:1.4">{note}</div>' if note else ""
@@ -5773,7 +5773,7 @@ def fetch_articles(college_slug):
 
 # ─── HTML / CSS ───────────────────────────────────────────
 BASE_CSS = """
-@import url('https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600;6..72,700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600;6..72,700&display=swap');
 :root{
   --bg:#070d14;
   --bg-2:#0a131c;
@@ -5785,21 +5785,21 @@ BASE_CSS = """
   --text:#e6edf3;
   --text-2:#9aa6b6;
   --text-3:#5e6b7c;
-  --teal:#5eead4;
-  --teal-2:#2dd4bf;
+  --teal:#5fc9b6;
+  --teal-2:#36b8a8;
   --teal-dim:#0f3a37;
   --blue:#38bdf8;
-  --accent-grad:linear-gradient(135deg,#38bdf8 0%,#5eead4 100%);
-  --glow:0 0 24px rgba(94,234,212,.18);
+  --accent-grad:linear-gradient(135deg,#38bdf8 0%,#5fc9b6 100%);
+  --glow:0 0 24px rgba(95,201,182,.18);
   --shadow-card:0 1px 0 rgba(255,255,255,.03) inset, 0 8px 24px rgba(0,0,0,.35);
 }
 *{box-sizing:border-box}
-html,body{background:var(--bg);font-family:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',sans-serif}
+html,body{background:var(--bg);font-family:'Hanken Grotesk',-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',sans-serif}
 body{
   margin:0;
-  font-family:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',sans-serif;
+  font-family:'Hanken Grotesk',-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',sans-serif;
   background:radial-gradient(ellipse at 12% -10%, rgba(56,189,248,.07), transparent 50%),
-             radial-gradient(ellipse at 88% 110%, rgba(94,234,212,.06), transparent 50%),
+             radial-gradient(ellipse at 88% 110%, rgba(95,201,182,.06), transparent 50%),
              var(--bg);
   background-attachment:fixed;
   color:var(--text);
@@ -5807,7 +5807,7 @@ body{
   -webkit-font-smoothing:antialiased;
 }
 a{color:var(--teal);text-decoration:none}
-a:hover{color:#7df0db}
+a:hover{color:#79d8c8}
 .wrap{max-width:1180px;margin:0 auto;padding:0 24px 80px}
 .nav{
   display:flex;align-items:center;gap:22px;padding:16px 28px;
@@ -5835,7 +5835,7 @@ p{color:var(--text)}
   cursor:pointer;font-size:.93em;text-decoration:none;font-family:inherit;
   transition:all .15s ease;
 }
-.btn:hover{background:var(--surface-hover);border-color:rgba(94,234,212,.3);color:var(--text);text-decoration:none}
+.btn:hover{background:var(--surface-hover);border-color:rgba(95,201,182,.3);color:var(--text);text-decoration:none}
 .btn-primary{
   background:var(--accent-grad);color:#031715;border:0;
   box-shadow:0 8px 20px rgba(56,189,248,.18);
@@ -5865,7 +5865,7 @@ input,select,textarea{
 textarea{min-height:80px;resize:vertical}
 input:focus,select:focus,textarea:focus{
   outline:0;border-color:var(--teal);
-  box-shadow:0 0 0 3px rgba(94,234,212,.12);
+  box-shadow:0 0 0 3px rgba(95,201,182,.12);
 }
 input[type="checkbox"]{accent-color:var(--teal);width:auto}
 input::placeholder,textarea::placeholder{color:var(--text-3)}
@@ -5877,30 +5877,30 @@ input::placeholder,textarea::placeholder{color:var(--text-3)}
 .pill-dream{background:rgba(244,114,182,.12);color:#f9a8d4;border-color:rgba(244,114,182,.22)}
 .pill-reach{background:rgba(251,191,36,.12);color:#fcd34d;border-color:rgba(251,191,36,.22)}
 .pill-target{background:rgba(56,189,248,.12);color:#7dd3fc;border-color:rgba(56,189,248,.22)}
-.pill-safety{background:rgba(94,234,212,.12);color:var(--teal);border-color:rgba(94,234,212,.22)}
+.pill-safety{background:rgba(95,201,182,.12);color:var(--teal);border-color:rgba(95,201,182,.22)}
 .pill-tier-1{background:var(--accent-grad);color:#031715;border:0;font-weight:700}
-.pill-tier-2{background:rgba(94,234,212,.14);color:var(--teal);border-color:rgba(94,234,212,.22)}
+.pill-tier-2{background:rgba(95,201,182,.14);color:var(--teal);border-color:rgba(95,201,182,.22)}
 .pill-tier-3{background:rgba(56,189,248,.12);color:#7dd3fc;border-color:rgba(56,189,248,.22)}
 .pill-tier-4{background:var(--surface-2);color:var(--text-2)}
 .pill-tier-5{background:var(--surface-2);color:var(--text-3)}
-.pill-public{background:rgba(94,234,212,.12);color:var(--teal);border-color:rgba(94,234,212,.22)}
+.pill-public{background:rgba(95,201,182,.12);color:var(--teal);border-color:rgba(95,201,182,.22)}
 .pill-private{background:rgba(167,139,250,.12);color:#c4b5fd;border-color:rgba(167,139,250,.22)}
 .pill-conf-low{background:var(--surface-2);color:var(--text-3)}
 .pill-conf-medium{background:rgba(56,189,248,.10);color:#7dd3fc;border-color:rgba(56,189,248,.18)}
-.pill-conf-high{background:rgba(94,234,212,.12);color:var(--teal);border-color:rgba(94,234,212,.22)}
+.pill-conf-high{background:rgba(95,201,182,.12);color:var(--teal);border-color:rgba(95,201,182,.22)}
 .odds{
   font-size:2.4em;font-weight:800;letter-spacing:-1px;margin:10px 0 4px;
   background:var(--accent-grad);
   -webkit-background-clip:text;background-clip:text;
   -webkit-text-fill-color:transparent;color:transparent;
-  filter:drop-shadow(0 0 12px rgba(94,234,212,.25));
+  filter:drop-shadow(0 0 12px rgba(95,201,182,.25));
 }
 .flash{
   padding:12px 16px;background:rgba(56,189,248,.06);border:1px solid rgba(56,189,248,.2);
   border-radius:4px;margin-bottom:16px;font-size:.9em;color:var(--text);
 }
 .flash.error{background:rgba(244,114,182,.08);border-color:rgba(244,114,182,.25);color:#f9a8d4}
-.flash.success{background:rgba(94,234,212,.08);border-color:rgba(94,234,212,.25);color:var(--teal)}
+.flash.success{background:rgba(95,201,182,.08);border-color:rgba(95,201,182,.25);color:var(--teal)}
 .search{display:flex;gap:10px;margin:8px 0 22px}
 .search input{flex:1}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
@@ -5909,10 +5909,10 @@ input::placeholder,textarea::placeholder{color:var(--text-3)}
   border-radius:5px;padding:16px;transition:all .2s ease;
 }
 .school-card:hover{
-  border-color:rgba(94,234,212,.3);
+  border-color:rgba(95,201,182,.3);
   background:var(--surface-hover);
   transform:translateY(-2px);
-  box-shadow:0 12px 28px rgba(0,0,0,.4),0 0 0 1px rgba(94,234,212,.08);
+  box-shadow:0 12px 28px rgba(0,0,0,.4),0 0 0 1px rgba(95,201,182,.08);
   text-decoration:none;
 }
 .school-card a, .school-card a *{color:var(--text)}
@@ -5924,7 +5924,7 @@ input::placeholder,textarea::placeholder{color:var(--text-3)}
   background:var(--surface);border:1px solid var(--border);border-radius:5px;margin-bottom:10px;
   transition:all .15s ease;
 }
-.rank-row:hover{border-color:rgba(94,234,212,.2);background:var(--surface-hover)}
+.rank-row:hover{border-color:rgba(95,201,182,.2);background:var(--surface-hover)}
 .rank-row .num{font-size:1.3em;font-weight:700;color:var(--text-3);min-width:30px;text-align:center;font-variant-numeric:tabular-nums}
 .rank-row .body{flex:1}
 .rank-row .body .nm{font-weight:600;color:var(--text)}
@@ -5940,7 +5940,7 @@ table th{color:var(--text-2);font-weight:500;text-align:left;font-size:.82em;let
 table tbody tr{border-top:1px solid var(--border)}
 table td{padding:10px 6px;color:var(--text)}
 hr{border:0;border-top:1px solid var(--border);margin:24px 0}
-::selection{background:rgba(94,234,212,.25);color:#fff}
+::selection{background:rgba(95,201,182,.25);color:#fff}
 /* Stat card emphasis */
 .stat-card{
   background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:22px;
@@ -5948,7 +5948,7 @@ hr{border:0;border-top:1px solid var(--border);margin:24px 0}
 }
 .stat-card::before{
   content:"";position:absolute;top:0;left:0;right:0;height:1px;
-  background:linear-gradient(90deg,transparent,rgba(94,234,212,.4),transparent);
+  background:linear-gradient(90deg,transparent,rgba(95,201,182,.4),transparent);
   opacity:.6;
 }
 .stat-card .label{font-size:.78em;color:var(--text-2);text-transform:uppercase;letter-spacing:.6px;font-weight:500}
@@ -5958,8 +5958,8 @@ hr{border:0;border-top:1px solid var(--border);margin:24px 0}
   -webkit-text-fill-color:transparent;color:transparent;
 }
 .stat-card .delta{font-size:.78em;color:var(--text-2);margin-top:4px}
-.pick-pill:hover{background:var(--surface-hover)!important;border-color:rgba(94,234,212,.3)!important}
-.pick-pill:has(input:checked){background:rgba(94,234,212,.12)!important;border-color:rgba(94,234,212,.45)!important;color:var(--teal)!important}
+.pick-pill:hover{background:var(--surface-hover)!important;border-color:rgba(95,201,182,.3)!important}
+.pick-pill:has(input:checked){background:rgba(95,201,182,.12)!important;border-color:rgba(95,201,182,.45)!important;color:var(--teal)!important}
 /* ───────── MOBILE ───────── */
 @media (max-width: 720px){
   html,body{overflow-x:hidden}
@@ -6042,9 +6042,9 @@ hr{border:0;border-top:1px solid var(--border);margin:24px 0}
 .action-item:first-child{border-top:0;padding-top:6px}
 .action-num{
   flex-shrink:0;width:32px;height:32px;border-radius:50%;
-  background:rgba(94,234,212,.12);color:var(--teal);
+  background:rgba(95,201,182,.12);color:var(--teal);
   display:flex;align-items:center;justify-content:center;
-  font-weight:700;font-size:.95em;border:1px solid rgba(94,234,212,.3);
+  font-weight:700;font-size:.95em;border:1px solid rgba(95,201,182,.3);
 }
 .action-body{flex:1}
 .action-title{font-weight:600;color:var(--text);font-size:1.02em;margin-bottom:6px}
@@ -6052,8 +6052,8 @@ hr{border:0;border-top:1px solid var(--border);margin:24px 0}
 .meta-label{color:var(--text-3);font-weight:500;margin-right:4px;text-transform:uppercase;font-size:.78em;letter-spacing:.4px}
 .action-impact{
   display:inline-block;margin-top:8px;padding:4px 10px;border-radius:6px;
-  background:rgba(94,234,212,.08);color:var(--teal);font-size:.82em;font-weight:500;
-  border:1px solid rgba(94,234,212,.2);
+  background:rgba(95,201,182,.08);color:var(--teal);font-size:.82em;font-weight:500;
+  border:1px solid rgba(95,201,182,.2);
 }
 /* Competition / program rows */
 .comp-row{padding:14px 0;border-top:1px solid var(--border)}
@@ -6069,7 +6069,7 @@ CANDOR_LOGO_SVG = """<svg viewBox="0 0 64 64" width="22" height="22" xmlns="http
   <defs>
     <linearGradient id="cdr-g" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#38bdf8"/>
-      <stop offset="100%" stop-color="#5eead4"/>
+      <stop offset="100%" stop-color="#5fc9b6"/>
     </linearGradient>
   </defs>
   <path d="M 52 16 A 22 22 0 1 0 52 48" stroke="url(#cdr-g)" stroke-width="6" fill="none" stroke-linecap="round"/>
@@ -6087,7 +6087,7 @@ NAV = """<div class="nav"><a class="brand" href="/">""" + CANDOR_LOGO_SVG + """C
 <a href="/plans">My Colleges</a>
 <a href="/plans/grade">List Grade</a>
 <a href="/plans/strategist">Strategist</a>
-<a href="/upgrade" style="color:#5eead4">Premium</a>
+<a href="/upgrade" style="color:#5fc9b6">Premium</a>
 <span class="sp"></span>
 __USER_LINKS__
 </div>"""
@@ -6299,11 +6299,11 @@ def college_detail_html(slug):
     over = _get_overrides(slug)
     verified_badge = ""
     if is_cds_verified(slug):
-        verified_badge = '<span style="font-size:.74em;background:rgba(94,234,212,.18);color:var(--teal);padding:3px 10px;border-radius:999px;margin-left:8px;border:1px solid rgba(94,234,212,.35);font-weight:600;letter-spacing:.3px" title="Stats hand-verified against the school\'s most recent Common Data Set (2024-25 or 2025-26 cycle)">CDS VERIFIED</span>'
+        verified_badge = '<span style="font-size:.74em;background:rgba(95,201,182,.18);color:var(--teal);padding:3px 10px;border-radius:999px;margin-left:8px;border:1px solid rgba(95,201,182,.35);font-weight:600;letter-spacing:.3px" title="Stats hand-verified against the school\'s most recent Common Data Set (2024-25 or 2025-26 cycle)">CDS VERIFIED</span>'
     elif slug in MANUAL_FRESH_ACCEPT:
-        verified_badge = '<span style="font-size:.74em;background:rgba(94,234,212,.12);color:var(--teal);padding:3px 10px;border-radius:999px;margin-left:8px;border:1px solid rgba(94,234,212,.25);font-weight:500;letter-spacing:.3px">2024-25 CYCLE</span>'
+        verified_badge = '<span style="font-size:.74em;background:rgba(95,201,182,.12);color:var(--teal);padding:3px 10px;border-radius:999px;margin-left:8px;border:1px solid rgba(95,201,182,.25);font-weight:500;letter-spacing:.3px">2024-25 CYCLE</span>'
     elif over and over.get("source"):
-        verified_badge = f'<span style="font-size:.74em;background:rgba(94,234,212,.10);color:var(--teal);padding:3px 10px;border-radius:999px;margin-left:8px;border:1px solid rgba(94,234,212,.22);font-weight:500;letter-spacing:.3px">VERIFIED · federal data</span>'
+        verified_badge = f'<span style="font-size:.74em;background:rgba(95,201,182,.10);color:var(--teal);padding:3px 10px;border-radius:999px;margin-left:8px;border:1px solid rgba(95,201,182,.22);font-weight:500;letter-spacing:.3px">VERIFIED · federal data</span>'
     majors_tags = "".join(f'<span class="tag">{m}</span>' for m in c["majors"])
     type_pill = f'<span class="pill pill-{c["type"]}">{c["type"]}</span>'
     tier_pill = f'<span class="pill pill-tier-{c["tier"]}">Tier {c["tier"]}</span>'
@@ -6442,13 +6442,13 @@ RANKING_TABLE_CSS = """
 .rank-table{width:100%;border-collapse:collapse;background:var(--surface);border:1px solid var(--border);border-radius:6px;overflow:hidden;font-size:.92em;box-shadow:var(--shadow-card)}
 .rank-table th{background:rgba(255,255,255,.02);text-align:left;padding:13px 16px;color:var(--text-2);font-weight:500;font-size:.74em;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border)}
 .rank-table td{padding:13px 16px;border-bottom:1px solid var(--border);vertical-align:middle;color:var(--text)}
-.rank-table tr:hover td{background:rgba(94,234,212,.04)}
+.rank-table tr:hover td{background:rgba(95,201,182,.04)}
 .rank-table tr:last-child td{border-bottom:0}
 .rank-table .rank-num{font-weight:600;color:var(--text-3);font-variant-numeric:tabular-nums}
 .rank-table .name a{color:var(--text);font-weight:600}
 .rank-table .name a:hover{color:var(--teal)}
 .rank-table .num-col{font-variant-numeric:tabular-nums;color:var(--text-2)}
-.rank-table .stars{color:var(--teal);letter-spacing:1px;filter:drop-shadow(0 0 6px rgba(94,234,212,.25))}
+.rank-table .stars{color:var(--teal);letter-spacing:1px;filter:drop-shadow(0 0 6px rgba(95,201,182,.25))}
 .rank-table .stars-empty{color:rgba(255,255,255,.12)}
 @media(max-width:720px){.rank-table th.hide-sm,.rank-table td.hide-sm{display:none}}
 </style>
@@ -6765,7 +6765,7 @@ def _auth_hook_html():
         "predictor":"What-if simulator — see how SAT +60 or ACT +2 moves your odds at each saved school.",
         "timeline": "Application + financial aid + decision deadlines, grouped by month, calibrated to the schools you care about.",
     }
-    return f"""<div class="card" style="max-width:440px;background:rgba(94,234,212,.08);border-color:rgba(94,234,212,.25);margin-bottom:14px">
+    return f"""<div class="card" style="max-width:440px;background:rgba(95,201,182,.08);border-color:rgba(95,201,182,.25);margin-bottom:14px">
   <div style="font-weight:600;color:var(--teal);margin-bottom:6px">{headline_map[intent]}</div>
   <p class="muted" style="margin:0;font-size:.85em;line-height:1.5">{detail_map[intent]}</p>
 </div>"""
@@ -7056,7 +7056,7 @@ def profile_html():
     <summary style="cursor:pointer;font-size:.92em;color:var(--text-2)">Section subscores <span class="muted">(optional — helps STEM-focused schools)</span></summary>
     <p class="muted" style="font-size:.84em;margin:8px 0 14px">A composite score hides imbalance. A 1450 SAT split 800/650 reads very differently at MIT/Caltech/CMU CS than a balanced 730/720. Only fill in subscores for the test you actually took.</p>
 
-    <div style="border:1px solid var(--border);border-radius:6px;padding:14px 16px;margin-bottom:12px;background:rgba(94,234,212,.03)">
+    <div style="border:1px solid var(--border);border-radius:6px;padding:14px 16px;margin-bottom:12px;background:rgba(95,201,182,.03)">
       <div style="font-weight:700;font-size:.92em;color:var(--teal);margin-bottom:10px;letter-spacing:.3px">SAT subscores <span class="muted" style="font-weight:400;font-size:.85em">(scale: 200–800 each)</span></div>
       <div class="row">
         <div><label>SAT EBRW <span class="muted">(reading + writing)</span></label>
@@ -7268,7 +7268,7 @@ def chances_html(slug):
   </div>
   <div class="odds" style="color:#2b6cff">{r['odds_low']}–{r['odds_high']}%</div>
   <div class="muted" style="font-size:.82em">your estimated chances</div>
-  {(f'<div style="margin-top:14px;padding:10px 14px;background:rgba(94,234,212,.08);border:1px solid rgba(94,234,212,.25);border-radius:4px;font-size:.88em"><b style="color:var(--teal)">★ Exceptional applicant override</b><div class="muted" style="margin-top:4px">{exc_reason or "Flagged exceptional based on your profile."} Your odds reflect this above the standard cap.</div></div>' if profile.get('is_exceptional') else '')}
+  {(f'<div style="margin-top:14px;padding:10px 14px;background:rgba(95,201,182,.08);border:1px solid rgba(95,201,182,.25);border-radius:4px;font-size:.88em"><b style="color:var(--teal)">★ Exceptional applicant override</b><div class="muted" style="margin-top:4px">{exc_reason or "Flagged exceptional based on your profile."} Your odds reflect this above the standard cap.</div></div>' if profile.get('is_exceptional') else '')}
   {(lambda _sch, _det: (lambda _sub: render_admissions_breakdown(_sch, _det, personalized_rates=personalize_round_odds(uid, _sch, _det, profile, r['odds_low'], r['odds_high'], sub_school=_sub), scale=(((r.get('odds_low',0)+r.get('odds_high',0))/2.0) / r['accept_rate_pct']) if r.get('accept_rate_pct') else 1.0, sub_school=_sub))(sub_school_for_major(r['slug'], profile.get('major') or '')))(COLLEGES_BY_SLUG.get(r['slug']), admissions_detail(COLLEGES_BY_SLUG.get(r['slug'])))}
   <ul style="padding-left:18px;margin:18px 0 0">
     <li><b>Strength —</b> {r['strength']}</li>
@@ -7288,8 +7288,8 @@ def chances_html(slug):
   </ul>
   <p class="muted" style="font-size:.82em;margin-top:8px"><i>tldr: a high-confidence "5-12%" means probably 5-12%. A low-confidence "5-12%" means the real range could be 2-25%.</i></p>
 </details>
-<div class="card" style="margin-top:18px;background:linear-gradient(135deg,#0f3a37 0%,#0a131c 100%);border:1px solid rgba(94,234,212,.3)">
-  <div style="font-size:.74em;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#5eead4;margin-bottom:6px">Next step</div>
+<div class="card" style="margin-top:18px;background:linear-gradient(135deg,#0f3a37 0%,#0a131c 100%);border:1px solid rgba(95,201,182,.3)">
+  <div style="font-size:.74em;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#5fc9b6;margin-bottom:6px">Next step</div>
   <h3 style="margin:0 0 8px;color:#e6edf3">Turn this number into a plan</h3>
   <p class="muted" style="margin:0 0 14px;line-height:1.55">Candor Premium ($10 once) unlocks a personalized strategy for {r['school']}, score-push impact, and your list grader. Or share this report with your parents and let them decide.</p>
   <a class="btn btn-primary btn-sm" href="/upgrade">Upgrade — $10 once</a>
@@ -7589,8 +7589,8 @@ def school_improve_html(slug):
             except Exception as e:
                 print(f"tailored advice (improve) error: {e}")
         else:
-            tailored_card = f"""<div class="card" style="background:linear-gradient(135deg,#0f3a37 0%,#0a131c 100%);border:1px solid rgba(94,234,212,.3)">
-  <div style="font-size:.74em;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#5eead4;margin-bottom:6px">Candor Premium</div>
+            tailored_card = f"""<div class="card" style="background:linear-gradient(135deg,#0f3a37 0%,#0a131c 100%);border:1px solid rgba(95,201,182,.3)">
+  <div style="font-size:.74em;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#5fc9b6;margin-bottom:6px">Candor Premium</div>
   <h3 style="margin-top:0;color:#e6edf3">Your personalized strategy for {school['name']}</h3>
   <p class="muted" style="margin:0 0 12px;line-height:1.55">Concrete actions calibrated to your stats, ECs, and what {school['name']} actually weights — written for your profile, not generic advice. <b style="color:#e6edf3">Unlock with Candor Premium ($10 once)</b>.</p>
   <a class="btn btn-primary btn-sm" href="/upgrade">See what Premium includes →</a>
@@ -7628,8 +7628,8 @@ def school_improve_html(slug):
     # ─── Score push impact ───
     score_card = ""
     if profile and (profile.get("sat") or profile.get("act")) and not is_paid:
-        score_card = f"""<div class="card" style="background:linear-gradient(135deg,#0f3a37 0%,#0a131c 100%);border:1px solid rgba(94,234,212,.3)">
-  <div style="font-size:.74em;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#5eead4;margin-bottom:6px">Candor Premium</div>
+        score_card = f"""<div class="card" style="background:linear-gradient(135deg,#0f3a37 0%,#0a131c 100%);border:1px solid rgba(95,201,182,.3)">
+  <div style="font-size:.74em;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#5fc9b6;margin-bottom:6px">Candor Premium</div>
   <h3 style="margin-top:0;color:#e6edf3">Score push impact</h3>
   <p class="muted" style="margin:0 0 12px;line-height:1.55">See exactly how a +60 SAT or +2 ACT moves your odds at {school['name']} — so you can decide if a retake is actually worth your time. <b style="color:#e6edf3">$10 once</b>.</p>
   <a class="btn btn-primary btn-sm" href="/upgrade">Unlock score push impact →</a>
@@ -8596,7 +8596,7 @@ def school_profiles_html(slug):
                 essay_inner += f"""<div class="card" style="margin-bottom:10px">
                   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px">
                     <span style="font-weight:600;color:var(--text)">{prompt}</span>
-                    <span style="font-size:.74em;color:{outcome_color};padding:3px 11px;border-radius:999px;border:1px solid rgba(94,234,212,.2);background:rgba(94,234,212,.08);font-weight:600;letter-spacing:.4px;text-transform:uppercase">{outcome} · {words} words</span>
+                    <span style="font-size:.74em;color:{outcome_color};padding:3px 11px;border-radius:999px;border:1px solid rgba(95,201,182,.2);background:rgba(95,201,182,.08);font-weight:600;letter-spacing:.4px;text-transform:uppercase">{outcome} · {words} words</span>
                   </div>
                   <div style="font-size:.92em;line-height:1.65;color:var(--text);font-family:Georgia,serif;background:var(--bg-2);padding:14px;border-radius:4px;border:1px solid var(--border)">{essay_text}</div>
                 </div>"""
@@ -8774,8 +8774,8 @@ def school_plan_html(slug):
         advice_body = get_tailored_advice(user["id"], school, prof, force=force_refresh)
         advice_html = _render_tailored_advice(advice_body)
     else:
-        advice_html = f"""<div class="card" style="background:linear-gradient(135deg,#0f3a37 0%,#0a131c 100%);border:1px solid rgba(94,234,212,.3)">
-          <div style="font-size:.74em;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#5eead4;margin-bottom:6px">Candor Premium · $10 once</div>
+        advice_html = f"""<div class="card" style="background:linear-gradient(135deg,#0f3a37 0%,#0a131c 100%);border:1px solid rgba(95,201,182,.3)">
+          <div style="font-size:.74em;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#5fc9b6;margin-bottom:6px">Candor Premium · $10 once</div>
           <h3 style="margin:0 0 8px">Your personalized strategy for {school['name']}</h3>
           <p class="muted" style="margin:0 0 14px">Get AI strategy calibrated to your stats, ECs, and what {school['name']} actually weights — what to highlight, what to fix, and where this school fits your list. Plus the score predictor, list grader, and admissions simulator.</p>
           <a class="btn btn-primary" href="/upgrade" style="display:inline-block">Unlock my strategy — $10 once &rarr;</a>
@@ -8793,7 +8793,7 @@ def school_plan_html(slug):
     if sub_match:
         sub_pct = round(sub_match["accept"]*100, 1)
         sub_school_html = f'''
-<div class="card" style="margin-top:14px;background:rgba(94,234,212,.06);border:1px solid rgba(94,234,212,.3);padding:14px 18px">
+<div class="card" style="margin-top:14px;background:rgba(95,201,182,.06);border:1px solid rgba(95,201,182,.3);padding:14px 18px">
   <div style="font-size:.78em;letter-spacing:.6px;color:var(--teal);text-transform:uppercase;font-weight:600">You're applying to a specific college within {school["name"]}</div>
   <div style="font-size:1.2em;font-weight:700;margin-top:4px">{sub_match["name"]}</div>
   <div class="muted" style="font-size:.88em;margin-top:4px">Admit rate <b style="color:var(--teal)">{sub_pct}%</b> for this college specifically (vs {header_accept}% university-wide). {school["name"]}'s overall acceptance number doesn't apply to {sub_match["name"]} applicants — your odds below are computed against the {sub_pct}% rate.</div>
@@ -8910,7 +8910,7 @@ def plans_index_html():
         return _page("""
 <h1>My Colleges</h1>
 <p class="muted">Each school you've saved or computed chances for shows up here, grouped by application round, with a list grader and admissions simulator.</p>
-<div class="card" style="background:rgba(94,234,212,.06);border-color:rgba(94,234,212,.3)">
+<div class="card" style="background:rgba(95,201,182,.06);border-color:rgba(95,201,182,.3)">
   <h3 style="margin-top:0">No plans yet</h3>
   <p>Pick a school to get started:</p>
   <a class="btn btn-primary" href="/colleges">Browse colleges</a>
@@ -8925,8 +8925,8 @@ def plans_index_html():
 <h1>My Colleges</h1>
 <p class="muted">Strategic dashboard for your full college list — round assignments, list grader, and admissions simulator.</p>
 
-<div class="card" style="background:linear-gradient(135deg,#0f3a37 0%,#0a131c 100%);border:1px solid rgba(94,234,212,.3);padding:32px">
-  <div style="font-size:.78em;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#5eead4;margin-bottom:8px">Candor Premium · $10 once</div>
+<div class="card" style="background:linear-gradient(135deg,#0f3a37 0%,#0a131c 100%);border:1px solid rgba(95,201,182,.3);padding:32px">
+  <div style="font-size:.78em;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#5fc9b6;margin-bottom:8px">Candor Premium · $10 once</div>
   <h2 style="margin:0 0 14px">Turn your chances into a real plan</h2>
   <ul style="line-height:1.9;padding-left:18px;margin:0 0 18px">
     <li><b>List grader + admissions simulator</b> — score your full list 1–10, simulate ED/EA/RD outcomes across every school</li>
@@ -8991,7 +8991,7 @@ def plans_index_html():
                 prof_dict = {k: profile.get(k) for k in profile.keys()}
                 cm = merged_school(c)
                 overall, _ = compute_my_fit(prof_dict, cm)
-                col = "#5eead4" if overall >= 80 else ("#fbbf24" if overall >= 60 else "#fca5a5")
+                col = "#5fc9b6" if overall >= 80 else ("#fbbf24" if overall >= 60 else "#fca5a5")
                 match_score = f'<div class="muted" style="font-size:.82em;margin-top:4px">My Fit: <span style="color:{col};font-weight:700">{overall}/100</span></div>'
             # Round selector
             supported = _supported_rounds_for_slug(slug)
@@ -9004,10 +9004,10 @@ def plans_index_html():
             round_select = f'<select onchange="setRound(\'{slug}\',this.value)" style="font-size:.78em;padding:3px 6px;border-radius:4px;background:var(--surface-2);color:var(--text);border:1px solid var(--border-strong)">' + "".join(opts) + '</select>'
             # Card body
             if it["computed"]:
-                odds_html = f'<div style="font-size:1.4em;font-weight:800;color:#5eead4;margin-top:8px">{it["odds_low"]}–{it["odds_high"]}%</div>'
+                odds_html = f'<div style="font-size:1.4em;font-weight:800;color:#5fc9b6;margin-top:8px">{it["odds_low"]}–{it["odds_high"]}%</div>'
                 tier_pill = f'<span class="pill {tier_class}">{it["tier"]}</span>'
             else:
-                odds_html = '<div style="font-size:.88em;color:#5eead4;margin-top:8px">Compute chances →</div>'
+                odds_html = '<div style="font-size:.88em;color:#5fc9b6;margin-top:8px">Compute chances →</div>'
                 tier_pill = ""
             section_html += f'''
 <div class="school-card" style="position:relative;padding:14px">
@@ -9246,13 +9246,13 @@ CHAT_PAGE_HTML = """
 .msg-bubble li{margin:2px 0}
 .chat-input{display:flex;gap:10px;align-items:flex-end}
 .chat-input textarea{flex:1;min-height:50px;max-height:160px;padding:12px 14px;border:1px solid var(--border-strong);border-radius:4px;font-family:inherit;resize:vertical;font-size:.95em;background:var(--bg-2);color:var(--text)}
-.chat-input textarea:focus{outline:0;border-color:var(--teal);box-shadow:0 0 0 3px rgba(94,234,212,.12)}
+.chat-input textarea:focus{outline:0;border-color:var(--teal);box-shadow:0 0 0 3px rgba(95,201,182,.12)}
 .chat-input button{padding:12px 24px;border-radius:4px;border:0;background:var(--accent-grad);color:#031715;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 8px 20px rgba(56,189,248,.18);transition:filter .15s}
 .chat-input button:hover{filter:brightness(1.05)}
 .chat-input button:disabled{opacity:.6;cursor:wait;filter:grayscale(.4)}
 .suggestions{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0 18px}
 .suggestion{background:var(--surface-2);border:1px solid var(--border-strong);border-radius:999px;padding:7px 14px;font-size:.83em;cursor:pointer;color:var(--text-2);transition:all .15s;font-family:inherit}
-.suggestion:hover{border-color:rgba(94,234,212,.4);color:var(--teal);background:var(--surface-hover)}
+.suggestion:hover{border-color:rgba(95,201,182,.4);color:var(--teal);background:var(--surface-hover)}
 .typing{display:flex;gap:4px;padding:11px 15px;background:var(--surface-2);border:1px solid var(--border-strong);border-radius:6px;width:fit-content}
 .typing span{width:7px;height:7px;background:var(--teal);border-radius:50%;animation:typing 1.2s infinite}
 .typing span:nth-child(2){animation-delay:.2s}
@@ -9353,7 +9353,7 @@ def general_chat_html():
     sug_html = "".join(f'<button class="suggestion" onclick="suggestionClick(this.innerText)">{s}</button>' for s in suggestions)
     usage = usage_status(user["id"])
     if usage.get("is_paid"):
-        usage_pill = f'<span id="usage-pill" style="font-size:.74em;background:rgba(94,234,212,.12);color:var(--teal);padding:3px 10px;border-radius:999px;border:1px solid rgba(94,234,212,.25);font-weight:500;margin-left:10px">PREMIUM · {usage["month_used"]}/{PAID_MONTHLY_LIMIT}</span>'
+        usage_pill = f'<span id="usage-pill" style="font-size:.74em;background:rgba(95,201,182,.12);color:var(--teal);padding:3px 10px;border-radius:999px;border:1px solid rgba(95,201,182,.25);font-weight:500;margin-left:10px">PREMIUM · {usage["month_used"]}/{PAID_MONTHLY_LIMIT}</span>'
     else:
         rem = usage["free_remaining"]
         usage_pill = f'<span id="usage-pill" style="font-size:.74em;background:var(--surface-2);color:var(--text-2);padding:3px 10px;border-radius:999px;border:1px solid var(--border-strong);margin-left:10px">FREE · {rem} of {FREE_TRIAL_MESSAGES} left · <a href="/upgrade" style="color:var(--teal)">Upgrade</a></span>'
@@ -9390,7 +9390,7 @@ def school_chat_html(slug):
     sug_html = "".join(f'<button class="suggestion" onclick="suggestionClick(this.innerText)">{s}</button>' for s in suggestions)
     usage = usage_status(user["id"])
     if usage.get("is_paid"):
-        usage_pill = f'<span id="usage-pill" style="font-size:.74em;background:rgba(94,234,212,.12);color:var(--teal);padding:3px 10px;border-radius:999px;border:1px solid rgba(94,234,212,.25);font-weight:500;margin-left:10px">PREMIUM · {usage["month_used"]}/{PAID_MONTHLY_LIMIT}</span>'
+        usage_pill = f'<span id="usage-pill" style="font-size:.74em;background:rgba(95,201,182,.12);color:var(--teal);padding:3px 10px;border-radius:999px;border:1px solid rgba(95,201,182,.25);font-weight:500;margin-left:10px">PREMIUM · {usage["month_used"]}/{PAID_MONTHLY_LIMIT}</span>'
     else:
         rem = usage["free_remaining"]
         usage_pill = f'<span id="usage-pill" style="font-size:.74em;background:var(--surface-2);color:var(--text-2);padding:3px 10px;border-radius:999px;border:1px solid var(--border-strong);margin-left:10px">FREE · {rem} of {FREE_TRIAL_MESSAGES} left · <a href="/upgrade" style="color:var(--teal)">Upgrade</a></span>'
@@ -9736,7 +9736,7 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
   }
   .blob-1 {
     width: 60vw; height: 60vw;
-    background: radial-gradient(circle, rgba(94,234,212,.55), transparent 60%);
+    background: radial-gradient(circle, rgba(95,201,182,.55), transparent 60%);
     animation: blob1-travel 22s linear infinite, blob-pulse 8s ease-in-out infinite;
     top: -10vh; left: -20vw;
   }
@@ -9748,7 +9748,7 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
   }
   .blob-3 {
     width: 50vw; height: 50vw;
-    background: radial-gradient(circle, rgba(45,212,191,.38), transparent 60%);
+    background: radial-gradient(circle, rgba(54,184,168,.38), transparent 60%);
     animation: blob3-travel 25s linear infinite, blob-pulse 9s ease-in-out infinite;
     top: 60vh; left: 30vw;
   }
@@ -9779,20 +9779,20 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
   }
   .lp-wrap { max-width:1500px; margin:0 auto; padding:0 24px; position: relative; z-index: 2; }
   .hero { padding:40px 0 60px; text-align:left; max-width:780px; }
-  .hero .eyebrow { display:inline-block; font-size:.78em; font-weight:600; letter-spacing:.8px; text-transform:uppercase; color:#5eead4; padding:5px 12px; border:1px solid rgba(94,234,212,.25); border-radius:999px; background:rgba(94,234,212,.06); margin-bottom:22px; }
+  .hero .eyebrow { display:inline-block; font-size:.78em; font-weight:600; letter-spacing:.8px; text-transform:uppercase; color:#5fc9b6; padding:5px 12px; border:1px solid rgba(95,201,182,.25); border-radius:999px; background:rgba(95,201,182,.06); margin-bottom:22px; }
   .hero h1 { font-size:clamp(2.4em,5vw,3.6em); font-weight:700; letter-spacing:-1.5px; line-height:1.06; margin:0 0 22px; color:#e6edf3; }
-  .hero h1 .accent { color:#5eead4; }
+  .hero h1 .accent { color:#5fc9b6; }
   .hero p.lede { font-size:1.18em; color:#9aa6b6; max-width:620px; margin:0 0 32px; line-height:1.55; }
   .hero .cta-row { display:flex; gap:14px; flex-wrap:wrap; align-items:center; }
   .hero .cta-row a { display:inline-flex; align-items:center; gap:8px; padding:12px 22px; border-radius:4px; font-weight:600; text-decoration:none; transition:all .18s; font-size:.97em; }
-  .hero .cta-row .primary { background:linear-gradient(135deg,#5eead4 0%,#2dd4bf 100%); color:#070d14; box-shadow:0 6px 24px rgba(94,234,212,.28); }
-  .hero .cta-row .primary:hover { transform:translateY(-1px); box-shadow:0 8px 30px rgba(94,234,212,.4); }
+  .hero .cta-row .primary { background:linear-gradient(135deg,#5fc9b6 0%,#36b8a8 100%); color:#070d14; box-shadow:0 6px 24px rgba(95,201,182,.28); }
+  .hero .cta-row .primary:hover { transform:translateY(-1px); box-shadow:0 8px 30px rgba(95,201,182,.4); }
   .hero .cta-row .secondary { color:#e6edf3; border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.03); }
-  .hero .cta-row .secondary:hover { border-color:rgba(94,234,212,.4); color:#5eead4; }
+  .hero .cta-row .secondary:hover { border-color:rgba(95,201,182,.4); color:#5fc9b6; }
   .hero .stats { display:flex; gap:36px; margin-top:48px; flex-wrap:wrap; }
   .hero .stats .stat { font-size:.88em; color:#9aa6b6; }
   .hero .stats .stat .num { display:block; font-size:1.9em; font-weight:700; color:#e6edf3; line-height:1; margin-bottom:4px; letter-spacing:-.5px; }
-  .hero .stats .stat .num .accent { color:#5eead4; }
+  .hero .stats .stat .num .accent { color:#5fc9b6; }
 
   .section { padding:90px 0; }
   .section h2 { font-size:clamp(1.7em,3vw,2.3em); font-weight:700; letter-spacing:-.6px; margin:0 0 16px; color:#e6edf3; }
@@ -9800,19 +9800,19 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
 
   .problem-card { background:#0d1620; border:1px solid rgba(255,255,255,.08); border-radius:6px; padding:36px; }
   .problem-card .quote { font-size:1.25em; line-height:1.5; color:#e6edf3; font-weight:500; margin:0 0 16px; }
-  .problem-card .quote strong { color:#5eead4; }
+  .problem-card .quote strong { color:#5fc9b6; }
   .problem-card .vs { display:flex; gap:14px; align-items:stretch; margin-top:20px; flex-wrap:wrap; }
   .problem-card .vs .col { flex:1; min-width:240px; padding:18px; border-radius:4px; }
   .problem-card .vs .wrong { background:rgba(239,68,68,.08); border:1px solid rgba(239,68,68,.22); }
-  .problem-card .vs .right { background:rgba(94,234,212,.08); border:1px solid rgba(94,234,212,.25); }
+  .problem-card .vs .right { background:rgba(95,201,182,.08); border:1px solid rgba(95,201,182,.25); }
   .problem-card .vs .label { font-size:.74em; font-weight:600; letter-spacing:.5px; text-transform:uppercase; opacity:.7; margin-bottom:6px; }
   .problem-card .vs .wrong .label { color:#fca5a5; }
-  .problem-card .vs .right .label { color:#5eead4; }
+  .problem-card .vs .right .label { color:#5fc9b6; }
   .problem-card .vs .num { font-size:1.6em; font-weight:700; letter-spacing:-.4px; color:#e6edf3; }
 
   /* ── Calibration receipt section ── */
   .proof-section { padding:80px 0 60px; }
-  .proof-eyebrow { font-size:.74em; font-weight:600; letter-spacing:1.6px; text-transform:uppercase; color:#5eead4; margin-bottom:18px; }
+  .proof-eyebrow { font-size:.74em; font-weight:600; letter-spacing:1.6px; text-transform:uppercase; color:#5fc9b6; margin-bottom:18px; }
   .proof-h2 { font-family:'Newsreader',Georgia,serif; font-size:clamp(1.9em,3.4vw,2.7em); font-weight:500; letter-spacing:-1px; line-height:1.1; margin:0 0 14px; color:#e6edf3; max-width:880px; }
   .proof-sub { color:#9aa6b6; font-size:1.05em; line-height:1.55; margin:0 0 40px; max-width:680px; }
   .proof-sub b { color:#e6edf3; font-weight:600; }
@@ -9820,28 +9820,28 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
   .proof-chart { background:#0d1620; border:1px solid rgba(255,255,255,.08); border-radius:8px; padding:32px 36px; max-width:880px; }
   .bar-row { display:grid; grid-template-columns:160px 1fr 200px; gap:18px; align-items:center; padding:10px 0; }
   .bar-row + .bar-row { border-top:1px solid rgba(255,255,255,.04); }
-  .bar-row-truth { border-top:1px solid rgba(94,234,212,.25)!important; padding-top:18px; margin-top:8px; }
+  .bar-row-truth { border-top:1px solid rgba(95,201,182,.25)!important; padding-top:18px; margin-top:8px; }
   .bar-label { font-size:.92em; color:#cbd5e1; font-weight:500; display:flex; align-items:center; gap:8px; }
   .bar-row-truth .bar-label, .bar-row-candor .bar-label { color:#e6edf3; font-weight:600; }
-  .truth-mark { color:#5eead4; font-weight:700; }
+  .truth-mark { color:#5fc9b6; font-weight:700; }
   .bar-track { background:rgba(255,255,255,.04); height:34px; border-radius:4px; position:relative; overflow:hidden; }
   .bar-fill { height:100%; display:flex; align-items:center; padding:0 12px; border-radius:4px; transition:width .8s cubic-bezier(.2,.6,.2,1); }
   .bar-off { background:rgba(244,114,182,.18); border-right:2px solid rgba(244,114,182,.5); }
   .bar-off .bar-val { color:#f9a8d4; }
-  .bar-truth { background:rgba(94,234,212,.18); border-right:2px solid rgba(94,234,212,.7); }
-  .bar-truth .bar-val { color:#5eead4; }
-  .bar-candor { background:linear-gradient(90deg, rgba(94,234,212,.22), rgba(56,189,248,.22)); border-right:2px solid #5eead4; }
-  .bar-candor .bar-val { color:#5eead4; }
+  .bar-truth { background:rgba(95,201,182,.18); border-right:2px solid rgba(95,201,182,.7); }
+  .bar-truth .bar-val { color:#5fc9b6; }
+  .bar-candor { background:linear-gradient(90deg, rgba(95,201,182,.22), rgba(56,189,248,.22)); border-right:2px solid #5fc9b6; }
+  .bar-candor .bar-val { color:#5fc9b6; }
   .bar-val { font-family:'Newsreader',Georgia,serif; font-weight:600; font-size:1.05em; font-variant-numeric:tabular-nums; letter-spacing:-.3px; }
   .bar-diff { font-size:.82em; color:#7a8595; font-variant-numeric:tabular-nums; }
   .bar-row-truth .bar-diff, .bar-row-candor .bar-diff { color:#9aa6b6; }
 
   .proof-caption {
     margin-top:24px; padding:18px 24px; max-width:880px;
-    border-left:3px solid #5eead4; background:rgba(94,234,212,.04);
+    border-left:3px solid #5fc9b6; background:rgba(95,201,182,.04);
     color:#cbd5e1; font-size:.98em; line-height:1.55; border-radius:0 6px 6px 0;
   }
-  .proof-caption b { color:#5eead4; font-weight:700; }
+  .proof-caption b { color:#5fc9b6; font-weight:700; }
 
   .proof-preview-wrap { margin-top:54px; max-width:880px; }
   .proof-preview-label { font-size:.92em; color:#9aa6b6; margin-bottom:14px; }
@@ -9851,18 +9851,18 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
     transition:border-color .2s, background .2s, transform .2s;
     box-shadow: 0 24px 60px rgba(0,0,0,.4), 0 1px 0 rgba(255,255,255,.03) inset;
   }
-  .proof-preview:hover { border-color:rgba(94,234,212,.35); background:#101a25; text-decoration:none; transform:translateY(-2px); }
+  .proof-preview:hover { border-color:rgba(95,201,182,.35); background:#101a25; text-decoration:none; transform:translateY(-2px); }
   .prv-head { display:flex; align-items:baseline; gap:14px; flex-wrap:wrap; margin-bottom:6px; }
   .prv-name { font-family:'Newsreader',Georgia,serif; font-size:2em; font-weight:500; letter-spacing:-.8px; margin:0; color:#e6edf3; }
-  .prv-badge { font-size:.7em; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#031715; background:linear-gradient(135deg,#5eead4,#2dd4bf); padding:4px 10px; border-radius:999px; }
+  .prv-badge { font-size:.7em; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#031715; background:linear-gradient(135deg,#5fc9b6,#36b8a8); padding:4px 10px; border-radius:999px; }
   .prv-meta { color:#9aa6b6; font-size:.9em; margin-bottom:22px; }
   .prv-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:1px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.06); border-radius:6px; overflow:hidden; margin-bottom:20px; }
   .prv-stat { background:#0a121a; padding:16px 18px; }
   .prv-stat-label { font-size:.7em; color:#7a8595; letter-spacing:1px; text-transform:uppercase; font-weight:600; margin-bottom:6px; }
   .prv-stat-val { font-family:'Newsreader',Georgia,serif; font-size:1.45em; font-weight:500; letter-spacing:-.5px; color:#e6edf3; font-variant-numeric:tabular-nums; }
   .prv-tags { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:18px; }
-  .prv-tag { background:rgba(94,234,212,.08); border:1px solid rgba(94,234,212,.18); color:#5eead4; padding:4px 10px; border-radius:5px; font-size:.78em; font-weight:500; }
-  .prv-open { color:#5eead4; font-weight:600; font-size:.92em; }
+  .prv-tag { background:rgba(95,201,182,.08); border:1px solid rgba(95,201,182,.18); color:#5fc9b6; padding:4px 10px; border-radius:5px; font-size:.78em; font-weight:500; }
+  .prv-open { color:#5fc9b6; font-weight:600; font-size:.92em; }
 
   @media (max-width:680px) {
     .proof-section { padding:60px 0 40px; }
@@ -9878,7 +9878,7 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
   .features-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:1px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.06); border-radius:4px; overflow:hidden; }
   .feature { background:#0a121a; padding:28px 26px; transition:background .2s; }
   .feature:hover { background:#0d1620; }
-  .feature .num { display:block; font-family:'Newsreader',Georgia,serif; font-size:.85em; color:#5eead4; font-weight:500; letter-spacing:.5px; margin-bottom:18px; font-feature-settings:"tnum"; }
+  .feature .num { display:block; font-family:'Newsreader',Georgia,serif; font-size:.85em; color:#5fc9b6; font-weight:500; letter-spacing:.5px; margin-bottom:18px; font-feature-settings:"tnum"; }
   .feature h3 { margin:0 0 8px; font-size:1.1em; color:#e6edf3; font-weight:600; letter-spacing:-.2px; }
   .feature p { margin:0; color:#9aa6b6; font-size:.92em; line-height:1.55; }
 
@@ -9889,29 +9889,29 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
   .founder::before {
     content:"\201C"; position:absolute; top:-8px; left:-6px;
     font-family:'Newsreader',Georgia,serif; font-size:9em; line-height:1;
-    color:rgba(94,234,212,.18); pointer-events:none; user-select:none;
+    color:rgba(95,201,182,.18); pointer-events:none; user-select:none;
   }
   .founder p { font-family:'Newsreader',Georgia,serif; font-size:1.32em; line-height:1.55; color:#e6edf3; margin:0 0 18px; font-weight:400; letter-spacing:-.2px; }
   .founder p:first-of-type { font-size:1.55em; line-height:1.4; color:#e6edf3; margin-bottom:24px; }
-  .founder p:first-of-type b, .founder p:first-of-type strong { color:#5eead4; }
+  .founder p:first-of-type b, .founder p:first-of-type strong { color:#5fc9b6; }
   .founder p:last-child { margin:0; }
   .founder .signature {
-    font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;
-    font-size:.9em; color:#5eead4; font-weight:600; letter-spacing:.3px;
-    margin-top:24px !important; padding-top:18px; border-top:1px solid rgba(94,234,212,.18);
+    font-family:'Hanken Grotesk',-apple-system,BlinkMacSystemFont,'Inter',sans-serif;
+    font-size:.9em; color:#5fc9b6; font-weight:600; letter-spacing:.3px;
+    margin-top:24px !important; padding-top:18px; border-top:1px solid rgba(95,201,182,.18);
   }
 
   .premium-band {
     background:linear-gradient(135deg,#0f3a37 0%,#0a131c 65%);
-    border:1px solid rgba(94,234,212,.28);
+    border:1px solid rgba(95,201,182,.28);
     border-radius:8px;
     padding:48px;
   }
   .premium-band-header { max-width:680px; margin-bottom:36px; }
   .premium-band-eyebrow {
     font-size:.78em; font-weight:600; letter-spacing:.8px; text-transform:uppercase;
-    color:#5eead4; padding:5px 12px; border:1px solid rgba(94,234,212,.3);
-    border-radius:999px; background:rgba(94,234,212,.06); display:inline-block; margin-bottom:18px;
+    color:#5fc9b6; padding:5px 12px; border:1px solid rgba(95,201,182,.3);
+    border-radius:999px; background:rgba(95,201,182,.06); display:inline-block; margin-bottom:18px;
   }
   .premium-band-h2 {
     font-size:clamp(1.6em,2.6vw,2.1em); font-weight:700; letter-spacing:-.5px;
@@ -9922,12 +9922,12 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
   }
   .premium-features {
     display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
-    gap:1px; background:rgba(94,234,212,.08);
-    border:1px solid rgba(94,234,212,.12); border-radius:6px; overflow:hidden;
+    gap:1px; background:rgba(95,201,182,.08);
+    border:1px solid rgba(95,201,182,.12); border-radius:6px; overflow:hidden;
   }
   .premium-feature { background:#0a121a; padding:24px 22px; }
   .premium-feature .premium-feature-num {
-    font-family:'Newsreader',Georgia,serif; font-size:.85em; color:#5eead4;
+    font-family:'Newsreader',Georgia,serif; font-size:.85em; color:#5fc9b6;
     font-weight:500; letter-spacing:.5px; margin-bottom:14px; font-feature-settings:"tnum";
   }
   .premium-feature h3 {
@@ -9941,15 +9941,15 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
   }
   .premium-cta-btn {
     display:inline-block; padding:13px 28px;
-    background:linear-gradient(135deg,#5eead4 0%,#2dd4bf 100%);
+    background:linear-gradient(135deg,#5fc9b6 0%,#36b8a8 100%);
     color:#070d14; font-weight:700; font-size:.98em;
     border-radius:6px; text-decoration:none;
-    box-shadow:0 6px 22px rgba(94,234,212,.3);
+    box-shadow:0 6px 22px rgba(95,201,182,.3);
     transition:all .18s ease;
   }
   .premium-cta-btn:hover {
     transform:translateY(-1px);
-    box-shadow:0 8px 28px rgba(94,234,212,.42);
+    box-shadow:0 8px 28px rgba(95,201,182,.42);
   }
   .premium-band-note { color:#7a8595; font-size:.82em; }
   @media (max-width:680px) {
@@ -9958,8 +9958,8 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
   .final-cta { text-align:center; padding:80px 0 100px; }
   .final-cta h2 { margin-bottom:18px; }
   .final-cta p { color:#9aa6b6; margin:0 0 30px; font-size:1.08em; }
-  .final-cta a.primary { display:inline-block; padding:14px 32px; background:linear-gradient(135deg,#5eead4 0%,#2dd4bf 100%); color:#070d14; font-weight:600; border-radius:4px; text-decoration:none; box-shadow:0 8px 30px rgba(94,234,212,.3); transition:all .2s; }
-  .final-cta a.primary:hover { transform:translateY(-2px); box-shadow:0 12px 36px rgba(94,234,212,.4); }
+  .final-cta a.primary { display:inline-block; padding:14px 32px; background:linear-gradient(135deg,#5fc9b6 0%,#36b8a8 100%); color:#070d14; font-weight:600; border-radius:4px; text-decoration:none; box-shadow:0 8px 30px rgba(95,201,182,.3); transition:all .2s; }
+  .final-cta a.primary:hover { transform:translateY(-2px); box-shadow:0 12px 36px rgba(95,201,182,.4); }
 
   footer { padding:40px 0 60px; text-align:center; color:#5e6b7c; font-size:.84em; border-top:1px solid rgba(255,255,255,.04); margin-top:60px; }
   footer a { color:#9aa6b6; }
@@ -9974,8 +9974,8 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
     position:absolute; top:14px; right:14px; z-index:3;
     font-family:var(--mono,inherit);
     font-size:10px; letter-spacing:.16em; text-transform:uppercase;
-    color:#5eead4; padding:4px 10px;
-    border:1px solid rgba(94,234,212,.3); border-radius:999px;
+    color:#5fc9b6; padding:4px 10px;
+    border:1px solid rgba(95,201,182,.3); border-radius:999px;
     animation:livePulse 2s ease-in-out infinite;
     pointer-events:none;
   }
@@ -10032,9 +10032,9 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
   .hero .particles span {
     position: absolute;
     width: 3px; height: 3px;
-    background: #5eead4;
+    background: #5fc9b6;
     border-radius: 50%;
-    box-shadow: 0 0 6px rgba(94,234,212,0.55), 0 0 14px rgba(94,234,212,0.25);
+    box-shadow: 0 0 6px rgba(95,201,182,0.55), 0 0 14px rgba(95,201,182,0.25);
     opacity: 0;
     animation: heroDrift 14s linear infinite;
   }
@@ -10107,7 +10107,7 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
     z-index:1;
     transition:opacity 1.1s ease;
     background:
-      radial-gradient(58% 68% at 90% 42%, rgba(45,212,191,.20), transparent 72%),
+      radial-gradient(58% 68% at 90% 42%, rgba(54,184,168,.20), transparent 72%),
       radial-gradient(135% 130% at 38% 36%, transparent 46%, rgba(4,9,15,.92) 100%),
       linear-gradient(101deg, rgba(7,13,20,.97) 0%, rgba(7,13,20,.88) 30%, rgba(7,13,20,.55) 56%, rgba(7,13,20,.30) 82%, rgba(7,13,20,.42) 100%),
       linear-gradient(180deg, rgba(7,13,20,.38) 0%, rgba(7,13,20,.10) 12%, transparent 26%, transparent 68%, rgba(7,13,20,.92) 100%);
@@ -10145,7 +10145,7 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
     html.intro-armed .hero-text > * { opacity:1!important; transform:none!important; }
   }
   .hero.hero-grid .hero-text-above { display:flex; flex-direction:column; gap:10px; margin-bottom:6px; }
-  .hero.hero-grid h1 { font-size:clamp(1.6em, 2.8vw, 2.1em); margin:8px 0 4px; line-height:1.1; }
+  .hero.hero-grid h1 { font-size:clamp(1.8em, 3vw, 2.45em); margin:8px 0 4px; line-height:1.1; }
   .hero.hero-grid p.lede { font-size:.96em; margin:0 0 12px; line-height:1.5; }
   .hero.hero-grid .stats { margin-top:8px; gap:20px; }
   .hero.hero-grid .stats .stat { font-size:.8em; }
@@ -10160,7 +10160,7 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
        instead of weighting the wash to the left. */
     .hero-bg-overlay {
       background:
-        radial-gradient(120% 80% at 80% 10%, rgba(45,212,191,.16), transparent 70%),
+        radial-gradient(120% 80% at 80% 10%, rgba(54,184,168,.16), transparent 70%),
         linear-gradient(180deg, rgba(7,13,20,.93) 0%, rgba(7,13,20,.80) 38%, rgba(7,13,20,.90) 100%);
     }
     .hero-bg-video { filter:brightness(.72) saturate(1.06); }
@@ -10175,7 +10175,7 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
     .hero-bg-video { display:none; }
     .hero.hero-grid {
       background:
-        radial-gradient(115% 60% at 80% 4%, rgba(45,212,191,.12), transparent 60%),
+        radial-gradient(115% 60% at 80% 4%, rgba(54,184,168,.12), transparent 60%),
         #070d14;
     }
     /* No video to scrim, and no intro fade on mobile -- keep the panel steady. */
@@ -10210,11 +10210,11 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
     transform:translate(-50%, -50%);
     width:170px; height:170px;
     display:flex; align-items:center; justify-content:center;
-    background:rgba(94,234,212,.06);
-    border:1px solid rgba(94,234,212,.32);
+    background:rgba(95,201,182,.06);
+    border:1px solid rgba(95,201,182,.32);
     border-radius:50%;
     z-index:2;
-    box-shadow:0 0 90px rgba(94,234,212,.2), inset 0 0 40px rgba(94,234,212,.06);
+    box-shadow:0 0 90px rgba(95,201,182,.2), inset 0 0 40px rgba(95,201,182,.06);
   }
   .orbit-center svg { width:96px; height:96px; }
   .orbit-ring {
@@ -10252,7 +10252,7 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
   }
   .orbit-item:hover .orbit-logo {
     transform:scale(1.1);
-    filter:drop-shadow(0 0 18px rgba(94,234,212,.55));
+    filter:drop-shadow(0 0 18px rgba(95,201,182,.55));
   }
   @keyframes orbit-spin { to { transform:rotate(360deg); } }
   @media (prefers-reduced-motion: reduce) {
@@ -10291,9 +10291,9 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
   }
   .demo-eyebrow {
     display:inline-block; font-size:.74em; font-weight:600;
-    letter-spacing:.8px; text-transform:uppercase; color:#5eead4;
-    padding:5px 12px; border:1px solid rgba(94,234,212,.25); border-radius:999px;
-    background:rgba(94,234,212,.06); margin-bottom:18px;
+    letter-spacing:.8px; text-transform:uppercase; color:#5fc9b6;
+    padding:5px 12px; border:1px solid rgba(95,201,182,.25); border-radius:999px;
+    background:rgba(95,201,182,.06); margin-bottom:18px;
   }
   .demo-title {
     font-size:clamp(1.8em, 3.4vw, 2.6em); font-weight:700;
@@ -10326,7 +10326,7 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
     display:flex; justify-content:space-between; align-items:baseline;
   }
   .demo-readout {
-    color:#5eead4; font-weight:700; font-size:1.05em;
+    color:#5fc9b6; font-weight:700; font-size:1.05em;
     text-transform:none; letter-spacing:0;
     font-variant-numeric:tabular-nums;
   }
@@ -10344,8 +10344,8 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
     transition:background .15s, color .15s;
   }
   .demo-test-btn.active {
-    background:rgba(94,234,212,.15);
-    color:#5eead4;
+    background:rgba(95,201,182,.15);
+    color:#5fc9b6;
   }
   .demo-test-btn:not(.active):hover { color:#cbd5e1; }
   .demo-field select, .demo-field input[type=range] { width:100%; }
@@ -10357,7 +10357,7 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
     background-repeat:no-repeat; background-position:right 12px center; background-size:10px;
     padding-right:36px;
   }
-  .demo-field select:focus { outline:none; border-color:rgba(94,234,212,.5); }
+  .demo-field select:focus { outline:none; border-color:rgba(95,201,182,.5); }
   .demo-field input[type=range] {
     -webkit-appearance:none; appearance:none; background:transparent; height:24px;
     cursor:pointer;
@@ -10371,18 +10371,18 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
   .demo-field input[type=range]::-webkit-slider-thumb {
     -webkit-appearance:none; appearance:none;
     width:18px; height:18px; border-radius:50%;
-    background:#5eead4; border:2px solid #0d1620; margin-top:-7px;
-    box-shadow:0 0 0 1px rgba(94,234,212,.4);
+    background:#5fc9b6; border:2px solid #0d1620; margin-top:-7px;
+    box-shadow:0 0 0 1px rgba(95,201,182,.4);
     transition: transform .12s ease;
   }
   .demo-field input[type=range]::-webkit-slider-thumb:hover { transform:scale(1.15); }
   .demo-field input[type=range]::-moz-range-thumb {
     width:18px; height:18px; border-radius:50%;
-    background:#5eead4; border:2px solid #0d1620;
+    background:#5fc9b6; border:2px solid #0d1620;
   }
   .demo-result {
     padding:14px 16px; display:flex; flex-direction:column; gap:8px;
-    background:linear-gradient(180deg, rgba(94,234,212,.04) 0%, transparent 60%);
+    background:linear-gradient(180deg, rgba(95,201,182,.04) 0%, transparent 60%);
   }
   .demo-result-row { display:flex; gap:12px; flex-wrap:wrap; }
   .demo-result-block { flex:1; min-width:120px; }
@@ -10392,7 +10392,7 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
   }
   .demo-odds {
     font-size:1.55em; font-weight:800; letter-spacing:-.6px; line-height:1;
-    color:#5eead4; font-variant-numeric:tabular-nums;
+    color:#5fc9b6; font-variant-numeric:tabular-nums;
   }
   .demo-fit, .demo-tier {
     font-size:1.05em; font-weight:700; letter-spacing:-.3px; color:#e6edf3;
@@ -10405,22 +10405,22 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
   }
   .demo-cta {
     margin-top:6px; display:inline-block; align-self:flex-start;
-    background:linear-gradient(135deg,#5eead4 0%,#3fcdb2 100%);
+    background:linear-gradient(135deg,#5fc9b6 0%,#3fcdb2 100%);
     color:#0b1220; font-weight:700; font-size:.95em; text-decoration:none;
     padding:11px 22px; border-radius:8px;
-    box-shadow:0 4px 14px rgba(94,234,212,.25), 0 1px 0 rgba(255,255,255,.08) inset;
+    box-shadow:0 4px 14px rgba(95,201,182,.25), 0 1px 0 rgba(255,255,255,.08) inset;
     transition:transform .12s ease, box-shadow .15s ease, background .15s ease;
   }
   .demo-cta:hover {
-    background:linear-gradient(135deg,#7ff7df 0%,#5eead4 100%);
-    box-shadow:0 6px 20px rgba(94,234,212,.35), 0 1px 0 rgba(255,255,255,.12) inset;
+    background:linear-gradient(135deg,#7ff7df 0%,#5fc9b6 100%);
+    box-shadow:0 6px 20px rgba(95,201,182,.35), 0 1px 0 rgba(255,255,255,.12) inset;
     transform:translateY(-1px);
   }
   .demo-cta:active { transform:translateY(0); }
   .demo-premium-inline {
     display:inline-block; margin-top:8px; align-self:flex-start;
-    font-size:.82em; color:#5eead4; text-decoration:none;
-    padding:4px 0; border-bottom:1px dashed rgba(94,234,212,.4);
+    font-size:.82em; color:#5fc9b6; text-decoration:none;
+    padding:4px 0; border-bottom:1px dashed rgba(95,201,182,.4);
     transition:color .15s, border-color .15s;
   }
   .demo-premium-inline:hover {
@@ -10433,17 +10433,17 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
     border-bottom:1px dashed rgba(154,166,182,.35);
     transition:color .12s, border-color .12s;
   }
-  .demo-math-toggle:hover { color:#5eead4; border-bottom-color:rgba(94,234,212,.5); }
+  .demo-math-toggle:hover { color:#5fc9b6; border-bottom-color:rgba(95,201,182,.5); }
   .demo-math {
     display:none; margin-top:10px; padding:12px 14px;
-    background:rgba(94,234,212,.04); border:1px solid rgba(94,234,212,.15);
+    background:rgba(95,201,182,.04); border:1px solid rgba(95,201,182,.15);
     border-radius:6px; font-size:.82em; line-height:1.55; color:#c9d3e1;
   }
   .demo-math.open { display:block; }
   .demo-math .demo-math-row { display:flex; justify-content:space-between; gap:10px; padding:3px 0; }
   .demo-math .demo-math-row b { color:#e8eef6; font-weight:600; }
   .demo-math .demo-math-note {
-    margin-top:8px; padding-top:8px; border-top:1px solid rgba(94,234,212,.12);
+    margin-top:8px; padding-top:8px; border-top:1px solid rgba(95,201,182,.12);
     color:#9aa6b6; font-size:.94em;
   }
 
@@ -10898,7 +10898,7 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
 
     const TIER_COLORS = {{
       "Dream":"#f9a8d4", "Reach":"#fcd34d",
-      "Target":"#7dd3fc", "Safety":"#5eead4"
+      "Target":"#7dd3fc", "Safety":"#5fc9b6"
     }};
 
     let timer;
@@ -11453,8 +11453,8 @@ def predictor_page():
         return _page("""
 <h1>Score predictor</h1>
 <p class="muted">See exactly how a +60 SAT, +2 ACT, or higher GPA would move your odds at every school on your list — so you can decide if a retake is worth the time.</p>
-<div class="card" style="background:linear-gradient(135deg,#0f3a37 0%,#0a131c 100%);border:1px solid rgba(94,234,212,.3);padding:32px;max-width:620px">
-  <div style="font-size:.78em;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#5eead4;margin-bottom:8px">Candor Premium · $10 once</div>
+<div class="card" style="background:linear-gradient(135deg,#0f3a37 0%,#0a131c 100%);border:1px solid rgba(95,201,182,.3);padding:32px;max-width:620px">
+  <div style="font-size:.78em;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#5fc9b6;margin-bottom:8px">Candor Premium · $10 once</div>
   <h2 style="margin:0 0 14px">Score push impact is a premium feature</h2>
   <p class="muted" style="margin:0 0 18px">Unlock the what-if simulator plus per-school AI strategy, the list grader, and the admissions simulator — one $10 payment, no subscription.</p>
   <a class="btn btn-primary" href="/upgrade" style="font-size:1em;padding:12px 28px;display:inline-block">Upgrade — $10 once &rarr;</a>
@@ -11742,11 +11742,11 @@ def plans_index_page():
     if not current_user():
         return _page("""
 <div class="lp-wrap" style="max-width:760px;margin:0 auto;padding:40px 24px">
-  <div style="font-size:.78em;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#5eead4;margin-bottom:8px">My Colleges · what you'd see here</div>
+  <div style="font-size:.78em;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#5fc9b6;margin-bottom:8px">My Colleges · what you'd see here</div>
   <h1 style="font-size:2.2em;letter-spacing:-1px;margin:0 0 12px">Your full college list, in one strategic view.</h1>
   <p class="muted" style="font-size:1.05em;line-height:1.55;margin:0 0 24px">Every school you've chanced or saved, grouped by application round (ED1, ED2, EA, REA, RD), with personalized odds, fit scores, list grading, and an admissions simulator.</p>
 
-  <div class="card" style="background:linear-gradient(135deg,#0f3a37 0%,#0a131c 100%);border:1px solid rgba(94,234,212,.3);padding:28px;margin-bottom:24px">
+  <div class="card" style="background:linear-gradient(135deg,#0f3a37 0%,#0a131c 100%);border:1px solid rgba(95,201,182,.3);padding:28px;margin-bottom:24px">
     <h2 style="margin:0 0 14px;font-size:1.3em">What's inside</h2>
     <ul style="line-height:1.85;padding-left:18px;margin:0;color:#cbd5e1">
       <li><b style="color:#e6edf3">Round-by-round dashboard</b> — see your ED, EA, and RD lists side by side</li>
@@ -12119,7 +12119,7 @@ def recommend_schools_to_add(uid, limit=9):
 def _rec_card_html(r):
     """Render one recommendation card."""
     tc = {"Dream": "#fca5a5", "Reach": "#fbbf24",
-          "Target": "#5eead4", "Safety": "#86efac"}.get(r["tier"], "#94a3b8")
+          "Target": "#5fc9b6", "Safety": "#86efac"}.get(r["tier"], "#94a3b8")
     return f'''
 <div class="card" style="padding:16px" data-slug="{r['slug']}">
   <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">
@@ -12130,7 +12130,7 @@ def _rec_card_html(r):
     <span style="background:{tc}22;color:{tc};border:1px solid {tc}55;border-radius:6px;padding:2px 8px;font-size:.78em;font-weight:700;align-self:flex-start">{r['tier']}</span>
   </div>
   <div style="display:flex;gap:16px;margin-top:8px;font-size:.9em">
-    <span style="color:#5eead4;font-weight:700">{r['odds_low']}–{r['odds_high']}% odds</span>
+    <span style="color:#5fc9b6;font-weight:700">{r['odds_low']}–{r['odds_high']}% odds</span>
     <span class="muted">fit {r['fit']}/100</span>
   </div>
   <div style="margin-top:8px;font-size:.9em;line-height:1.5">{r['reason']}</div>
@@ -12158,7 +12158,7 @@ def plans_add_page():
   <div style="filter:blur(6px);user-select:none;pointer-events:none">
     <div style="font-weight:700;font-size:1.06em">{label}</div>
     <div class="muted" style="font-size:.82em">A great-fit campus for you · XX% accept</div>
-    <div style="margin-top:8px;color:#5eead4;font-weight:700">XX–XX% odds · fit XX/100</div>
+    <div style="margin-top:8px;color:#5fc9b6;font-weight:700">XX–XX% odds · fit XX/100</div>
     <div style="margin-top:8px">A personalized reason this school belongs on your list.</div>
   </div>
   <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:1.6em">🔒</div>
@@ -12168,8 +12168,8 @@ def plans_add_page():
 <h1>Schools to Add</h1>
 <p class="muted">Candor reads your current list and recommends schools to add — gap-fillers that balance your reach/target/safety mix, and schools similar to ones you already like.</p>
 <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;margin-top:16px">{blurred}</div>
-<div class="card" style="background:linear-gradient(135deg,#0f3a37 0%,#0a131c 100%);border:1px solid rgba(94,234,212,.3);padding:28px;margin-top:18px;text-align:center">
-  <div style="font-size:.78em;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#5eead4;margin-bottom:8px">Candor Premium · $10 once</div>
+<div class="card" style="background:linear-gradient(135deg,#0f3a37 0%,#0a131c 100%);border:1px solid rgba(95,201,182,.3);padding:28px;margin-top:18px;text-align:center">
+  <div style="font-size:.78em;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#5fc9b6;margin-bottom:8px">Candor Premium · $10 once</div>
   <h2 style="margin:0 0 12px">Unlock your personalized school recommendations</h2>
   <p class="muted" style="margin:0 0 16px">See exactly which schools to add — matched to your profile, your tier balance, and the schools already on your list.</p>
   <a class="btn btn-primary" href="/upgrade" style="padding:12px 28px">Upgrade — $10 once →</a>
@@ -12292,7 +12292,7 @@ def plans_grade_page():
     uid = current_user()["id"]
     g = grade_user_list(uid)
     score = g["score"]
-    score_color = "#5eead4" if score >= 8 else ("#fbbf24" if score >= 5 else "#fca5a5")
+    score_color = "#5fc9b6" if score >= 8 else ("#fbbf24" if score >= 5 else "#fca5a5")
     breakdown_html = "".join(
         f'<div style="display:flex;justify-content:space-between;padding:8px 0;border-top:1px solid var(--border)">'
         f'<span>{b["label"]}</span><span style="font-weight:700">{b["score"]}/{b["out_of"]}</span></div>'
@@ -12309,7 +12309,7 @@ def plans_grade_page():
     if g.get("tiers"):
         for tier_name in ["Dream","Reach","Target","Safety"]:
             n = g["tiers"].get(tier_name, 0)
-            color = {"Dream":"#fca5a5","Reach":"#fbbf24","Target":"#5eead4","Safety":"#86efac"}[tier_name]
+            color = {"Dream":"#fca5a5","Reach":"#fbbf24","Target":"#5fc9b6","Safety":"#86efac"}[tier_name]
             tiers_html += f'<div style="display:inline-block;margin:0 14px 6px 0"><span style="color:{color};font-weight:700;font-size:1.4em">{n}</span> <span class="muted" style="font-size:.88em">{tier_name}</span></div>'
 
     return _page(f"""
@@ -12847,7 +12847,7 @@ def _strategist_render(strategy, items=None):
         )
     badges = " ".join([
         _badge("reaches", stats.get("reaches", 0), "#fbbf24"),
-        _badge("targets", stats.get("targets", 0), "#5eead4"),
+        _badge("targets", stats.get("targets", 0), "#5fc9b6"),
         _badge("safeties", stats.get("safeties", 0), "#86efac"),
     ])
 
@@ -12866,14 +12866,14 @@ def _strategist_render(strategy, items=None):
         if not ed_rate_label and "EA" in rates:
             ed_rate_label = f"EA {round(rates['EA']*100)}%"
         rate_chip = (
-            f'<span style="color:#5eead4;font-weight:700">{ed_rate_label}</span>'
+            f'<span style="color:#5fc9b6;font-weight:700">{ed_rate_label}</span>'
             if ed_rate_label else ""
         )
         sep = " · " if rate_chip else ""
         ep_headline = _esc(ed.get("headline") or "Your highest-leverage application")
         ed_pick_html = f'''
-<div class="card" style="background:linear-gradient(135deg,#0e2a4a 0%,#0a131c 100%);border:1px solid rgba(94,234,212,.4);padding:22px;margin-top:18px">
-  <div style="font-size:.7em;letter-spacing:.18em;font-weight:700;color:#5eead4;text-transform:uppercase;margin-bottom:10px">★ Your ED pick</div>
+<div class="card" style="background:linear-gradient(135deg,#0e2a4a 0%,#0a131c 100%);border:1px solid rgba(95,201,182,.4);padding:22px;margin-top:18px">
+  <div style="font-size:.7em;letter-spacing:.18em;font-weight:700;color:#5fc9b6;text-transform:uppercase;margin-bottom:10px">★ Your ED pick</div>
   <div style="font-size:1.35em;font-weight:700;margin-bottom:4px">{_esc(c["name"])}</div>
   <div class="muted" style="font-size:.85em;margin-bottom:6px">{city_state(c)} · {round(c["accept"]*100,1)}% overall{sep}{rate_chip}</div>
   <div style="font-size:.92em;color:#cbd5e1;margin-bottom:10px;font-style:italic">{ep_headline}</div>
@@ -12885,10 +12885,10 @@ def _strategist_render(strategy, items=None):
     plan_html = ""
     if plan_items:
         plan_lis = "".join(
-            f'''<li style="margin:0;padding:14px 0 14px 14px;border-left:2px solid #5eead4;
+            f'''<li style="margin:0;padding:14px 0 14px 14px;border-left:2px solid #5fc9b6;
                           list-style:none;line-height:1.55;counter-increment:plan">
                   <span style="display:inline-block;width:22px;height:22px;border-radius:50%;
-                               background:#5eead4;color:#0a131c;font-weight:700;font-size:.78em;
+                               background:#5fc9b6;color:#0a131c;font-weight:700;font-size:.78em;
                                text-align:center;line-height:22px;margin-right:10px;
                                vertical-align:middle">{i+1}</span>{_bold(p)}</li>'''
             for i, p in enumerate(plan_items)
@@ -12900,7 +12900,7 @@ def _strategist_render(strategy, items=None):
     # ── preference rank list (drag to reorder) ────────────────────
     rank_html = ""
     if items:
-        action_col = {"Anchor": "#5eead4", "Keep": "#86efac", "Watch": "#fbbf24", "Cut": "#fca5a5"}
+        action_col = {"Anchor": "#5fc9b6", "Keep": "#86efac", "Watch": "#fbbf24", "Cut": "#fca5a5"}
         # Sort: ranked items first by rank ascending, then unranked items
         # by alphabetical name (stable). User can drag to override.
         ranked_items = [it for it in items if it.get("preference_rank")]
@@ -12955,7 +12955,7 @@ def _strategist_render(strategy, items=None):
             except Exception:
                 _csrf_tok = ""
         rank_html = f'''
-<div class="card" id="pref-rank-card" style="margin-top:32px;padding:22px;border:1px solid rgba(94,234,212,.25)">
+<div class="card" id="pref-rank-card" style="margin-top:32px;padding:22px;border:1px solid rgba(95,201,182,.25)">
   <div style="display:flex;align-items:baseline;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:6px">
     <h2 style="margin:0">Rank your schools <span class="muted" style="font-size:.55em;font-weight:400">top = most wanted</span></h2>
     <span id="pref-dirty-indicator" style="display:none;font-size:.78em;color:#fbbf24;font-weight:600">● unsaved changes</span>
@@ -12972,8 +12972,8 @@ def _strategist_render(strategy, items=None):
 </div>
 <style>
   .pref-row.dragging {{ opacity:.35 }}
-  .pref-row.drop-target-above {{ box-shadow: 0 -2px 0 0 #5eead4 inset; }}
-  .pref-row.drop-target-below {{ box-shadow: 0 2px 0 0 #5eead4 inset; }}
+  .pref-row.drop-target-above {{ box-shadow: 0 -2px 0 0 #5fc9b6 inset; }}
+  .pref-row.drop-target-below {{ box-shadow: 0 2px 0 0 #5fc9b6 inset; }}
   .pref-row:hover {{ border-color:#334155 !important; }}
 </style>
 <script>
@@ -13058,9 +13058,9 @@ def _strategist_render(strategy, items=None):
 
     # ── schools, sorted within tier by action priority ────────────
     action_order = {"Anchor": 0, "Keep": 1, "Watch": 2, "Cut": 3}
-    action_col = {"Anchor": "#5eead4", "Keep": "#86efac", "Watch": "#fbbf24", "Cut": "#fca5a5"}
+    action_col = {"Anchor": "#5fc9b6", "Keep": "#86efac", "Watch": "#fbbf24", "Cut": "#fca5a5"}
     action_label = {"Anchor": "★ ANCHOR", "Keep": "KEEP", "Watch": "WATCH", "Cut": "CUT"}
-    tier_col = {"Reach": "#fbbf24", "Target": "#5eead4", "Safety": "#86efac"}
+    tier_col = {"Reach": "#fbbf24", "Target": "#5fc9b6", "Safety": "#86efac"}
     tier_blurb = {
         "Reach": "Hard to get in — most accept rates here are below 35%.",
         "Target": "Where most of your acceptances should come from.",
@@ -13085,7 +13085,7 @@ def _strategist_render(strategy, items=None):
             if key in rates:
                 v = rates[key]
                 if rd is None or v >= rd * 1.3:
-                    return f' · <span style="color:#5eead4;font-weight:600">{key} {round(v*100)}%</span>'
+                    return f' · <span style="color:#5fc9b6;font-weight:600">{key} {round(v*100)}%</span>'
                 return ""
         return ""
 
@@ -13111,7 +13111,7 @@ def _strategist_render(strategy, items=None):
                 card_style = (
                     f"padding:14px;border:1px solid {acol}88;"
                     f"border-left:3px solid {acol};"
-                    f"box-shadow:0 0 0 1px rgba(94,234,212,.10),0 8px 24px -12px rgba(94,234,212,.25)"
+                    f"box-shadow:0 0 0 1px rgba(95,201,182,.10),0 8px 24px -12px rgba(95,201,182,.25)"
                 )
             elif action == "Cut":
                 card_style = f"padding:14px;border-left:3px solid {acol};opacity:.72"
@@ -13120,8 +13120,8 @@ def _strategist_render(strategy, items=None):
 
             round_pitch = (s.get("round_pitch") or "").strip()
             round_pitch_html = (
-                f'<div style="margin-top:10px;padding:8px 10px;background:rgba(94,234,212,.08);'
-                f'border-radius:6px;font-size:.82em;color:#5eead4;font-weight:600">'
+                f'<div style="margin-top:10px;padding:8px 10px;background:rgba(95,201,182,.08);'
+                f'border-radius:6px;font-size:.82em;color:#5fc9b6;font-weight:600">'
                 f'→ {_bold(round_pitch)}</div>'
                 if round_pitch else ""
             )
@@ -13179,8 +13179,8 @@ def _strategist_render(strategy, items=None):
 <h1 style="margin-bottom:4px">Application strategist</h1>
 <p class="muted" style="margin-top:0">An AI read of your full list and profile — your ED move, ordered next steps, and where to cut. <a href="/plans/strategist?regen=1">Regenerate</a></p>
 
-<div class="card" style="background:linear-gradient(135deg,#0f3a37 0%,#0a131c 100%);border:1px solid rgba(94,234,212,.3);padding:24px">
-  <div style="font-size:1.2em;font-weight:700;color:#5eead4;margin-bottom:10px;line-height:1.35">{headline}</div>
+<div class="card" style="background:linear-gradient(135deg,#0f3a37 0%,#0a131c 100%);border:1px solid rgba(95,201,182,.3);padding:24px">
+  <div style="font-size:1.2em;font-weight:700;color:#5fc9b6;margin-bottom:10px;line-height:1.35">{headline}</div>
   <div style="line-height:1.6;margin-bottom:14px">{assessment}</div>
   <div style="display:flex;gap:8px;flex-wrap:wrap">{badges}</div>
 </div>
@@ -13534,7 +13534,7 @@ def plans_simulate_page():
 </div>'''
 
     buckets_html = (
-        _bucket_card("Likely admits", "#5eead4", likely,
+        _bucket_card("Likely admits", "#5fc9b6", likely,
                      "Schools where your odds are 50%+. The most-likely outcome is you get in.")
         + _bucket_card("Toss-ups", "#fbbf24", tossup,
                        "20-50% odds. Could go either way; these are where the variance lives.")
@@ -13557,12 +13557,12 @@ def plans_simulate_page():
         if r["p_round"] is not None and r["p_overall"] is not None and abs(r["p_round"] - r["p_overall"]) > 0.005:
             delta = (r["p_round"] - r["p_overall"]) * 100
             sign = "+" if delta > 0 else ""
-            color = "#5eead4" if delta > 0 else "#fca5a5"
+            color = "#5fc9b6" if delta > 0 else "#fca5a5"
             diff = f' <span style="color:{color};font-size:.85em">({sign}{round(delta,1)}%)</span>'
         round_pill = ""
         if r["round"]:
-            rcol = "#5eead4" if r["round"] in ("ED1","ED2") else ("#7dd3fc" if r["round"] in ("EA","REA") else "#9aa6b6")
-            round_pill = f'<span style="background:rgba(94,234,212,.08);color:{rcol};padding:2px 8px;border-radius:4px;font-size:.78em;font-weight:600">{r["round_label"]}</span>'
+            rcol = "#5fc9b6" if r["round"] in ("ED1","ED2") else ("#7dd3fc" if r["round"] in ("EA","REA") else "#9aa6b6")
+            round_pill = f'<span style="background:rgba(95,201,182,.08);color:{rcol};padding:2px 8px;border-radius:4px;font-size:.78em;font-weight:600">{r["round_label"]}</span>'
         else:
             round_pill = '<span class="muted" style="font-size:.82em">undecided</span>'
         rows_html += f'''<tr>
@@ -13573,8 +13573,8 @@ def plans_simulate_page():
           <td><a href="/college/{r["slug"]}/plan" class="muted" style="font-size:.85em">plan →</a></td>
         </tr>'''
 
-    expected_color = "#5eead4" if sim["expected"] >= 2 else ("#fbbf24" if sim["expected"] >= 1 else "#fca5a5")
-    p1_color = "#5eead4" if sim["p_at_least_1"] >= 80 else ("#fbbf24" if sim["p_at_least_1"] >= 50 else "#fca5a5")
+    expected_color = "#5fc9b6" if sim["expected"] >= 2 else ("#fbbf24" if sim["expected"] >= 1 else "#fca5a5")
+    p1_color = "#5fc9b6" if sim["p_at_least_1"] >= 80 else ("#fbbf24" if sim["p_at_least_1"] >= 50 else "#fca5a5")
 
     note = ""
     if sim["n_uncomputed"] > 0:
@@ -13619,7 +13619,7 @@ def plans_simulate_page():
     <button id="sim-1k-btn" class="btn btn-light btn-sm">Run 1,000 simulations</button>
     <span id="sim-counter" class="muted" style="font-size:.85em"></span>
   </div>
-  <div id="sim-summary" style="display:none;padding:14px 16px;background:rgba(94,234,212,.06);border:1px solid rgba(94,234,212,.25);border-radius:6px;margin-bottom:14px">
+  <div id="sim-summary" style="display:none;padding:14px 16px;background:rgba(95,201,182,.06);border:1px solid rgba(95,201,182,.25);border-radius:6px;margin-bottom:14px">
     <div style="font-weight:600;font-size:1.1em" id="sim-headline">—</div>
     <div class="muted" id="sim-subhead" style="font-size:.88em;margin-top:4px"></div>
   </div>
@@ -13697,10 +13697,10 @@ def plans_simulate_page():
   // reject paths shade pink. Defer/waitlist legs of admits get a softer
   // teal so the reader sees "this admit came after a defer" at a glance.
   const STAMP_STYLE = {{
-    admit:           {{bg:'rgba(94,234,212,.18)', color:'#5eead4', rowbg:'rgba(94,234,212,.04)'}},
-    defer_admit:     {{bg:'rgba(94,234,212,.14)', color:'#5eead4', rowbg:'rgba(94,234,212,.03)'}},
-    defer_wl_admit:  {{bg:'rgba(94,234,212,.14)', color:'#5eead4', rowbg:'rgba(94,234,212,.03)'}},
-    wl_admit:        {{bg:'rgba(94,234,212,.14)', color:'#5eead4', rowbg:'rgba(94,234,212,.03)'}},
+    admit:           {{bg:'rgba(95,201,182,.18)', color:'#5fc9b6', rowbg:'rgba(95,201,182,.04)'}},
+    defer_admit:     {{bg:'rgba(95,201,182,.14)', color:'#5fc9b6', rowbg:'rgba(95,201,182,.03)'}},
+    defer_wl_admit:  {{bg:'rgba(95,201,182,.14)', color:'#5fc9b6', rowbg:'rgba(95,201,182,.03)'}},
+    wl_admit:        {{bg:'rgba(95,201,182,.14)', color:'#5fc9b6', rowbg:'rgba(95,201,182,.03)'}},
     defer_reject:    {{bg:'rgba(252,165,165,.12)', color:'#fca5a5', rowbg:'transparent'}},
     defer_wl_reject: {{bg:'rgba(252,165,165,.12)', color:'#fca5a5', rowbg:'transparent'}},
     wl_reject:       {{bg:'rgba(252,165,165,.12)', color:'#fca5a5', rowbg:'transparent'}},
@@ -13735,7 +13735,7 @@ def plans_simulate_page():
       headline.innerHTML = `🔥 Admitted to all ${{nAdmit}}!`;
       subhead.textContent = 'Extremely lucky run. Real outcomes are usually noisier.';
     }} else {{
-      headline.innerHTML = `<b style="color:#5eead4">${{nAdmit}}</b> admit${{nAdmit===1?'':'s'}} · <span style="color:#fca5a5">${{nReject}} reject${{nReject===1?'':'s'}}</span>`;
+      headline.innerHTML = `<b style="color:#5fc9b6">${{nAdmit}}</b> admit${{nAdmit===1?'':'s'}} · <span style="color:#fca5a5">${{nReject}} reject${{nReject===1?'':'s'}}</span>`;
       subhead.textContent = 'Click again for a different outcome. Watch the paths — defers, waitlists, and rejections all resolve.';
     }}
     let body = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:8px">';
@@ -13786,7 +13786,7 @@ def plans_simulate_page():
     const p10 = (() => {{ let cum=0; for (let k=0;k<totalDist.length;k++){{ cum += totalDist[k]; if (cum >= N*0.1) return k; }} return 0; }})();
     const p90 = (() => {{ let cum=0; for (let k=0;k<totalDist.length;k++){{ cum += totalDist[k]; if (cum >= N*0.9) return k; }} return 0; }})();
     const zeroAdmits = totalDist[0];
-    headline.innerHTML = `Across ${{N.toLocaleString()}} runs: median <b style="color:#5eead4">${{median}}</b> admit${{median===1?'':'s'}}`;
+    headline.innerHTML = `Across ${{N.toLocaleString()}} runs: median <b style="color:#5fc9b6">${{median}}</b> admit${{median===1?'':'s'}}`;
     subhead.innerHTML = `80% range: ${{p10}}-${{p90}} admits · ${{zeroAdmits}} runs (${{(zeroAdmits/N*100).toFixed(1)}}%) had zero admits`;
     let body = '<div style="margin-top:10px"><div class="muted" style="font-size:.85em;margin-bottom:6px">Per-school outcome breakdown across 1,000 cycles. Each admit % includes direct admits + admits via deferral or waitlist.</div>';
     body += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:8px">';
@@ -13808,14 +13808,14 @@ def plans_simulate_page():
       if (s.wl_reject > 0)        rejectParts.push(`${{pct(s.wl_reject)}}% after WL`);
       body += `<div style="padding:8px 10px;border:1px solid var(--border);border-radius:5px">
         <div style="display:flex;justify-content:space-between;font-size:.88em;font-weight:600;margin-bottom:6px;gap:8px;flex-wrap:wrap">
-          <span style="flex:1;min-width:0">${{s.name}}</span><span style="color:#5eead4;white-space:nowrap">${{aTot}}% admit</span>
+          <span style="flex:1;min-width:0">${{s.name}}</span><span style="color:#5fc9b6;white-space:nowrap">${{aTot}}% admit</span>
         </div>
         <div style="display:flex;height:6px;border-radius:3px;overflow:hidden;background:var(--surface-2)">
-          <div style="background:#5eead4;width:${{aTot}}%" title="Admit ${{aTot}}%"></div>
+          <div style="background:#5fc9b6;width:${{aTot}}%" title="Admit ${{aTot}}%"></div>
           <div style="background:#fca5a5;width:${{rTot}}%" title="Reject ${{rTot}}%"></div>
         </div>
         <div class="muted" style="font-size:.72em;margin-top:6px;line-height:1.5">
-          <div><span style="color:#5eead4">●</span> Admit ${{aTot}}% — ${{adminParts.join(' · ') || '0%'}}</div>
+          <div><span style="color:#5fc9b6">●</span> Admit ${{aTot}}% — ${{adminParts.join(' · ') || '0%'}}</div>
           <div><span style="color:#fca5a5">●</span> Reject ${{rTot}}% — ${{rejectParts.join(' · ') || '0%'}}</div>
         </div>
       </div>`;
@@ -13995,8 +13995,8 @@ def _chat_api_send_legacy_disabled():
     status = usage_status(user["id"])
     if status.get("blocked"):
         if status["reason"] == "free_exhausted":
-            paywall = (f'<div style="padding:18px;border-radius:5px;background:rgba(94,234,212,.06);'
-                       f'border:1px solid rgba(94,234,212,.2)">'
+            paywall = (f'<div style="padding:18px;border-radius:5px;background:rgba(95,201,182,.06);'
+                       f'border:1px solid rgba(95,201,182,.2)">'
                        f'<div style="font-weight:600;color:var(--teal);margin-bottom:8px">'
                        f"You've used your {FREE_TRIAL_MESSAGES} free trial messages.</div>"
                        f'<div style="color:var(--text-2);font-size:.92em;margin-bottom:12px">'
