@@ -3139,7 +3139,7 @@ def init_db():
             pass
         # Owner / founder accounts — auto-granted premium so the owner can
         # always access premium features without going through Stripe.
-        OWNER_EMAILS = ("jasperthelazzer19@gmail.com",)
+        OWNER_EMAILS = ("jasperthelazzer19@gmail.com", "jlasser@newroads.org")
         for email in OWNER_EMAILS:
             try:
                 conn.execute("UPDATE users SET is_paid=1 WHERE LOWER(email)=LOWER(?)", (email,))
