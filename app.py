@@ -1115,7 +1115,7 @@ def render_round_breakdown_dark(school, detail, scale=1.0, personalized_rates=No
 # Bump this when the personalize_round_odds prompt logic changes —
 # auto-invalidates all cached round breakdowns on the next request so
 # users immediately see results from the new prompt.
-ROUND_PROMPT_VERSION = "v9"
+ROUND_PROMPT_VERSION = "v10"
 
 
 def _profile_version_hash(profile):
@@ -1149,6 +1149,11 @@ def personalize_round_odds(user_id, school, detail, profile, user_low_pct, user_
     pub_rates = detail.get("rates", {})
     if not rounds:
         return None
+    # Honor the inline keyword-exceptional flag here too, so the per-round
+    # breakdown matches the (now-lifted) headline odds even when the cached
+    # DB is_exceptional is stale/False.
+    if profile is not None and not profile.get("is_exceptional") and _keyword_exceptional(profile):
+        profile = {**profile, "is_exceptional": True}
     # If only one round (RD-only schools like UCs), no point personalizing breakdown
     if len(rounds) == 1:
         return None
@@ -2859,7 +2864,7 @@ WEAKNESS: <one-sentence biggest gap, citing a specific number/item>
 DIFFERENTIATOR: <one-sentence — what could make this applicant memorable, or what is missing that should become memorable>"""
     raw = _claude("claude-haiku-4-5-20251001",
         f"You are an experienced college admissions consultant. Be concrete, cite specific numbers, never hedge. No preamble.\n\n{_date_context()}",
-        user, max_tokens=320)
+        user, max_tokens=900)
     if not raw: return fb
     out = {"strength": "", "weakness": "", "differentiator": ""}
     for line in raw.split("\n"):
