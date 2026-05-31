@@ -2582,25 +2582,25 @@ def spike_receptivity(school):
     return 1.0
 
 
-# Per-school receptivity to a STEM/research/olympiad SPIKE, from real
-# r/collegeresults outcomes (2026-05-31). HIGH (~1.35) = research/awards
-# clearly move the needle (MIT, CMU SCS, GTech CS, UIUC, JHU, Berkeley,
-# Michigan, UVA, Cornell-eng). LOW (~0.9) = holistic schools that reject
-# spiky-STEM kids anyway (Stanford, Yale, Brown, Dartmouth, Notre Dame,
-# Emory, USC, NYU). Everything else 1.0. Matched on school name substring
-# so it works regardless of slug formatting.
-_SPIKE_HIGH = ("mit", "massachusetts institute", "caltech", "california institute",
-               "carnegie mellon", "georgia tech", "georgia institute",
-               "illinois", "uiuc", "johns hopkins", "berkeley", "michigan",
-               "virginia", "cornell", "purdue")
-_SPIKE_LOW = ("stanford", "yale", "brown", "dartmouth", "notre dame",
-              "emory", "southern california", "usc", "new york university", "nyu")
+# Keyword-based exceptional detection computed INLINE at odds time, so the
+# cap-lift applies on every page regardless of any stale cached is_exceptional
+# value in the DB (the cached LLM flag was returning False on prod). Free —
+# no API call.
+_EXC_INLINE_KW = (
+    "isef", "regeneron", "intel sts", "science talent search", "usamo",
+    "usajmo", "usaco platinum", "imo", "ipho", "ibo", "icho", "ioi", "putnam",
+    "rsi", "research science institute", "peer reviewed", "peer-reviewed",
+    "ieee", "published in", "first author", "first-author",
+    "national merit scholar", "recruited", "youngarts", "carnegie hall",
+    "scholastic gold medal", "national champion", "international council",
+    "olympiad medal",
+)
 
-def spike_receptivity(school):
-    name = (school.get("name") or "").lower()
-    if any(k in name for k in _SPIKE_HIGH): return 1.35
-    if any(k in name for k in _SPIKE_LOW): return 0.90
-    return 1.0
+def _keyword_exceptional(profile):
+    blob = f"{profile.get('awards','')}\n{profile.get('ecs','')}\n{profile.get('leadership','')}".lower()
+    if any(k in blob for k in _EXC_INLINE_KW):
+        return True
+    return bool(profile.get("athlete"))
 
 
 def estimate_odds(school, fit, profile):
@@ -2685,7 +2685,7 @@ def estimate_odds(school, fit, profile):
     # Standard caps assume a typical strong applicant; exceptional profiles
     # (USAMO golds, recruited D1 athletes, ISEF top, etc.) get raised caps
     # because flat caps undersell them. Caps only LIFT — never lower odds.
-    if bool(profile.get("is_exceptional")):
+    if bool(profile.get("is_exceptional")) or _keyword_exceptional(profile):
         # Lift caps for genuinely exceptional applicants, but make the lift
         # SCHOOL-AWARE: a research/olympiad spike is worth much more at MIT/
         # CMU/GTech than at holistic Stanford/Yale (per real r/collegeresults
