@@ -2508,8 +2508,13 @@ def get_or_evaluate_exceptionality(user_id, profile):
     # since the evaluation, use the cache.
     eval_at = profile.get("exceptional_evaluated_at")
     updated_at = profile.get("updated_at")
-    if eval_at and updated_at and eval_at >= updated_at:
-        return bool(profile.get("is_exceptional")), profile.get("exceptional_reason") or ""
+    # Trust a cached TRUE (it never flips back). For a cached FALSE we recompute:
+    # the deterministic keyword auto-trigger is free (no API call when no Claude
+    # key is configured — the production case), and we don't want a stale FALSE
+    # from before the keyword logic existed to keep suppressing a genuine
+    # ISEF/USAMO/published/recruited applicant's odds boost.
+    if eval_at and updated_at and eval_at >= updated_at and bool(profile.get("is_exceptional")):
+        return True, profile.get("exceptional_reason") or ""
     # Otherwise recompute and persist
     is_exc, reason = evaluate_profile_exceptionality(profile)
     try:
