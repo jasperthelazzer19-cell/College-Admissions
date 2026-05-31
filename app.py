@@ -8807,7 +8807,19 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
   .lp-wrap {{ position:relative; z-index:1; }}
 </style>
 <noscript><style>.reveal{{opacity:1!important;transform:none!important;transition:none!important}}</style></noscript>
-</head><body>{body}</body></html>"""
+</head><body>{body}
+<style>
+.m-signup-bar{{display:none;}}
+@media (max-width:760px){{
+  body{{padding-bottom:80px;}}
+  .m-signup-bar{{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:1000;align-items:center;justify-content:space-between;gap:12px;padding:11px 16px calc(11px + env(safe-area-inset-bottom));background:rgba(7,13,20,.97);backdrop-filter:blur(10px);border-top:1px solid rgba(255,255,255,.10);box-shadow:0 -6px 24px rgba(0,0,0,.45);}}
+  .m-signup-bar .m-txt{{font-size:.9rem;font-weight:700;color:#e6edf3;line-height:1.15;}}
+  .m-signup-bar .m-txt span{{display:block;font-size:.74rem;font-weight:400;color:#9aa6b6;}}
+  .m-signup-bar a{{flex:0 0 auto;padding:11px 22px;border-radius:6px;font-weight:700;font-size:.93rem;text-decoration:none;white-space:nowrap;color:#070d14;background:linear-gradient(135deg,#5fc9b6 0%,#36b8a8 100%);}}
+}}
+</style>
+<div class="m-signup-bar"><div class="m-txt">See your real odds<span>Free · takes 2 minutes</span></div><a href="/signup">Sign up now →</a></div>
+</body></html>"""
 
 
 @app.route("/colleges")
