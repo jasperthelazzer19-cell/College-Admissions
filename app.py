@@ -2141,6 +2141,28 @@ def combined_rigor(profile):
     return min(100, ap + ib * 0.6)  # IB weighted slightly less when stacked
 
 
+def class_rank_component(profile, school):
+    """Small admit-odds adjustment from class rank. Returns (adj, note).
+    Neutral (0) if the school doesn't rank or data is missing — never a
+    penalty for an absent rank. Modest ±6 scale, in line with AP rigor."""
+    if profile.get("no_class_rank_offered"):
+        return 0.0, "school doesn't rank (neutral)"
+    try:
+        rank = int(profile.get("class_rank") or 0)
+        size = int(profile.get("class_size") or 0)
+    except (ValueError, TypeError):
+        return 0.0, ""
+    if rank < 1 or size < 1 or rank > size:
+        return 0.0, ""
+    pct = 1.0 - (rank - 1) / size  # rank 1 → ~1.0 (top), last → ~0
+    if pct >= 0.99: return 6.0, f"top 1% (#{rank} of {size})"
+    if pct >= 0.95: return 5.0, f"top 5% (#{rank} of {size})"
+    if pct >= 0.90: return 3.5, f"top 10% (#{rank} of {size})"
+    if pct >= 0.75: return 1.5, f"top quartile (#{rank} of {size})"
+    if pct >= 0.50: return 0.0, f"top half (#{rank} of {size})"
+    return -3.0, f"bottom half (#{rank} of {size})"
+
+
 def _normalize_score(sat, act):
     act_to_sat = {36:1590,35:1540,34:1500,33:1460,32:1430,31:1400,30:1370,29:1340,28:1310,27:1280,26:1240,25:1210,24:1180,23:1140,22:1110,21:1080,20:1040,19:1010,18:970}
     if sat: return int(sat)
@@ -3069,6 +3091,15 @@ def init_db():
                              else f"ALTER TABLE profiles ADD COLUMN {col} INTEGER DEFAULT {default}")
             except sqlite3.OperationalError:
                 pass
+        # Class rank: rank + class size (nullable ints) + a flag for schools
+        # that don't rank. When the flag is set, rank is treated as neutral.
+        for _crc in ("ALTER TABLE profiles ADD COLUMN class_rank INTEGER",
+                     "ALTER TABLE profiles ADD COLUMN class_size INTEGER",
+                     "ALTER TABLE profiles ADD COLUMN no_class_rank_offered INTEGER DEFAULT 0"):
+            try:
+                conn.execute(_crc)
+            except sqlite3.OperationalError:
+                pass
         # Year-by-year unweighted GPAs (optional). Used for trend detection
         # and UC-policy weighting (UCs ignore freshman year). When provided,
         # supersedes flat uw_gpa for chances calc on a per-school basis.
@@ -3317,6 +3348,14 @@ def save_profile(user_id, p):
             )
         except Exception as e:
             print(f"year-by-year GPA save failed: {e}")
+        try:
+            conn.execute(
+                "UPDATE profiles SET class_rank=?, class_size=?, no_class_rank_offered=? WHERE user_id=?",
+                (p.get("class_rank") or None, p.get("class_size") or None,
+                 1 if p.get("no_class_rank_offered") else 0, user_id),
+            )
+        except Exception as e:
+            print(f"class rank save failed: {e}")
         try:
             conn.execute(
                 "UPDATE profiles SET sat_math=?, sat_ebrw=?, act_math=?, act_english=?, act_reading=?, act_science=? WHERE user_id=?",
@@ -4978,6 +5017,19 @@ def profile_html():
     </label>
   </div>
   <p class="muted" style="font-size:.78em;margin:4px 0 0">HL classes count for more than SL. Most schools that have IB don't have APs, so picking neither is fine if you're at one of them.</p>
+
+  <label style="margin-top:18px">Class rank <span class="muted">(optional — your rank and graduating class size)</span></label>
+  <div class="row">
+    <div><input type="number" min="1" name="class_rank" value="{v('class_rank')}" placeholder="rank, e.g. 12"></div>
+    <div><input type="number" min="1" name="class_size" value="{v('class_size')}" placeholder="class size, e.g. 480"></div>
+  </div>
+  <div style="margin-top:10px">
+    <label style="display:flex;align-items:center;gap:8px;font-weight:500">
+      <input type="checkbox" name="no_class_rank_offered" {checked('no_class_rank_offered')} style="width:auto;margin:0">
+      My school does not offer class rank
+    </label>
+  </div>
+  <p class="muted" style="font-size:.78em;margin:4px 0 0">If your school ranks, being near the top is a small boost. If it doesn't rank, check the box and it won't count against you.</p>
 
   <h3>Activities</h3>
   <label>Extracurriculars</label>
