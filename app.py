@@ -2278,7 +2278,7 @@ def compute_fit(profile, school):
             components["test"] = 0
     ec_strength = _keyword_strength(profile.get("ecs", "") or "", EC_STRONG_SIGNALS)
     awards_strength = _keyword_strength(profile.get("awards", "") or "", EC_STRONG_SIGNALS)
-    ec_total = min(10, ec_strength * 1.5 + awards_strength * 2)
+    ec_total = min(16, ec_strength * 1.5 + awards_strength * 2.5)
     if not (profile.get("ecs", "") or "").strip(): ec_total -= 4
     score += ec_total
     components["ecs"] = round(ec_total, 1)
@@ -2413,14 +2413,35 @@ def evaluate_profile_exceptionality(profile):
 
     Returns (is_exceptional: bool, reason: str). Reason is a short human-
     readable explanation of what triggered the flag (or why it didn't)."""
-    if not _claude_client:
-        return False, "AI evaluation unavailable"
     awards = (profile.get("awards") or "").strip()
     ecs = (profile.get("ecs") or "").strip()
     leadership = (profile.get("leadership") or "").strip()
     is_athlete = bool(profile.get("athlete"))
     if not (awards or ecs or leadership):
         return False, "No awards/ECs/leadership submitted"
+    # ── Deterministic keyword auto-trigger (runs with NO API call) ──
+    # The LLM path below only fires when a Claude key is configured; on
+    # deploys without one it silently returned False, so genuinely
+    # exceptional STEM kids never got the cap lift. These phrases are
+    # unambiguous national/international markers — if present, flag YES
+    # immediately. Anchored on real r/collegeresults admit data.
+    _blob = f"{awards}\n{ecs}\n{leadership}".lower()
+    _EXC_KEYWORDS = [
+        "isef", "regeneron", "intel sts", "science talent search",
+        "usamo", "usajmo", "usaco platinum", "imo", "ipho", "ibo",
+        "icho", "ioi", "putnam", "rsi", "research science institute",
+        "peer reviewed", "peer-reviewed", "ieee", "published in", "first author",
+        "first-author", "nature ", "national merit scholar",
+        "recruited", "verbal commit", "committed to play", "d1 scholarship",
+        "youngarts", "carnegie hall", "scholastic gold medal",
+        "national champion", "international council", "olympiad medal",
+    ]
+    _hit = next((k for k in _EXC_KEYWORDS if k in _blob), None)
+    if _hit or is_athlete:
+        why = "recruited athlete" if (is_athlete and not _hit) else f"national/international credential ({_hit})"
+        return True, f"Auto-flagged: {why}"
+    if not _claude_client:
+        return False, "no exceptional keywords detected"
     user_msg = f"""STUDENT PROFILE:
 - Awards: {awards or '(blank)'}
 - Extracurriculars: {ecs or '(blank)'}
@@ -2535,6 +2556,48 @@ def counterfactual_lift(profile, school, *, gpa=None, sat=None, act=None,
     return estimate_odds(school, fit, sim)
 
 
+# Per-school receptivity to a STEM/research/olympiad SPIKE, from real
+# r/collegeresults outcomes (2026-05-31). HIGH (~1.35) = research/awards
+# clearly move the needle (MIT, CMU SCS, GTech CS, UIUC, JHU, Berkeley,
+# Michigan, UVA, Cornell-eng). LOW (~0.9) = holistic schools that reject
+# spiky-STEM kids anyway (Stanford, Yale, Brown, Dartmouth, Notre Dame,
+# Emory, USC, NYU). Everything else 1.0. Matched on school name substring
+# so it works regardless of slug formatting.
+_SPIKE_HIGH = ("mit", "massachusetts institute", "caltech", "california institute",
+               "carnegie mellon", "georgia tech", "georgia institute",
+               "illinois", "uiuc", "johns hopkins", "berkeley", "michigan",
+               "virginia", "cornell", "purdue")
+_SPIKE_LOW = ("stanford", "yale", "brown", "dartmouth", "notre dame",
+              "emory", "southern california", "usc", "new york university", "nyu")
+
+def spike_receptivity(school):
+    name = (school.get("name") or "").lower()
+    if any(k in name for k in _SPIKE_HIGH): return 1.35
+    if any(k in name for k in _SPIKE_LOW): return 0.90
+    return 1.0
+
+
+# Per-school receptivity to a STEM/research/olympiad SPIKE, from real
+# r/collegeresults outcomes (2026-05-31). HIGH (~1.35) = research/awards
+# clearly move the needle (MIT, CMU SCS, GTech CS, UIUC, JHU, Berkeley,
+# Michigan, UVA, Cornell-eng). LOW (~0.9) = holistic schools that reject
+# spiky-STEM kids anyway (Stanford, Yale, Brown, Dartmouth, Notre Dame,
+# Emory, USC, NYU). Everything else 1.0. Matched on school name substring
+# so it works regardless of slug formatting.
+_SPIKE_HIGH = ("mit", "massachusetts institute", "caltech", "california institute",
+               "carnegie mellon", "georgia tech", "georgia institute",
+               "illinois", "uiuc", "johns hopkins", "berkeley", "michigan",
+               "virginia", "cornell", "purdue")
+_SPIKE_LOW = ("stanford", "yale", "brown", "dartmouth", "notre dame",
+              "emory", "southern california", "usc", "new york university", "nyu")
+
+def spike_receptivity(school):
+    name = (school.get("name") or "").lower()
+    if any(k in name for k in _SPIKE_HIGH): return 1.35
+    if any(k in name for k in _SPIKE_LOW): return 0.90
+    return 1.0
+
+
 def estimate_odds(school, fit, profile):
     """Harsher version. Markets and admissions are noisy; previous curve was
     over-generous in the middle of the fit range. Tighter slope + lower caps
@@ -2618,13 +2681,21 @@ def estimate_odds(school, fit, profile):
     # (USAMO golds, recruited D1 athletes, ISEF top, etc.) get raised caps
     # because flat caps undersell them. Caps only LIFT — never lower odds.
     if bool(profile.get("is_exceptional")):
-        # Lift caps significantly. A USAMO gold + recruited athlete legitimately
-        # has 60-80% odds at MIT. Even unhooked extraordinary kids cross 30%.
-        if a < 0.07:  center = min(center * 1.5 + 0.08, 0.65)
-        elif a < 0.10: center = min(center * 1.5 + 0.06, 0.72)
-        elif a < 0.20: center = min(center * 1.4 + 0.05, 0.80)
-        elif a < 0.40: center = min(center * 1.3 + 0.03, 0.88)
-        else:           center = min(center * 1.2, 0.93)
+        # Lift caps for genuinely exceptional applicants, but make the lift
+        # SCHOOL-AWARE: a research/olympiad spike is worth much more at MIT/
+        # CMU/GTech than at holistic Stanford/Yale (per real r/collegeresults
+        # outcomes). recep in [0.90, 1.35]. 0.90 conservative shading applied
+        # to the additive bump so we don't over-promise (Reddit over-reports
+        # admits). The override only LIFTS odds, never lowers them.
+        recep = spike_receptivity(school)
+        base = center
+        if a < 0.07:  lifted = center * (1.0 + 0.5 * recep) + 0.07 * recep
+        elif a < 0.10: lifted = center * (1.0 + 0.5 * recep) + 0.055 * recep
+        elif a < 0.20: lifted = center * (1.0 + 0.4 * recep) + 0.045 * recep
+        elif a < 0.40: lifted = center * (1.0 + 0.3 * recep) + 0.03 * recep
+        else:           lifted = center * (1.0 + 0.2 * recep)
+        cap = 0.62 if a < 0.07 else 0.70 if a < 0.10 else 0.78 if a < 0.20 else 0.88 if a < 0.40 else 0.93
+        center = max(base, min(lifted, cap))
     else:
         # Standard caps — tightened so headline numbers don't promise a Stanford
         # that isn't there for a typical strong applicant.
