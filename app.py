@@ -7289,6 +7289,9 @@ def _read_profile_form(form):
         "aps_offered_not_taken": form.get("aps_offered_not_taken") in ("yes","on","true","1"),
         "no_ibs_offered": form.get("no_ibs_offered") in ("yes","on","true","1"),
         "ibs_offered_not_taken": form.get("ibs_offered_not_taken") in ("yes","on","true","1"),
+        "class_rank": f("class_rank", int),
+        "class_size": f("class_size", int),
+        "no_class_rank_offered": form.get("no_class_rank_offered") in ("yes","on","true","1"),
     }
     # Merge picker selections into the aps string
     picked = form.getlist("ap_pick") if hasattr(form, "getlist") else []
