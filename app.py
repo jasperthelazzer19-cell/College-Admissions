@@ -2858,13 +2858,13 @@ CRITICAL RULES:
 - DO NOT invent percentile rankings or stats not provided.
 - If the student submitted ACT, only reference the ACT range — never compare ACT to SAT.
 
-Output exactly three lines. Each should be 2 sentences (a third only if truly needed) — specific to THIS applicant and THIS school. Cite their actual numbers/awards and the school's specific programs or admissions dynamics. Tight and concrete, no generic filler, no hedging.
-STRENGTH: <~2 sentences: the strongest things working in their favor here, with a specific reason why it matters at this school>
-WEAKNESS: <~2 sentences: the biggest thing working against them here — honest and concrete about what's missing or below bar>
-DIFFERENTIATOR: <~2 sentences: what concretely could make them memorable here, or the specific gap to close, referencing their real profile>"""
+Output exactly three lines. Each should be 1-2 sentences (lean toward 1, a second only if it adds real substance) — specific to THIS applicant and THIS school. Cite a concrete number/award and the school's specifics. Tight, punchy, no filler, no hedging.
+STRENGTH: <1-2 sentences: the strongest thing working in their favor here and why it matters at this school>
+WEAKNESS: <1-2 sentences: the biggest thing working against them here — honest and concrete>
+DIFFERENTIATOR: <1-2 sentences: what concretely could make them memorable here, or the specific gap to close>"""
     raw = _claude("claude-haiku-4-5-20251001",
-        f"You are an experienced college admissions consultant. Be concrete, cite specific numbers, ~2 sentences per field (tight but substantive), never hedge. No preamble.\n\n{_date_context()}",
-        user, max_tokens=550)
+        f"You are an experienced college admissions consultant. Be concrete, cite specific numbers, 1-2 sentences per field (lean toward 1, tight and punchy), never hedge. No preamble.\n\n{_date_context()}",
+        user, max_tokens=420)
     if not raw: return fb
     out = {"strength": "", "weakness": "", "differentiator": ""}
     for line in raw.split("\n"):
