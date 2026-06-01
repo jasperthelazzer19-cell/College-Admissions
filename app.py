@@ -2318,20 +2318,10 @@ def compute_fit(profile, school):
             components["test"] = -6
         else:
             components["test"] = 0
-    # EC/award strength: prefer the cached LLM score (0-16) when available — it
-    # reads actual substance instead of keyword-matching — else fall back to the
-    # keyword heuristic. The LLM score is computed once at profile-save time
-    # (ec_llm_score) so this stays instant in ranking/loop hot paths.
-    _ec_llm = profile.get("ec_score")
-    if _ec_llm is not None and str(_ec_llm) != "":
-        ec_total = max(-4, min(16, float(_ec_llm)))
-        if not (profile.get("ecs","") or "").strip() and not (profile.get("awards","") or "").strip():
-            ec_total = -4
-    else:
-        ec_strength = _keyword_strength(profile.get("ecs", "") or "", EC_STRONG_SIGNALS)
-        awards_strength = _keyword_strength(profile.get("awards", "") or "", EC_STRONG_SIGNALS)
-        ec_total = min(16, ec_strength * 1.5 + awards_strength * 2.5)
-        if not (profile.get("ecs", "") or "").strip(): ec_total -= 4
+    ec_strength = _keyword_strength(profile.get("ecs", "") or "", EC_STRONG_SIGNALS)
+    awards_strength = _keyword_strength(profile.get("awards", "") or "", EC_STRONG_SIGNALS)
+    ec_total = min(10, ec_strength * 1.5 + awards_strength * 2)
+    if not (profile.get("ecs", "") or "").strip(): ec_total -= 4
     score += ec_total
     components["ecs"] = round(ec_total, 1)
     lead_total = min(5, _keyword_strength(profile.get("leadership", "") or "", LEADERSHIP_KEYWORDS) * 1.5)
@@ -2465,35 +2455,14 @@ def evaluate_profile_exceptionality(profile):
 
     Returns (is_exceptional: bool, reason: str). Reason is a short human-
     readable explanation of what triggered the flag (or why it didn't)."""
+    if not _claude_client:
+        return False, "AI evaluation unavailable"
     awards = (profile.get("awards") or "").strip()
     ecs = (profile.get("ecs") or "").strip()
     leadership = (profile.get("leadership") or "").strip()
     is_athlete = bool(profile.get("athlete"))
     if not (awards or ecs or leadership):
         return False, "No awards/ECs/leadership submitted"
-    # ── Deterministic keyword auto-trigger (runs with NO API call) ──
-    # The LLM path below only fires when a Claude key is configured; on
-    # deploys without one it silently returned False, so genuinely
-    # exceptional STEM kids never got the cap lift. These phrases are
-    # unambiguous national/international markers — if present, flag YES
-    # immediately. Anchored on real r/collegeresults admit data.
-    _blob = f"{awards}\n{ecs}\n{leadership}".lower()
-    _EXC_KEYWORDS = [
-        "isef", "regeneron", "intel sts", "science talent search",
-        "usamo", "usajmo", "usaco platinum", "imo", "ipho", "ibo",
-        "icho", "ioi", "putnam", "rsi", "research science institute",
-        "peer reviewed", "peer-reviewed", "ieee", "published in", "first author",
-        "first-author", "nature ", "national merit scholar",
-        "recruited", "verbal commit", "committed to play", "d1 scholarship",
-        "youngarts", "carnegie hall", "scholastic gold medal",
-        "national champion", "international council", "olympiad medal",
-    ]
-    _hit = next((k for k in _EXC_KEYWORDS if k in _blob), None)
-    if _hit or is_athlete:
-        why = "recruited athlete" if (is_athlete and not _hit) else f"national/international credential ({_hit})"
-        return True, f"Auto-flagged: {why}"
-    if not _claude_client:
-        return False, "no exceptional keywords detected"
     user_msg = f"""STUDENT PROFILE:
 - Awards: {awards or '(blank)'}
 - Extracurriculars: {ecs or '(blank)'}
@@ -2560,13 +2529,8 @@ def get_or_evaluate_exceptionality(user_id, profile):
     # since the evaluation, use the cache.
     eval_at = profile.get("exceptional_evaluated_at")
     updated_at = profile.get("updated_at")
-    # Trust a cached TRUE (it never flips back). For a cached FALSE we recompute:
-    # the deterministic keyword auto-trigger is free (no API call when no Claude
-    # key is configured — the production case), and we don't want a stale FALSE
-    # from before the keyword logic existed to keep suppressing a genuine
-    # ISEF/USAMO/published/recruited applicant's odds boost.
-    if eval_at and updated_at and eval_at >= updated_at and bool(profile.get("is_exceptional")):
-        return True, profile.get("exceptional_reason") or ""
+    if eval_at and updated_at and eval_at >= updated_at:
+        return bool(profile.get("is_exceptional")), profile.get("exceptional_reason") or ""
     # Otherwise recompute and persist
     is_exc, reason = evaluate_profile_exceptionality(profile)
     try:
@@ -2613,33 +2577,6 @@ def counterfactual_lift(profile, school, *, gpa=None, sat=None, act=None,
     return estimate_odds(school, fit, sim)
 
 
-# Per-school receptivity to a STEM/research/olympiad SPIKE, from real
-# r/collegeresults outcomes (2026-05-31). HIGH (~1.35) = research/awards
-# clearly move the needle (MIT, CMU SCS, GTech CS, UIUC, JHU, Berkeley,
-# Michigan, UVA, Cornell-eng). LOW (~0.9) = holistic schools that reject
-# spiky-STEM kids anyway (Stanford, Yale, Brown, Dartmouth, Notre Dame,
-# Emory, USC, NYU). Everything else 1.0. Matched on school name substring
-# so it works regardless of slug formatting.
-_SPIKE_HIGH = ("mit", "massachusetts institute", "caltech", "california institute",
-               "carnegie mellon", "georgia tech", "georgia institute",
-               "illinois", "uiuc", "johns hopkins", "berkeley", "michigan",
-               "virginia", "cornell", "purdue")
-# True holistic "spike-graveyards" — they reject strong spiky applicants on
-# narrative/fit, so a spike is worth less here (0.90x). NYU/USC are NOT in this
-# bucket: they're stats- and yield-driven, where a strong profile clears more
-# easily than the headline rate implies, so they stay neutral (1.0x).
-_SPIKE_LOW = ("stanford", "yale", "brown", "dartmouth", "notre dame")
-
-# "Just below truly elite" — yield-protective, stats-and-fit-driven schools
-# where a strong objective profile clears more easily than the headline rate
-# suggests (the opposite of the holistic Ivies). Applied as a real odds boost
-# in estimate_odds so strong applicants aren't under-rated here.
-_YIELD_DRIVEN_SLUGS = {
-    "nyu", "usc", "washu", "emory", "bu", "northeastern", "tufts", "tulane",
-    "wake-forest", "miami", "bc", "lehigh", "villanova", "rochester",
-    "case-western", "richmond", "smu", "george-washington", "gwu",
-    "rice", "georgetown", "ucsd", "uci",
-}
 
 def spike_receptivity(school):
     name = (school.get("name") or "").lower()
@@ -2746,59 +2683,26 @@ def estimate_odds(school, fit, profile):
     # portfolio at Roski/Tisch/RISD/etc. is meaningfully a hook.
     if (profile.get("portfolio") or "").strip() and school.get("slug") in PORTFOLIO_GATEKEEPER_SCHOOLS:
         hook_mult *= 1.15
-    # ── "Just below truly elite" tier: yield-protective, stats-driven schools ──
-    # These reward a strong objective profile (high GPA/test + solid ECs) far
-    # more than the holistic Ivies/Stanford do — a strong applicant clears them
-    # noticeably more easily than the raw fit-curve implies. Give a real boost,
-    # scaled up when the applicant's academics are genuinely strong here.
-    # Boost ONLY genuinely strong profiles here — these schools reward strong
-    # objective stats/fit, but a weak applicant should still land at or below
-    # the base rate (the fit curve handles that). No blanket boost.
-    if school.get("slug") in _YIELD_DRIVEN_SLUGS:
-        if fit >= 78:      hook_mult *= 1.30   # clearly strong for this school
-        elif fit >= 68:    hook_mult *= 1.15   # solidly above bar
-        # fit < 68: no boost — odds track the fit curve (often below base rate)
     center = a * fit_mult * hook_mult
     # Pick caps based on whether this profile has been flagged as exceptional.
     # Standard caps assume a typical strong applicant; exceptional profiles
     # (USAMO golds, recruited D1 athletes, ISEF top, etc.) get raised caps
     # because flat caps undersell them. Caps only LIFT — never lower odds.
-    if bool(profile.get("is_exceptional")) or _keyword_exceptional(profile):
-        # Lift caps for genuinely exceptional applicants, but make the lift
-        # SCHOOL-AWARE: a research/olympiad spike is worth much more at MIT/
-        # CMU/GTech than at holistic Stanford/Yale (per real r/collegeresults
-        # outcomes). recep in [0.90, 1.35]. 0.90 conservative shading applied
-        # to the additive bump so we don't over-promise (Reddit over-reports
-        # admits). The override only LIFTS odds, never lowers them.
-        recep = spike_receptivity(school)
-        base = center
-        if a < 0.07:  lifted = center * (1.0 + 0.5 * recep) + 0.07 * recep
-        elif a < 0.10: lifted = center * (1.0 + 0.5 * recep) + 0.055 * recep
-        elif a < 0.20: lifted = center * (1.0 + 0.4 * recep) + 0.045 * recep
-        elif a < 0.40: lifted = center * (1.0 + 0.3 * recep) + 0.03 * recep
-        else:           lifted = center * (1.0 + 0.2 * recep)
-        cap = 0.62 if a < 0.07 else 0.70 if a < 0.10 else 0.78 if a < 0.20 else 0.88 if a < 0.40 else 0.93
-        center = max(base, min(lifted, cap))
+    if bool(profile.get("is_exceptional")):
+        # Lift caps significantly. A USAMO gold + recruited athlete legitimately
+        # has 60-80% odds at MIT. Even unhooked extraordinary kids cross 30%.
+        if a < 0.07:  center = min(center * 1.5 + 0.08, 0.65)
+        elif a < 0.10: center = min(center * 1.5 + 0.06, 0.72)
+        elif a < 0.20: center = min(center * 1.4 + 0.05, 0.80)
+        elif a < 0.40: center = min(center * 1.3 + 0.03, 0.88)
+        else:           center = min(center * 1.2, 0.93)
     else:
-        # ── Reach-band calibration lift (data-driven, bias-aware) ──
-        # Backtesting against ~160 real outcomes showed the model reads too
-        # harsh for STRONG applicants in the 5-35% reach band — exactly the
-        # "qualified pool" effect (most applicants below the bar drag the
-        # headline rate down; a strong applicant beats it). The data is
-        # acceptance-biased so we apply only a MODEST relative lift (not the
-        # raw +50pt gap), and only when fit is genuinely strong, so weak
-        # profiles still land at/below the base rate.
-        if fit >= 78 and 0.05 <= a < 0.20:
-            center *= 1.30
-        elif fit >= 70 and 0.05 <= a < 0.35:
-            center *= 1.18
         # Standard caps — tightened so headline numbers don't promise a Stanford
-        # that isn't there for a typical strong applicant. (Caps lifted slightly
-        # in the reach band to let the calibration lift through.)
-        if a < 0.07:  center = min(center, 0.16)
-        elif a < 0.10: center = min(center, 0.22)
-        elif a < 0.20: center = min(center, 0.36)
-        elif a < 0.40: center = min(center, 0.58)
+        # that isn't there for a typical strong applicant.
+        if a < 0.07:  center = min(center, 0.14)
+        elif a < 0.10: center = min(center, 0.18)
+        elif a < 0.20: center = min(center, 0.30)
+        elif a < 0.40: center = min(center, 0.55)
         else: center = min(center, 0.85)
     # Spread (uncertainty band) is wider at low-accept schools where the outcome
     # is genuinely more uncertain, and narrower at high-accept schools where
@@ -2818,6 +2722,7 @@ def estimate_odds(school, fit, profile):
     high = min(95, int(round((center + spread / 2) * 100)))
     if high <= low: high = low + 3
     return low, high
+
 
 
 def confidence_level(profile, components):
