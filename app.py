@@ -2281,10 +2281,20 @@ def compute_fit(profile, school):
             components["test"] = -6
         else:
             components["test"] = 0
-    ec_strength = _keyword_strength(profile.get("ecs", "") or "", EC_STRONG_SIGNALS)
-    awards_strength = _keyword_strength(profile.get("awards", "") or "", EC_STRONG_SIGNALS)
-    ec_total = min(16, ec_strength * 1.5 + awards_strength * 2.5)
-    if not (profile.get("ecs", "") or "").strip(): ec_total -= 4
+    # EC/award strength: prefer the cached LLM score (0-16) when available — it
+    # reads actual substance instead of keyword-matching — else fall back to the
+    # keyword heuristic. The LLM score is computed once at profile-save time
+    # (ec_llm_score) so this stays instant in ranking/loop hot paths.
+    _ec_llm = profile.get("ec_score")
+    if _ec_llm is not None and str(_ec_llm) != "":
+        ec_total = max(-4, min(16, float(_ec_llm)))
+        if not (profile.get("ecs","") or "").strip() and not (profile.get("awards","") or "").strip():
+            ec_total = -4
+    else:
+        ec_strength = _keyword_strength(profile.get("ecs", "") or "", EC_STRONG_SIGNALS)
+        awards_strength = _keyword_strength(profile.get("awards", "") or "", EC_STRONG_SIGNALS)
+        ec_total = min(16, ec_strength * 1.5 + awards_strength * 2.5)
+        if not (profile.get("ecs", "") or "").strip(): ec_total -= 4
     score += ec_total
     components["ecs"] = round(ec_total, 1)
     lead_total = min(5, _keyword_strength(profile.get("leadership", "") or "", LEADERSHIP_KEYWORDS) * 1.5)
