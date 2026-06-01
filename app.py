@@ -2581,7 +2581,18 @@ _SPIKE_HIGH = ("mit", "massachusetts institute", "caltech", "california institut
 # narrative/fit, so a spike is worth less here (0.90x). NYU/USC are NOT in this
 # bucket: they're stats- and yield-driven, where a strong profile clears more
 # easily than the headline rate implies, so they stay neutral (1.0x).
-_SPIKE_LOW = ("stanford", "yale", "brown", "dartmouth", "notre dame", "emory")
+_SPIKE_LOW = ("stanford", "yale", "brown", "dartmouth", "notre dame")
+
+# "Just below truly elite" — yield-protective, stats-and-fit-driven schools
+# where a strong objective profile clears more easily than the headline rate
+# suggests (the opposite of the holistic Ivies). Applied as a real odds boost
+# in estimate_odds so strong applicants aren't under-rated here.
+_YIELD_DRIVEN_SLUGS = {
+    "nyu", "usc", "washu", "emory", "bu", "northeastern", "tufts", "tulane",
+    "wake-forest", "miami", "bc", "lehigh", "villanova", "rochester",
+    "case-western", "richmond", "smu", "george-washington", "gwu",
+    "rice", "georgetown", "ucsd", "uci",
+}
 
 def spike_receptivity(school):
     name = (school.get("name") or "").lower()
@@ -2688,6 +2699,14 @@ def estimate_odds(school, fit, profile):
     # portfolio at Roski/Tisch/RISD/etc. is meaningfully a hook.
     if (profile.get("portfolio") or "").strip() and school.get("slug") in PORTFOLIO_GATEKEEPER_SCHOOLS:
         hook_mult *= 1.15
+    # ── "Just below truly elite" tier: yield-protective, stats-driven schools ──
+    # These reward a strong objective profile (high GPA/test + solid ECs) far
+    # more than the holistic Ivies/Stanford do — a strong applicant clears them
+    # noticeably more easily than the raw fit-curve implies. Give a real boost,
+    # scaled up when the applicant's academics are genuinely strong here.
+    if school.get("slug") in _YIELD_DRIVEN_SLUGS:
+        strong = (fit >= 68) or (a and center > a)  # above-bar academics / fit
+        hook_mult *= 1.28 if strong else 1.12
     center = a * fit_mult * hook_mult
     # Pick caps based on whether this profile has been flagged as exceptional.
     # Standard caps assume a typical strong applicant; exceptional profiles
