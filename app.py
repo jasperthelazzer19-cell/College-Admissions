@@ -12031,6 +12031,65 @@ def admin_grant_paid():
                  title="Granted — Candor")
 
 
+@app.route("/admin/calibration")
+def admin_calibration():
+    """Backtest odds vs. real reported outcomes (user_outcomes). Buckets each
+    prediction by midpoint odds, compares predicted vs ACTUAL admit rate.
+    Well-calibrated => predicted ~= actual per row. ?key=ADMIN_KEY"""
+    if not ADMIN_KEY or request.args.get("key") != ADMIN_KEY:
+        return ("<h1>401 Unauthorized</h1><p>Pass <code>?key=YOUR_ADMIN_KEY</code></p>", 401)
+    BUCKETS = [(0,5),(5,10),(10,20),(20,35),(35,50),(50,70),(70,101)]
+    try:
+        with db() as conn:
+            rows = conn.execute(
+                "SELECT predicted_odds_low, predicted_odds_high, actual_outcome "
+                "FROM user_outcomes WHERE actual_outcome IS NOT NULL AND actual_outcome!='' "
+                "AND predicted_odds_low IS NOT NULL"
+            ).fetchall()
+    except Exception:
+        rows = []
+    def is_admit(o): return (o or "").lower() == "admitted"
+    agg = {b: {"n":0,"adm":0,"psum":0.0} for b in BUCKETS}
+    n=adm=0; brier=0.0
+    for r in rows:
+        mid=(r["predicted_odds_low"]+r["predicted_odds_high"])/2.0
+        a=1 if is_admit(r["actual_outcome"]) else 0
+        n+=1; adm+=a; brier+=((mid/100.0)-a)**2
+        for b in BUCKETS:
+            if b[0]<=mid<b[1]:
+                agg[b]["n"]+=1; agg[b]["adm"]+=a; agg[b]["psum"]+=mid; break
+    rws=""
+    for b in BUCKETS:
+        d=agg[b]
+        if not d["n"]:
+            rws+=f'<tr><td>{b[0]}–{b[1]}%</td><td>0</td><td>—</td><td>—</td><td>—</td></tr>'; continue
+        pred=d["psum"]/d["n"]; act=100.0*d["adm"]/d["n"]; gap=act-pred
+        col="#16a34a" if abs(gap)<=7 else ("#d97706" if abs(gap)<=15 else "#dc2626")
+        rws+=(f'<tr><td>{b[0]}–{b[1]}%</td><td>{d["n"]}</td><td>{pred:.0f}%</td>'
+              f'<td>{act:.0f}%</td><td style="color:{col};font-weight:600">{gap:+.0f} pts</td></tr>')
+    brier=(brier/n) if n else 0
+    rate=(100.0*adm/n) if n else 0
+    warn=('<div class="card" style="background:#fff8e1;border-color:#ffeaa7"><b>Not enough data yet.</b> '
+          'Calibration is meaningful around 50–100+ reported outcomes. Drive users to <code>/outcomes</code>.</div>'
+          if n<20 else '')
+    return _page(f"""
+<h1>Model calibration</h1>
+<p class="muted">Predicted odds vs. real reported outcomes. {n} graded ({adm} admits, {rate:.0f}% overall).
+Brier: <b>{brier:.3f}</b> (lower=better; .25=coin-flip).</p>
+{warn}
+<div class="card" style="padding:0;overflow-x:auto;margin-top:14px">
+  <table style="width:100%;border-collapse:collapse;font-size:.92em">
+    <thead><tr style="text-align:left;border-bottom:1px solid var(--border)">
+      <th style="padding:12px">Predicted</th><th style="padding:12px">n</th>
+      <th style="padding:12px">Avg predicted</th><th style="padding:12px">Actual admit</th><th style="padding:12px">Gap</th>
+    </tr></thead><tbody>{rws}</tbody>
+  </table>
+</div>
+<p class="muted" style="font-size:.85em;margin-top:14px">Green ≤7 pts · amber 7–15 · red &gt;15. A consistent
+one-direction gap means the model is systematically harsh (actual&gt;predicted) or generous; shift the fit curve/caps to fix.</p>
+""", title="Calibration — Candor")
+
+
 @app.route("/admin/refresh-scorecard")
 def admin_refresh_scorecard():
     """Bulk-refresh all 155 schools' stats from College Scorecard.
