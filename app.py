@@ -2577,8 +2577,11 @@ _SPIKE_HIGH = ("mit", "massachusetts institute", "caltech", "california institut
                "carnegie mellon", "georgia tech", "georgia institute",
                "illinois", "uiuc", "johns hopkins", "berkeley", "michigan",
                "virginia", "cornell", "purdue")
-_SPIKE_LOW = ("stanford", "yale", "brown", "dartmouth", "notre dame",
-              "emory", "southern california", "usc", "new york university", "nyu")
+# True holistic "spike-graveyards" — they reject strong spiky applicants on
+# narrative/fit, so a spike is worth less here (0.90x). NYU/USC are NOT in this
+# bucket: they're stats- and yield-driven, where a strong profile clears more
+# easily than the headline rate implies, so they stay neutral (1.0x).
+_SPIKE_LOW = ("stanford", "yale", "brown", "dartmouth", "notre dame", "emory")
 
 def spike_receptivity(school):
     name = (school.get("name") or "").lower()
