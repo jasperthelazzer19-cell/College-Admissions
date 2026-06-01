@@ -2606,6 +2606,22 @@ def _keyword_exceptional(profile):
     return bool(profile.get("athlete"))
 
 
+# Per-school calibration dial. Lifts ONLY the listed school's odds curve —
+# no global/tier multiplier (those cascade and over-inflate neighbors). These
+# yield-driven, stats-friendly, just-below-elite schools were systematically
+# too harsh for solid/strong applicants. Each factor is calibrated against an
+# agreed target for a reference 3.9/1500 profile and verified not to move the
+# truly-elite schools. Value 1.0 == no change. The dial is faded in by fit
+# (see estimate_odds) so weak profiles stay below the school's acceptance rate.
+_SCHOOL_CALIBRATION = {
+    "usc": 2.30,
+    "nyu": 2.45,
+    "umich": 1.22,
+    "bu": 1.15,
+    "northeastern": 2.75,
+}
+
+
 def estimate_odds(school, fit, profile):
     """Harsher version. Markets and admissions are noisy; previous curve was
     over-generous in the middle of the fit range. Tighter slope + lower caps
@@ -2684,6 +2700,19 @@ def estimate_odds(school, fit, profile):
     if (profile.get("portfolio") or "").strip() and school.get("slug") in PORTFOLIO_GATEKEEPER_SCHOOLS:
         hook_mult *= 1.15
     center = a * fit_mult * hook_mult
+    # Per-school calibration dial (takes precedence over the standard elite cap
+    # for the few schools that were too harsh). Faded in by fit: w=0 at fit<=42
+    # (weak — left untouched so it stays below acceptance rate) ramping to full
+    # by fit>=58. Bypasses the harsh low-accept cap and uses a sane 0.42 ceiling.
+    _cal = _SCHOOL_CALIBRATION.get(school.get("slug"))
+    if _cal and not bool(profile.get("is_exceptional")):
+        w = max(0.0, min(1.0, (fit - 42.0) / 16.0))
+        center = center * (1.0 + (_cal - 1.0) * w)
+        center = min(center, 0.42)
+        low = max(1, int(round((center - max(0.05, center * 0.30) / 2) * 100)))
+        high = min(95, int(round((center + max(0.05, center * 0.30) / 2) * 100)))
+        if high <= low: high = low + 3
+        return low, high
     # Pick caps based on whether this profile has been flagged as exceptional.
     # Standard caps assume a typical strong applicant; exceptional profiles
     # (USAMO golds, recruited D1 athletes, ISEF top, etc.) get raised caps
