@@ -2704,9 +2704,13 @@ def estimate_odds(school, fit, profile):
     # more than the holistic Ivies/Stanford do — a strong applicant clears them
     # noticeably more easily than the raw fit-curve implies. Give a real boost,
     # scaled up when the applicant's academics are genuinely strong here.
+    # Boost ONLY genuinely strong profiles here — these schools reward strong
+    # objective stats/fit, but a weak applicant should still land at or below
+    # the base rate (the fit curve handles that). No blanket boost.
     if school.get("slug") in _YIELD_DRIVEN_SLUGS:
-        strong = (fit >= 68) or (a and center > a)  # above-bar academics / fit
-        hook_mult *= 1.28 if strong else 1.12
+        if fit >= 78:      hook_mult *= 1.30   # clearly strong for this school
+        elif fit >= 68:    hook_mult *= 1.15   # solidly above bar
+        # fit < 68: no boost — odds track the fit curve (often below base rate)
     center = a * fit_mult * hook_mult
     # Pick caps based on whether this profile has been flagged as exceptional.
     # Standard caps assume a typical strong applicant; exceptional profiles
