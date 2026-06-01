@@ -1,0 +1,167 @@
+school	decision	round	gpa_uw	gpa_w	test	hooks	ec_tier	major
+# Real applicant outcomes scraped from College Confidential + a public r/collegeresults mirror, 2026-05-31.
+# ~480 rows across selectivity tiers. CALIBRATION REFERENCE ONLY — self-report + survivorship bias
+# (acceptances over-posted, skews high-stat/Asian/STEM/test-submitter). Round is "unknown" for many.
+# Richer narrative set (49 profiles, full ECs/essays/per-round decisions) lives in manual_profiles_49.md.
+Yale	accept	RD	3.95	4.44	33 ACT	first_gen,URM	state music + mock trial + track captain	?
+Cornell	accept	ED	4.27	?	35 ACT	legacy	MUN + DECA president	?
+Cornell	accept	RD	?	?	33 ACT	first_gen,low_income,URM	tour guide + MUN	?
+Cornell	accept	RD	3.9	?	32 ACT	none	state student leader + speech captain	?
+Dartmouth	accept	ED	4.0	4.5	1500 SAT	recruited	Eagle Scout + JROTC cmdr + West Point appt	?
+Stanford	accept	RD	?	4.2	1560 SAT	none	2 published books + math content creator	Mathematics
+Harvard	reject	RD	?	4.2	1560 SAT	none	2 published books + math content creator	Mathematics
+Harvard	accept	EA	?	?	1600 SAT	none	standard strong	math
+Harvard	accept	RD	?	?	1540 SAT	none	standard strong	?
+Harvard	reject	unknown	?	?	1570 SAT	low_income	standard strong	computer science
+Yale	accept	ED	?	?	1540 SAT	none	standard strong	math
+Yale	reject	unknown	?	?	1470 SAT	international	standard strong	econ
+Princeton	accept	EA	?	?	1600 SAT	none	standard strong	math
+Princeton	accept	unknown	?	?	1570 SAT	low_income	standard strong	computer engineering
+Princeton	reject	ED	?	?	33 ACT	none	standard strong	sociology
+Brown	accept	ED	?	?	1570 SAT	none	standard strong	electrical engineering
+Brown	accept	ED	?	?	1510 SAT	none	standard strong	?
+Brown	reject	ED	?	?	1570 SAT	none	standard strong	bio
+Dartmouth	accept	ED	?	?	36 ACT	none	standard strong	physics
+Dartmouth	reject	unknown	?	?	1550 SAT	international	standard strong	math
+UPenn	accept	ED	?	?	1500 SAT	first_gen,URM	standard strong	electrical engineering
+UPenn	accept	ED	?	?	1410 SAT	none	standard strong	finance
+UPenn	reject	unknown	?	?	1570 SAT	low_income	standard strong	computer science
+Cornell	accept	ED	?	?	1550 SAT	none	standard strong	history
+Cornell	reject	ED	?	?	1490 SAT	low_income	standard strong	computer science
+Stanford	accept	EA	?	?	1600 SAT	none	standard strong	math
+Stanford	reject	unknown	?	?	1560 SAT	international	standard strong	math
+MIT	accept	EA	?	?	1550 SAT	none	standard strong	math
+MIT	accept	EA	?	?	1530 SAT	none	standard strong	computer science
+MIT	reject	EA	?	?	1590 SAT	none	standard strong	neuroscience
+MIT	reject	unknown	?	?	1550 SAT	international	standard strong	math
+Duke	accept	ED	3.82	4.32	30 ACT	low_income	state/leadership	Computer Science
+Duke	defer	ED	3.84	4.53	1490 SAT	none	national/founder	Mechanical Engineering
+Duke	accept	RD	4.0	?	1550 SAT	none	national/founder	Engineering
+Duke	reject	RD	4.0	?	35 ACT	none	national/founder	economics
+Vanderbilt	reject	unknown	4.0	?	36 ACT	none	?	?
+Vanderbilt	reject	RD	4.0	?	1540 SAT	none	solid	?
+Vanderbilt	accept	RD	?	4.3	1530 SAT	none	national/founder	?
+Vanderbilt	accept	RD	4.0	?	1590 SAT	none	?	?
+Vanderbilt	accept	unknown	4.0	?	35 ACT	none	?	?
+Vanderbilt	accept	RD	4.0	4.6	1530 SAT	low_income	?	?
+Vanderbilt	accept	unknown	?	?	1500 SAT	URM	state/leadership	?
+Vanderbilt	reject	unknown	4.0	?	34 ACT	legacy	state/leadership	?
+Northwestern	reject	RD	4.0	?	1540 SAT	legacy	solid	?
+Northwestern	accept	unknown	4.0	4.47	1560 SAT	none	national/founder	?
+Northwestern	accept	unknown	4.0	4.0	35 ACT	legacy	national/founder	?
+Northwestern	accept	unknown	3.7	4.2	1560 SAT	none	?	?
+Northwestern	accept	unknown	3.93	?	1570 SAT	none	national/founder	?
+Northwestern	accept	unknown	4.0	4.5	1530 SAT	none	national/founder	?
+Northwestern	reject	unknown	3.9	4.0	1440 SAT	none	national/founder	?
+Johns Hopkins	reject	unknown	3.97	?	1560 SAT	none	solid	?
+Johns Hopkins	accept	unknown	4.0	4.8	1560 SAT	none	solid	?
+Rice	reject	unknown	3.9	?	1550 SAT	none	national/founder	?
+Rice	accept	unknown	3.84	4.2	36 ACT	none	national/founder	?
+Rice	accept	unknown	4.0	4.67	35 ACT	none	national/founder	?
+USC	accept	unknown	3.9	4.4	1590 SAT	none	?	?
+USC	defer	unknown	3.9	4.4	35 ACT	none	national/founder	?
+USC	accept	unknown	?	4.6	35 ACT	none	?	?
+USC	accept	unknown	3.95	4.73	?	legacy	state/leadership	?
+USC	accept	EA	4.0	?	?	none	?	?
+Tufts	waitlist	RD	4.0	?	1540 SAT	none	solid	?
+Tufts	accept	unknown	?	4.6	1570 SAT	none	?	?
+Tufts	accept	unknown	4.0	4.0	1490 SAT	none	solid	?
+Tufts	accept	RD	?	3.579	1480 SAT	none	state/leadership	biochemistry
+Tulane	accept	unknown	3.9	?	1550 SAT	none	state/leadership	?
+Tulane	accept	unknown	3.84	?	35 ACT	legacy	solid	?
+Boston College	accept	unknown	4.0	4.9	1560 SAT	none	?	?
+Boston College	accept	unknown	4.0	4.3	34 ACT	none	national/founder	?
+Boston College	reject	unknown	4.0	4.6	36 ACT	none	solid	?
+Boston College	accept	unknown	4.0	4.4	1560 SAT	none	solid	?
+Boston University	accept	unknown	3.82	4.55	1510 SAT	none	?	?
+Boston University	accept	unknown	?	?	1440 SAT	international	national/founder	?
+Boston University	waitlist	ED	?	?	1580 SAT	recruited	national/founder	?
+Boston University	reject	ED	3.98	4.5	1490 SAT	none	national/founder	?
+Boston University	accept	unknown	3.95	4.18	1440 SAT	none	?	?
+Northeastern	accept	EA	?	4.28	1460 SAT	none	?	?
+Northeastern	accept	unknown	3.94	4.47	1500 SAT	none	?	?
+Northeastern	accept	unknown	?	3.86	TO	none	solid	comp sci
+Notre Dame	accept	unknown	4.0	?	35 ACT	none	state/leadership	?
+Notre Dame	reject	unknown	4.0	4.4	1430 SAT	none	state/leadership	?
+Notre Dame	accept	unknown	4.0	4.977	36 ACT	none	national/founder	?
+Notre Dame	reject	unknown	3.95	4.6	36 ACT	none	national/founder	?
+Wake Forest	accept	unknown	?	4.6	36 ACT	none	?	?
+Miami	accept	RD	3.97	?	1460 SAT	none	state/leadership	?
+Georgetown	reject	EA	3.91	?	33 ACT	none	national/founder	?
+Georgetown	accept	unknown	4.0	4.5	1510 SAT	none	state/leadership	?
+Georgetown	accept	unknown	4.0	4.96	?	recruited	state/leadership	?
+Georgetown	accept	RD	4.0	?	1540 SAT	none	?	?
+Georgetown	accept	unknown	3.95	?	35 ACT	none	national/founder	?
+UC Berkeley	accept	RD	4.0	4.6	TB	in_state	11 APs incl BC Calc	Physics
+UC Berkeley	accept	RD	3.91	4.14	TB	in_state	good	EECS
+UC Berkeley	reject	RD	4.0	4.6	TB	in_state	good 15 APs	CS
+UC Berkeley	waitlist	RD	4.0	5.0	TB	in_state	CEO of tutoring co	Haas Business
+UC Berkeley	accept	RD	4.0	4.74	TB	OOS	strong	Applied Math
+UCLA	accept	RD	3.7	3.9	1380 SAT	in_state	10 APs varsity job	undeclared
+UCLA	reject	RD	4.0	4.6	TB	in_state	good	CS
+UCLA	reject	RD	3.98	4.7	1450 SAT	in_state	varsity basketball/tennis	Biomedical Eng
+UCSD	accept	RD	4.0	4.33	TB	in_state	13 APs	Computer Science
+UCSD	reject	RD	4.0	4.3	1460 SAT	in_state	aerospace ECs	Aerospace Eng
+UCSD	accept	RD	3.95	4.0	1480 SAT	in_state	3 APs	Computer Engineering
+UC Irvine	accept	RD	3.97	4.37	TB	in_state	7 AP/4 honors	Computer Engineering
+UC Irvine	reject	RD	?	?	TB	in_state	good	Political Science
+Michigan	accept	RD	3.9	4.6	TB	OOS	strong	Letters & Sciences
+Michigan	accept	EA	4.0	4.75	1430 SAT	OOS	14 APs Jr Olympics soccer	?
+Michigan	accept	EA	3.97	4.37	TB	OOS,low_income	12 APs top 10%	Computer Science
+Georgia Tech	reject	EA	4.0	4.7	1560 SAT	in_state	8 APs all 5s	EECS
+Georgia Tech	reject	RD	4.0	4.3	1440 SAT	OOS	?	Aerospace Eng
+Georgia Tech	defer	EA	4.0	4.8	1460 SAT	OOS,legacy	IB diploma	Biomedical Eng
+Georgia Tech	accept	EA	3.6	?	1180 SAT	OOS	3 APs	Computer Engineering
+UNC Chapel Hill	reject	EA	4.0	?	1520 SAT	OOS	5s on all APs strong ECs	?
+UNC Chapel Hill	accept	EA	?	?	TB	in_state	?	Computer Science
+UNC Chapel Hill	reject	RD	3.98	4.7	1450 SAT	OOS	varsity athlete	Biomedical Eng
+UVA	accept	RD	3.97	4.89	1390 SAT	OOS	14 APs volleyball captain	Mechanical Eng
+UVA	accept	EA	4.0	4.8	1460 SAT	OOS,legacy	IB diploma	Biomedical Eng
+UVA	reject	RD	3.9	4.6	TB	OOS	strong	Letters & Sciences
+UVA	accept	EA	3.78	4.18	31 ACT	in_state	business profile	Business Administration
+UT Austin	reject	RD	3.96	?	1470 SAT	OOS	9 APs	Biomedical
+UT Austin	accept	RD	4.0	4.77	1500 SAT	in_state	many APs	?
+UT Austin	reject	RD	?	?	1490 SAT	OOS	?	McCombs Business
+UIUC	reject	RD	4.0	4.7	1560 SAT	in_state	8 APs all 5s	EECS
+UIUC	accept	EA	3.97	4.37	TB	OOS,low_income	12 APs top 10%	Computer Science
+UIUC	accept	EA	3.6	?	1180 SAT	OOS	3 APs	Computer Engineering
+Wisconsin	accept	EA	4.22	?	1600 SAT	OOS	11 college courses quiz bowl	Computer Science
+Wisconsin	deferred	RD	3.96	?	1460 SAT	OOS	12 AP/DE great ECs	?
+University of Washington	accept	RD	3.91	4.14	TB	OOS	good	EECS
+University of Washington	accept	RD	?	?	TB	in_state	strong	CS
+University of Florida	accept	RD	3.96	4.77	1470 SAT	OOS	varsity athlete	Biomedical Eng
+University of Florida	reject	RD	4.0	?	1520 SAT	OOS	physics focus	Physics
+UC Davis	accept	RD	4.0	4.33	TB	in_state	9 APs	Biochemistry
+UC Davis	accept	RD	3.9	4.5	TB	in_state	8 APs varsity dance captain	Civil Engineering
+UC Santa Barbara	accept	RD	3.96	4.48	TB	in_state	lots of ECs/leadership	Psych & Brain Sciences
+UC Santa Barbara	reject	RD	4.0	4.29	TB	in_state	hardest humanities Model UN	English
+Williams	accept	unknown	3.7	4.9	?	none	?	?
+Amherst	accept	EA	4.1	?	TO	none	?	?
+Middlebury	accept	unknown	4.0	4.3	34 ACT	international	national/founder	?
+Wellesley	accept	ED	?	3.95	1520 SAT	none	?	?
+Wellesley	waitlist	unknown	4.67	?	1540 SAT	none	national/founder	?
+Wellesley	accept	unknown	4.20	5.16	33 ACT	recruited	national/founder	?
+Claremont McKenna	accept	ED	?	?	33 ACT	none	?	?
+Harvey Mudd	accept	unknown	3.84	4.2	35 ACT	URM	national/founder	?
+Carleton	accept	unknown	3.84	?	1470 SAT	none	?	?
+Carleton	accept	ED	3.4	?	32 ACT	none	?	?
+Colby	accept	unknown	3.98	?	1580 SAT	none	?	?
+Colby	accept	unknown	?	?	33 ACT	recruited	state/leadership	?
+Hamilton	accept	unknown	4.0	?	1560 SAT	none	?	?
+Hamilton	accept	unknown	?	?	TO	recruited	state/leadership	?
+Wesleyan	reject	unknown	?	?	1550 SAT	international	?	?
+Vassar	accept	unknown	4.0	?	1550 SAT	none	?	?
+Vassar	waitlist	unknown	3.99	4.3	TO	none	?	?
+Barnard	waitlist	unknown	4.0	4.3	TO	none	solid	?
+Barnard	waitlist	unknown	3.98	4.25	34 ACT	none	state/leadership	?
+Davidson	reject	unknown	?	?	1460 SAT	none	?	?
+Davidson	defer	ED	3.7	?	31 ACT	none	?	?
+William & Mary	accept	EA	4.1	?	TO	none	?	?
+William & Mary	accept	unknown	3.94	4.45	35 ACT	none	?	?
+William & Mary	reject	unknown	?	?	1550 SAT	none	national/founder	?
+Lehigh	accept	unknown	?	?	1580 SAT	none	?	?
+Lehigh	waitlist	ED	?	?	35 ACT	none	national/founder	?
+Lehigh	accept	unknown	3.98	4.39	1430 SAT	none	?	?
+Villanova	waitlist	RD	?	?	1510 SAT	none	state/leadership	engineering
+Case Western	accept	unknown	4.0	?	TO	none	state/leadership	?
+Rochester	accept	unknown	4.0	?	35 ACT	none	state/leadership	?
