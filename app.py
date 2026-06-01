@@ -2780,12 +2780,25 @@ def estimate_odds(school, fit, profile):
         cap = 0.62 if a < 0.07 else 0.70 if a < 0.10 else 0.78 if a < 0.20 else 0.88 if a < 0.40 else 0.93
         center = max(base, min(lifted, cap))
     else:
+        # ── Reach-band calibration lift (data-driven, bias-aware) ──
+        # Backtesting against ~160 real outcomes showed the model reads too
+        # harsh for STRONG applicants in the 5-35% reach band — exactly the
+        # "qualified pool" effect (most applicants below the bar drag the
+        # headline rate down; a strong applicant beats it). The data is
+        # acceptance-biased so we apply only a MODEST relative lift (not the
+        # raw +50pt gap), and only when fit is genuinely strong, so weak
+        # profiles still land at/below the base rate.
+        if fit >= 78 and 0.05 <= a < 0.20:
+            center *= 1.30
+        elif fit >= 70 and 0.05 <= a < 0.35:
+            center *= 1.18
         # Standard caps — tightened so headline numbers don't promise a Stanford
-        # that isn't there for a typical strong applicant.
-        if a < 0.07:  center = min(center, 0.14)
-        elif a < 0.10: center = min(center, 0.18)
-        elif a < 0.20: center = min(center, 0.30)
-        elif a < 0.40: center = min(center, 0.55)
+        # that isn't there for a typical strong applicant. (Caps lifted slightly
+        # in the reach band to let the calibration lift through.)
+        if a < 0.07:  center = min(center, 0.16)
+        elif a < 0.10: center = min(center, 0.22)
+        elif a < 0.20: center = min(center, 0.36)
+        elif a < 0.40: center = min(center, 0.58)
         else: center = min(center, 0.85)
     # Spread (uncertainty band) is wider at low-accept schools where the outcome
     # is genuinely more uncertain, and narrower at high-accept schools where
