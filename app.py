@@ -2050,6 +2050,43 @@ def expanded_ranking_order(slug, target=75):
 # ─── KEYWORDS / SCORING (carried over from MVP) ──────────
 
 
+def ec_llm_score(profile):
+    """LLM-graded extracurricular/awards/leadership strength on the same 0-16
+    scale compute_fit expects. Reads the actual substance instead of keyword
+    matching. Returns a float, or None if unavailable (caller keeps the keyword
+    fallback). Cheap: one claude-haiku call, run once at profile-save time."""
+    if not _claude_client:
+        return None
+    ecs = (profile.get("ecs") or "").strip()
+    awards = (profile.get("awards") or "").strip()
+    leadership = (profile.get("leadership") or "").strip()
+    if not (ecs or awards or leadership):
+        return 0.0
+    user = (f"EXTRACURRICULARS:\n{ecs or '(none)'}\n\nAWARDS:\n{awards or '(none)'}\n\n"
+            f"LEADERSHIP:\n{leadership or '(none)'}\n\n"
+            "Rate this applicant's activities/awards profile for SELECTIVE college "
+            "admissions on a 0-16 scale:\n"
+            "0-3 = thin/generic (a club or two, no distinction)\n"
+            "4-7 = solid (sustained involvement, some school/local leadership)\n"
+            "8-11 = strong (regional/state distinction, real leadership, depth)\n"
+            "12-14 = excellent (national-level awards, founder w/ scale, published)\n"
+            "15-16 = elite (ISEF/USAMO/Regeneron-tier, national champion, recruited)\n"
+            "Judge real substance, not buzzwords. Output ONLY the number.")
+    raw = _claude("claude-haiku-4-5-20251001",
+        "You are a strict admissions reader. Output only a single number 0-16.",
+        user, max_tokens=8)
+    if not raw:
+        return None
+    import re as _re
+    m = _re.search(r"-?\d+(\.\d+)?", raw)
+    if not m:
+        return None
+    try:
+        return max(0.0, min(16.0, float(m.group(0))))
+    except ValueError:
+        return None
+
+
 def _keyword_strength(text, keywords):
     if not text: return 0
     t = text.lower()
@@ -3210,6 +3247,10 @@ def init_db():
                 pass
         # Class rank: rank + class size (nullable ints) + a flag for schools
         # that don't rank. When the flag is set, rank is treated as neutral.
+        try:
+            conn.execute("ALTER TABLE profiles ADD COLUMN ec_score REAL")
+        except sqlite3.OperationalError:
+            pass
         for _crc in ("ALTER TABLE profiles ADD COLUMN class_rank INTEGER",
                      "ALTER TABLE profiles ADD COLUMN class_size INTEGER",
                      "ALTER TABLE profiles ADD COLUMN no_class_rank_offered INTEGER DEFAULT 0"):
@@ -3473,6 +3514,15 @@ def save_profile(user_id, p):
             )
         except Exception as e:
             print(f"class rank save failed: {e}")
+        # LLM extracurricular score (0-16) — computed once here at save time so
+        # compute_fit / ranking stay instant. Falls back to keyword scoring if
+        # the call fails or no Claude key is set.
+        try:
+            _ecs = ec_llm_score(p)
+            if _ecs is not None:
+                conn.execute("UPDATE profiles SET ec_score=? WHERE user_id=?", (_ecs, user_id))
+        except Exception as e:
+            print(f"ec_score save failed: {e}")
         try:
             conn.execute(
                 "UPDATE profiles SET sat_math=?, sat_ebrw=?, act_math=?, act_english=?, act_reading=?, act_science=? WHERE user_id=?",
