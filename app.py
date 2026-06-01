@@ -2616,7 +2616,7 @@ def _keyword_exceptional(profile):
 _SCHOOL_CALIBRATION = {
     "usc": 2.30,
     "nyu": 2.45,
-    "umich": 1.22,
+    "umich": 0.86,
     "bu": 1.15,
     "northeastern": 2.75,
 }
