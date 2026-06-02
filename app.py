@@ -2466,7 +2466,12 @@ def class_rank_component(profile, school):
 
 
 def _normalize_score(sat, act):
-    act_to_sat = {36:1590,35:1540,34:1500,33:1460,32:1430,31:1400,30:1370,29:1340,28:1310,27:1280,26:1240,25:1210,24:1180,23:1140,22:1110,21:1080,20:1040,19:1010,18:970}
+    # Official College Board / ACT concordance (2018, still current). The prior
+    # table sagged 20-40 pts low across ACT 28-35 — the meat of the competitive
+    # range — systematically under-rating every ACT applicant at test-using
+    # schools (a 33 read as 1460 instead of 1500). Corrected to the published
+    # concordance.
+    act_to_sat = {36:1590,35:1560,34:1530,33:1500,32:1470,31:1430,30:1400,29:1360,28:1320,27:1290,26:1260,25:1220,24:1180,23:1140,22:1110,21:1070,20:1030,19:990,18:960}
     if sat: return int(sat)
     if act: return act_to_sat.get(int(act), 1000)
     return None
@@ -3044,16 +3049,18 @@ def _keyword_exceptional(profile):
 # Per-school calibration dial. Lifts ONLY the listed school's odds curve —
 # no global/tier multiplier (those cascade and over-inflate neighbors). These
 # yield-driven, stats-friendly, just-below-elite schools were systematically
-# too harsh for solid/strong applicants. Each factor is calibrated against an
-# agreed target for a reference 3.9/1500 profile and verified not to move the
-# truly-elite schools. Value 1.0 == no change. The dial is faded in by fit
-# (see estimate_odds) so weak profiles stay below the school's acceptance rate.
+# too harsh for solid/strong applicants. Each factor is bounded so that NO
+# non-exceptional profile exceeds ~2.5x the school's accept rate (verified by
+# data/implausibility_hunt.py) — the prior values (NEU 2.75, NYU 2.45, USC 2.30)
+# over-credited mid-fit/EC-thin profiles into 3-5x territory. Value 1.0 == no
+# change. The dial is faded in by fit (see estimate_odds) so weak profiles stay
+# below the school's acceptance rate.
 _SCHOOL_CALIBRATION = {
-    "usc": 2.30,
-    "nyu": 2.45,
+    "usc": 1.75,
+    "nyu": 1.80,
     "umich": 0.86,
     "bu": 1.15,
-    "northeastern": 2.75,
+    "northeastern": 1.85,
 }
 
 
@@ -3170,9 +3177,10 @@ def estimate_odds(school, fit, profile):
     spike_mult = min(spike_mult, 1.15)
     center = a * fit_mult * hook_mult * spike_mult
     # Per-school calibration dial (takes precedence over the standard elite cap
-    # for the few schools that were too harsh). Faded in by fit: w=0 at fit<=42
+    # for the few schools that were too harsh). Faded in by fit: w=0 at fit<=46
     # (weak — left untouched so it stays below acceptance rate) ramping to full
-    # by fit>=58. Bypasses the harsh low-accept cap and uses a sane 0.42 ceiling.
+    # by fit>=66, so stats-decent/EC-thin mid-fit profiles no longer capture the
+    # full lift. Bypasses the harsh low-accept cap and uses a sane 0.42 ceiling.
     # Continuous "how exceptional are the ECs" signal (0-1) from the 1-1000
     # rating. Replaces the old binary is_exceptional cliff: exc=0 reproduces the
     # standard capped odds exactly (so normal-EC profiles, incl. the calibration
@@ -3181,7 +3189,7 @@ def estimate_odds(school, fit, profile):
     exc = ec_exceptional_strength(profile)
     _cal = _SCHOOL_CALIBRATION.get(school.get("slug"))
     if _cal and exc < 0.5:
-        w = max(0.0, min(1.0, (fit - 42.0) / 16.0))
+        w = max(0.0, min(1.0, (fit - 46.0) / 20.0))
         center = center * (1.0 + (_cal - 1.0) * w)
         center = min(center, 0.42)
         center = _target_honesty_haircut(center)
@@ -9998,7 +10006,7 @@ def _grade_key(profile):
     _gk_fields = ["uw_gpa","weighted_gpa","sat","act","aps","ibs","no_aps_offered",
                   "no_ibs_offered","self_rigor","class_rank","class_size","major",
                   "ecs","awards","leadership","athlete","first_gen","legacy_schools","is_international"]
-    return "v6:" + _hl.md5("|".join(str(profile.get(k)) for k in _gk_fields).encode()).hexdigest()
+    return "v7:" + _hl.md5("|".join(str(profile.get(k)) for k in _gk_fields).encode()).hexdigest()
 
 
 def _grade_cached(uid, profile, compute=False):
