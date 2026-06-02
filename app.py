@@ -7410,6 +7410,25 @@ def plans_index_html():
             slug = it["slug"]
             c = COLLEGES_BY_SLUG.get(slug)
             if not c: continue
+            # Recompute odds/tier/fit FRESH from the current profile (instant —
+            # pure Python) so the list always reflects the latest profile and
+            # formula, instead of stale cached saved_chances numbers (e.g. after a
+            # GPA/weighting/EC change). Only the AI narrative stays cached.
+            if profile:
+                _cm = merged_school(c)
+                _pd = {k: profile.get(k) for k in profile.keys()}
+                try:
+                    _pd["_di_level"] = get_demonstrated_interest(user["id"], slug)
+                except Exception:
+                    _pd["_di_level"] = "none"
+                try:
+                    _fit, _ = compute_fit(_pd, _cm)
+                    it["odds_low"], it["odds_high"] = estimate_odds(_cm, _fit, _pd)
+                    it["fit"] = _fit
+                    it["tier"] = assign_tier(_cm, _fit, _pd)
+                    it["computed"] = True
+                except Exception:
+                    pass
             tier_class = {"Dream":"pill-dream","Reach":"pill-reach","Target":"pill-target","Safety":"pill-safety"}.get(it["tier"], "pill-target")
             match_score = ""
             if profile:
