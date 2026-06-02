@@ -7928,6 +7928,9 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
   @media (max-width: 768px) {
     html.intro-armed .nav,
     html.intro-armed .hero-text > * { opacity:1!important; transform:none!important; }
+    /* Belt-and-suspenders: even if intro-armed lingers on mobile, the nav must
+       stay tappable. This is the root of the "can't click at first" bug. */
+    html.intro-armed .nav { pointer-events:auto!important; }
   }
   .hero.hero-grid .hero-text-above { display:flex; flex-direction:column; gap:10px; margin-bottom:6px; }
   .hero.hero-grid h1 { font-size:clamp(1.8em, 3vw, 2.45em); margin:8px 0 4px; line-height:1.1; }
@@ -8282,9 +8285,15 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
   var d = document.documentElement;
   var reduce = false;
   try {{ reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; }} catch (e) {{}}
+  // Mobile (<=768px) has no intro video at all (display:none), so arming the
+  // intro there only leaves nav with pointer-events:none until the 9s failsafe
+  // fires -- that was the "can't tap until the second interaction" bug. Skip
+  // arming on phones entirely; the hero is already fully visible there.
+  var isMobile = false;
+  try {{ isMobile = window.matchMedia && window.matchMedia('(max-width: 768px)').matches; }} catch (e) {{}}
   // Reduced motion: skip the fly-in -- nav and content stay visible, video
   // holds on its poster (the final courtyard frame).
-  if (reduce) return;
+  if (reduce || isMobile) return;
   // Arm immediately so the nav and hero content never flash in before the
   // camera lands.
   d.classList.add('intro-armed');
