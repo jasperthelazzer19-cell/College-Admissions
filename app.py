@@ -5521,8 +5521,10 @@ def profile_html():
     <div><label>Weighted GPA <span class="muted">(optional)</span></label>
       <input type="number" step="0.01" min="0" max="6" name="weighted_gpa" value="{v('weighted_gpa')}"></div>
   </div>
-  <details style="margin:6px 0 14px">
-    <summary style="cursor:pointer;font-size:.92em;color:var(--text-2)">Year-by-year GPA <span class="muted">(optional, but more accurate)</span></summary>
+  <div class="row" style="align-items:start;margin-bottom:14px">
+    <div>
+  <details style="margin:6px 0 0">
+    <summary style="cursor:pointer;font-size:.92em;color:var(--text-2)">Year-by-year GPA <span class="muted">(optional, more accurate)</span></summary>
     <p class="muted" style="font-size:.84em;margin:8px 0 10px">Most schools weight upper years more heavily than freshman year. UCs literally don't see freshman grades at all. Filling these in lets the chances model reflect your actual trajectory — an upward trend (e.g., 3.2 → 3.8 → 3.95) reads very differently from a flat 3.65.</p>
     <div class="row">
       <div><label>Freshman <span class="muted">(unweighted)</span></label>
@@ -5537,8 +5539,10 @@ def profile_html():
         <input type="number" step="0.01" min="0" max="4.0" name="gpa_senior" value="{v('gpa_senior')}"></div>
     </div>
   </details>
-  <details style="margin:6px 0 14px">
-    <summary style="cursor:pointer;font-size:.92em;color:var(--text-2)">Year-by-year weighted GPA <span class="muted">(optional — for schools that only weight some years)</span></summary>
+    </div>
+    <div>
+  <details style="margin:6px 0 0">
+    <summary style="cursor:pointer;font-size:.92em;color:var(--text-2)">Year-by-year weighted GPA <span class="muted">(only weight some years?)</span></summary>
     <p class="muted" style="font-size:.84em;margin:8px 0 10px">If your school only offers honors/AP weighting in certain years (e.g. nothing freshman year, or only for advanced tracks), tick <b>"not offered"</b> for those years. We compute your weighted GPA from <b>only the years weighting was available</b>, so you're not penalized for courses your school gated. Used at schools that report a weighted admit range (most big publics).</p>
     <div class="row">
       <div><label>Freshman <span class="muted">(weighted)</span></label>
@@ -5557,6 +5561,8 @@ def profile_html():
         <label style="display:flex;align-items:center;gap:6px;font-weight:400;font-size:.8em;margin-top:6px;color:var(--text-2)"><input type="checkbox" name="w_notoffered_senior" {checked('w_notoffered_senior')} style="width:auto;margin:0"> Weighting not offered this year</label></div>
     </div>
   </details>
+    </div>
+  </div>
   <div class="row">
     <div><label>SAT <span class="muted">(composite)</span></label>
       <input type="number" min="400" max="1600" step="10" name="sat" value="{v('sat')}"></div>
