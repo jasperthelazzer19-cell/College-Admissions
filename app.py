@@ -3141,10 +3141,15 @@ def estimate_odds(school, fit, profile):
     else:
         # Adjust headline rate up for the domestic pool
         a = min(1.0, a / max(0.5, 1 - intl_pct * 0.65))
-    # Steeper, less-generous fit curve. At fit=50 (average), multiplier ≈ 0.85,
+    # Steeper, less-generous fit curve. At fit=50 (average), multiplier ≈ 0.80,
     # i.e. you do worse than the school's headline accept. Top fits still get
-    # boosted but capped hard at elite tiers.
-    fit_mult = 0.20 + (fit / 65.0) ** 1.6
+    # boosted but capped hard at elite tiers. Divisor/exponent nudged up
+    # (65/1.6 -> 68/1.7) to trim ~0.07 off the multiplier across good-but-not-
+    # elite fits (55-80), where mid-accept target/safety odds were reading a
+    # touch generous (e.g. a strong applicant at a 35-48% school). Gentle on
+    # purpose: high odds at a true safety are partly legitimate, and the global
+    # curve is the cascade-prone lever — verified against all three harnesses.
+    fit_mult = 0.20 + (fit / 68.0) ** 1.7
     hook_mult = 1.0
     if profile.get("athlete"): hook_mult *= 1.30
     # Legacy is a real, measurable boost at top schools — Harvard ~6x,
