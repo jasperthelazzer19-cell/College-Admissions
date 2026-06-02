@@ -2204,10 +2204,22 @@ def grade_profile(profile):
     def g(k): return (profile.get(k) or "").strip()
     sat_eq = _normalize_score(profile.get("sat"), profile.get("act"))
     rg = combined_rigor(profile)
+    no_ap, no_ib = bool(profile.get("no_aps_offered")), bool(profile.get("no_ibs_offered"))
+    if no_ap and no_ib:
+        avail = "School offers NEITHER AP nor IB — do NOT penalize the absence of AP/IB scores."
+    elif no_ap:
+        avail = "School offers NO AP (IB may be available)."
+    elif no_ib:
+        avail = "School offers NO IB (AP may be available)."
+    else:
+        avail = "AP/IB are available at this school."
+    self_r = profile.get("self_rigor")
     facts = (
         f"GPA (unweighted /4): {profile.get('uw_gpa') or '—'}\n"
         f"Weighted GPA: {profile.get('weighted_gpa') or '—'}\n"
         f"SAT: {profile.get('sat') or '—'}  ACT: {profile.get('act') or '—'}  (normalized SAT-equiv: {sat_eq or '—'})\n"
+        f"AP/IB availability: {avail}\n"
+        f"Self-rated course rigor (1-10, only meaningful if no AP/IB offered): {self_r or '—'}\n"
         f"Course rigor signal (0-100, higher=harder load): {rg if rg is not None else 'n/a'}\n"
         f"APs taken: {g('aps') or '—'}\nIB taken: {g('ibs') or '—'}\n"
         f"Class rank: {profile.get('class_rank') or '—'} of {profile.get('class_size') or '—'}\n"
@@ -2231,11 +2243,13 @@ def grade_profile(profile):
         '"strengths": ["<short>", ...], "weaknesses": ["<short>", ...], '
         '"fixes": ["<specific action>", ...]}\n'
         "Judge real substance, not buzzwords. A 3.15 GPA is a hard ceiling even "
-        "with strong ECs; reflect that honestly in academics and overall."
+        "with strong ECs; reflect that honestly in academics and overall. "
+        "If the school offers NO AP/IB, judge rigor from the self-rating and "
+        "course names — do NOT list 'no AP/IB courses' as a weakness in that case."
     )
     raw = _claude("claude-sonnet-4-6",
         "You are a strict, candid admissions reader. Output only valid JSON. Be honest, not flattering.",
-        user, max_tokens=700)
+        user, max_tokens=700, temperature=0)
     if not raw:
         return fb
     import json as _json, re as _re
@@ -2354,7 +2368,17 @@ def combined_rigor(profile):
     ap, ap_count, _ = score_aps(profile)
     ib, ib_count, _ = score_ibs(profile)
     if ap is None and ib is None:
-        return None  # neither offered
+        # School offers neither AP nor IB. Fall back to the student's self-rated
+        # course rigor (1-10 -> 0-100) so they aren't penalized for courses that
+        # simply aren't available. Self-reported, so treated conservatively:
+        # a perfect 10 maps to 80 (a strong, not maximal, rigor signal).
+        try:
+            sr = int(profile.get("self_rigor")) if profile.get("self_rigor") not in (None, "") else None
+        except (ValueError, TypeError):
+            sr = None
+        if sr:
+            return min(80.0, max(0, sr) * 10.0)
+        return None  # neither offered, no self-rating
     if ap is None: return ib
     if ib is None: return ap
     # Both populated → sum, but cap to not double-count when student takes
@@ -2689,6 +2713,7 @@ REASON: <one short sentence — if YES, name the credential; if NO, briefly expl
         response = _claude_client.messages.create(
             model="claude-haiku-4-5-20251001",
             max_tokens=280,
+            temperature=0,
             system="You are a strict college admissions evaluator. Default to NO. Only flag truly exceptional, nationally/internationally recognized credentials. Be skeptical — students often inflate. Look for specific verifiable accomplishments.",
             messages=[{"role":"user","content": user_msg}],
         )
@@ -2851,7 +2876,7 @@ def grade_ec_and_spike(profile):
     )
     raw = _claude("claude-haiku-4-5-20251001",
         "You are a strict admissions reader. Output only valid JSON with two integers.",
-        user, max_tokens=40)
+        user, max_tokens=40, temperature=0)
     if not raw:
         return None, None
     import json as _json, re as _re
@@ -3075,10 +3100,10 @@ def confidence_level(profile, components):
 
 
 # ─── CLAUDE-POWERED REASONING (with template fallback) ───
-def _claude(model, system, user, max_tokens=400):
+def _claude(model, system, user, max_tokens=400, temperature=1.0):
     if not _claude_client: return None
     try:
-        msg = _claude_client.messages.create(model=model, max_tokens=max_tokens, system=system, messages=[{"role":"user","content":user}])
+        msg = _claude_client.messages.create(model=model, max_tokens=max_tokens, temperature=temperature, system=system, messages=[{"role":"user","content":user}])
         return msg.content[0].text
     except Exception as e:
         print(f"Claude error: {e}")
@@ -3521,6 +3546,19 @@ def init_db():
             conn.execute("ALTER TABLE profiles ADD COLUMN spike_score REAL")
         except sqlite3.OperationalError:
             pass
+        # Self-rated course rigor (1-10) for students whose school offers no AP/IB.
+        try:
+            conn.execute("ALTER TABLE profiles ADD COLUMN self_rigor INTEGER")
+        except sqlite3.OperationalError:
+            pass
+        # Cached profile grade (JSON) + a key so we only recompute when the
+        # grading-relevant fields actually change (deterministic + cheap).
+        for _gc in ("ALTER TABLE profiles ADD COLUMN grade_json TEXT",
+                    "ALTER TABLE profiles ADD COLUMN grade_key TEXT"):
+            try:
+                conn.execute(_gc)
+            except sqlite3.OperationalError:
+                pass
         for _crc in ("ALTER TABLE profiles ADD COLUMN class_rank INTEGER",
                      "ALTER TABLE profiles ADD COLUMN class_size INTEGER",
                      "ALTER TABLE profiles ADD COLUMN no_class_rank_offered INTEGER DEFAULT 0"):
@@ -3784,6 +3822,16 @@ def save_profile(user_id, p):
             )
         except Exception as e:
             print(f"class rank save failed: {e}")
+        # Self-rated course rigor (1-10) — used only when the school offers no
+        # AP/IB. Separate UPDATE to keep the giant INSERT above untouched.
+        try:
+            _sr = p.get("self_rigor")
+            _sr = int(_sr) if str(_sr).strip() not in ("", "None") else None
+            if _sr is not None:
+                _sr = max(1, min(10, _sr))
+            conn.execute("UPDATE profiles SET self_rigor=? WHERE user_id=?", (_sr, user_id))
+        except Exception as e:
+            print(f"self_rigor save failed: {e}")
         # LLM extracurricular rating (1-1000) — computed once here at save time
         # so compute_fit / ranking stay instant. This is the signal that drives
         # how much ECs move the odds. Falls back to a deterministic keyword
@@ -5460,6 +5508,13 @@ def profile_html():
     </label>
   </div>
   <p class="muted" style="font-size:.78em;margin:4px 0 0">HL classes count for more than SL. Most schools that have IB don't have APs, so picking neither is fine if you're at one of them.</p>
+
+  <label style="margin-top:18px">Course rigor self-rating <span class="muted">(only if your school offers no AP <em>or</em> IB)</span></label>
+  <select name="self_rigor">
+    <option value="" {('selected' if not v('self_rigor') else '')}>— not applicable / my school offers AP or IB —</option>
+    {''.join(f'<option value="{n}" {("selected" if str(v("self_rigor"))==str(n) else "")}>{n}/10 — {lbl}</option>' for n,lbl in [(10,"hardest available load, all honors/DE/post-AP"),(9,""),(8,"clearly rigorous, top track"),(7,""),(6,"above average"),(5,"average load"),(4,""),(3,"light load"),(2,""),(1,"least rigorous")] )}
+  </select>
+  <p class="muted" style="font-size:.78em;margin:4px 0 0">If your school has no AP/IB, rate how demanding your courses are relative to what's offered (honors, dual-enrollment, post-calculus math, etc.). Leave blank if your school offers AP or IB — we score those from the courses above. This is self-reported, so it's weighted conservatively.</p>
 
   <label style="margin-top:18px">Class rank <span class="muted">(optional — your rank and graduating class size)</span></label>
   <div class="row">
@@ -8261,6 +8316,22 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
        stay tappable. This is the root of the "can't click at first" bug. */
     html.intro-armed .nav { pointer-events:auto!important; }
   }
+  /* Skip-intro button — only visible on desktop while the cinematic intro is
+     playing (mobile has no intro). Sits top-right above everything. */
+  #intro-skip {
+    position:fixed; top:20px; right:26px; z-index:120;
+    display:none; align-items:center; gap:6px;
+    padding:8px 16px; border-radius:999px; cursor:pointer;
+    font:600 .82em/1 'Hanken Grotesk',sans-serif; letter-spacing:.3px;
+    color:#e6edf3; background:rgba(10,19,28,.6);
+    border:1px solid rgba(255,255,255,.18);
+    backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+    transition:background .15s, border-color .15s, opacity .4s;
+  }
+  #intro-skip:hover { background:rgba(16,34,47,.85); border-color:rgba(95,201,182,.45); color:#fff; }
+  html.intro-armed:not(.landed) #intro-skip { display:inline-flex; }
+  html.landed #intro-skip { display:none; }
+  @media (max-width:768px) { #intro-skip { display:none!important; } }
   .hero.hero-grid .hero-text-above { display:flex; flex-direction:column; gap:10px; margin-bottom:6px; }
   .hero.hero-grid h1 { font-size:clamp(1.8em, 3vw, 2.45em); margin:8px 0 4px; line-height:1.1; }
   .hero.hero-grid p.lede { font-size:.96em; margin:0 0 12px; line-height:1.5; }
@@ -8645,6 +8716,9 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
   // revealing over it always looks correct.
   setTimeout(land, 9000);
   function wire(){{
+    // Desktop skip button — reveal the page immediately on click.
+    var sk = document.getElementById('intro-skip');
+    if (sk) sk.addEventListener('click', function(e){{ e.preventDefault(); land(); }});
     var v = document.querySelector('.hero-bg-video');
     if (!v) {{ land(); return; }}
     v.addEventListener('timeupdate', function(){{
@@ -8662,6 +8736,7 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
   else wire();
 }})();
 </script>
+<button id="intro-skip" type="button" aria-label="Skip intro animation">Skip intro <span aria-hidden="true">&rarr;</span></button>
 <div class="aurora-wrapper">
   <div class="blob blob-1"></div>
   <div class="blob blob-2"></div>
@@ -9597,7 +9672,29 @@ def profile_grade_page():
 </div>
 """, title="Profile Grader — Candor")
 
-    g = grade_profile(profile)
+    # Cache the grade so repeat views don't re-bill a Sonnet call and the score
+    # doesn't wobble between refreshes. Key = hash of the grading-relevant fields;
+    # recompute only when the profile actually changes.
+    import hashlib as _hl, json as _json2
+    _gk_fields = ["uw_gpa","weighted_gpa","sat","act","aps","ibs","no_aps_offered",
+                  "no_ibs_offered","self_rigor","class_rank","class_size","major",
+                  "ecs","awards","leadership","athlete","first_gen","legacy_schools","is_international"]
+    grade_key = _hl.md5("|".join(str(profile.get(k)) for k in _gk_fields).encode()).hexdigest()
+    g = None
+    if profile.get("grade_key") == grade_key and profile.get("grade_json"):
+        try:
+            g = _json2.loads(profile["grade_json"])
+        except Exception:
+            g = None
+    if g is None:
+        g = grade_profile(profile)
+        try:
+            with db() as conn:
+                conn.execute("UPDATE profiles SET grade_json=?, grade_key=? WHERE user_id=?",
+                             (_json2.dumps(g), grade_key, user["id"]))
+                conn.commit()
+        except Exception as e:
+            print(f"grade cache write failed: {e}")
     score100 = max(1, min(100, round(g["overall"] / 10)))
     # Color + label band for the headline.
     if score100 >= 85:   band, bcol = "Elite", "#5fc9b6"
