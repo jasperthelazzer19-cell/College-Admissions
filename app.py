@@ -9685,29 +9685,90 @@ def profile_grade_page():
 </div>
 """, title="Profile Grader — Candor")
 
-    # Cache the grade so repeat views don't re-bill a Sonnet call and the score
-    # doesn't wobble between refreshes. Key = hash of the grading-relevant fields;
-    # recompute only when the profile actually changes.
-    import hashlib as _hl, json as _json2
+    # If the grade is already cached for this exact profile, render it instantly.
+    # Otherwise show the page immediately with a spinner and load the grade
+    # asynchronously from /grade/fragment — the Sonnet grade takes ~10s and we
+    # don't want a frozen page while it runs.
+    g = _grade_cached(user["id"], profile, compute=False)
+    if g is not None:
+        return _page(_GRADE_HEADER + _grade_body_html(g), title="Profile Grade — Candor")
+    return _page(_GRADE_HEADER + _GRADE_SHELL, title="Profile Grade — Candor")
+
+
+_GRADE_HEADER = """
+<div class="bar"><a href="/profile">← Edit profile</a></div>
+<h1>Your Profile Grade</h1>
+<p class="muted" style="margin:0 0 18px">Graded for highly selective (top-20) admissions. This is one honest read of your whole profile — not a guarantee.</p>
+"""
+
+_GRADE_SHELL = """
+<style>@keyframes cdrspin{to{transform:rotate(360deg)}}
+.cdr-spinner{width:34px;height:34px;border-radius:50%;border:3px solid rgba(95,201,182,.18);border-top-color:#5fc9b6;animation:cdrspin .8s linear infinite}</style>
+<div id="grade-loading" class="card" style="text-align:center;padding:48px 24px">
+  <div class="cdr-spinner" style="margin:0 auto 16px"></div>
+  <div class="muted">Reading your whole profile like an admissions officer…</div>
+  <div class="muted" style="font-size:.82em;margin-top:6px">~10 seconds the first time — instant after that.</div>
+</div>
+<div id="grade-content"></div>
+<script>
+(function(){
+  fetch('/grade/fragment').then(function(r){return r.text();}).then(function(h){
+    document.getElementById('grade-content').innerHTML = h;
+    var l=document.getElementById('grade-loading'); if(l) l.style.display='none';
+  }).catch(function(){
+    var l=document.getElementById('grade-loading');
+    if(l) l.innerHTML='<div class="muted">Couldn\\'t load your grade. <a href="/grade">Retry</a></div>';
+  });
+})();
+</script>
+"""
+
+
+def _grade_key(profile):
+    import hashlib as _hl
     _gk_fields = ["uw_gpa","weighted_gpa","sat","act","aps","ibs","no_aps_offered",
                   "no_ibs_offered","self_rigor","class_rank","class_size","major",
                   "ecs","awards","leadership","athlete","first_gen","legacy_schools","is_international"]
-    grade_key = "v3:" + _hl.md5("|".join(str(profile.get(k)) for k in _gk_fields).encode()).hexdigest()
-    g = None
-    if profile.get("grade_key") == grade_key and profile.get("grade_json"):
+    return "v3:" + _hl.md5("|".join(str(profile.get(k)) for k in _gk_fields).encode()).hexdigest()
+
+
+def _grade_cached(uid, profile, compute=False):
+    """Return the cached grade dict if it matches the current profile. If
+    compute=True and there's no valid cache, compute it (the slow Sonnet call),
+    persist, and return it. If compute=False and uncached, return None."""
+    import json as _json2
+    key = _grade_key(profile)
+    if profile.get("grade_key") == key and profile.get("grade_json"):
         try:
-            g = _json2.loads(profile["grade_json"])
+            return _json2.loads(profile["grade_json"])
         except Exception:
-            g = None
-    if g is None:
-        g = grade_profile(profile)
-        try:
-            with db() as conn:
-                conn.execute("UPDATE profiles SET grade_json=?, grade_key=? WHERE user_id=?",
-                             (_json2.dumps(g), grade_key, user["id"]))
-                conn.commit()
-        except Exception as e:
-            print(f"grade cache write failed: {e}")
+            pass
+    if not compute:
+        return None
+    g = grade_profile(profile)
+    try:
+        with db() as conn:
+            conn.execute("UPDATE profiles SET grade_json=?, grade_key=? WHERE user_id=?",
+                         (_json2.dumps(g), key, uid))
+            conn.commit()
+    except Exception as e:
+        print(f"grade cache write failed: {e}")
+    return g
+
+
+@app.route("/grade/fragment")
+@login_required
+def profile_grade_fragment():
+    user = current_user()
+    profile = get_profile(user["id"])
+    if not profile or not bool(user.get("is_paid")):
+        return ("", 204)
+    g = _grade_cached(user["id"], profile, compute=True)
+    return _grade_body_html(g)
+
+
+def _grade_body_html(g):
+    from html import escape as _h
     score100 = max(1, min(100, round(g["overall"] / 10)))
     # Color + label band for the headline.
     if score100 >= 85:   band, bcol = "Elite", "#5fc9b6"
@@ -9745,16 +9806,11 @@ def profile_grade_page():
             f'<li style="margin:6px 0;color:var(--text)"><span style="color:{color}">•</span> {_h(s)}</li>'
             for s in items
         )
-    from html import escape as _h
 
     summary_html = f'<p class="muted" style="font-size:1.02em;line-height:1.55;margin:6px 0 0">{_h(g["summary"])}</p>' if g.get("summary") else ""
     fb_note = '<p class="muted" style="font-size:.8em;margin-top:18px">Heuristic estimate — AI grader temporarily unavailable.</p>' if g.get("_fallback") else ""
 
     body = f"""
-<div class="bar"><a href="/profile">← Edit profile</a></div>
-<h1>Your Profile Grade</h1>
-<p class="muted" style="margin:0 0 18px">Graded for highly selective (top-20) admissions. This is one honest read of your whole profile — not a guarantee.</p>
-
 <div class="card" style="display:flex;align-items:center;gap:26px;flex-wrap:wrap">
   <div style="text-align:center;min-width:140px">
     <div style="font-size:4.2em;font-weight:800;line-height:1;letter-spacing:-2px;color:{bcol}">{score100}</div>
@@ -9787,7 +9843,7 @@ def profile_grade_page():
 {fb_note}
 <p style="margin-top:18px"><a class="btn btn-primary" href="/plans">See your school list →</a> <a class="btn btn-light" href="/profile">Update profile</a></p>
 """
-    return _page(body, title="Profile Grade — Candor")
+    return body
 
 
 @app.route("/predictor")
