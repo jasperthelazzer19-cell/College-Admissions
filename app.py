@@ -7234,6 +7234,8 @@ def _rate_limit_scrapers():
     # blocking a human refreshing one school's page repeatedly while
     # catching scrapers walking the alphabet.
     if p.startswith("/college/"):
+        if session.get("user_id"):
+            return  # logged-in users are real people, never rate-limit them
         from collections import deque
         # Extract slug from "/college/<slug>" or "/college/<slug>/sub"
         parts = p.split("/")
@@ -7246,7 +7248,7 @@ def _rate_limit_scrapers():
                 dq.popleft()
             dq.append((now, slug))
             unique_slugs = len({s for _, s in dq})
-            if unique_slugs > 15:
+            if unique_slugs > 45:
                 return ("Too many requests. Slow down.", 429)
 
 
