@@ -3027,6 +3027,18 @@ _SCHOOL_CALIBRATION = {
 }
 
 
+def _target_honesty_haircut(center):
+    """Shave ~3 points off the midpoint in the TARGET band (the model runs a few
+    points generous there for spiky, sub-median-GPA profiles). The reduction
+    peaks around center 0.35 and tapers to 0 below ~0.18 (reaches — already
+    honest) and above ~0.58 (safeties — fine), so it never cascades across
+    tiers. Pure subtraction, not a multiplier."""
+    if 0.18 < center < 0.58:
+        w = max(0.0, 1.0 - abs(center - 0.35) / 0.23)  # triangular, 1.0 at 0.35
+        return max(0.0, center - 0.03 * w)
+    return center
+
+
 def estimate_odds(school, fit, profile):
     """Harsher version. Markets and admissions are noisy; previous curve was
     over-generous in the middle of the fit range. Tighter slope + lower caps
@@ -3142,6 +3154,7 @@ def estimate_odds(school, fit, profile):
         w = max(0.0, min(1.0, (fit - 42.0) / 16.0))
         center = center * (1.0 + (_cal - 1.0) * w)
         center = min(center, 0.42)
+        center = _target_honesty_haircut(center)
         low = max(1, int(round((center - max(0.05, center * 0.30) / 2) * 100)))
         high = min(95, int(round((center + max(0.05, center * 0.30) / 2) * 100)))
         if high <= low: high = low + 3
@@ -3164,6 +3177,7 @@ def estimate_odds(school, fit, profile):
     else:
         c_std, c_exc = min(_base, 0.85), min(_base * 1.2, 0.93)
     center = c_std + (c_exc - c_std) * exc
+    center = _target_honesty_haircut(center)
     # Spread (uncertainty band) is wider at low-accept schools where the outcome
     # is genuinely more uncertain, and narrower at high-accept schools where
     # the prediction is more confident. Previous formula (center * 0.35) was
