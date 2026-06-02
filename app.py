@@ -2936,19 +2936,31 @@ def estimate_odds(school, fit, profile):
     # out-of-state ~7%, UNC in-state 42% vs OOS 9%). When ADMISSIONS_DETAIL
     # has the residency split AND user has a state on file, anchor 'a'
     # to the matching residency rate instead of overall.
+    # Residency adjustment for public flagships, applied as a MULTIPLIER on the
+    # current anchor (which may already be a major-specific sub-school rate) so
+    # it COMPOSES with the sub-school instead of being bypassed by it. Publics
+    # swing enormously by residency — UNC 42% in-state vs 9% OOS, UCLA 13% vs 7%
+    # — and the headline rate blends both. We scale by the residency:overall
+    # ratio when we have explicit data, else apply a default OOS haircut for
+    # selective publics. (Previously residency was mutually exclusive with the
+    # sub-school override, so any OOS applicant whose major matched a broad
+    # sub-school — e.g. biology -> "College of Arts & Sciences" — silently
+    # escaped the OOS penalty entirely.)
     user_state = (profile.get("state") or "").strip()
-    if (
-        not sub  # don't override sub-school anchor
-        and school.get("type") == "public"
-        and user_state
-        and school.get("slug") in ADMISSIONS_DETAIL
-    ):
-        d = ADMISSIONS_DETAIL[school["slug"]]
-        is_in_state = user_state.lower() == (school.get("state") or "").lower()
-        if is_in_state and d.get("in_state_rate"):
-            a = d["in_state_rate"]
-        elif not is_in_state and d.get("out_of_state_rate"):
-            a = d["out_of_state_rate"]
+    is_public = school.get("type") == "public"
+    is_oos = bool(user_state) and user_state.lower() != (school.get("state") or "").lower()
+    if is_public and user_state:
+        overall = school.get("accept") or a
+        d = ADMISSIONS_DETAIL.get(school.get("slug"), {})
+        if not is_oos:
+            if d.get("in_state_rate") and overall:
+                a *= d["in_state_rate"] / overall
+        else:
+            if d.get("out_of_state_rate") and overall:
+                a *= d["out_of_state_rate"] / overall
+            elif overall < 0.50:
+                a *= 0.55
+        a = max(0.005, min(1.0, a))
     # International / domestic pool adjustment. The published acceptance rate
     # is overall (intl + domestic combined). At schools with a large intl
     # admit pool, domestic applicants are competing for fewer effective
