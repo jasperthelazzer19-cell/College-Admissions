@@ -4148,16 +4148,21 @@ def legacy_generations_at(profile, school):
             elif name == school_name:
                 matched = True
             else:
-                # 4. Word-boundary subset in EITHER direction. Every word in the
-                # user input is in the school name (e.g. "Bowdoin College" →
-                # Bowdoin), OR every word in the school name is in the user input
-                # (e.g. "Cornell University" → school stored as just "Cornell").
-                # The latter is critical: schools are stored under short names, so
-                # typing the full "<X> University" must still match. Bidirectional
-                # subset still rejects "Boston College" → "Boston University"
-                # (neither is a subset of the other) and "MIT" → "Smith".
+                # 4. Word-boundary subset, but the ONLY extra words allowed
+                # between the two are generic institution words. This lets
+                # "Cornell University" match a school stored as just "Cornell"
+                # (extra word = "university"), and "Bowdoin College" ↔ "Bowdoin",
+                # WITHOUT letting a single-word stored name be matched by a
+                # different multi-word school: "UMass Amherst" must NOT match
+                # "Amherst", "Cal Poly Pomona" must NOT match "Pomona", and
+                # "Boston College" must NOT match "Boston University".
+                _GEN = {"university", "college", "institute", "school", "of",
+                        "the", "and", "at", "univ", "u"}
                 user_words = set(_re.findall(r"\w+", name))
-                if user_words and (user_words.issubset(name_words) or name_words.issubset(user_words)):
+                if user_words and (
+                    (name_words.issubset(user_words) and (user_words - name_words).issubset(_GEN)) or
+                    (user_words.issubset(name_words) and (name_words - user_words).issubset(_GEN))
+                ):
                     matched = True
         if matched:
             best = max(best, count)
