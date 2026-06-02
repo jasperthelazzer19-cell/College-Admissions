@@ -2271,9 +2271,14 @@ def grade_profile(profile):
         "users OR real revenue), published research/writing, university research "
         "assistance, national-level arts/music recognition (YoungArts, "
         "All-National). Do NOT cap a stellar non-STEM profile below the 800s just "
-        "because it lacks ISEF/USAMO-type awards. Keep skepticism for vague, "
-        "unscaled claims — but reward documented, national-level achievement in "
-        "ANY domain at full strength."
+        "because it lacks ISEF/USAMO-type awards. This guidance only RAISES "
+        "non-STEM ceilings — it must NEVER lower an EC score relative to judging "
+        "the same activities on their face. Real founder, builder, and "
+        "leadership work counts on its merits even when the applicant has not "
+        "quantified it; the mere ABSENCE of stated metrics or awards is not "
+        "itself a penalty. Reserve the very top (elite) band for documented "
+        "national-level scale, but credit genuine founder/leadership roles "
+        "solidly in the bands below it rather than discounting them as 'vague'."
     )
     raw = _claude("claude-sonnet-4-6",
         "You are a strict, candid admissions reader. Output only valid JSON. Be honest, not flattering.",
