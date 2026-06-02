@@ -2245,7 +2245,24 @@ def grade_profile(profile):
         "Judge real substance, not buzzwords. A 3.15 GPA is a hard ceiling even "
         "with strong ECs; reflect that honestly in academics and overall. "
         "If the school offers NO AP/IB, judge rigor from the self-rating and "
-        "course names — do NOT list 'no AP/IB courses' as a weakness in that case."
+        "course names — do NOT list 'no AP/IB courses' as a weakness in that case.\n\n"
+        "RULES (follow exactly):\n"
+        "- Do NOT penalize the student's CHOICE of intended major. Major choice "
+        "is neutral — NEVER call a major un-prestigious, non-differentiating, or "
+        "a weakness, and never say one major would be 'stronger' than another. You "
+        "may note if the activities don't yet support the stated major, but frame "
+        "that only as optional fit guidance, never as a knock.\n"
+        "- Hooks are ADDITIVE ONLY: a hook (legacy, recruited athlete, first-gen) "
+        "can help, but its ABSENCE is normal for most applicants and must NEVER be "
+        "a weakness or lower the score.\n"
+        "- Narrative cohesion is a soft polish factor, not a core pillar. REWARD a "
+        "focused story, but do NOT heavily penalize breadth or an 'unfocused' "
+        "narrative when the student has real, concrete accomplishments. For a "
+        "student with substantive activities, narrative_hooks should sit around "
+        "55-75, not below 50.\n"
+        "- Weaknesses must be VERIFIABLE academic gaps (GPA, test, rigor, lack of "
+        "external validation) — do NOT manufacture soft-narrative or major-choice "
+        "criticisms to fill the list. Fewer real weaknesses beats padded ones."
     )
     raw = _claude("claude-sonnet-4-6",
         "You are a strict, candid admissions reader. Output only valid JSON. Be honest, not flattering.",
@@ -2271,6 +2288,11 @@ def grade_profile(profile):
             clean_dims[k] = max(1, min(1000, int(round(float(v)))))
         except (TypeError, ValueError):
             continue
+    # Soft floor: narrative is a polish factor, not a pillar. Don't let it drag
+    # a student with real, substantive activities — if ECs are strong, narrative
+    # can't read as a major weakness on its own (additive-only philosophy).
+    if clean_dims.get("extracurriculars", 0) >= 550:
+        clean_dims["narrative_hooks"] = max(clean_dims.get("narrative_hooks", 0), 520)
     # When the school offers no AP/IB and the student self-rated their rigor,
     # anchor the displayed rigor dimension to that self-rating (the same value
     # the odds engine uses) so the bar reflects what they actually entered,
@@ -9785,7 +9807,7 @@ def _grade_key(profile):
     _gk_fields = ["uw_gpa","weighted_gpa","sat","act","aps","ibs","no_aps_offered",
                   "no_ibs_offered","self_rigor","class_rank","class_size","major",
                   "ecs","awards","leadership","athlete","first_gen","legacy_schools","is_international"]
-    return "v4:" + _hl.md5("|".join(str(profile.get(k)) for k in _gk_fields).encode()).hexdigest()
+    return "v5:" + _hl.md5("|".join(str(profile.get(k)) for k in _gk_fields).encode()).hexdigest()
 
 
 def _grade_cached(uid, profile, compute=False):
