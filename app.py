@@ -2050,30 +2050,35 @@ def expanded_ranking_order(slug, target=75):
 # ─── KEYWORDS / SCORING (carried over from MVP) ──────────
 
 
-def ec_llm_score(profile):
-    """LLM-graded extracurricular/awards/leadership strength on the same 0-16
-    scale compute_fit expects. Reads the actual substance instead of keyword
-    matching. Returns a float, or None if unavailable (caller keeps the keyword
-    fallback). Cheap: one claude-haiku call, run once at profile-save time."""
+def ec_rating_1k(profile):
+    """LLM-graded extracurricular/awards/leadership strength on a 1-1000 scale.
+    Reads the actual substance instead of counting keywords, so the EC impact
+    on odds VARIES continuously with how strong the profile really is. Returns
+    a float 1-1000, or None if the LLM is unavailable (caller falls back to
+    ec_rating_keyword). Cheap: one claude-haiku call, run once at save time."""
     if not _claude_client:
         return None
     ecs = (profile.get("ecs") or "").strip()
     awards = (profile.get("awards") or "").strip()
     leadership = (profile.get("leadership") or "").strip()
     if not (ecs or awards or leadership):
-        return 0.0
+        return 1.0
     user = (f"EXTRACURRICULARS:\n{ecs or '(none)'}\n\nAWARDS:\n{awards or '(none)'}\n\n"
             f"LEADERSHIP:\n{leadership or '(none)'}\n\n"
-            "Rate this applicant's activities/awards profile for SELECTIVE college "
-            "admissions on a 0-16 scale:\n"
-            "0-3 = thin/generic (a club or two, no distinction)\n"
-            "4-7 = solid (sustained involvement, some school/local leadership)\n"
-            "8-11 = strong (regional/state distinction, real leadership, depth)\n"
-            "12-14 = excellent (national-level awards, founder w/ scale, published)\n"
-            "15-16 = elite (ISEF/USAMO/Regeneron-tier, national champion, recruited)\n"
-            "Judge real substance, not buzzwords. Output ONLY the number.")
+            "Rate this applicant's activities/awards/leadership profile for "
+            "SELECTIVE college admissions on a 1-1000 scale. Use the WHOLE range "
+            "and judge real substance, depth, and distinction — not buzzwords:\n"
+            "1-100   = thin/generic (a club or two, no real distinction)\n"
+            "101-300 = solid (sustained involvement, some school/local leadership)\n"
+            "301-550 = strong (regional/state distinction, real leadership + depth)\n"
+            "551-800 = excellent (national-level awards, founder with real scale, "
+            "published/first-author research)\n"
+            "801-1000 = elite, top ~1% nationally (ISEF/USAMO/Regeneron-tier, "
+            "national champion, recruited D1 athlete, Olympic/intl medalist)\n"
+            "Be skeptical — students inflate. A 'founded a nonprofit' with no scale "
+            "is ~150, not 600. Output ONLY the integer.")
     raw = _claude("claude-haiku-4-5-20251001",
-        "You are a strict admissions reader. Output only a single number 0-16.",
+        "You are a strict admissions reader. Output only a single integer 1-1000.",
         user, max_tokens=8)
     if not raw:
         return None
@@ -2082,9 +2087,66 @@ def ec_llm_score(profile):
     if not m:
         return None
     try:
-        return max(0.0, min(16.0, float(m.group(0))))
+        return max(1.0, min(1000.0, float(m.group(0))))
     except ValueError:
         return None
+
+
+def ec_rating_keyword(profile):
+    """Deterministic 1-1000 EC rating from keyword signals. Used as a fallback
+    when no LLM key is set, and inside compute_fit for profiles saved before
+    ec_rating was populated (so odds still vary by EC strength). Coarser than
+    the LLM grade but monotonic and never zero-impact."""
+    ecs = (profile.get("ecs") or "")
+    awards = (profile.get("awards") or "")
+    leadership = (profile.get("leadership") or "")
+    if not (ecs.strip() or awards.strip() or leadership.strip()):
+        return 1.0
+    ec_hits = _keyword_strength(ecs, EC_STRONG_SIGNALS)
+    aw_hits = _keyword_strength(awards, EC_STRONG_SIGNALS)
+    ld_hits = _keyword_strength(leadership, LEADERSHIP_KEYWORDS)
+    # National-credential signals jump the rating into the elite band.
+    elite = _keyword_exceptional(profile)
+    base = 60.0 + ec_hits * 70.0 + aw_hits * 90.0 + ld_hits * 45.0
+    if elite:
+        base = max(base, 780.0) + aw_hits * 30.0
+    return max(1.0, min(1000.0, round(base, 1)))
+
+
+def ec_rating_for_fit(profile):
+    """The 1-1000 EC rating compute_fit/estimate_odds should use: prefer the
+    stored LLM grade, else compute the keyword estimate on the fly."""
+    r = profile.get("ec_rating")
+    try:
+        if r is not None:
+            return max(1.0, min(1000.0, float(r)))
+    except (TypeError, ValueError):
+        pass
+    return ec_rating_keyword(profile)
+
+
+def _rating_to_fit_delta(r):
+    """Map a 1-1000 EC rating to a fit-score contribution. Anchored to the
+    OLD keyword scale so calibration doesn't move: a solid-strong profile
+    (~520) lands ~+5.9 (matching the prior ec_total+leadership for such a
+    file), a blank/thin profile is a small penalty, an elite profile tops out
+    near +15. Continuous, so EC impact now varies smoothly."""
+    return max(-4.0, min(15.0, -4.0 + (r / 1000.0) * 19.0))
+
+
+def ec_exceptional_strength(profile):
+    """Continuous 0-1 'how exceptional are the ECs' signal that replaces the
+    old binary is_exceptional cliff for the odds CAP. Ramps from 0 at rating
+    720 to 1.0 at 1000, so only genuinely national-tier profiles lift the
+    elite cap, and they lift it smoothly. Recruited athletes and an explicit
+    is_exceptional flag still get a strong floor."""
+    r = ec_rating_for_fit(profile)
+    exc = max(0.0, min(1.0, (r - 720.0) / 280.0))
+    if profile.get("athlete"):
+        exc = max(exc, 0.70)
+    if profile.get("is_exceptional"):
+        exc = max(exc, 1.0)
+    return exc
 
 
 def _keyword_strength(text, keywords):
@@ -2318,15 +2380,17 @@ def compute_fit(profile, school):
             components["test"] = -6
         else:
             components["test"] = 0
-    ec_strength = _keyword_strength(profile.get("ecs", "") or "", EC_STRONG_SIGNALS)
-    awards_strength = _keyword_strength(profile.get("awards", "") or "", EC_STRONG_SIGNALS)
-    ec_total = min(10, ec_strength * 1.5 + awards_strength * 2)
-    if not (profile.get("ecs", "") or "").strip(): ec_total -= 4
+    # EC/leadership contribution now comes from a single 1-1000 model-graded
+    # rating (ec_rating_for_fit) instead of keyword counting, so its impact on
+    # the score varies continuously with real strength. The rating already
+    # folds in leadership, so leadership is no longer a separate add (kept in
+    # components at 0 for any downstream readers).
+    ec_rating = ec_rating_for_fit(profile)
+    ec_total = _rating_to_fit_delta(ec_rating)
     score += ec_total
     components["ecs"] = round(ec_total, 1)
-    lead_total = min(5, _keyword_strength(profile.get("leadership", "") or "", LEADERSHIP_KEYWORDS) * 1.5)
-    score += lead_total
-    components["leadership"] = round(lead_total, 1)
+    components["leadership"] = 0.0
+    components["ec_rating"] = round(ec_rating, 1)
     # AP rigor — elite schools weight course-load harder than mid-tier ones.
     # Tier 1-2: up to +6, tier 3: up to +4, else +3. If user marked
     # "no APs offered" the contribution is 0 (neutral, no penalty).
@@ -2569,10 +2633,13 @@ def counterfactual_lift(profile, school, *, gpa=None, sat=None, act=None,
             sim["legacy_schools"] = (existing + ", " if existing else "") + hook_legacy_at
     if is_exceptional:         sim["is_exceptional"] = True
     if ec_boost:
-        # Append a stronger-EC marker so _keyword_strength picks it up.
+        # Append a stronger-EC marker so the keyword rating picks it up, and
+        # drop the stored ec_rating so compute_fit re-grades from the boosted
+        # text instead of reusing the saved rating.
         sim["ecs"] = (sim.get("ecs","") or "") + " " + (
             "national finalist research published founder award winner"[:200] * max(1, ec_boost)
         )
+        sim.pop("ec_rating", None)
     fit, _ = compute_fit(sim, school)
     return estimate_odds(school, fit, sim)
 
@@ -2601,7 +2668,11 @@ _EXC_INLINE_KW = (
 
 def _keyword_exceptional(profile):
     blob = f"{profile.get('awards','')}\n{profile.get('ecs','')}\n{profile.get('leadership','')}".lower()
-    if any(k in blob for k in _EXC_INLINE_KW):
+    # Word-boundary match so short tokens like "rsi" don't fire inside
+    # "va(rsi)ty" / "unive(rsi)ty" / "dive(rsi)ty" (a real false-positive that
+    # was inflating odds for anyone who mentioned varsity sports).
+    import re as _re
+    if any(_re.search(r"\b" + _re.escape(k) + r"\b", blob) for k in _EXC_INLINE_KW):
         return True
     return bool(profile.get("athlete"))
 
@@ -2704,8 +2775,14 @@ def estimate_odds(school, fit, profile):
     # for the few schools that were too harsh). Faded in by fit: w=0 at fit<=42
     # (weak — left untouched so it stays below acceptance rate) ramping to full
     # by fit>=58. Bypasses the harsh low-accept cap and uses a sane 0.42 ceiling.
+    # Continuous "how exceptional are the ECs" signal (0-1) from the 1-1000
+    # rating. Replaces the old binary is_exceptional cliff: exc=0 reproduces the
+    # standard capped odds exactly (so normal-EC profiles, incl. the calibration
+    # reference, are unchanged), exc=1 gives the full exceptional lift, and in
+    # between the cap blends smoothly — so EC strength varies the ceiling.
+    exc = ec_exceptional_strength(profile)
     _cal = _SCHOOL_CALIBRATION.get(school.get("slug"))
-    if _cal and not bool(profile.get("is_exceptional")):
+    if _cal and exc < 0.5:
         w = max(0.0, min(1.0, (fit - 42.0) / 16.0))
         center = center * (1.0 + (_cal - 1.0) * w)
         center = min(center, 0.42)
@@ -2713,26 +2790,24 @@ def estimate_odds(school, fit, profile):
         high = min(95, int(round((center + max(0.05, center * 0.30) / 2) * 100)))
         if high <= low: high = low + 3
         return low, high
-    # Pick caps based on whether this profile has been flagged as exceptional.
-    # Standard caps assume a typical strong applicant; exceptional profiles
-    # (USAMO golds, recruited D1 athletes, ISEF top, etc.) get raised caps
-    # because flat caps undersell them. Caps only LIFT — never lower odds.
-    if bool(profile.get("is_exceptional")):
-        # Lift caps significantly. A USAMO gold + recruited athlete legitimately
-        # has 60-80% odds at MIT. Even unhooked extraordinary kids cross 30%.
-        if a < 0.07:  center = min(center * 1.5 + 0.08, 0.65)
-        elif a < 0.10: center = min(center * 1.5 + 0.06, 0.72)
-        elif a < 0.20: center = min(center * 1.4 + 0.05, 0.80)
-        elif a < 0.40: center = min(center * 1.3 + 0.03, 0.88)
-        else:           center = min(center * 1.2, 0.93)
+    # Blend between the standard cap and the exceptional cap by `exc` (0-1).
+    # Standard caps assume a typical strong applicant; the exceptional caps
+    # (USAMO golds, recruited D1 athletes, ISEF top, etc.) get raised because
+    # flat caps undersell them. At exc=0 this is exactly the standard cap (no
+    # change vs. before for normal profiles); at exc=1 it's the full lift; in
+    # between it ramps smoothly with EC strength. Caps only LIFT — never lower.
+    _base = center
+    if a < 0.07:
+        c_std, c_exc = min(_base, 0.14), min(_base * 1.5 + 0.08, 0.65)
+    elif a < 0.10:
+        c_std, c_exc = min(_base, 0.18), min(_base * 1.5 + 0.06, 0.72)
+    elif a < 0.20:
+        c_std, c_exc = min(_base, 0.30), min(_base * 1.4 + 0.05, 0.80)
+    elif a < 0.40:
+        c_std, c_exc = min(_base, 0.55), min(_base * 1.3 + 0.03, 0.88)
     else:
-        # Standard caps — tightened so headline numbers don't promise a Stanford
-        # that isn't there for a typical strong applicant.
-        if a < 0.07:  center = min(center, 0.14)
-        elif a < 0.10: center = min(center, 0.18)
-        elif a < 0.20: center = min(center, 0.30)
-        elif a < 0.40: center = min(center, 0.55)
-        else: center = min(center, 0.85)
+        c_std, c_exc = min(_base, 0.85), min(_base * 1.2, 0.93)
+    center = c_std + (c_exc - c_std) * exc
     # Spread (uncertainty band) is wider at low-accept schools where the outcome
     # is genuinely more uncertain, and narrower at high-accept schools where
     # the prediction is more confident. Previous formula (center * 0.35) was
@@ -3198,6 +3273,12 @@ def init_db():
             conn.execute("ALTER TABLE profiles ADD COLUMN ec_score REAL")
         except sqlite3.OperationalError:
             pass
+        # 1-1000 LLM-graded EC/leadership rating (granular successor to the
+        # 0-16 ec_score). This is the signal compute_fit/estimate_odds read.
+        try:
+            conn.execute("ALTER TABLE profiles ADD COLUMN ec_rating REAL")
+        except sqlite3.OperationalError:
+            pass
         for _crc in ("ALTER TABLE profiles ADD COLUMN class_rank INTEGER",
                      "ALTER TABLE profiles ADD COLUMN class_size INTEGER",
                      "ALTER TABLE profiles ADD COLUMN no_class_rank_offered INTEGER DEFAULT 0"):
@@ -3461,15 +3542,18 @@ def save_profile(user_id, p):
             )
         except Exception as e:
             print(f"class rank save failed: {e}")
-        # LLM extracurricular score (0-16) — computed once here at save time so
-        # compute_fit / ranking stay instant. Falls back to keyword scoring if
-        # the call fails or no Claude key is set.
+        # LLM extracurricular rating (1-1000) — computed once here at save time
+        # so compute_fit / ranking stay instant. This is the signal that drives
+        # how much ECs move the odds. Falls back to a deterministic keyword
+        # rating if the call fails or no Claude key is set, so it's never null
+        # for a populated profile.
         try:
-            _ecs = ec_llm_score(p)
-            if _ecs is not None:
-                conn.execute("UPDATE profiles SET ec_score=? WHERE user_id=?", (_ecs, user_id))
+            _ecr = ec_rating_1k(p)
+            if _ecr is None:
+                _ecr = ec_rating_keyword(p)
+            conn.execute("UPDATE profiles SET ec_rating=? WHERE user_id=?", (_ecr, user_id))
         except Exception as e:
-            print(f"ec_score save failed: {e}")
+            print(f"ec_rating save failed: {e}")
         try:
             conn.execute(
                 "UPDATE profiles SET sat_math=?, sat_ebrw=?, act_math=?, act_english=?, act_reading=?, act_science=? WHERE user_id=?",
