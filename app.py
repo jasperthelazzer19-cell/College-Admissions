@@ -2529,6 +2529,34 @@ def effective_gpa(profile, school):
     return round(min(4.05, max(0.0, gpa)), 3)
 
 
+def weighted_effective_gpa(profile):
+    """Year-by-year WEIGHTED GPA, computed from only the years where weighting
+    was actually offered (per-year 'not offered' flags exclude the rest). Upper
+    years count more, same as effective_gpa. Returns None if there's no usable
+    weighted-year data (caller then falls back to the single weighted_gpa field,
+    then to unweighted). This is what lets a student whose school only weights
+    junior year be judged on that year, not penalized for the gated ones."""
+    years = [("w_gpa_freshman", "w_notoffered_freshman", 0.5),
+             ("w_gpa_sophomore", "w_notoffered_sophomore", 1.0),
+             ("w_gpa_junior", "w_notoffered_junior", 1.5),
+             ("w_gpa_senior", "w_notoffered_senior", 1.0)]
+    num = den = 0.0
+    for gkey, nkey, wt in years:
+        if profile.get(nkey):
+            continue  # weighting not offered this year → exclude entirely
+        try:
+            g = float(profile.get(gkey)) if profile.get(gkey) not in (None, "") else None
+        except (TypeError, ValueError):
+            g = None
+        if g is None:
+            continue
+        num += g * wt
+        den += wt
+    if den == 0:
+        return None
+    return round(num / den, 3)
+
+
 def compute_fit(profile, school):
     score = 50.0
     components = {}
@@ -2541,10 +2569,14 @@ def compute_fit(profile, school):
     # penalized. When the school's range is weighted AND the student gave a
     # weighted GPA, compare weighted-to-weighted instead.
     if gpa is not None and (school.get("gpa_hi") or 0) > 4.0:
-        try:
-            wg = float(profile.get("weighted_gpa")) if profile.get("weighted_gpa") not in (None, "") else None
-        except (TypeError, ValueError):
-            wg = None
+        # Prefer the year-by-year weighted GPA (computed from only the offered
+        # years), then the single weighted_gpa field, else keep unweighted.
+        wg = weighted_effective_gpa(profile)
+        if wg is None:
+            try:
+                wg = float(profile.get("weighted_gpa")) if profile.get("weighted_gpa") not in (None, "") else None
+            except (TypeError, ValueError):
+                wg = None
         if wg is not None:
             gpa = wg
     if gpa is not None:
@@ -3601,6 +3633,21 @@ def init_db():
             conn.execute("ALTER TABLE profiles ADD COLUMN self_rigor INTEGER")
         except sqlite3.OperationalError:
             pass
+        # Year-by-year WEIGHTED GPA + a per-year "weighting not offered" flag, so
+        # students whose school only weights some years are judged on the years
+        # weighting was actually available (not penalized for gated honors/AP).
+        for _wc in ("ALTER TABLE profiles ADD COLUMN w_gpa_freshman REAL",
+                    "ALTER TABLE profiles ADD COLUMN w_gpa_sophomore REAL",
+                    "ALTER TABLE profiles ADD COLUMN w_gpa_junior REAL",
+                    "ALTER TABLE profiles ADD COLUMN w_gpa_senior REAL",
+                    "ALTER TABLE profiles ADD COLUMN w_notoffered_freshman INTEGER DEFAULT 0",
+                    "ALTER TABLE profiles ADD COLUMN w_notoffered_sophomore INTEGER DEFAULT 0",
+                    "ALTER TABLE profiles ADD COLUMN w_notoffered_junior INTEGER DEFAULT 0",
+                    "ALTER TABLE profiles ADD COLUMN w_notoffered_senior INTEGER DEFAULT 0"):
+            try:
+                conn.execute(_wc)
+            except sqlite3.OperationalError:
+                pass
         # Cached profile grade (JSON) + a key so we only recompute when the
         # grading-relevant fields actually change (deterministic + cheap).
         for _gc in ("ALTER TABLE profiles ADD COLUMN grade_json TEXT",
@@ -3864,6 +3911,18 @@ def save_profile(user_id, p):
             )
         except Exception as e:
             print(f"year-by-year GPA save failed: {e}")
+        # Year-by-year WEIGHTED GPA + per-year "not offered" flags.
+        try:
+            conn.execute(
+                "UPDATE profiles SET w_gpa_freshman=?, w_gpa_sophomore=?, w_gpa_junior=?, w_gpa_senior=?, "
+                "w_notoffered_freshman=?, w_notoffered_sophomore=?, w_notoffered_junior=?, w_notoffered_senior=? "
+                "WHERE user_id=?",
+                (p.get("w_gpa_freshman"), p.get("w_gpa_sophomore"), p.get("w_gpa_junior"), p.get("w_gpa_senior"),
+                 1 if p.get("w_notoffered_freshman") else 0, 1 if p.get("w_notoffered_sophomore") else 0,
+                 1 if p.get("w_notoffered_junior") else 0, 1 if p.get("w_notoffered_senior") else 0, user_id),
+            )
+        except Exception as e:
+            print(f"year-by-year weighted GPA save failed: {e}")
         try:
             conn.execute(
                 "UPDATE profiles SET class_rank=?, class_size=?, no_class_rank_offered=? WHERE user_id=?",
@@ -5476,6 +5535,26 @@ def profile_html():
         <input type="number" step="0.01" min="0" max="4.0" name="gpa_junior" value="{v('gpa_junior')}"></div>
       <div><label>Senior <span class="muted">(if applicable)</span></label>
         <input type="number" step="0.01" min="0" max="4.0" name="gpa_senior" value="{v('gpa_senior')}"></div>
+    </div>
+  </details>
+  <details style="margin:6px 0 14px">
+    <summary style="cursor:pointer;font-size:.92em;color:var(--text-2)">Year-by-year weighted GPA <span class="muted">(optional — for schools that only weight some years)</span></summary>
+    <p class="muted" style="font-size:.84em;margin:8px 0 10px">If your school only offers honors/AP weighting in certain years (e.g. nothing freshman year, or only for advanced tracks), tick <b>"not offered"</b> for those years. We compute your weighted GPA from <b>only the years weighting was available</b>, so you're not penalized for courses your school gated. Used at schools that report a weighted admit range (most big publics).</p>
+    <div class="row">
+      <div><label>Freshman <span class="muted">(weighted)</span></label>
+        <input type="number" step="0.01" min="0" max="6" name="w_gpa_freshman" value="{v('w_gpa_freshman')}">
+        <label style="display:flex;align-items:center;gap:6px;font-weight:400;font-size:.8em;margin-top:6px;color:var(--text-2)"><input type="checkbox" name="w_notoffered_freshman" {checked('w_notoffered_freshman')} style="width:auto;margin:0"> Weighting not offered this year</label></div>
+      <div><label>Sophomore <span class="muted">(weighted)</span></label>
+        <input type="number" step="0.01" min="0" max="6" name="w_gpa_sophomore" value="{v('w_gpa_sophomore')}">
+        <label style="display:flex;align-items:center;gap:6px;font-weight:400;font-size:.8em;margin-top:6px;color:var(--text-2)"><input type="checkbox" name="w_notoffered_sophomore" {checked('w_notoffered_sophomore')} style="width:auto;margin:0"> Weighting not offered this year</label></div>
+    </div>
+    <div class="row">
+      <div><label>Junior <span class="muted">(weighted)</span></label>
+        <input type="number" step="0.01" min="0" max="6" name="w_gpa_junior" value="{v('w_gpa_junior')}">
+        <label style="display:flex;align-items:center;gap:6px;font-weight:400;font-size:.8em;margin-top:6px;color:var(--text-2)"><input type="checkbox" name="w_notoffered_junior" {checked('w_notoffered_junior')} style="width:auto;margin:0"> Weighting not offered this year</label></div>
+      <div><label>Senior <span class="muted">(weighted)</span></label>
+        <input type="number" step="0.01" min="0" max="6" name="w_gpa_senior" value="{v('w_gpa_senior')}">
+        <label style="display:flex;align-items:center;gap:6px;font-weight:400;font-size:.8em;margin-top:6px;color:var(--text-2)"><input type="checkbox" name="w_notoffered_senior" {checked('w_notoffered_senior')} style="width:auto;margin:0"> Weighting not offered this year</label></div>
     </div>
   </details>
   <div class="row">
@@ -7876,6 +7955,14 @@ def _read_profile_form(form):
         "class_size": f("class_size", int),
         "no_class_rank_offered": form.get("no_class_rank_offered") in ("yes","on","true","1"),
         "self_rigor": f("self_rigor", int),
+        "w_gpa_freshman": f("w_gpa_freshman", float),
+        "w_gpa_sophomore": f("w_gpa_sophomore", float),
+        "w_gpa_junior": f("w_gpa_junior", float),
+        "w_gpa_senior": f("w_gpa_senior", float),
+        "w_notoffered_freshman": form.get("w_notoffered_freshman") in ("yes","on","true","1"),
+        "w_notoffered_sophomore": form.get("w_notoffered_sophomore") in ("yes","on","true","1"),
+        "w_notoffered_junior": form.get("w_notoffered_junior") in ("yes","on","true","1"),
+        "w_notoffered_senior": form.get("w_notoffered_senior") in ("yes","on","true","1"),
     }
     # Merge picker selections into the aps string
     picked = form.getlist("ap_pick") if hasattr(form, "getlist") else []
