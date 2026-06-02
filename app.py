@@ -2766,11 +2766,105 @@ def counterfactual_lift(profile, school, *, gpa=None, sat=None, act=None,
 
 
 
+# Schools that reward a focused "spike" (deep, aligned, one-thing-extremely-well)
+# more than well-roundedness, and schools that lean the other way (value
+# breadth / leadership / civic profile). Matched against the school name.
+_SPIKE_HIGH = ("mit", "caltech", "chicago", "carnegie mellon", "harvey mudd",
+               "olin", "georgia tech", "stanford", "cooper union", "worcester polytechnic",
+               "rensselaer", "rose-hulman")
+_SPIKE_LOW = ("princeton", "dartmouth", "williams", "amherst", "naval academy",
+              "military academy", "west point", "air force academy", "holy cross",
+              "davidson", "washington and lee")
+
 def spike_receptivity(school):
+    """How much a school rewards a focused spike vs. well-roundedness. >1 = spike-
+    friendly (MIT/Caltech/UChicago), <1 = breadth/leadership-leaning (HYP-ish,
+    service academies, some LACs). Centered at 1.0."""
     name = (school.get("name") or "").lower()
     if any(k in name for k in _SPIKE_HIGH): return 1.35
     if any(k in name for k in _SPIKE_LOW): return 0.90
     return 1.0
+
+
+def cohesion_keyword(profile):
+    """Deterministic 1-1000 'cohesive story / major alignment' score for the
+    no-LLM fallback. Rewards overlap between the intended major and the actual
+    activities/awards ('actions match words') plus having a real activity body.
+    Neutral (~430) by default so it never penalizes; only a clearly aligned,
+    substantive profile climbs into the bonus band."""
+    major = (profile.get("major") or "").lower()
+    blob = " ".join([(profile.get("ecs") or ""), (profile.get("awards") or ""),
+                     (profile.get("leadership") or "")]).lower()
+    if not blob.strip():
+        return 1.0
+    import re as _re
+    mtokens = [t for t in _re.split(r"\W+", major) if len(t) > 3]
+    overlap = sum(1 for t in mtokens if t in blob)
+    # National-credential signals usually come with a clear thread.
+    spiky = _keyword_exceptional(profile)
+    base = 430.0 + overlap * 170.0 + (200.0 if spiky else 0.0)
+    return max(1.0, min(1000.0, round(base, 1)))
+
+
+def spike_for_odds(profile):
+    """The 1-1000 cohesion/spike score estimate_odds should use: prefer the
+    stored LLM grade, else the keyword estimate."""
+    s = profile.get("spike_score")
+    try:
+        if s is not None:
+            return max(1.0, min(1000.0, float(s)))
+    except (TypeError, ValueError):
+        pass
+    return cohesion_keyword(profile)
+
+
+def grade_ec_and_spike(profile):
+    """One Haiku call that grades BOTH the EC strength (1-1000) and the
+    cohesive-story / major-alignment 'spike' (1-1000). Combining them keeps it
+    to a single save-time call. Returns (ec_rating, spike_score) or (None, None)
+    if the LLM is unavailable (caller falls back to the keyword versions)."""
+    if not _claude_client:
+        return None, None
+    ecs = (profile.get("ecs") or "").strip()
+    awards = (profile.get("awards") or "").strip()
+    leadership = (profile.get("leadership") or "").strip()
+    major = (profile.get("major") or "").strip()
+    if not (ecs or awards or leadership):
+        return 1.0, 1.0
+    user = (
+        f"INTENDED MAJOR: {major or '(undecided)'}\n"
+        f"EXTRACURRICULARS:\n{ecs or '(none)'}\n\nAWARDS:\n{awards or '(none)'}\n\n"
+        f"LEADERSHIP:\n{leadership or '(none)'}\n\n"
+        "Rate two things for SELECTIVE college admissions, each 1-1000 (use the "
+        "full range, be skeptical — most applicants land mid-range):\n\n"
+        "1) EC_STRENGTH: raw strength/distinction of the activities, awards, and "
+        "leadership.\n"
+        "  1-100 thin/generic · 101-300 solid · 301-550 strong · 551-800 excellent "
+        "(national awards, founder w/ scale, published) · 801-1000 elite "
+        "(ISEF/USAMO/Regeneron, national champion, recruited).\n\n"
+        "2) SPIKE: how COHESIVE and FOCUSED the story is, and whether the activities "
+        "actually support the intended major ('actions match words'). A scattered, "
+        "well-rounded-but-unfocused profile is LOW (~250). A clear, deep thread where "
+        "the major, activities, and awards all point the same direction is HIGH "
+        "(800+). If the major doesn't match the activities at all, keep this LOW.\n\n"
+        "Output ONLY valid JSON: {\"ec_strength\": <1-1000>, \"spike\": <1-1000>}"
+    )
+    raw = _claude("claude-haiku-4-5-20251001",
+        "You are a strict admissions reader. Output only valid JSON with two integers.",
+        user, max_tokens=40)
+    if not raw:
+        return None, None
+    import json as _json, re as _re
+    m = _re.search(r"\{.*\}", raw, _re.DOTALL)
+    if not m:
+        return None, None
+    try:
+        d = _json.loads(m.group(0))
+        ec = max(1.0, min(1000.0, float(d.get("ec_strength"))))
+        sp = max(1.0, min(1000.0, float(d.get("spike"))))
+        return ec, sp
+    except Exception:
+        return None, None
 
 
 # Keyword-based exceptional detection computed INLINE at odds time, so the
@@ -2891,7 +2985,17 @@ def estimate_odds(school, fit, profile):
     # portfolio at Roski/Tisch/RISD/etc. is meaningfully a hook.
     if (profile.get("portfolio") or "").strip() and school.get("slug") in PORTFOLIO_GATEKEEPER_SCHOOLS:
         hook_mult *= 1.15
-    center = a * fit_mult * hook_mult
+    # Cohesive story / spike bonus. A focused profile whose activities, awards,
+    # and intended major all point the same direction ("actions match words") is
+    # a real plus — exactly what differentiates admits from "qualified but". It
+    # ONLY lifts (never lowers), fades in above a typical-profile baseline (so
+    # ordinary scattered profiles are unchanged → calibration safe), and is
+    # scaled by how much THIS school rewards spikes vs. well-roundedness.
+    spike_s = spike_for_odds(profile)
+    cohesion = max(0.0, min(1.0, (spike_s - 550.0) / 450.0))   # 0 below 550, full at 1000
+    spike_mult = 1.0 + cohesion * 0.10 * spike_receptivity(school)
+    spike_mult = min(spike_mult, 1.15)
+    center = a * fit_mult * hook_mult * spike_mult
     # Per-school calibration dial (takes precedence over the standard elite cap
     # for the few schools that were too harsh). Faded in by fit: w=0 at fit<=42
     # (weak — left untouched so it stays below acceptance rate) ramping to full
@@ -3400,6 +3504,11 @@ def init_db():
             conn.execute("ALTER TABLE profiles ADD COLUMN ec_rating REAL")
         except sqlite3.OperationalError:
             pass
+        # 1-1000 cohesive-story / spike / major-alignment rating.
+        try:
+            conn.execute("ALTER TABLE profiles ADD COLUMN spike_score REAL")
+        except sqlite3.OperationalError:
+            pass
         for _crc in ("ALTER TABLE profiles ADD COLUMN class_rank INTEGER",
                      "ALTER TABLE profiles ADD COLUMN class_size INTEGER",
                      "ALTER TABLE profiles ADD COLUMN no_class_rank_offered INTEGER DEFAULT 0"):
@@ -3669,12 +3778,15 @@ def save_profile(user_id, p):
         # rating if the call fails or no Claude key is set, so it's never null
         # for a populated profile.
         try:
-            _ecr = ec_rating_1k(p)
+            _ecr, _spk = grade_ec_and_spike(p)   # one combined Haiku call
             if _ecr is None:
                 _ecr = ec_rating_keyword(p)
-            conn.execute("UPDATE profiles SET ec_rating=? WHERE user_id=?", (_ecr, user_id))
+            if _spk is None:
+                _spk = cohesion_keyword(p)
+            conn.execute("UPDATE profiles SET ec_rating=?, spike_score=? WHERE user_id=?",
+                         (_ecr, _spk, user_id))
         except Exception as e:
-            print(f"ec_rating save failed: {e}")
+            print(f"ec_rating/spike save failed: {e}")
         try:
             conn.execute(
                 "UPDATE profiles SET sat_math=?, sat_ebrw=?, act_math=?, act_english=?, act_reading=?, act_science=? WHERE user_id=?",
