@@ -2584,20 +2584,24 @@ def compute_fit(profile, school):
     if gpa is not None:
         midpoint = (school["gpa_lo"] + school["gpa_hi"]) / 2
         delta = (gpa - midpoint) * 50
+        # Test-optional applicants: GPA carries more weight to compensate for the
+        # missing test signal. Apply this BEFORE the caps so a cap is a true
+        # ceiling (previously the ×1.25 ran after the weighted cap and leaked it
+        # from +5 to +6.2).
+        if not has_test:
+            delta *= 1.25
         if used_weighted:
             # Weighted-GPA scales aren't standardized (a 5.0-scale 4.4 vs a
             # school's 4.05-cap weighted range), so a weighted GPA can't be
             # trusted to MAX OUT the bonus — its job is to remove the unfair
-            # UW-vs-weighted PENALTY and give at most a modest positive. Cap the
-            # upside hard; keep the full downside (a genuinely low weighted GPA
-            # is still a real signal).
+            # UW-vs-weighted PENALTY and give at most a modest positive. Hard cap
+            # on the upside, applied last; keep the full downside (a genuinely
+            # low weighted GPA is still a real signal).
             delta = max(-18, min(5, delta))
+        elif not has_test:
+            delta = max(-22, min(22, delta))
         else:
             delta = max(-18, min(18, delta))
-        # Test-optional applicants: GPA carries more weight to compensate
-        # for the missing test signal.
-        if not has_test:
-            delta = max(-22, min(22, delta * 1.25))
         score += delta
         components["gpa"] = round(delta, 1)
     sat_eq = _normalize_score(profile.get("sat"), profile.get("act"))
