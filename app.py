@@ -2271,6 +2271,16 @@ def grade_profile(profile):
             clean_dims[k] = max(1, min(1000, int(round(float(v)))))
         except (TypeError, ValueError):
             continue
+    # When the school offers no AP/IB and the student self-rated their rigor,
+    # anchor the displayed rigor dimension to that self-rating (the same value
+    # the odds engine uses) so the bar reflects what they actually entered,
+    # rather than the LLM's independent — and inconsistent — guess. combined_rigor
+    # already caps a self-reported 10/10 at 80, so it still reads below a
+    # provable wall of AP/IB scores.
+    if profile.get("no_aps_offered") and profile.get("no_ibs_offered"):
+        _cr = combined_rigor(profile)
+        if _cr is not None:
+            clean_dims["rigor"] = max(1, min(1000, int(round(_cr * 10))))
     def _lst(x):
         return [str(s).strip() for s in (d.get(x) or []) if str(s).strip()][:5]
     return {
@@ -2377,7 +2387,10 @@ def combined_rigor(profile):
         except (ValueError, TypeError):
             sr = None
         if sr:
-            return min(80.0, max(0, sr) * 10.0)
+            # Self-reported, so discounted vs a provable AP/IB transcript: a 7
+            # lands ~60 and a 10 caps at 80 (a verified wall of AP/IB 5s can
+            # still reach 100, so it always reads stronger).
+            return min(80.0, max(0, sr) * 8.5)
         return None  # neither offered, no self-rating
     if ap is None: return ib
     if ib is None: return ap
@@ -9679,7 +9692,7 @@ def profile_grade_page():
     _gk_fields = ["uw_gpa","weighted_gpa","sat","act","aps","ibs","no_aps_offered",
                   "no_ibs_offered","self_rigor","class_rank","class_size","major",
                   "ecs","awards","leadership","athlete","first_gen","legacy_schools","is_international"]
-    grade_key = _hl.md5("|".join(str(profile.get(k)) for k in _gk_fields).encode()).hexdigest()
+    grade_key = "v3:" + _hl.md5("|".join(str(profile.get(k)) for k in _gk_fields).encode()).hexdigest()
     g = None
     if profile.get("grade_key") == grade_key and profile.get("grade_json"):
         try:
