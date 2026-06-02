@@ -2149,6 +2149,127 @@ def ec_exceptional_strength(profile):
     return exc
 
 
+def _grade_profile_fallback(profile):
+    """Deterministic whole-profile grade on a 1-1000 scale (then /10 for the
+    0-100 display) when the LLM is unavailable. Benchmarks against a highly
+    selective (T20) admit pool. Used as a floor and as the no-API fallback."""
+    # Academics: GPA vs a 3.9 elite benchmark (uw 4.0 scale).
+    gpa = None
+    try:
+        gpa = float(profile.get("uw_gpa")) if profile.get("uw_gpa") is not None else None
+    except (TypeError, ValueError):
+        gpa = None
+    acad = 500.0
+    if gpa is not None:
+        acad = max(60.0, min(1000.0, 500.0 + (gpa - 3.6) * 900.0))  # 3.6→500, 4.0→860, 3.15→95
+    # Testing vs 1500 benchmark.
+    sat_eq = _normalize_score(profile.get("sat"), profile.get("act"))
+    testing = 500.0
+    if sat_eq:
+        testing = max(60.0, min(1000.0, 500.0 + (sat_eq - 1450) * 4.2))  # 1450→500, 1580→1000(cap)
+    # Rigor 0-100 → 1-1000.
+    rg = combined_rigor(profile)
+    rigor = 500.0 if rg is None else max(60.0, min(1000.0, (rg if rg > 0 else 0) * 10.0))
+    # ECs/leadership reuse the rating we already grade.
+    ecs = ec_rating_for_fit(profile)
+    # Hooks nudge.
+    hook = 0.0
+    if profile.get("athlete"): hook += 120
+    if profile.get("first_gen"): hook += 60
+    if (profile.get("legacy_schools") or "").strip(): hook += 50
+    overall = (acad * 0.34 + testing * 0.22 + rigor * 0.14 + ecs * 0.30) + hook
+    overall = max(1.0, min(1000.0, overall))
+    return {
+        "overall": round(overall),
+        "dimensions": {
+            "academics": round(acad), "testing": round(testing),
+            "rigor": round(rigor), "extracurriculars": round(ecs),
+        },
+        "summary": "Heuristic grade (AI grader unavailable).",
+        "strengths": [], "weaknesses": [], "fixes": [],
+        "_fallback": True,
+    }
+
+
+def grade_profile(profile):
+    """Whole-profile competitiveness grade for highly selective (T20) admissions.
+    The model reads the ENTIRE profile and rates it 1-1000 for accuracy; the
+    caller divides by 10 to show a clean 0-100. Returns a dict with the overall
+    score, per-dimension 1-1000 scores, and strengths/weaknesses/fixes. Falls
+    back to a deterministic grade if the LLM is unavailable or returns garbage.
+    One Sonnet call — premium feature, run on demand."""
+    fb = _grade_profile_fallback(profile)
+    if not _claude_client:
+        return fb
+    def g(k): return (profile.get(k) or "").strip()
+    sat_eq = _normalize_score(profile.get("sat"), profile.get("act"))
+    rg = combined_rigor(profile)
+    facts = (
+        f"GPA (unweighted /4): {profile.get('uw_gpa') or '—'}\n"
+        f"Weighted GPA: {profile.get('weighted_gpa') or '—'}\n"
+        f"SAT: {profile.get('sat') or '—'}  ACT: {profile.get('act') or '—'}  (normalized SAT-equiv: {sat_eq or '—'})\n"
+        f"Course rigor signal (0-100, higher=harder load): {rg if rg is not None else 'n/a'}\n"
+        f"APs taken: {g('aps') or '—'}\nIB taken: {g('ibs') or '—'}\n"
+        f"Class rank: {profile.get('class_rank') or '—'} of {profile.get('class_size') or '—'}\n"
+        f"Intended major: {g('major') or '—'}\n"
+        f"Extracurriculars: {g('ecs') or '—'}\n"
+        f"Awards: {g('awards') or '—'}\n"
+        f"Leadership: {g('leadership') or '—'}\n"
+        f"Hooks — recruited athlete: {bool(profile.get('athlete'))}, first-gen: {bool(profile.get('first_gen'))}, "
+        f"legacy: {g('legacy_schools') or 'none'}, international: {bool(profile.get('is_international'))}\n"
+    )
+    user = (
+        "Grade this student's WHOLE profile for admission to highly selective "
+        "(roughly top-20 US) universities. Score 1-1000 (use the full range; be "
+        "calibrated and skeptical — most real applicants to these schools land "
+        "300-650; 800+ is reserved for genuinely national-tier profiles).\n\n"
+        f"PROFILE:\n{facts}\n"
+        "Return ONLY valid JSON, no prose, in exactly this shape:\n"
+        '{"overall": <1-1000>, "dimensions": {"academics": <1-1000>, '
+        '"testing": <1-1000>, "rigor": <1-1000>, "extracurriculars": <1-1000>, '
+        '"narrative_hooks": <1-1000>}, "summary": "<one honest sentence>", '
+        '"strengths": ["<short>", ...], "weaknesses": ["<short>", ...], '
+        '"fixes": ["<specific action>", ...]}\n'
+        "Judge real substance, not buzzwords. A 3.15 GPA is a hard ceiling even "
+        "with strong ECs; reflect that honestly in academics and overall."
+    )
+    raw = _claude("claude-sonnet-4-6",
+        "You are a strict, candid admissions reader. Output only valid JSON. Be honest, not flattering.",
+        user, max_tokens=700)
+    if not raw:
+        return fb
+    import json as _json, re as _re
+    m = _re.search(r"\{.*\}", raw, _re.DOTALL)
+    if not m:
+        return fb
+    try:
+        d = _json.loads(m.group(0))
+    except Exception:
+        return fb
+    try:
+        overall = max(1, min(1000, int(round(float(d.get("overall", fb["overall"]))))))
+    except (TypeError, ValueError):
+        overall = fb["overall"]
+    dims = d.get("dimensions") or {}
+    clean_dims = {}
+    for k, v in dims.items():
+        try:
+            clean_dims[k] = max(1, min(1000, int(round(float(v)))))
+        except (TypeError, ValueError):
+            continue
+    def _lst(x):
+        return [str(s).strip() for s in (d.get(x) or []) if str(s).strip()][:5]
+    return {
+        "overall": overall,
+        "dimensions": clean_dims or fb["dimensions"],
+        "summary": str(d.get("summary") or fb["summary"]).strip()[:300],
+        "strengths": _lst("strengths"),
+        "weaknesses": _lst("weaknesses"),
+        "fixes": _lst("fixes"),
+        "_fallback": False,
+    }
+
+
 def _keyword_strength(text, keywords):
     if not text: return 0
     t = text.lower()
@@ -4255,7 +4376,7 @@ NAV = """<div class="nav"><a class="brand" href="/">""" + CANDOR_LOGO_SVG + """C
 <a href="/rankings/my-fit">★ My Fit</a>
 <a href="/colleges">Browse</a>
 <a href="/rankings">Rankings</a>
-<a href="/compare">Compare</a>
+<a href="/grade">Profile Grade</a>
 <a href="/improve">Improve</a>
 <a href="/plans">My Colleges</a>
 <a href="/plans/grade">List Grade</a>
@@ -9330,6 +9451,109 @@ def compare_page():
 </table></div>
 <p style="margin-top:18px"><a class="btn btn-light" href="/compare">Compare different schools</a></p>"""
     return _page(body, title="Compare — Candor")
+
+
+@app.route("/grade")
+@login_required
+def profile_grade_page():
+    user = current_user()
+    profile = get_profile(user["id"])
+    if not profile:
+        return redirect(url_for("profile_page"))
+    # Premium gate.
+    if not bool(user.get("is_paid")):
+        return _page("""
+<h1>Profile Grader</h1>
+<p class="muted">Get one honest number for your whole profile — academics, testing, rigor, extracurriculars, and hooks — graded the way a selective-admissions reader would, with your real strengths, weaknesses, and the highest-leverage fixes.</p>
+<div class="card" style="background:linear-gradient(135deg,#0f3a37 0%,#0a131c 100%);border:1px solid rgba(95,201,182,.3);padding:32px;max-width:620px">
+  <div style="font-size:.78em;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#5fc9b6;margin-bottom:8px">Candor Premium · $10 once</div>
+  <h2 style="margin:0 0 14px">Profile Grader is a premium feature</h2>
+  <p class="muted" style="margin:0 0 18px">One $10 payment unlocks the full profile grade plus per-school AI strategy, the score predictor, list grader, and admissions simulator — no subscription.</p>
+  <a class="btn btn-primary" href="/upgrade" style="font-size:1em;padding:12px 28px;display:inline-block">Upgrade — $10 once &rarr;</a>
+</div>
+""", title="Profile Grader — Candor")
+
+    g = grade_profile(profile)
+    score100 = max(1, min(100, round(g["overall"] / 10)))
+    # Color + label band for the headline.
+    if score100 >= 85:   band, bcol = "Elite", "#5fc9b6"
+    elif score100 >= 70: band, bcol = "Very strong", "#7dd3fc"
+    elif score100 >= 55: band, bcol = "Strong", "#7dd3fc"
+    elif score100 >= 40: band, bcol = "Solid", "#fcd34d"
+    elif score100 >= 25: band, bcol = "Developing", "#fcd34d"
+    else:                band, bcol = "Early", "#f9a8d4"
+
+    DIM_LABELS = {
+        "academics": "Academics (GPA)", "testing": "Testing",
+        "rigor": "Course rigor", "extracurriculars": "Extracurriculars",
+        "narrative_hooks": "Narrative & hooks",
+    }
+    dim_rows = ""
+    for k, lbl in DIM_LABELS.items():
+        v = g["dimensions"].get(k)
+        if v is None:
+            continue
+        pct = max(1, min(100, round(v / 10)))
+        dim_rows += f"""
+<div style="margin:12px 0">
+  <div style="display:flex;justify-content:space-between;font-size:.9em;margin-bottom:5px">
+    <span>{lbl}</span><span class="muted" style="font-weight:600">{pct}/100</span>
+  </div>
+  <div style="height:8px;background:var(--bg-2);border-radius:999px;overflow:hidden">
+    <div style="height:100%;width:{pct}%;background:var(--accent-grad);border-radius:999px"></div>
+  </div>
+</div>"""
+
+    def _bullets(items, color):
+        if not items:
+            return '<p class="muted" style="font-size:.9em">—</p>'
+        return "".join(
+            f'<li style="margin:6px 0;color:var(--text)"><span style="color:{color}">•</span> {_h(s)}</li>'
+            for s in items
+        )
+    from html import escape as _h
+
+    summary_html = f'<p class="muted" style="font-size:1.02em;line-height:1.55;margin:6px 0 0">{_h(g["summary"])}</p>' if g.get("summary") else ""
+    fb_note = '<p class="muted" style="font-size:.8em;margin-top:18px">Heuristic estimate — AI grader temporarily unavailable.</p>' if g.get("_fallback") else ""
+
+    body = f"""
+<div class="bar"><a href="/profile">← Edit profile</a></div>
+<h1>Your Profile Grade</h1>
+<p class="muted" style="margin:0 0 18px">Graded for highly selective (top-20) admissions. This is one honest read of your whole profile — not a guarantee.</p>
+
+<div class="card" style="display:flex;align-items:center;gap:26px;flex-wrap:wrap">
+  <div style="text-align:center;min-width:140px">
+    <div style="font-size:4.2em;font-weight:800;line-height:1;letter-spacing:-2px;color:{bcol}">{score100}</div>
+    <div class="muted" style="font-size:.82em;margin-top:2px">out of 100</div>
+    <div style="margin-top:8px;display:inline-block;padding:4px 12px;border-radius:999px;font-size:.78em;font-weight:600;background:rgba(95,201,182,.12);color:{bcol};border:1px solid rgba(95,201,182,.25)">{band}</div>
+  </div>
+  <div style="flex:1;min-width:260px">{summary_html or '<p class="muted">Your profile, dimension by dimension, is below.</p>'}</div>
+</div>
+
+<div class="card">
+  <h3 style="margin-top:0">Breakdown</h3>
+  {dim_rows}
+</div>
+
+<div class="row" style="margin-top:0">
+  <div class="card">
+    <h3 style="margin-top:0;color:var(--teal)">Strengths</h3>
+    <ul style="list-style:none;padding:0;margin:0">{_bullets(g.get("strengths"), "var(--teal)")}</ul>
+  </div>
+  <div class="card">
+    <h3 style="margin-top:0;color:#fcd34d">Weaknesses</h3>
+    <ul style="list-style:none;padding:0;margin:0">{_bullets(g.get("weaknesses"), "#fcd34d")}</ul>
+  </div>
+</div>
+
+<div class="card">
+  <h3 style="margin-top:0;color:#7dd3fc">Highest-leverage fixes</h3>
+  <ul style="list-style:none;padding:0;margin:0">{_bullets(g.get("fixes"), "#7dd3fc")}</ul>
+</div>
+{fb_note}
+<p style="margin-top:18px"><a class="btn btn-primary" href="/plans">See your school list →</a> <a class="btn btn-light" href="/profile">Update profile</a></p>
+"""
+    return _page(body, title="Profile Grade — Candor")
 
 
 @app.route("/predictor")
