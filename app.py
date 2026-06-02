@@ -2262,7 +2262,18 @@ def grade_profile(profile):
         "55-75, not below 50.\n"
         "- Weaknesses must be VERIFIABLE academic gaps (GPA, test, rigor, lack of "
         "external validation) — do NOT manufacture soft-narrative or major-choice "
-        "criticisms to fill the list. Fewer real weaknesses beats padded ones."
+        "criticisms to fill the list. Fewer real weaknesses beats padded ones.\n"
+        "- Judge EXTRACURRICULARS relative to the applicant's FIELD. The elite EC "
+        "band is NOT STEM-only: a business/econ, humanities, policy, or arts "
+        "applicant reaches the high 800s/900s through field-appropriate "
+        "equivalents — DECA/FBLA/Model UN/Econ Challenge national or international "
+        "placement, a founder/builder with real documented scale (thousands of "
+        "users OR real revenue), published research/writing, university research "
+        "assistance, national-level arts/music recognition (YoungArts, "
+        "All-National). Do NOT cap a stellar non-STEM profile below the 800s just "
+        "because it lacks ISEF/USAMO-type awards. Keep skepticism for vague, "
+        "unscaled claims — but reward documented, national-level achievement in "
+        "ANY domain at full strength."
     )
     raw = _claude("claude-sonnet-4-6",
         "You are a strict, candid admissions reader. Output only valid JSON. Be honest, not flattering.",
@@ -2961,10 +2972,20 @@ def grade_ec_and_spike(profile):
         "Rate two things for SELECTIVE college admissions, each 1-1000 (use the "
         "full range, be skeptical — most applicants land mid-range):\n\n"
         "1) EC_STRENGTH: raw strength/distinction of the activities, awards, and "
-        "leadership.\n"
+        "leadership. Judge achievement RELATIVE TO THE APPLICANT'S FIELD — a "
+        "stellar business, humanities, policy, or arts profile reaches the top "
+        "bands WITHOUT STEM-olympiad credentials. Do NOT require ISEF/USAMO-type "
+        "awards for a non-STEM applicant; weigh the field-appropriate equivalent "
+        "at the same level. Stay skeptical of vague claims with no scale.\n"
         "  1-100 thin/generic · 101-300 solid · 301-550 strong · 551-800 excellent "
-        "(national awards, founder w/ scale, published) · 801-1000 elite "
-        "(ISEF/USAMO/Regeneron, national champion, recruited).\n\n"
+        "(national/state awards in ANY domain — DECA/FBLA/Model UN/Econ Challenge "
+        "finalist, founder/builder with real documented scale [thousands of users "
+        "OR real revenue], published research or writing, university research "
+        "assistant, national-level arts/music recognition) · 801-1000 elite "
+        "(ISEF/USAMO/Regeneron-tier, national champion, recruited athlete, OR the "
+        "field equivalent: DECA/FBLA international top placement, founder with "
+        "major proven scale/revenue, nationally published author, YoungArts/"
+        "All-National, national debate/Model UN best-delegate).\n\n"
         "2) SPIKE: how COHESIVE and FOCUSED the story is, and whether the activities "
         "actually support the intended major ('actions match words'). A scattered, "
         "well-rounded-but-unfocused profile is LOW (~250). A clear, deep thread where "
@@ -9972,7 +9993,7 @@ def _grade_key(profile):
     _gk_fields = ["uw_gpa","weighted_gpa","sat","act","aps","ibs","no_aps_offered",
                   "no_ibs_offered","self_rigor","class_rank","class_size","major",
                   "ecs","awards","leadership","athlete","first_gen","legacy_schools","is_international"]
-    return "v5:" + _hl.md5("|".join(str(profile.get(k)) for k in _gk_fields).encode()).hexdigest()
+    return "v6:" + _hl.md5("|".join(str(profile.get(k)) for k in _gk_fields).encode()).hexdigest()
 
 
 def _grade_cached(uid, profile, compute=False):
