@@ -2568,6 +2568,7 @@ def compute_fit(profile, school):
     # a weighted range a student was being compared apples-to-oranges and unfairly
     # penalized. When the school's range is weighted AND the student gave a
     # weighted GPA, compare weighted-to-weighted instead.
+    used_weighted = False
     if gpa is not None and (school.get("gpa_hi") or 0) > 4.0:
         # Prefer the year-by-year weighted GPA (computed from only the offered
         # years), then the single weighted_gpa field, else keep unweighted.
@@ -2579,9 +2580,20 @@ def compute_fit(profile, school):
                 wg = None
         if wg is not None:
             gpa = wg
+            used_weighted = True
     if gpa is not None:
         midpoint = (school["gpa_lo"] + school["gpa_hi"]) / 2
-        delta = max(-18, min(18, (gpa - midpoint) * 50))
+        delta = (gpa - midpoint) * 50
+        if used_weighted:
+            # Weighted-GPA scales aren't standardized (a 5.0-scale 4.4 vs a
+            # school's 4.05-cap weighted range), so a weighted GPA can't be
+            # trusted to MAX OUT the bonus — its job is to remove the unfair
+            # UW-vs-weighted PENALTY and give at most a modest positive. Cap the
+            # upside hard; keep the full downside (a genuinely low weighted GPA
+            # is still a real signal).
+            delta = max(-18, min(5, delta))
+        else:
+            delta = max(-18, min(18, delta))
         # Test-optional applicants: GPA carries more weight to compensate
         # for the missing test signal.
         if not has_test:
