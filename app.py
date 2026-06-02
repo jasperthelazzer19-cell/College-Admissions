@@ -2534,6 +2534,19 @@ def compute_fit(profile, school):
     components = {}
     has_test = bool(profile.get("sat") or profile.get("act"))
     gpa = effective_gpa(profile, school)
+    # Scale-match the GPA comparison. ~40% of schools report a WEIGHTED admit
+    # range (gpa_hi > 4.0 — e.g. Villanova 3.75-4.05, Clemson 3.8-4.2); the rest
+    # report unweighted (capped at 4.0). effective_gpa is unweighted, so against
+    # a weighted range a student was being compared apples-to-oranges and unfairly
+    # penalized. When the school's range is weighted AND the student gave a
+    # weighted GPA, compare weighted-to-weighted instead.
+    if gpa is not None and (school.get("gpa_hi") or 0) > 4.0:
+        try:
+            wg = float(profile.get("weighted_gpa")) if profile.get("weighted_gpa") not in (None, "") else None
+        except (TypeError, ValueError):
+            wg = None
+        if wg is not None:
+            gpa = wg
     if gpa is not None:
         midpoint = (school["gpa_lo"] + school["gpa_hi"]) / 2
         delta = max(-18, min(18, (gpa - midpoint) * 50))
