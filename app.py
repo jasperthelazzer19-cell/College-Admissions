@@ -5578,89 +5578,121 @@ def profile_html():
 """, title="Profile — Candor")
 
 
-def chances_html(slug):
-    uid = current_user()["id"]
+def _chances_profile(uid, slug):
+    """Build the FULL profile dict the chances calc should use. Previously the
+    chances page hand-picked a subset that omitted ec_rating, spike_score,
+    self_rigor, IB and class-rank fields — so the LLM EC rating, the spike bonus
+    and self-rated rigor never actually moved the live odds. Using the whole row
+    fixes that. Returns None if the user has no profile."""
     p = get_profile(uid)
     if not p:
+        return None
+    # Lazy exceptional-applicant eval (cached after first call).
+    is_exc, exc_reason = get_or_evaluate_exceptionality(uid, p)
+    profile = dict(p)  # every saved column: ec_rating, spike_score, self_rigor, ibs, ...
+    profile["_di_level"] = get_demonstrated_interest(uid, slug)
+    profile["is_exceptional"] = is_exc
+    profile["exceptional_reason"] = exc_reason
+    return profile
+
+
+def _save_chances_row(uid, slug, r, bullets=None):
+    """Persist a chances row. Numbers are always written (so /plans + simulator
+    stay current); bullets are written only when provided, otherwise any
+    existing AI narrative is preserved."""
+    try:
+        with db() as conn:
+            if bullets is not None:
+                conn.execute("""INSERT INTO saved_chances (user_id, college_slug, tier, odds_low, odds_high, fit, confidence, strength, weakness, differentiator, computed_at)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)
+                    ON CONFLICT(user_id, college_slug) DO UPDATE SET
+                      tier=excluded.tier, odds_low=excluded.odds_low, odds_high=excluded.odds_high,
+                      fit=excluded.fit, confidence=excluded.confidence,
+                      strength=excluded.strength, weakness=excluded.weakness, differentiator=excluded.differentiator,
+                      computed_at=CURRENT_TIMESTAMP""",
+                    (uid, slug, r["tier"], r["odds_low"], r["odds_high"], r["fit"], r["confidence"],
+                     bullets["strength"], bullets["weakness"], bullets["differentiator"]))
+            else:
+                conn.execute("""INSERT INTO saved_chances (user_id, college_slug, tier, odds_low, odds_high, fit, confidence, computed_at)
+                    VALUES (?,?,?,?,?,?,?,CURRENT_TIMESTAMP)
+                    ON CONFLICT(user_id, college_slug) DO UPDATE SET
+                      tier=excluded.tier, odds_low=excluded.odds_low, odds_high=excluded.odds_high,
+                      fit=excluded.fit, confidence=excluded.confidence,
+                      computed_at=CURRENT_TIMESTAMP""",
+                    (uid, slug, r["tier"], r["odds_low"], r["odds_high"], r["fit"], r["confidence"]))
+            conn.commit()
+    except Exception as e:
+        print(f"save_chances_row failed: {e}")
+
+
+def _chances_narrative_ul(r):
+    return ('<ul style="padding-left:18px;margin:18px 0 0">'
+            f'<li><b>Strength —</b> {r.get("strength","")}</li>'
+            f'<li><b>Weakness —</b> {r.get("weakness","")}</li>'
+            f'<li><b>Differentiator —</b> {r.get("differentiator","")}</li></ul>')
+
+
+def _chances_narrative_block(slug, r, ready):
+    if ready:
+        return _chances_narrative_ul(r)
+    return f"""<div id="chances-narr" style="margin:18px 0 0">
+  <div style="display:flex;align-items:center;gap:10px;color:var(--text-2);font-size:.9em">
+    <span class="cdr-spinner-sm"></span> Writing your strengths &amp; weaknesses…
+  </div>
+</div>
+<style>@keyframes cdrspin{{to{{transform:rotate(360deg)}}}}.cdr-spinner-sm{{width:18px;height:18px;border-radius:50%;border:2px solid rgba(95,201,182,.2);border-top-color:#5fc9b6;display:inline-block;animation:cdrspin .8s linear infinite}}</style>
+<script>
+(function(){{
+  fetch("/chances/{slug}/narrative").then(function(x){{return x.text();}}).then(function(h){{
+    var el=document.getElementById("chances-narr"); if(el) el.innerHTML=h;
+  }}).catch(function(){{
+    var el=document.getElementById("chances-narr"); if(el) el.innerHTML='<p class="muted" style="font-size:.9em">Narrative unavailable. <a href="/chances/{slug}?refresh=1">Retry</a></p>';
+  }});
+}})();
+</script>"""
+
+
+def chances_html(slug):
+    uid = current_user()["id"]
+    profile = _chances_profile(uid, slug)
+    if profile is None:
         flash("Create your profile first so we can calculate your chances.", "error")
         session["next_url"] = f"/chances/{slug}"
         return redirect(url_for("profile_page"))
-    # Lazily run the exceptional-applicant evaluation if it hasn't run for
-    # this profile yet. Cached after the first call.
-    is_exc, exc_reason = get_or_evaluate_exceptionality(uid, p)
-    profile = {
-        "uw_gpa": p.get("uw_gpa"), "weighted_gpa": p.get("weighted_gpa"),
-        "gpa_freshman": p.get("gpa_freshman"), "gpa_sophomore": p.get("gpa_sophomore"),
-        "gpa_junior": p.get("gpa_junior"), "gpa_senior": p.get("gpa_senior"),
-        "sat": p.get("sat"), "act": p.get("act"),
-        "sat_math": p.get("sat_math"), "sat_ebrw": p.get("sat_ebrw"),
-        "act_math": p.get("act_math"), "act_english": p.get("act_english"),
-        "act_reading": p.get("act_reading"), "act_science": p.get("act_science"),
-        "major": p.get("major"),
-        "state": p.get("state"), "school_type": p.get("school_type"),
-        "ecs": p.get("ecs"), "leadership": p.get("leadership"), "awards": p.get("awards"),
-        "legacy": bool(p.get("legacy")), "first_gen": bool(p.get("first_gen")),
-        "athlete": bool(p.get("athlete")),
-        "is_international": bool(p.get("is_international")),
-        "legacy_schools": p.get("legacy_schools") or "",
-        "aps": p.get("aps") or "",
-        "no_aps_offered": bool(p.get("no_aps_offered")),
-        "aps_offered_not_taken": bool(p.get("aps_offered_not_taken")),
-        "_di_level": get_demonstrated_interest(uid, slug),
-        "is_exceptional": is_exc,
-        "exceptional_reason": exc_reason,
-        "portfolio": p.get("portfolio") or "",
-    }
-    # Cached result reuse: if a saved_chances row exists for this user+school,
-    # render from it directly instead of recomputing (which calls Claude for
-    # the AI strength/weakness/differentiator narrative — that's the slow,
-    # expensive step). Cache is invalidated automatically when:
-    # - User updates profile (DELETE FROM saved_chances on profile save)
-    # - User adds demonstrated interest at this school (DELETE in DI route)
-    # - User explicitly hits ?refresh=1
     school_data = COLLEGES_BY_SLUG.get(slug)
     if not school_data: abort(404)
+    exc_reason = profile.get("exceptional_reason")
+    # Odds are pure-Python (instant) and computed fresh on every view so they
+    # always reflect the current profile (incl. ec_rating / spike / self_rigor)
+    # and the latest formula. Only the AI strength/weakness/differentiator
+    # narrative — the slow ~3s Claude call — is cached and lazy-loaded so the
+    # page never blocks on it.
+    merged = merged_school(school_data)
+    fit, components = compute_fit(profile, merged)
+    tier = assign_tier(merged, fit, profile)
+    low, high = estimate_odds(merged, fit, profile)
+    r = {
+        "school": merged["name"], "slug": slug,
+        "accept_rate_pct": round(merged["accept"]*100, 1),
+        "fit": fit, "tier": tier, "odds_low": low, "odds_high": high,
+        "confidence": confidence_level(profile, components),
+    }
     force_refresh = request.args.get("refresh") == "1"
-    cached_r = None
+    bullets = None
     if not force_refresh:
         with db() as conn:
-            row = conn.execute(
-                "SELECT tier, odds_low, odds_high, fit, confidence, strength, "
-                "weakness, differentiator, computed_at FROM saved_chances "
-                "WHERE user_id=? AND college_slug=? "
-                "AND computed_at >= ?",
-                (uid, slug, SAVED_CHANCES_MIN_VALID_AT)
-            ).fetchone()
-            if row and all(row[k] is not None for k in ("odds_low","odds_high","strength")):
-                # Reconstruct the analyze_school result from the cache so the
-                # rest of the page renders identically without the recompute.
-                merged = merged_school(school_data)
-                cached_r = {
-                    "school": school_data["name"], "slug": slug,
-                    "tier": row["tier"], "odds_low": row["odds_low"], "odds_high": row["odds_high"],
-                    "fit": row["fit"], "confidence": row["confidence"],
-                    "strength": row["strength"], "weakness": row["weakness"],
-                    "differentiator": row["differentiator"],
-                    "accept_rate_pct": round(merged["accept"]*100,1),
-                }
-    if cached_r:
-        r = cached_r
-    else:
-        r = analyze_school(profile, slug)
-        if not r: abort(404)
-        # Persist the freshly-computed result. Only writes on a real compute;
-        # cached reads already have a row in saved_chances.
-        with db() as conn:
-            conn.execute("""INSERT INTO saved_chances (user_id, college_slug, tier, odds_low, odds_high, fit, confidence, strength, weakness, differentiator, computed_at)
-                VALUES (?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)
-                ON CONFLICT(user_id, college_slug) DO UPDATE SET
-                  tier=excluded.tier, odds_low=excluded.odds_low, odds_high=excluded.odds_high,
-                  fit=excluded.fit, confidence=excluded.confidence,
-                  strength=excluded.strength, weakness=excluded.weakness, differentiator=excluded.differentiator,
-                  computed_at=CURRENT_TIMESTAMP""",
-                (current_user()["id"], r["slug"], r["tier"], r["odds_low"], r["odds_high"],
-                 r["fit"], r["confidence"], r["strength"], r["weakness"], r["differentiator"]))
-            conn.commit()
+            brow = conn.execute(
+                "SELECT strength, weakness, differentiator FROM saved_chances "
+                "WHERE user_id=? AND college_slug=? AND computed_at >= ?",
+                (uid, slug, SAVED_CHANCES_MIN_VALID_AT)).fetchone()
+        if brow and brow["strength"]:
+            bullets = {"strength": brow["strength"], "weakness": brow["weakness"],
+                       "differentiator": brow["differentiator"]}
+    _save_chances_row(uid, slug, r, bullets)
+    narrative_ready = bullets is not None
+    if narrative_ready:
+        r.update(bullets)
+    narrative_html = _chances_narrative_block(slug, r, narrative_ready)
     tier_class = {"Dream": "pill-dream", "Reach": "pill-reach", "Target": "pill-target", "Safety": "pill-safety"}[r["tier"]]
     conf_class = {"low": "pill-conf-low", "medium": "pill-conf-medium", "high": "pill-conf-high"}[r["confidence"]]
     conf_tooltip = {
@@ -5682,11 +5714,7 @@ def chances_html(slug):
   <div class="muted" style="font-size:.82em">your estimated chances</div>
   {(f'<div style="margin-top:14px;padding:10px 14px;background:rgba(95,201,182,.08);border:1px solid rgba(95,201,182,.25);border-radius:4px;font-size:.88em"><b style="color:var(--teal)">★ Exceptional applicant override</b><div class="muted" style="margin-top:4px">{exc_reason or "Flagged exceptional based on your profile."} Your odds reflect this above the standard cap.</div></div>' if profile.get('is_exceptional') else '')}
   {(lambda _sch, _det: (lambda _sub: render_admissions_breakdown(_sch, _det, personalized_rates=personalize_round_odds(uid, _sch, _det, profile, r['odds_low'], r['odds_high'], sub_school=_sub), scale=(((r.get('odds_low',0)+r.get('odds_high',0))/2.0) / r['accept_rate_pct']) if r.get('accept_rate_pct') else 1.0, sub_school=_sub))(sub_school_for_major(r['slug'], profile.get('major') or '')))(COLLEGES_BY_SLUG.get(r['slug']), admissions_detail(COLLEGES_BY_SLUG.get(r['slug'])))}
-  <ul style="padding-left:18px;margin:18px 0 0">
-    <li><b>Strength —</b> {r['strength']}</li>
-    <li><b>Weakness —</b> {r['weakness']}</li>
-    <li><b>Differentiator —</b> {r['differentiator']}</li>
-  </ul>
+  {narrative_html}
 </div>
 {_render_counterfactual_card(profile, COLLEGES_BY_SLUG.get(r['slug']), r['odds_low'], r['odds_high'])}
 {_render_di_card(r['slug'], r['school'], profile.get('_di_level','none'))}
@@ -9416,6 +9444,31 @@ def profile_page():
 @login_required
 def chances_page(slug):
     return chances_html(slug)
+
+
+@app.route("/chances/<slug>/narrative")
+@login_required
+def chances_narrative(slug):
+    """Async endpoint: generate (and cache) the AI strength/weakness/
+    differentiator narrative for the chances page. Called by the page's
+    lazy-load so the odds render instantly and this ~3s Claude call fills in
+    after."""
+    uid = current_user()["id"]
+    profile = _chances_profile(uid, slug)
+    if profile is None:
+        return ("", 204)
+    school_data = COLLEGES_BY_SLUG.get(slug)
+    if not school_data:
+        return ("", 204)
+    merged = merged_school(school_data)
+    fit, components = compute_fit(profile, merged)
+    tier = assign_tier(merged, fit, profile)
+    low, high = estimate_odds(merged, fit, profile)
+    bullets = generate_bullets(profile, merged, fit, components, tier, (low, high))
+    r = {"tier": tier, "odds_low": low, "odds_high": high, "fit": fit,
+         "confidence": confidence_level(profile, components), **bullets}
+    _save_chances_row(uid, slug, r, bullets)
+    return _chances_narrative_ul(r)
 
 
 @app.route("/improve")
