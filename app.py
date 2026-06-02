@@ -4050,11 +4050,16 @@ def legacy_generations_at(profile, school):
             elif name == school_name:
                 matched = True
             else:
-                # 4. Word-boundary subset: every word in user input is a word
-                # in the school's name. Rejects "MIT" → "Smith" and similar
-                # substring traps; accepts "Bowdoin College" → Bowdoin.
+                # 4. Word-boundary subset in EITHER direction. Every word in the
+                # user input is in the school name (e.g. "Bowdoin College" →
+                # Bowdoin), OR every word in the school name is in the user input
+                # (e.g. "Cornell University" → school stored as just "Cornell").
+                # The latter is critical: schools are stored under short names, so
+                # typing the full "<X> University" must still match. Bidirectional
+                # subset still rejects "Boston College" → "Boston University"
+                # (neither is a subset of the other) and "MIT" → "Smith".
                 user_words = set(_re.findall(r"\w+", name))
-                if user_words and user_words.issubset(name_words):
+                if user_words and (user_words.issubset(name_words) or name_words.issubset(user_words)):
                     matched = True
         if matched:
             best = max(best, count)
