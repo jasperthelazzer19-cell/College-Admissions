@@ -2277,7 +2277,8 @@ def grade_profile(profile):
     # rather than the LLM's independent — and inconsistent — guess. combined_rigor
     # already caps a self-reported 10/10 at 80, so it still reads below a
     # provable wall of AP/IB scores.
-    if profile.get("no_aps_offered") and profile.get("no_ibs_offered"):
+    _ib_sig, _, _ = score_ibs(profile)
+    if profile.get("no_aps_offered") and (_ib_sig is None or _ib_sig <= 0) and profile.get("self_rigor"):
         _cr = combined_rigor(profile)
         if _cr is not None:
             clean_dims["rigor"] = max(1, min(1000, int(round(_cr * 10))))
@@ -2377,21 +2378,22 @@ def combined_rigor(profile):
     (school doesn't offer that track) → ignore that one."""
     ap, ap_count, _ = score_aps(profile)
     ib, ib_count, _ = score_ibs(profile)
-    if ap is None and ib is None:
-        # School offers neither AP nor IB. Fall back to the student's self-rated
-        # course rigor (1-10 -> 0-100) so they aren't penalized for courses that
-        # simply aren't available. Self-reported, so treated conservatively:
-        # a perfect 10 maps to 80 (a strong, not maximal, rigor signal).
+    # If the school offers no APs and there's no positive IB signal either, the
+    # student has no measurable rigor track through no fault of their own. Fall
+    # back to their self-rated rigor instead of requiring BOTH the "no AP" and
+    # "no IB" boxes (most no-AP students never tick the separate IB box, which
+    # was leaving self_rigor unused). Self-reported, so discounted: a 7 lands
+    # ~60 and a 10 caps at 80 (a verified wall of AP/IB 5s can still reach 100).
+    if profile.get("no_aps_offered") and (ib is None or ib <= 0):
         try:
             sr = int(profile.get("self_rigor")) if profile.get("self_rigor") not in (None, "") else None
         except (ValueError, TypeError):
             sr = None
         if sr:
-            # Self-reported, so discounted vs a provable AP/IB transcript: a 7
-            # lands ~60 and a 10 caps at 80 (a verified wall of AP/IB 5s can
-            # still reach 100, so it always reads stronger).
             return min(80.0, max(0, sr) * 8.5)
-        return None  # neither offered, no self-rating
+        return None  # no measurable rigor track, no self-rating -> neutral
+    if ap is None and ib is None:
+        return None  # neither track offered, no self-rating -> neutral
     if ap is None: return ib
     if ib is None: return ap
     # Both populated → sum, but cap to not double-count when student takes
@@ -7805,6 +7807,7 @@ def _read_profile_form(form):
         "class_rank": f("class_rank", int),
         "class_size": f("class_size", int),
         "no_class_rank_offered": form.get("no_class_rank_offered") in ("yes","on","true","1"),
+        "self_rigor": f("self_rigor", int),
     }
     # Merge picker selections into the aps string
     picked = form.getlist("ap_pick") if hasattr(form, "getlist") else []
@@ -9729,7 +9732,7 @@ def _grade_key(profile):
     _gk_fields = ["uw_gpa","weighted_gpa","sat","act","aps","ibs","no_aps_offered",
                   "no_ibs_offered","self_rigor","class_rank","class_size","major",
                   "ecs","awards","leadership","athlete","first_gen","legacy_schools","is_international"]
-    return "v3:" + _hl.md5("|".join(str(profile.get(k)) for k in _gk_fields).encode()).hexdigest()
+    return "v4:" + _hl.md5("|".join(str(profile.get(k)) for k in _gk_fields).encode()).hexdigest()
 
 
 def _grade_cached(uid, profile, compute=False):
