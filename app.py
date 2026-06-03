@@ -3054,11 +3054,11 @@ def _keyword_exceptional(profile):
 # truly-elite schools. Value 1.0 == no change. The dial is faded in by fit
 # (see estimate_odds) so weak profiles stay below the school's acceptance rate.
 _SCHOOL_CALIBRATION = {
-    "usc": 2.30,
-    "nyu": 2.45,
+    "usc": 1.75,
+    "nyu": 1.80,
     "umich": 0.86,
     "bu": 1.15,
-    "northeastern": 2.75,
+    "northeastern": 1.85,
 }
 
 
@@ -3141,8 +3141,13 @@ def estimate_odds(school, fit, profile):
         a = min(1.0, a / max(0.5, 1 - intl_pct * 0.65))
     # Steeper, less-generous fit curve. At fit=50 (average), multiplier ≈ 0.85,
     # i.e. you do worse than the school's headline accept. Top fits still get
-    # boosted but capped hard at elite tiers.
-    fit_mult = 0.20 + (fit / 65.0) ** 1.6
+    # boosted but capped hard at elite tiers. Below fit 65 the curve is unchanged
+    # (so moderate-fit reaches/targets keep their calibrated odds); ABOVE 65 the
+    # growth is COMPRESSED to a gentle linear slope. A strong-EC profile's high
+    # fit (75-82) was converting to 1.6-1.8x the base rate at mid-accept safeties
+    # (no elite cap there to bind it) — compression pulls that back toward ~1.2-
+    # 1.3x without touching the reaches a strong applicant correctly should keep.
+    fit_mult = 0.20 + (min(fit, 65.0) / 65.0) ** 1.6 + max(0.0, fit - 65.0) / 65.0 * 0.30
     hook_mult = 1.0
     if profile.get("athlete"): hook_mult *= 1.30
     # Legacy is a real, measurable boost at top schools — Harvard ~6x,
@@ -3186,7 +3191,7 @@ def estimate_odds(school, fit, profile):
     exc = ec_exceptional_strength(profile)
     _cal = _SCHOOL_CALIBRATION.get(school.get("slug"))
     if _cal and exc < 0.5:
-        w = max(0.0, min(1.0, (fit - 42.0) / 16.0))
+        w = max(0.0, min(1.0, (fit - 46.0) / 20.0))
         center = center * (1.0 + (_cal - 1.0) * w)
         center = min(center, 0.42)
         center = _target_honesty_haircut(center)
