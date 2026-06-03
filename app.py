@@ -3049,18 +3049,16 @@ def _keyword_exceptional(profile):
 # Per-school calibration dial. Lifts ONLY the listed school's odds curve —
 # no global/tier multiplier (those cascade and over-inflate neighbors). These
 # yield-driven, stats-friendly, just-below-elite schools were systematically
-# too harsh for solid/strong applicants. Each factor is bounded so that NO
-# non-exceptional profile exceeds ~2.5x the school's accept rate (verified by
-# data/implausibility_hunt.py) — the prior values (NEU 2.75, NYU 2.45, USC 2.30)
-# over-credited mid-fit/EC-thin profiles into 3-5x territory. Value 1.0 == no
-# change. The dial is faded in by fit (see estimate_odds) so weak profiles stay
-# below the school's acceptance rate.
+# too harsh for solid/strong applicants. Each factor is calibrated against an
+# agreed target for a reference 3.9/1500 profile and verified not to move the
+# truly-elite schools. Value 1.0 == no change. The dial is faded in by fit
+# (see estimate_odds) so weak profiles stay below the school's acceptance rate.
 _SCHOOL_CALIBRATION = {
-    "usc": 1.75,
-    "nyu": 1.80,
+    "usc": 2.30,
+    "nyu": 2.45,
     "umich": 0.86,
     "bu": 1.15,
-    "northeastern": 1.85,
+    "northeastern": 2.75,
 }
 
 
@@ -3141,15 +3139,10 @@ def estimate_odds(school, fit, profile):
     else:
         # Adjust headline rate up for the domestic pool
         a = min(1.0, a / max(0.5, 1 - intl_pct * 0.65))
-    # Steeper, less-generous fit curve. At fit=50 (average), multiplier ≈ 0.80,
+    # Steeper, less-generous fit curve. At fit=50 (average), multiplier ≈ 0.85,
     # i.e. you do worse than the school's headline accept. Top fits still get
-    # boosted but capped hard at elite tiers. Divisor/exponent nudged up
-    # (65/1.6 -> 68/1.7) to trim ~0.07 off the multiplier across good-but-not-
-    # elite fits (55-80), where mid-accept target/safety odds were reading a
-    # touch generous (e.g. a strong applicant at a 35-48% school). Gentle on
-    # purpose: high odds at a true safety are partly legitimate, and the global
-    # curve is the cascade-prone lever — verified against all three harnesses.
-    fit_mult = 0.20 + (fit / 68.0) ** 1.7
+    # boosted but capped hard at elite tiers.
+    fit_mult = 0.20 + (fit / 65.0) ** 1.6
     hook_mult = 1.0
     if profile.get("athlete"): hook_mult *= 1.30
     # Legacy is a real, measurable boost at top schools — Harvard ~6x,
@@ -3182,10 +3175,9 @@ def estimate_odds(school, fit, profile):
     spike_mult = min(spike_mult, 1.15)
     center = a * fit_mult * hook_mult * spike_mult
     # Per-school calibration dial (takes precedence over the standard elite cap
-    # for the few schools that were too harsh). Faded in by fit: w=0 at fit<=46
+    # for the few schools that were too harsh). Faded in by fit: w=0 at fit<=42
     # (weak — left untouched so it stays below acceptance rate) ramping to full
-    # by fit>=66, so stats-decent/EC-thin mid-fit profiles no longer capture the
-    # full lift. Bypasses the harsh low-accept cap and uses a sane 0.42 ceiling.
+    # by fit>=58. Bypasses the harsh low-accept cap and uses a sane 0.42 ceiling.
     # Continuous "how exceptional are the ECs" signal (0-1) from the 1-1000
     # rating. Replaces the old binary is_exceptional cliff: exc=0 reproduces the
     # standard capped odds exactly (so normal-EC profiles, incl. the calibration
@@ -3194,7 +3186,7 @@ def estimate_odds(school, fit, profile):
     exc = ec_exceptional_strength(profile)
     _cal = _SCHOOL_CALIBRATION.get(school.get("slug"))
     if _cal and exc < 0.5:
-        w = max(0.0, min(1.0, (fit - 46.0) / 20.0))
+        w = max(0.0, min(1.0, (fit - 42.0) / 16.0))
         center = center * (1.0 + (_cal - 1.0) * w)
         center = min(center, 0.42)
         center = _target_honesty_haircut(center)
