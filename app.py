@@ -3076,14 +3076,15 @@ _SCHOOL_CALIBRATION = {
 
 
 def _target_honesty_haircut(center):
-    """Shave ~3 points off the midpoint in the TARGET band (the model runs a few
-    points generous there for spiky, sub-median-GPA profiles). The reduction
-    peaks around center 0.35 and tapers to 0 below ~0.18 (reaches — already
-    honest) and above ~0.58 (safeties — fine), so it never cascades across
-    tiers. Pure subtraction, not a multiplier."""
-    if 0.18 < center < 0.58:
-        w = max(0.0, 1.0 - abs(center - 0.35) / 0.23)  # triangular, 1.0 at 0.35
-        return max(0.0, center - 0.03 * w)
+    """Shave the midpoint across the TARGET and SAFETY bands, where the model
+    runs generous for spiky, sub-median-GPA profiles (strong test/ECs lifting a
+    middling academic core). Triangular reduction peaking ~5 pts around center
+    0.45, tapering to 0 below ~0.18 (reaches — already honest, and the band the
+    user wants left intact) and above ~0.85 (near-certain safeties). Pure
+    subtraction, not a multiplier, so it never cascades across tiers."""
+    if 0.18 < center < 0.85:
+        w = max(0.0, 1.0 - abs(center - 0.45) / 0.40)  # triangular, 1.0 at 0.45
+        return max(0.0, center - 0.05 * w)
     return center
 
 
@@ -3238,13 +3239,13 @@ def estimate_odds(school, fit, profile):
     # 0.81 → spread 0.285 → 68-95% range, which is wider than useful).
     # Now: use a flatter spread that caps at ±9 points absolute.
     if center < 0.10:
-        spread = max(0.04, center * 0.50)   # wider for elite uncertainty
+        spread = max(0.03, center * 0.38)   # wider for elite uncertainty
     elif center < 0.30:
-        spread = max(0.05, center * 0.32)   # standard for reach/target
+        spread = max(0.04, center * 0.24)   # standard for reach/target
     elif center < 0.60:
-        spread = max(0.06, center * 0.22)   # tighter for target/safety
+        spread = max(0.05, center * 0.16)   # tighter for target/safety
     else:
-        spread = max(0.06, min(0.18, center * 0.18))  # tightest for safety, capped at ±9 pts
+        spread = max(0.05, min(0.12, center * 0.13))  # tightest for safety, capped at ±6 pts
     low = max(1, int(round((center - spread / 2) * 100)))
     high = min(95, int(round((center + spread / 2) * 100)))
     if high <= low: high = low + 3
