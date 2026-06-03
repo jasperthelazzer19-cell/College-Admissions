@@ -2595,6 +2595,13 @@ def compute_fit(profile, school):
     score = 50.0
     components = {}
     has_test = bool(profile.get("sat") or profile.get("act"))
+    # Test-BLIND schools (the UC system) legally cannot consider a submitted
+    # score at all. They still carry sat_25/sat_75 in the data (for display), so
+    # the test branch below must be gated on this flag, not just on the presence
+    # of a range — otherwise a submitted score silently inflates the fit. When a
+    # school is test-blind we treat the applicant as effectively test-less: no
+    # test credit/penalty, and GPA carries the extra weight (same as no-test).
+    test_blind = school.get("slug") in TEST_BLIND_SCHOOLS
     gpa = effective_gpa(profile, school)
     # Scale-match the GPA comparison. ~40% of schools report a WEIGHTED admit
     # range (gpa_hi > 4.0 — e.g. Villanova 3.75-4.05, Clemson 3.8-4.2); the rest
@@ -2622,7 +2629,7 @@ def compute_fit(profile, school):
         # missing test signal. Apply this BEFORE the caps so a cap is a true
         # ceiling (previously the ×1.25 ran after the weighted cap and leaked it
         # from +5 to +6.2).
-        if not has_test:
+        if not has_test or test_blind:
             delta *= 1.25
         if used_weighted:
             # Weighted-GPA scales aren't standardized (a 5.0-scale 4.4 vs a
@@ -2632,22 +2639,24 @@ def compute_fit(profile, school):
             # on the upside, applied last; keep the full downside (a genuinely
             # low weighted GPA is still a real signal).
             delta = max(-18, min(5, delta))
-        elif not has_test:
+        elif not has_test or test_blind:
             delta = max(-22, min(22, delta))
         else:
             delta = max(-18, min(18, delta))
         score += delta
         components["gpa"] = round(delta, 1)
     sat_eq = _normalize_score(profile.get("sat"), profile.get("act"))
-    # Test-blind schools (e.g. UC Berkeley) store sat_25/sat_75 as None — treat
-    # a submitted score as if no usable range exists and fall through to the
-    # test-optional branch rather than crashing on None arithmetic.
-    if sat_eq and school.get("sat_25") is not None and school.get("sat_75") is not None:
+    # Test-blind (UC) schools carry a stored range for display but legally ignore
+    # the score — gate on `test_blind`, not just on the range existing.
+    if sat_eq and not test_blind and school.get("sat_25") is not None and school.get("sat_75") is not None:
         mid = (school["sat_25"] + school["sat_75"]) / 2
         spread = max(40, school["sat_75"] - school["sat_25"])
         delta = max(-22, min(22, (sat_eq - mid) / spread * 22))
         score += delta
         components["test"] = round(delta, 1)
+    elif test_blind:
+        # Score legally ignored — no credit, no penalty (GPA already up-weighted).
+        components["test"] = 0
     else:
         # Test-optional handling. At test-focused schools (MIT/Caltech/etc.),
         # not submitting reads as a weakness. At test-flexible schools,
