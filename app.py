@@ -7170,13 +7170,16 @@ def school_plan_html(slug):
 </div>
 """, title=f"{school['name']} plan — Candor")
 
-    prof = {
-        "uw_gpa": profile.get("uw_gpa"), "weighted_gpa": profile.get("weighted_gpa"),
-        "gpa_freshman": profile.get("gpa_freshman"), "gpa_sophomore": profile.get("gpa_sophomore"),
-        "gpa_junior": profile.get("gpa_junior"), "gpa_senior": profile.get("gpa_senior"),
-        "sat": profile.get("sat"), "act": profile.get("act"), "major": profile.get("major"),
-        "state": profile.get("state"), "school_type": profile.get("school_type"),
-        "ecs": profile.get("ecs"), "leadership": profile.get("leadership"), "awards": profile.get("awards"),
+    # Start from the FULL profile so every odds-relevant field flows through —
+    # critically the model-graded ec_rating / spike_score, the year-by-year
+    # weighted GPA (w_gpa_* / w_notoffered_*), self_rigor, portfolio, and
+    # is_exceptional. The previous hand-listed dict silently dropped ec_rating
+    # (added to the schema later), so the plan page fell back to the crude
+    # KEYWORD EC scorer and produced a LOWER, different fit than /plans (which
+    # passes the whole profile) — making the page read harsh and disagree with
+    # My Colleges for the same school. Overlay the bool/default normalizations.
+    prof = {k: profile.get(k) for k in profile.keys()}
+    prof.update({
         "legacy": bool(profile.get("legacy")), "first_gen": bool(profile.get("first_gen")),
         "athlete": bool(profile.get("athlete")),
         "legacy_schools": profile.get("legacy_schools") or "",
@@ -7186,18 +7189,15 @@ def school_plan_html(slug):
         "ibs": profile.get("ibs") or "",
         "no_ibs_offered": bool(profile.get("no_ibs_offered")),
         "ibs_offered_not_taken": bool(profile.get("ibs_offered_not_taken")),
-        "pref_weather": profile.get("pref_weather"), "pref_setting": profile.get("pref_setting"),
-        "pref_size": profile.get("pref_size"), "pref_greek": profile.get("pref_greek"),
-        "pref_sports": profile.get("pref_sports"), "pref_major_strength": profile.get("pref_major_strength"),
-        "pref_class_size": profile.get("pref_class_size"), "pref_prestige": profile.get("pref_prestige"),
-        "pref_cost": profile.get("pref_cost"),
-        "pref_diversity": profile.get("pref_diversity"),
-        "pref_party": profile.get("pref_party"),
-        "pref_research": profile.get("pref_research"),
-        "pref_career_intensity": profile.get("pref_career_intensity"),
         "is_international": bool(profile.get("is_international")),
         "pref_weights": profile.get("pref_weights") or "",
-    }
+    })
+    # Demonstrated interest feeds the odds multiplier — set it the same way
+    # My Colleges does so the two pages produce identical numbers.
+    try:
+        prof["_di_level"] = get_demonstrated_interest(user["id"], slug)
+    except Exception:
+        prof["_di_level"] = "none"
 
     # 1) Chances analysis (also persists to saved_chances)
     r = analyze_school(prof, slug)
