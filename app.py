@@ -2551,29 +2551,42 @@ def effective_gpa(profile, school):
 
 
 def weighted_effective_gpa(profile):
-    """Year-by-year WEIGHTED GPA, computed from only the years where weighting
-    was actually offered (per-year 'not offered' flags exclude the rest). Upper
-    years count more, same as effective_gpa. Returns None if there's no usable
-    weighted-year data (caller then falls back to the single weighted_gpa field,
-    then to unweighted). This is what lets a student whose school only weights
-    junior year be judged on that year, not penalized for the gated ones."""
-    years = [("w_gpa_freshman", "w_notoffered_freshman", 0.5),
-             ("w_gpa_sophomore", "w_notoffered_sophomore", 1.0),
-             ("w_gpa_junior", "w_notoffered_junior", 1.5),
-             ("w_gpa_senior", "w_notoffered_senior", 1.0)]
-    num = den = 0.0
-    for gkey, nkey, wt in years:
-        if profile.get(nkey):
-            continue  # weighting not offered this year → exclude entirely
+    """Year-by-year WEIGHTED GPA. Upper years count more, same as effective_gpa.
+
+    For a year where weighting was 'not offered', we no longer DROP the year —
+    we fall back to that year's UNWEIGHTED grade (the only signal that exists for
+    it), exactly like the unweighted year-by-year system. Previously a student
+    whose school weighted only junior year was judged on junior alone (e.g. a
+    4.26) — silently erasing a weak freshman/soph and floating to the top of
+    every weighted admit range. Backfilling the unweighted grade for gated years
+    is a slight UNDER-estimate (a weighted version would be >= unweighted) but is
+    far more honest than letting one strong weighted year stand in for the whole
+    record. Returns None when NO year was actually weighted (caller then falls
+    back to the single weighted_gpa field, then to unweighted)."""
+    years = [("w_gpa_freshman", "w_notoffered_freshman", "gpa_freshman", 0.5),
+             ("w_gpa_sophomore", "w_notoffered_sophomore", "gpa_sophomore", 1.0),
+             ("w_gpa_junior", "w_notoffered_junior", "gpa_junior", 1.5),
+             ("w_gpa_senior", "w_notoffered_senior", "gpa_senior", 1.0)]
+    def _f(v):
         try:
-            g = float(profile.get(gkey)) if profile.get(gkey) not in (None, "") else None
+            return float(v) if v not in (None, "") else None
         except (TypeError, ValueError):
-            g = None
+            return None
+    num = den = 0.0
+    have_weighted = False
+    for wkey, nkey, ukey, wt in years:
+        g = None
+        if not profile.get(nkey):          # weighting offered this year
+            g = _f(profile.get(wkey))
+            if g is not None:
+                have_weighted = True
+        if g is None:                       # gated year, or no weighted value → use unweighted
+            g = _f(profile.get(ukey))
         if g is None:
             continue
         num += g * wt
         den += wt
-    if den == 0:
+    if den == 0 or not have_weighted:
         return None
     return round(num / den, 3)
 
