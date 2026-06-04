@@ -15,10 +15,10 @@
 | 1 | **Washington University in St. Louis** | 98 | #1 Princeton Review & Niche; hotel-grade suites, memory-foam beds, AC everywhere, 4-yr guarantee |
 | 2 | **High Point University** | 95 | Resort campus: steakhouse, concierge, valet, ice-cream trucks, pools; #2 Princeton Review dorms |
 | 3 | **Vanderbilt University** | 92 | Brand-new residential colleges, universal AC, suites, per-college dining, true 4-yr guarantee |
-| 4 | **UCLA** | 90 | 4-year guarantee, modern Plaza/Deluxe halls, #1-in-nation dining |
-| 5 | **Villanova University** | 86 | Modern 2019 "Commons" apartments; 93% residential; some older halls remain |
-| 6 | **Indiana University Bloomington** | 85 | Deep bench of AC suite-style halls (Briscoe, Walnut Grove) + elite in-residence dining |
-| 7 | **University of Virginia** | 84 | Renovated 1st-yr dorms with AC + iconic Lawn rooms; 1-yr-only guarantee |
+| 4 | **Villanova University** | 86 | Modern 2019 "Commons" apartments; 93% residential; some older halls remain |
+| 5 | **Indiana University Bloomington** | 85 | Deep bench of AC suite-style halls (Briscoe, Walnut Grove) + elite in-residence dining |
+| 6 | **University of Virginia** | 84 | Renovated 1st-yr dorms with AC + iconic Lawn rooms; 1-yr-only guarantee |
+| 7 | **UCLA** | 82 | Excellent Plaza/Deluxe suites + #1 dining, but default freshman Classic halls are no-AC "shoebox" triples |
 | 8 | **Tulane University** | 81 | New 2023–24 "hotel-like" halls + universal AC; 3-yr mandatory residency |
 | 9 | **Boston College** | 80 | Strong upperclass suites & >90% senior on-campus; no freshman AC, 3-yr guarantee |
 | 10 | **UIUC** | 78 | Elite Ikenberry halls (Nugent/Wassaja/Bousfield) + top-tier dining; older non-AC stock drags it |
@@ -63,25 +63,25 @@ Rebuilt nearly its entire residential stock in ~15 years: Ingram Commons (2008) 
 - vanderbilt.edu/ohare/our-residence-halls · vanderbilt.edu/ohare/heating-cooling-systems
 - vanderbilt.edu/ohare/the-undergraduate-residential-requirement
 
-### 4. UCLA — 90
-Four tiers (Classics, Deluxes, Plazas, Suites). Plaza halls offer the most privacy (private/suite baths, AC); **Classic halls have no AC and communal baths**. Strongest guarantee in the UC system — **4 years for freshmen ("4:2 guarantee")**; ~97% of freshmen live on campus. **#1-in-nation dining** (Niche, 7th straight year) — a dining accolade distinct from the dorm score.
-- admissionsight.com/ucla-dorm-rooms/ · housing.ucla.edu/student-housing/freshman-students/living-on-campus
-- adminvc.ucla.edu/news-views/summer-2025/ucla-dining-remains-no-1-nation
-
-### 5. Villanova University — 86
+### 4. Villanova University — 86
 **The Commons (2019)** added modern fully-furnished apartments/suites/singles, pushing on-campus capacity to ~85%. ~93% of students live in university housing (98% of first-years). **3 years guaranteed** (4th year limited). Newest stock is regional-best; some older traditional halls remain dated.
 - villanova.edu/university/residence-life/residence-halls/commons.html
 - delco.today/2019/08/villanovas-new-residential-complex-means-85-percent-of-undergraduates-can-live-on-campus/
 
-### 6. Indiana University Bloomington — 85
+### 5. Indiana University Bloomington — 85
 Deep, well-regarded mix: **Walnut Grove (2021)**, renovated Read, and suite-style **Briscoe** (private/semi-private baths). Most modern halls have AC (holdout: Wright Quad). **Renowned in-residence dining** (Restaurants at Woodland, McNutt). Only ~30% of all students on campus (upperclassmen move off), but first-years effectively all housed.
 - nudgeprinting.com/blogs/indiana-university-blog/indiana-university-dorms-a-complete-guide-for-incoming-hoosiers
 - idsnews.com/article/2026/03/students-guide-to-dining-at-indiana-university-bloomington-iu
 
-### 7. University of Virginia — 84
+### 6. University of Virginia — 84
 McCormick Road "Old Dorms" interior-renovated (AC added); Alderman "New Dorms" (2006+); new Brandon Ave halls (2024). Iconic **Lawn rooms** (single rooms in Jefferson's Academical Village) are a capstone — but have **no en-suite plumbing** (communal bath houses); AC was recently added to all Lawn rooms. **All first-years required on Grounds**, but **only first-years guaranteed** amid a 2025 upperclass housing crunch.
 - uvamagazine.org/articles/making_old_dorms_new_again_renovations_reimagine_residential_life
 - news.virginia.edu/content/housing-changes-are-breath-fresh-cool-air-especially-lawnies
+
+### 7. UCLA — 82
+**Bimodal — this is the school where the assignment makes or breaks it.** The **Plaza/Deluxe** halls are genuinely top-tier (AC, private/suite baths), but the default freshman **Classic** halls (Dykstra, Rieber, Hedrick) are widely described as cramped "shoebox" **triples with no AC, communal baths, and thin walls**, and they run hot at the start of fall / end of spring. Strongest UC guarantee (**4 years, "4:2"**) and ~97% of freshmen on campus help, and dining is **#1 in the nation** (Niche) — but that's a dining accolade, not a room one. Dropped from an initial 90 because the *typical* freshman room is the weak tier, not the Plazas.
+- housing.ucla.edu/new-students/classic-residence-hall · admissionsight.com/ucla-dorm-rooms/
+- ratemydorm.com/reviews/university-of-california-los-angeles/...-rieber-hall · blog.collegevine.com/ucla-dorms-student-perspective
 
 ### 8. Tulane University — 81
 $200M "The Village" build-out: **River & Lake Halls (2023)** plus **Bayou & Fogelman** added ~1,480 beds ("like a hotel for nine months"). **Universal AC** (essential in New Orleans). **3-year on-campus requirement** (through junior year) — among the most demanding nationally, and controversial with students. Wide gap remains with older community-bath halls (Butler, Josephine Louise).
