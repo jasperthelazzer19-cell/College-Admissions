@@ -2652,6 +2652,16 @@ def compute_fit(profile, school):
         mid = (school["sat_25"] + school["sat_75"]) / 2
         spread = max(40, school["sat_75"] - school["sat_25"])
         delta = max(-22, min(22, (sat_eq - mid) / spread * 22))
+        # Test-optional reality (2026-06-04): the penalty is measured from the
+        # MIDPOINT, so a score sitting right at a school's 25th percentile still
+        # ate ~-11, and a hair below (e.g. 1490 vs a 1500 25th) cratered to -15.
+        # But at a test-optional school the applicant CHOOSES whether to submit —
+        # a below-median score is effectively a non-submit (≈neutral), not a
+        # forced liability. So soften the downside and cap it near the
+        # test-optional penalty. Test-focused schools (MIT/Caltech tier, where a
+        # score is effectively expected) keep the full real penalty.
+        if delta < 0 and not _is_test_focused_school(school):
+            delta = max(delta * 0.45, -7.0)
         score += delta
         components["test"] = round(delta, 1)
     elif test_blind:
@@ -3076,11 +3086,15 @@ def _keyword_exceptional(profile):
 # truly-elite schools. Value 1.0 == no change. The dial is faded in by fit
 # (see estimate_odds) so weak profiles stay below the school's acceptance rate.
 _SCHOOL_CALIBRATION = {
-    "usc": 1.75,
-    "nyu": 1.80,
+    # Cooled 2026-06-04: these three were set hot earlier and were the clearest
+    # over-calls in the audit (a strong unhooked applicant showed USC 27-37% on a
+    # 9.8%-accept school, ~3.3x base). Trimmed toward ~2x base. The lower fit curve
+    # (above) already shaves ~10% on top of these.
+    "usc": 1.40,
+    "nyu": 1.45,
     "umich": 0.86,
     "bu": 1.15,
-    "northeastern": 1.85,
+    "northeastern": 1.50,
 }
 
 
@@ -3162,15 +3176,19 @@ def estimate_odds(school, fit, profile):
     else:
         # Adjust headline rate up for the domestic pool
         a = min(1.0, a / max(0.5, 1 - intl_pct * 0.65))
-    # Steeper, less-generous fit curve. At fit=50 (average), multiplier ≈ 0.85,
-    # i.e. you do worse than the school's headline accept. Top fits still get
-    # boosted but capped hard at elite tiers. Below fit 65 the curve is unchanged
-    # (so moderate-fit reaches/targets keep their calibrated odds); ABOVE 65 the
-    # growth is COMPRESSED to a gentle linear slope. A strong-EC profile's high
-    # fit (75-82) was converting to 1.6-1.8x the base rate at mid-accept safeties
-    # (no elite cap there to bind it) — compression pulls that back toward ~1.2-
-    # 1.3x without touching the reaches a strong applicant correctly should keep.
-    fit_mult = 0.20 + (min(fit, 65.0) / 65.0) ** 1.6 + max(0.0, fit - 65.0) / 65.0 * 0.30
+    # Less-generous, MORE-responsive fit curve. Two calibration goals (2026-06-04):
+    #   (1) trim ~10% off the level (a counselor flagged odds as a little inflated),
+    #       done via the base term 0.20 -> 0.10 — a small uniform haircut, NOT a tier
+    #       multiplier (those cascade; see the 5/31 over-inflation revert).
+    #   (2) un-flatten the top so a real profile change (e.g. dropping a test score)
+    #       actually moves the number. The old >65 slope (0.30) was so flat that a
+    #       strong-EC applicant — whose fit already sits past 65 — saw a 13-pt fit
+    #       swing convert to a ~2-pt odds swing, which reads to the user as "nothing
+    #       changed." Doubling the slope (0.30 -> 0.65) makes the upper band live again
+    #       while the lower base keeps the overall level down. Net at fit 65: 1.10
+    #       (was 1.20); at fit 77: 1.22 (was 1.255); a 64->77 fit swing now moves the
+    #       multiplier ~0.14 instead of ~0.08. Elites stay cap-bound, so unaffected.
+    fit_mult = 0.10 + (min(fit, 65.0) / 65.0) ** 1.6 + max(0.0, fit - 65.0) / 65.0 * 0.65
     hook_mult = 1.0
     if profile.get("athlete"): hook_mult *= 1.30
     # Legacy is a real, measurable boost at top schools — Harvard ~6x,
