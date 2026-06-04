@@ -4800,6 +4800,7 @@ def _page(body_html, title="Candor", description=None):
         og_image = "/static/hero-aurora.jpg"
         page_url = "/"
     social_meta = (
+        f'<link rel="canonical" href="{page_url}">'
         f'<meta name="description" content="{_esc(description, quote=True)}">'
         f'<meta property="og:type" content="website">'
         f'<meta property="og:site_name" content="Candor">'
@@ -5089,7 +5090,8 @@ def college_detail_html(slug):
   }}
 }})();
 </script>
-""", title=f"{c['name']} — Candor")
+""", title=f"{c['name']} Acceptance Rate & Admission Chances — Candor",
+        description=f"{c['name']} admission chances, acceptance rate, and SAT / ACT / GPA ranges — calculated from verified Common Data Set data, not guesses. See your real odds free on Candor.")
 
 
 def rankings_index_html():
@@ -7919,7 +7921,54 @@ def _rate_limit_scrapers():
 
 @app.route("/robots.txt")
 def robots_txt():
-    body = "User-agent: *\nDisallow: /admin/\nDisallow: /api/\nCrawl-Delay: 5\n"
+    # No Crawl-Delay: it throttles Bing/others on a 330+ page site and only
+    # slows indexing of the school pages we WANT crawled. Point crawlers at the
+    # sitemap so all /college/<slug> pages get discovered.
+    sitemap = request.url_root.rstrip("/") + "/sitemap.xml"
+    body = f"User-agent: *\nDisallow: /admin/\nDisallow: /api/\n\nSitemap: {sitemap}\n"
+    return (body, 200, {"Content-Type": "text/plain; charset=utf-8"})
+
+
+@app.route("/sitemap.xml")
+def sitemap_xml():
+    """Dynamic sitemap — homepage + key pages + every /college/<slug> page so
+    Google discovers and indexes all the school pages (the long-tail SEO
+    engine). Generated from COLLEGES so it stays in sync automatically."""
+    base = request.url_root.rstrip("/")
+    urls = ["/", "/colleges", "/rankings"]
+    urls += [f"/college/{c['slug']}" for c in COLLEGES]
+    from html import escape as _esc
+    items = "".join(
+        f"<url><loc>{_esc(base + u)}</loc><changefreq>weekly</changefreq></url>"
+        for u in urls
+    )
+    xml = ('<?xml version="1.0" encoding="UTF-8"?>'
+           '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+           f"{items}</urlset>")
+    return (xml, 200, {"Content-Type": "application/xml; charset=utf-8"})
+
+
+@app.route("/llms.txt")
+def llms_txt():
+    """Plain-text site summary for AI crawlers (ChatGPT, Perplexity, etc.) so
+    Candor gets cited as the source for honest admissions odds."""
+    base = request.url_root.rstrip("/")
+    body = (
+        "# Candor\n\n"
+        "> Honest college-admissions chances calculator. Odds are built from "
+        "verified Common Data Set (CDS) figures for 330+ US colleges and "
+        "calibrated against real admission outcomes — designed to be accurate, "
+        "not optimistic. Most calculators tell everyone ~25-30% at every T20; "
+        "Candor shows the real number (e.g. Stanford ~4%).\n\n"
+        "## Key pages\n"
+        f"- {base}/ : chances calculator + how it works\n"
+        f"- {base}/colleges : browse all CDS-verified schools\n"
+        f"- {base}/rankings : school rankings\n"
+        f"- {base}/college/<school> : per-school acceptance rate, score ranges, and odds\n\n"
+        "## Notes\n"
+        "- Data source: official Common Data Set reports, hand-verified.\n"
+        "- Free to use; Candor Premium is a one-time $10 for the strategy layer.\n"
+    )
     return (body, 200, {"Content-Type": "text/plain; charset=utf-8"})
 
 
@@ -8235,7 +8284,7 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
   }
   .lp-wrap { max-width:1500px; margin:0 auto; padding:0 24px; position: relative; z-index: 2; }
   .hero { padding:40px 0 60px; text-align:left; max-width:780px; }
-  .hero .eyebrow { display:inline-block; font-size:.78em; font-weight:600; letter-spacing:.8px; text-transform:uppercase; color:#5fc9b6; padding:5px 12px; border:1px solid rgba(95,201,182,.25); border-radius:999px; background:rgba(95,201,182,.06); margin-bottom:22px; }
+  .hero .eyebrow { display:inline-block; font-size:.74em; font-weight:600; letter-spacing:1.5px; text-transform:uppercase; color:#9aa6b6; padding:0 0 10px; border:none; border-bottom:1px solid rgba(154,166,182,.25); border-radius:0; background:none; margin-bottom:22px; }
   .hero h1 { font-size:clamp(2.4em,5vw,3.6em); font-weight:700; letter-spacing:-1.5px; line-height:1.06; margin:0 0 22px; color:#e6edf3; }
   .hero h1 .accent { color:#5fc9b6; }
   .hero p.lede { font-size:1.18em; color:#9aa6b6; max-width:620px; margin:0 0 32px; line-height:1.55; }
@@ -9050,7 +9099,7 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
    <div class="hero-inner">
    <div class="hero-text">
     <div class="hero-text-above">
-      <div class="eyebrow">Built by a high school junior · {cds_count}+ CDS-verified schools</div>
+      <div class="eyebrow">Verified Common Data Set figures · calibrated to real outcomes</div>
       <h1>The college admissions calculator that uses <span class="accent">real data</span>, not guesses.</h1>
       <p class="lede">Most chances calculators tell everyone they have a 25-30% shot at every T20. Stanford accepts 3.6%. The math doesn't work. Candor uses verified Common Data Set figures from {cds_count}+ schools and odds calibrated to be honest, not optimistic.</p>
       <div class="cta-row">
@@ -9058,9 +9107,9 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
         <a href="/colleges" class="secondary">Browse schools</a>
       </div>
       <div class="stats">
-        <div class="stat"><span class="num" data-count-to="{users_display}" data-suffix="+">{users_display}+</span>active users</div>
         <div class="stat"><span class="num" data-count-to="{cds_count}">{cds_count}</span>CDS-verified schools</div>
-        <div class="stat"><span class="num"><span class="accent" data-count-to="{activation_pct}" data-suffix="%">{activation_pct}%</span></span>complete their profile</div>
+        <div class="stat"><span class="num">0</span>made-up numbers</div>
+        <div class="stat"><span class="num">Free</span>to check your odds</div>
       </div>
     </div>
     <div class="demo-eyebrow" id="demo">Try it · no signup needed</div>
@@ -9531,6 +9580,7 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Candor — College admissions chances, calibrated</title>
+<link rel="canonical" href="{_site_url}">
 <meta name="description" content="{_og_desc}">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Candor">
@@ -9542,6 +9592,7 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
 <meta name="twitter:title" content="Candor — College admissions chances, calibrated">
 <meta name="twitter:description" content="{_og_desc}">
 <meta name="twitter:image" content="{_og_img}">
+<script type="application/ld+json">{{"@context":"https://schema.org","@type":"WebApplication","name":"Candor","url":"{_site_url}","applicationCategory":"EducationApplication","operatingSystem":"Web","description":"{_og_desc}","offers":{{"@type":"Offer","price":"0","priceCurrency":"USD"}},"creator":{{"@type":"Organization","name":"Candor","url":"{_site_url}"}}}}</script>
 <style>{BASE_CSS}</style>
 {css}
 <style>{orbit_keyframes}</style>
