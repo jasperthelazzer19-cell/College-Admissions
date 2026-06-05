@@ -63,6 +63,12 @@ ADMIN_KEY = os.environ.get("ADMIN_KEY", "")  # gates the bulk-refresh endpoint
 STRIPE_PAYMENT_LINK = os.environ.get("STRIPE_PAYMENT_LINK",
     "https://buy.stripe.com/fZu14ob4jai9dmgdHy5AQ03")
 STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
+# Stripe no-code customer/billing portal login link (Settings → Billing →
+# Customer portal → share link). Lets a subscriber manage/cancel via Stripe's
+# hosted page (they auth with their email). Surfaced as a low-key "Manage
+# subscription" link on the paid /upgrade view — present and functional, just
+# not a prominent CTA. Renders only when set, so there's no broken link.
+STRIPE_BILLING_PORTAL_URL = os.environ.get("STRIPE_BILLING_PORTAL_URL", "")
 ARTICLE_TTL_HOURS = 12   # how long to cache per-college articles
 SCORECARD_TTL_DAYS = 30  # refresh federal stats monthly
 FREE_TRIAL_MESSAGES = 3
@@ -12933,6 +12939,7 @@ def upgrade_page():
           </div>
           <p class="muted" style="margin:0 0 14px">You're all set. Every premium feature is unlocked on your account. Keep your Stripe email receipt for your records.</p>
           <a href="/plans" class="btn btn-primary">Go to my plan &rarr;</a>
+          {f'<div style="margin-top:20px"><a href="{STRIPE_BILLING_PORTAL_URL}" style="font-size:.72em;color:var(--text-3,#7f8893);text-decoration:underline;opacity:.7">Manage subscription</a></div>' if STRIPE_BILLING_PORTAL_URL else ''}
         </div>"""
         return _page(body, title="Upgrade — Candor")
 
