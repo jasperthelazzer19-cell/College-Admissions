@@ -4884,6 +4884,7 @@ NAV = """<div class="nav"><a class="brand" href="/">""" + CANDOR_LOGO_SVG + """C
 <a href="/grade">Profile Grade</a>
 <a href="/improve">Improve</a>
 <a href="/plans">My Colleges</a>
+<a href="/deadlines">Deadlines</a>
 <a href="/plans/grade">List Grade</a>
 <a href="/plans/strategist">Strategist</a>
 <a href="/upgrade" style="color:#5fc9b6">Premium</a>
@@ -12911,6 +12912,185 @@ def pricing_alias():
     return redirect(url_for("upgrade_page"), code=301)
 
 
+# ─── DEADLINE TRACKER (Premium) ───
+_UC_SLUGS = {"ucla","ucb","uc-berkeley","ucsd","ucsb","ucd","uc-davis","uci",
+             "uc-irvine","ucr","ucsc","ucm","uc-merced"}
+
+def _cycle_years():
+    """(Nov year, Jan year) for the UPCOMING application cycle, derived from
+    today so it never goes stale. June 2026 -> ED Nov 2026, RD Jan 2027."""
+    y = datetime.now().year
+    return y, y + 1
+
+
+def _deadline_for(slug, round_code):
+    """(date, label) for a school + round in the upcoming cycle. These are the
+    TYPICAL dates — real deadlines vary by a week or two and shift yearly, so
+    the page tells users to confirm on the school's site. The UC system is the
+    big exception: one Nov 30 application window, RD only."""
+    nov_y, jan_y = _cycle_years()
+    rc = (round_code or "").upper()
+    if slug in _UC_SLUGS:
+        return datetime(nov_y, 11, 30).date(), "UC application"
+    if rc in ("ED", "ED1", "EA", "REA", "SCEA", "SCREA"):
+        return datetime(nov_y, 11, 1).date(), rc
+    if rc == "ED2":
+        return datetime(jan_y, 1, 1).date(), "ED2"
+    if rc == "RD":
+        return datetime(jan_y, 1, 1).date(), "RD"
+    # No round chosen — default to the school's earliest available round.
+    rounds = (ADMISSIONS_DETAIL.get(slug) or {}).get("rounds") or []
+    if any(r in ("ED", "ED1", "REA", "SCEA", "EA") for r in rounds):
+        return datetime(nov_y, 11, 1).date(), "Early · round not set"
+    return datetime(jan_y, 1, 1).date(), "RD · round not set"
+
+
+def _deadline_items(uid):
+    """The user's saved schools with computed upcoming deadlines, soonest first."""
+    with db() as conn:
+        rows = conn.execute(
+            "SELECT college_slug, application_round FROM saved_chances WHERE user_id=? "
+            "UNION SELECT college_slug, application_round FROM saved_schools WHERE user_id=?",
+            (uid, uid)).fetchall()
+    today = datetime.now().date()
+    items = []
+    seen = set()
+    for r in rows:
+        slug = r["college_slug"]
+        if slug in seen:
+            continue
+        c = COLLEGES_BY_SLUG.get(slug)
+        if not c:
+            continue
+        seen.add(slug)
+        date, label = _deadline_for(slug, r["application_round"])
+        items.append({"date": date, "days": (date - today).days,
+                      "name": c["name"], "slug": slug, "label": label})
+    items.sort(key=lambda x: (x["date"], x["name"]))
+    return items
+
+
+def _deadlines_teaser(signup):
+    cta = ('<a class="btn btn-primary" href="/signup?next=/deadlines" style="padding:12px 24px">Sign up free →</a>'
+           if signup else
+           '<a class="btn btn-primary" href="/upgrade" style="padding:12px 24px">See Premium ($3/mo) →</a>')
+    return f"""
+<div class="lp-wrap" style="max-width:680px;margin:0 auto;padding:40px 24px">
+  <div style="font-size:.78em;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#5fc9b6;margin-bottom:8px">Deadline tracker · Premium</div>
+  <h1 style="font-size:2.1em;letter-spacing:-1px;margin:0 0 12px">Never miss a deadline.</h1>
+  <p class="muted" style="font-size:1.05em;line-height:1.55;margin:0 0 24px">Your whole list, every ED / EA / RD deadline auto-built and counted down — with email reminders as each one gets close. Add a school and round to your list and it shows up here automatically.</p>
+  <div style="display:flex;gap:12px;flex-wrap:wrap">{cta}</div>
+</div>"""
+
+
+@app.route("/deadlines")
+def deadlines_page():
+    user = current_user()
+    if not user:
+        return _page(_deadlines_teaser(signup=True), title="Deadlines — Candor")
+    if not user.get("is_paid"):
+        return _page(_deadlines_teaser(signup=False), title="Deadlines — Candor")
+
+    items = _deadline_items(user["id"])
+    if not items:
+        body = """<div class="bar"><a href="/plans">&larr; My Colleges</a></div>
+<div class="card" style="max-width:620px;text-align:center;padding:36px">
+  <h1 style="margin:0 0 10px;font-size:1.6em">No deadlines yet</h1>
+  <p class="muted" style="margin:0 0 18px">Save schools and set an application round (ED / EA / RD) and they'll show up here, counted down and sorted by date.</p>
+  <a class="btn btn-primary" href="/colleges">Browse colleges →</a>
+</div>"""
+        return _page(body, title="Deadlines — Candor")
+
+    def badge(days):
+        if days < 0:   return ("passed", "var(--text-3,#7f8893)")
+        if days == 0:  return ("TODAY", "#ef6b6b")
+        if days <= 7:  return (f"in {days}d", "#ef6b6b")
+        if days <= 30: return (f"in {days}d", "#e0a44a")
+        return (f"in {days}d", "var(--teal)")
+
+    from itertools import groupby
+    blocks = ""
+    for month_label, grp in groupby(items, key=lambda x: x["date"].strftime("%B %Y")):
+        rows_html = ""
+        for it in grp:
+            txt, col = badge(it["days"])
+            rows_html += (
+                f'<a href="/college/{it["slug"]}" style="display:flex;align-items:center;justify-content:space-between;'
+                f'gap:12px;padding:13px 16px;border-top:1px solid var(--border);text-decoration:none;color:inherit">'
+                f'<div><div style="font-weight:600;color:var(--text)">{it["name"]}</div>'
+                f'<div class="muted" style="font-size:.8em;margin-top:2px">{it["label"]} · {it["date"].strftime("%b %-d, %Y")}</div></div>'
+                f'<span style="font-size:.82em;font-weight:700;color:{col};white-space:nowrap">{txt}</span></a>')
+        blocks += (
+            f'<div class="card" style="padding:0;margin-bottom:16px;overflow:hidden">'
+            f'<div style="padding:11px 16px;background:var(--surface-2);font-weight:700;font-size:.9em">{month_label}</div>'
+            f'{rows_html}</div>')
+
+    next_up = next((it for it in items if it["days"] >= 0), None)
+    hero = ""
+    if next_up:
+        hero = (f'<div class="card" style="background:linear-gradient(135deg,#0f3a37,#0a131c);'
+                f'border:1px solid rgba(95,201,182,.3);margin-bottom:20px;max-width:620px">'
+                f'<div class="muted" style="font-size:.78em;text-transform:uppercase;letter-spacing:.6px">Next up</div>'
+                f'<div style="font-size:1.3em;font-weight:700;margin:4px 0 2px">{next_up["name"]}</div>'
+                f'<div class="muted" style="font-size:.9em">{next_up["label"]} · {next_up["date"].strftime("%B %-d, %Y")} · '
+                f'<b style="color:var(--teal)">{next_up["days"]} days away</b></div></div>')
+
+    body = f"""<div class="bar"><a href="/plans">&larr; My Colleges</a></div>
+<h1 style="margin:0 0 4px;font-size:1.8em">Your deadlines</h1>
+<p class="muted" style="margin:0 0 20px;font-size:.92em">Typical cycle dates — always confirm the exact deadline on each school's site. We'll email you as they approach.</p>
+<div style="max-width:620px">{hero}{blocks}</div>"""
+    return _page(body, title="Deadlines — Candor")
+
+
+def _premium_comparison_html():
+    """Free vs Premium feature-comparison table. Shown on the upgrade page so
+    the value gap is legible at a glance (what's free stays free; Premium is
+    the action/depth layer). Checkmark = included; — = not in that tier."""
+    # (label, free_value, premium_value): True=✓, False=—, or a string.
+    rows = [
+        ("Chances calculator — verified CDS odds", True, True),
+        ("All school pages, rankings &amp; browse", True, True),
+        ("Profile, fit scores &amp; profile grade", True, True),
+        ("AI Advisor messages", f"{FREE_TRIAL_MESSAGES} free", f"{PAID_MONTHLY_LIMIT}/mo"),
+        ("Personalized AI strategy, per school", False, True),
+        ("My Colleges dashboard — round-by-round", False, True),
+        ("List grader (1–10) + admissions simulator", False, True),
+        ("Score-push impact — is a retake worth it?", False, True),
+        ("Deadline tracker + reminders", False, True),
+        ("&ldquo;Students like you&rdquo; admit scattergram", False, True),
+    ]
+    def cell(v, premium=False):
+        bg = "background:rgba(95,201,182,.06)" if premium else ""
+        if v is True:
+            return f'<td style="text-align:center;padding:11px 10px;color:var(--teal);font-weight:700;{bg}">✓</td>'
+        if v is False:
+            return f'<td style="text-align:center;padding:11px 10px;color:var(--text-3,#7f8893);{bg}">—</td>'
+        col = "var(--teal)" if premium else "var(--text-2)"
+        return f'<td style="text-align:center;padding:11px 10px;color:{col};font-size:.9em;font-weight:600;{bg}">{v}</td>'
+    body_rows = "".join(
+        f'<tr style="border-top:1px solid var(--border)">'
+        f'<td style="padding:11px 10px;color:var(--text);line-height:1.35">{label}</td>'
+        f'{cell(free)}{cell(prem, premium=True)}</tr>'
+        for label, free, prem in rows
+    )
+    return f"""
+    <div style="overflow-x:auto;margin:20px 0;border:1px solid var(--border-strong);border-radius:12px">
+      <table style="width:100%;min-width:420px;border-collapse:collapse;font-size:.93em">
+        <thead>
+          <tr style="background:var(--surface-2)">
+            <th style="text-align:left;padding:13px 10px;font-weight:600;color:var(--text-2);font-size:.82em;text-transform:uppercase;letter-spacing:.5px">What you get</th>
+            <th style="text-align:center;padding:13px 10px;font-weight:700;color:var(--text);width:88px">Free</th>
+            <th style="text-align:center;padding:13px 10px;width:104px;background:rgba(95,201,182,.06)">
+              <div style="font-weight:700;color:var(--teal)">Premium</div>
+              <div style="font-size:.72em;font-weight:600;color:var(--text-2);margin-top:1px">$3/mo</div>
+            </th>
+          </tr>
+        </thead>
+        <tbody>{body_rows}</tbody>
+      </table>
+    </div>"""
+
+
 @app.route("/upgrade")
 def upgrade_page():
     user = current_user()
@@ -12959,14 +13139,7 @@ def upgrade_page():
                "and a personalized strategy for every school you're considering.")
         social = ""
 
-    bundle = """
-      <ul style="padding-left:18px;margin:18px 0;color:var(--text);line-height:1.85">
-        <li><b>Personalized AI strategy</b> — per school, calibrated to your stats, ECs, and what that school actually weights.</li>
-        <li><b>List grader + admissions simulator</b> — score your full list 1–10, simulate where you'd ED/EA/RD across your whole list.</li>
-        <li><b>Score push impact</b> — see exactly how much a +60 SAT or +2 ACT moves your odds, so you can decide if a retake is worth the time.</li>
-        <li><b>Saved schools dashboard</b> — every school you've chanced or saved, grouped by application round.</li>
-        <li><b>Free chances calculator stays free</b> — premium is the layer on top.</li>
-      </ul>"""
+    bundle = _premium_comparison_html()
 
     body = f"""<div class="card" style="max-width:620px">
       <div style="font-size:.78em;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--teal);margin-bottom:6px">Candor Premium</div>
