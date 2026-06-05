@@ -61,7 +61,7 @@ SCORECARD_KEY = os.environ.get("SCORECARD_KEY", "")
 SECRET_KEY = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
 ADMIN_KEY = os.environ.get("ADMIN_KEY", "")  # gates the bulk-refresh endpoint
 STRIPE_PAYMENT_LINK = os.environ.get("STRIPE_PAYMENT_LINK",
-    "https://buy.stripe.com/3cIbJ23BRfCt4PK5b25AQ02")
+    "https://buy.stripe.com/fZu14ob4jai9dmgdHy5AQ03")
 STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
 ARTICLE_TTL_HOURS = 12   # how long to cache per-college articles
 SCORECARD_TTL_DAYS = 30  # refresh federal stats monthly
@@ -4952,7 +4952,7 @@ def _page(body_html, title="Candor", description=None):
     footer = """<div style="max-width:1180px;margin:60px auto 30px;padding:24px;color:var(--text-3);font-size:.84em;text-align:center;border-top:1px solid var(--border)">
 made by a high school junior. found a bug? something looks wrong? tell me on the
 <a href="https://www.reddit.com/user/Zestyclose_Tower_380" style="color:var(--text-2)">reddit</a>.
-free chances calculator. <a href="/upgrade" style="color:var(--text-2)">Candor Premium</a> is $10 once for the strategy on top.
+free chances calculator. <a href="/upgrade" style="color:var(--text-2)">Candor Premium</a> is $3/month for the strategy on top.
 <div style="margin-top:10px;color:var(--text-3)">still grinding your ACT? I also built <a href="https://forma-prep.up.railway.app" style="color:var(--text-2)">Forma</a> — real test prep, same honesty.</div>
 </div>"""
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -6071,8 +6071,8 @@ def chances_html(slug):
 <div class="card" style="margin-top:18px;background:linear-gradient(135deg,#0f3a37 0%,#0a131c 100%);border:1px solid rgba(95,201,182,.3)">
   <div style="font-size:.74em;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#5fc9b6;margin-bottom:6px">Next step</div>
   <h3 style="margin:0 0 8px;color:#e6edf3">Turn this number into a plan</h3>
-  <p class="muted" style="margin:0 0 14px;line-height:1.55">Candor Premium ($10 once) unlocks a personalized strategy for {r['school']}, score-push impact, and your list grader. Or share this report with your parents and let them decide.</p>
-  <a class="btn btn-primary btn-sm" href="/upgrade">Upgrade — $10 once</a>
+  <p class="muted" style="margin:0 0 14px;line-height:1.55">Candor Premium ($3/mo) unlocks a personalized strategy for {r['school']}, score-push impact, and your list grader. Or share this report with your parents and let them decide.</p>
+  <a class="btn btn-primary btn-sm" href="/upgrade">Upgrade — $3/mo</a>
   <a class="btn btn-light btn-sm" href="/upgrade?for=parent" style="margin-left:6px">Show your parents →</a>
 </div>
 <p style="margin-top:18px"><a class="btn btn-light" href="/profile">Edit profile</a> <a class="btn btn-light" href="/college/{r['slug']}/improve">Get tailored advice for {r['school']} &rarr;</a></p>
@@ -6372,7 +6372,7 @@ def school_improve_html(slug):
             tailored_card = f"""<div class="card" style="background:linear-gradient(135deg,#0f3a37 0%,#0a131c 100%);border:1px solid rgba(95,201,182,.3)">
   <div style="font-size:.74em;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#5fc9b6;margin-bottom:6px">Candor Premium</div>
   <h3 style="margin-top:0;color:#e6edf3">Your personalized strategy for {school['name']}</h3>
-  <p class="muted" style="margin:0 0 12px;line-height:1.55">Concrete actions calibrated to your stats, ECs, and what {school['name']} actually weights — written for your profile, not generic advice. <b style="color:#e6edf3">Unlock with Candor Premium ($10 once)</b>.</p>
+  <p class="muted" style="margin:0 0 12px;line-height:1.55">Concrete actions calibrated to your stats, ECs, and what {school['name']} actually weights — written for your profile, not generic advice. <b style="color:#e6edf3">Unlock with Candor Premium ($3/mo)</b>.</p>
   <a class="btn btn-primary btn-sm" href="/upgrade">See what Premium includes →</a>
 </div>"""
     # ─── Application round recommendation ───
@@ -6411,7 +6411,7 @@ def school_improve_html(slug):
         score_card = f"""<div class="card" style="background:linear-gradient(135deg,#0f3a37 0%,#0a131c 100%);border:1px solid rgba(95,201,182,.3)">
   <div style="font-size:.74em;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#5fc9b6;margin-bottom:6px">Candor Premium</div>
   <h3 style="margin-top:0;color:#e6edf3">Score push impact</h3>
-  <p class="muted" style="margin:0 0 12px;line-height:1.55">See exactly how a +60 SAT or +2 ACT moves your odds at {school['name']} — so you can decide if a retake is actually worth your time. <b style="color:#e6edf3">$10 once</b>.</p>
+  <p class="muted" style="margin:0 0 12px;line-height:1.55">See exactly how a +60 SAT or +2 ACT moves your odds at {school['name']} — so you can decide if a retake is actually worth your time. <b style="color:#e6edf3">$3/mo</b>.</p>
   <a class="btn btn-primary btn-sm" href="/upgrade">Unlock score push impact →</a>
 </div>"""
     elif profile and (profile.get("sat") or profile.get("act")):
@@ -7424,10 +7424,10 @@ def school_plan_html(slug):
         advice_html = _render_tailored_advice(advice_body)
     else:
         advice_html = f"""<div class="card" style="background:linear-gradient(135deg,#0f3a37 0%,#0a131c 100%);border:1px solid rgba(95,201,182,.3)">
-          <div style="font-size:.74em;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#5fc9b6;margin-bottom:6px">Candor Premium · $10 once</div>
+          <div style="font-size:.74em;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#5fc9b6;margin-bottom:6px">Candor Premium · $3/mo</div>
           <h3 style="margin:0 0 8px">Your personalized strategy for {school['name']}</h3>
           <p class="muted" style="margin:0 0 14px">Get AI strategy calibrated to your stats, ECs, and what {school['name']} actually weights — what to highlight, what to fix, and where this school fits your list. Plus the score predictor, list grader, and admissions simulator.</p>
-          <a class="btn btn-primary" href="/upgrade" style="display:inline-block">Unlock my strategy — $10 once &rarr;</a>
+          <a class="btn btn-primary" href="/upgrade" style="display:inline-block">Unlock my strategy — $3/mo &rarr;</a>
         </div>"""
 
     # 4) School-specific notes (curated values + essay strategy)
@@ -7566,7 +7566,7 @@ def plans_index_html():
 <p class="muted">Strategic dashboard for your full college list — round assignments, list grader, and admissions simulator.</p>
 
 <div class="card" style="background:linear-gradient(135deg,#0f3a37 0%,#0a131c 100%);border:1px solid rgba(95,201,182,.3);padding:32px">
-  <div style="font-size:.78em;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#5fc9b6;margin-bottom:8px">Candor Premium · $10 once</div>
+  <div style="font-size:.78em;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#5fc9b6;margin-bottom:8px">Candor Premium · $3/mo</div>
   <h2 style="margin:0 0 14px">Turn your chances into a real plan</h2>
   <ul style="line-height:1.9;padding-left:18px;margin:0 0 18px">
     <li><b>List grader + admissions simulator</b> — score your full list 1–10, simulate ED/EA/RD outcomes across every school</li>
@@ -7577,8 +7577,8 @@ def plans_index_html():
     <li><b>Free chances calculator stays free</b> — premium is the layer on top</li>
   </ul>
   <p class="muted" style="font-size:.88em">You currently have <b style="color:#e6edf3">{n_schools}</b> school{'' if n_schools==1 else 's'} in your list. Upgrade to organize, simulate, and strategize.</p>
-  <a class="btn btn-primary" href="/upgrade" style="font-size:1em;padding:12px 28px;margin-top:18px;display:inline-block">Upgrade — $10 once →</a>
-  <p class="muted" style="font-size:.78em;margin-top:12px">One $10 payment, no subscription. Your saved schools and chances stay accessible on each college's page.</p>
+  <a class="btn btn-primary" href="/upgrade" style="font-size:1em;padding:12px 28px;margin-top:18px;display:inline-block">Upgrade — $3/mo →</a>
+  <p class="muted" style="font-size:.78em;margin-top:12px">$3/month, cancel anytime. Your saved schools and chances stay accessible on each college's page.</p>
 </div>
 
 <p style="margin-top:18px"><a class="btn btn-light" href="/colleges">+ Add another school</a></p>
@@ -8086,7 +8086,7 @@ def llms_txt():
         f"- {base}/college/<school> : per-school acceptance rate, score ranges, and odds\n\n"
         "## Notes\n"
         "- Data source: official Common Data Set reports, hand-verified.\n"
-        "- Free to use; Candor Premium is a one-time $10 for the strategy layer.\n"
+        "- Free to use; Candor Premium is $3/month for the strategy layer.\n"
     )
     return (body, 200, {"Content-Type": "text/plain; charset=utf-8"})
 
@@ -9300,7 +9300,7 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
           </div>
         </div>
         <a href="/signup" class="demo-cta">Sign up free to run this on your full profile →</a>
-        <a href="/upgrade" class="demo-premium-inline">Want a real plan? See Premium · $10 once →</a>
+        <a href="/upgrade" class="demo-premium-inline">Want a real plan? See Premium · $3/mo →</a>
       </div>
     </div>
    </div>
@@ -9419,9 +9419,9 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
   <section class="section reveal">
     <div class="premium-band">
       <div class="premium-band-header">
-        <div class="premium-band-eyebrow">Candor Premium · $10 once</div>
+        <div class="premium-band-eyebrow">Candor Premium · $3/mo</div>
         <h2 class="premium-band-h2">A chances number alone won't get you in.</h2>
-        <p class="premium-band-sub">Premium is the layer that turns "6% at Stanford" into a plan. Built into every school page and your full college list. Pay once, use it through your whole application cycle.</p>
+        <p class="premium-band-sub">Premium is the layer that turns "6% at Stanford" into a plan. Built into every school page and your full college list. $3/month, cancel anytime — keep it through your whole application cycle.</p>
       </div>
       <div class="premium-features">
         <div class="premium-feature">
@@ -9452,7 +9452,7 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
       </div>
       <div class="premium-band-cta">
         <a href="/upgrade" class="premium-cta-btn">See Premium →</a>
-        <span class="premium-band-note">One-time payment. Premium activates within 30 seconds.</span>
+        <span class="premium-band-note">$3/month, cancel anytime. Premium activates within 30 seconds.</span>
       </div>
     </div>
   </section>
@@ -10150,10 +10150,10 @@ def profile_grade_page():
 <h1>Profile Grader</h1>
 <p class="muted">Get one honest number for your whole profile — academics, testing, rigor, extracurriculars, and hooks — graded the way a selective-admissions reader would, with your real strengths, weaknesses, and the highest-leverage fixes.</p>
 <div class="card" style="background:linear-gradient(135deg,#0f3a37 0%,#0a131c 100%);border:1px solid rgba(95,201,182,.3);padding:32px;max-width:620px">
-  <div style="font-size:.78em;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#5fc9b6;margin-bottom:8px">Candor Premium · $10 once</div>
+  <div style="font-size:.78em;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#5fc9b6;margin-bottom:8px">Candor Premium · $3/mo</div>
   <h2 style="margin:0 0 14px">Profile Grader is a premium feature</h2>
-  <p class="muted" style="margin:0 0 18px">One $10 payment unlocks the full profile grade plus per-school AI strategy, the score predictor, list grader, and admissions simulator — no subscription.</p>
-  <a class="btn btn-primary" href="/upgrade" style="font-size:1em;padding:12px 28px;display:inline-block">Upgrade — $10 once &rarr;</a>
+  <p class="muted" style="margin:0 0 18px">$3/month unlocks the full profile grade plus per-school AI strategy, the score predictor, list grader, and admissions simulator — cancel anytime.</p>
+  <a class="btn btn-primary" href="/upgrade" style="font-size:1em;padding:12px 28px;display:inline-block">Upgrade — $3/mo &rarr;</a>
 </div>
 """, title="Profile Grader — Candor")
 
@@ -10333,10 +10333,10 @@ def predictor_page():
 <h1>Score predictor</h1>
 <p class="muted">See exactly how a +60 SAT, +2 ACT, or higher GPA would move your odds at every school on your list — so you can decide if a retake is worth the time.</p>
 <div class="card" style="background:linear-gradient(135deg,#0f3a37 0%,#0a131c 100%);border:1px solid rgba(95,201,182,.3);padding:32px;max-width:620px">
-  <div style="font-size:.78em;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#5fc9b6;margin-bottom:8px">Candor Premium · $10 once</div>
+  <div style="font-size:.78em;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#5fc9b6;margin-bottom:8px">Candor Premium · $3/mo</div>
   <h2 style="margin:0 0 14px">Score push impact is a premium feature</h2>
-  <p class="muted" style="margin:0 0 18px">Unlock the what-if simulator plus per-school AI strategy, the list grader, and the admissions simulator — one $10 payment, no subscription.</p>
-  <a class="btn btn-primary" href="/upgrade" style="font-size:1em;padding:12px 28px;display:inline-block">Upgrade — $10 once &rarr;</a>
+  <p class="muted" style="margin:0 0 18px">Unlock the what-if simulator plus per-school AI strategy, the list grader, and the admissions simulator — $3/month, cancel anytime.</p>
+  <a class="btn btn-primary" href="/upgrade" style="font-size:1em;padding:12px 28px;display:inline-block">Upgrade — $3/mo &rarr;</a>
 </div>
 """, title="Score predictor — Candor")
     # What schools to simulate over: saved schools, or top-N fits
@@ -10618,7 +10618,7 @@ def plans_index_page():
 
   <div style="display:flex;gap:12px;flex-wrap:wrap">
     <a class="btn btn-primary" href="/signup" style="padding:12px 24px">Sign up free →</a>
-    <a class="btn btn-light" href="/upgrade" style="padding:12px 24px">See Premium ($10 once)</a>
+    <a class="btn btn-light" href="/upgrade" style="padding:12px 24px">See Premium ($3/mo)</a>
   </div>
   <p class="muted" style="font-size:.85em;margin-top:18px">Free chances calculator stays free. Premium unlocks the full strategic dashboard.</p>
 </div>
@@ -10675,7 +10675,7 @@ def plans_remove_school(slug):
 
 def _gate_premium():
     """Helper: returns a flask response if user isn't paid (premium), else
-    None. Premium is a single $10 one-time tier that unlocks: My colleges
+    None. Premium is a single $3/month tier that unlocks: My colleges
     dashboard, list grader, admissions simulator, score push impact, and
     personalized AI strategy per school. All gated together via the
     existing users.is_paid column."""
@@ -11028,10 +11028,10 @@ def plans_add_page():
 <p class="muted">Candor reads your current list and recommends schools to add — gap-fillers that balance your reach/target/safety mix, and schools similar to ones you already like.</p>
 <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;margin-top:16px">{blurred}</div>
 <div class="card" style="background:linear-gradient(135deg,#0f3a37 0%,#0a131c 100%);border:1px solid rgba(95,201,182,.3);padding:28px;margin-top:18px;text-align:center">
-  <div style="font-size:.78em;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#5fc9b6;margin-bottom:8px">Candor Premium · $10 once</div>
+  <div style="font-size:.78em;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#5fc9b6;margin-bottom:8px">Candor Premium · $3/mo</div>
   <h2 style="margin:0 0 12px">Unlock your personalized school recommendations</h2>
   <p class="muted" style="margin:0 0 16px">See exactly which schools to add — matched to your profile, your tier balance, and the schools already on your list.</p>
-  <a class="btn btn-primary" href="/upgrade" style="padding:12px 28px">Upgrade — $10 once →</a>
+  <a class="btn btn-primary" href="/upgrade" style="padding:12px 28px">Upgrade — $3/mo →</a>
 </div>
 ''', title="Schools to Add — Candor")
 
@@ -12859,7 +12859,7 @@ def _chat_api_send_legacy_disabled():
                        f'<div style="font-weight:600;color:var(--teal);margin-bottom:8px">'
                        f"You've used your {FREE_TRIAL_MESSAGES} free trial messages.</div>"
                        f'<div style="color:var(--text-2);font-size:.92em;margin-bottom:12px">'
-                       f"Upgrade to Candor Premium ($10 once) for {PAID_MONTHLY_LIMIT} messages "
+                       f"Upgrade to Candor Premium ($3/mo) for {PAID_MONTHLY_LIMIT} messages "
                        f"per month with the AI Advisor — personalized college admissions help "
                        f"informed by your full profile and any of 334 schools.</div>"
                        f'<a href="/upgrade" class="btn btn-primary btn-sm" style="text-decoration:none">'
@@ -12920,7 +12920,7 @@ def upgrade_page():
     # Subscribe button: anon users get sent through signup first so we can
     # attach the Stripe payment to a real account via client_reference_id.
     subscribe_href = pay_url if user else "/signup?next=/upgrade"
-    subscribe_label = "Buy — $10 once" if user else "Sign up to buy — $10 once"
+    subscribe_label = "Subscribe — $3/mo" if user else "Sign up to subscribe — $3/mo"
 
     for_parent = request.args.get("for") == "parent"
 
@@ -12929,7 +12929,7 @@ def upgrade_page():
           <div class="stat-card" style="margin-bottom:14px">
             <div class="label">Plan</div>
             <div class="value accent">Candor Premium</div>
-            <div class="delta">Unlocked — one-time $10, no recurring charge</div>
+            <div class="delta">Unlocked — Candor Premium · $3/mo</div>
           </div>
           <p class="muted" style="margin:0 0 14px">You're all set. Every premium feature is unlocked on your account. Keep your Stripe email receipt for your records.</p>
           <a href="/plans" class="btn btn-primary">Go to my plan &rarr;</a>
@@ -12941,7 +12941,7 @@ def upgrade_page():
         sub = ("Most chances calculators give a flattering number that doesn't help anyone decide anything. "
                "Candor uses verified Common Data Set data from 295+ schools and tells you the truth — "
                "so the ED slot, the test retake, and the supplemental essay time actually go where they matter. "
-               "One $10 payment, no subscription.")
+               "Just $3/month, cancel anytime.")
         social = ('<p class="muted" style="font-size:.85em;margin:18px 0 0">'
                   'Built by a high school junior who got tired of $5,000 consultants telling families different things.'
                   '</p>')
@@ -12966,8 +12966,8 @@ def upgrade_page():
       <h1 style="margin:0 0 10px;font-size:2em;line-height:1.15">{headline}</h1>
       <p class="muted" style="margin:0 0 6px;font-size:1em;line-height:1.55">{sub}</p>
       <div style="display:flex;align-items:baseline;gap:8px;margin:22px 0 6px">
-        <span style="font-size:2.4em;font-weight:700;letter-spacing:-1px;background:var(--accent-grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent">$10</span>
-        <span class="muted">one-time · use through your whole app cycle</span>
+        <span style="font-size:2.4em;font-weight:700;letter-spacing:-1px;background:var(--accent-grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent">$3</span>
+        <span class="muted">/month · cancel anytime, use it through your whole app cycle</span>
       </div>
       {bundle}
       <a href="{subscribe_href}" class="btn btn-primary" style="font-size:1em;padding:12px 28px;margin-top:4px">{subscribe_label} →</a>
@@ -13066,13 +13066,14 @@ def stripe_webhook():
     if etype == "checkout.session.completed":
         ref = obj.get("client_reference_id")
         cust = obj.get("customer")
+        sub_id = obj.get("subscription")  # present for subscription-mode checkouts
         granted = False
         if ref:
             try:
                 uid = int(ref)
                 with db() as conn:
-                    conn.execute("UPDATE users SET is_paid=1, stripe_customer_id=? WHERE id=?",
-                                 (cust, uid))
+                    conn.execute("UPDATE users SET is_paid=1, stripe_customer_id=?, stripe_subscription_id=? WHERE id=?",
+                                 (cust, sub_id, uid))
                     conn.commit()
                 granted = True
             except (ValueError, TypeError):
@@ -13086,18 +13087,35 @@ def stripe_webhook():
             if email:
                 with db() as conn:
                     cur = conn.execute(
-                        "UPDATE users SET is_paid=1, stripe_customer_id=? WHERE LOWER(email)=?",
-                        (cust, email))
+                        "UPDATE users SET is_paid=1, stripe_customer_id=?, stripe_subscription_id=? WHERE LOWER(email)=?",
+                        (cust, sub_id, email))
                     conn.commit()
                     if cur.rowcount:
                         granted = True
             if not granted:
                 print(f"stripe webhook: paid checkout could not be matched to a user "
                       f"(ref={ref!r} email={email!r}) — grant manually via /admin/grant-paid")
-    # One-time product: a checkout is never revoked by subscription events.
-    # Log only, so a stray event can't silently strip a paying customer.
-    elif etype in ("customer.subscription.deleted", "invoice.payment_failed"):
-        print(f"stripe webhook: ignoring {etype} (Candor is one-time, no revocation)")
+    # Subscription model ($3/mo): when the subscription ends — a cancellation
+    # reaches its period end, or Stripe gives up after failed payments — revoke
+    # premium. Match by customer id (stored at checkout), falling back to the
+    # subscription id. NOTE: legacy one-time $10 customers have no subscription,
+    # so this event never fires for them — they stay grandfathered on is_paid=1.
+    elif etype == "customer.subscription.deleted":
+        cust = obj.get("customer")
+        sub_id = obj.get("id")
+        with db() as conn:
+            cur = conn.execute(
+                "UPDATE users SET is_paid=0 WHERE stripe_customer_id=? "
+                "OR (stripe_subscription_id IS NOT NULL AND stripe_subscription_id=?)",
+                (cust, sub_id))
+            conn.commit()
+        print(f"stripe webhook: subscription ended — revoked premium "
+              f"(customer={cust!r} sub={sub_id!r} rows={cur.rowcount})")
+    # A single failed payment is NOT a cancellation: Stripe retries (dunning) and
+    # fires subscription.deleted only if it ultimately gives up. Don't revoke
+    # here, or a customer whose card retries fine would be wrongly cut off.
+    elif etype == "invoice.payment_failed":
+        print("stripe webhook: invoice.payment_failed (no revoke; awaiting Stripe dunning / subscription.deleted)")
     return ("ok", 200)
 
 
@@ -13452,7 +13470,7 @@ def admin_stats():
   <div class="stat-card">
     <div class="label">Premium unlocks</div>
     <div class="value accent">{paid_users}</div>
-    <div class="delta">${paid_users * 10} total · $10 one-time</div>
+    <div class="delta">~${paid_users * 3}/mo MRR · $3/month</div>
   </div>
   <div class="stat-card">
     <div class="label">Upgrade page views</div>
