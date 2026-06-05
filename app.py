@@ -1149,11 +1149,10 @@ def personalize_round_odds(user_id, school, detail, profile, user_low_pct, user_
     pub_rates = detail.get("rates", {})
     if not rounds:
         return None
-    # Honor the inline keyword-exceptional flag here too, so the per-round
-    # breakdown matches the (now-lifted) headline odds even when the cached
-    # DB is_exceptional is stale/False.
-    if profile is not None and not profile.get("is_exceptional") and _keyword_exceptional(profile):
-        profile = {**profile, "is_exceptional": True}
+    # The is_exceptional flag is decided by the 3-judge LLM panel
+    # (evaluate_profile_exceptionality) and persisted on the profile — we honor
+    # that verdict as-is here. No keyword override: it would second-guess the
+    # panel by flipping on a matched word.
     # If only one round (RD-only schools like UCs), no point personalizing breakdown
     if len(rounds) == 1:
         return None
@@ -2805,25 +2804,37 @@ def _international_pct(school):
     return 0.05  # most US colleges land here
 
 
-def evaluate_profile_exceptionality(profile):
-    """Use Claude to detect truly exceptional applicants (USAMO/IMO medalists,
-    ISEF top, RSI alums, recruited D1 athletes, published researchers, etc.)
-    so the odds model can lift caps for them. Default NO — only flags clear,
-    nationally/internationally recognized credentials. Never lowers odds; only
-    used to remove the cap that's appropriate for typical strong applicants
-    but undersells extraordinary ones.
+# Three independent judge stances for the exceptionality panel. All read the
+# same strict rubric, but from a different vantage so the votes genuinely
+# deliberate instead of echoing one model run: a hard skeptic, a fair
+# field-aware reader (so a policy/humanities/arts kid isn't held to a STEM bar),
+# and an adversarial verifier that stress-tests the single strongest claim.
+_EXC_JUDGE_STANCES = (
+    ("strict skeptic",
+     "You are a STRICT, skeptical admissions evaluator. Applicants inflate "
+     "constantly. Default hard to NO; only the unambiguous, verifiable "
+     "national/international credentials in the rubric clear the bar."),
+    ("field-aware reader",
+     "You are a fair, experienced admissions reader. Default to NO, but judge "
+     "the applicant against the TOP of THEIR OWN field — a policy, humanities, "
+     "business, or arts achievement can be exceptional with no STEM-olympiad "
+     "credential. Do not require ISEF/USAMO for a non-STEM applicant; weigh the "
+     "field-appropriate equivalent at the same level of national distinction."),
+    ("adversarial verifier",
+     "You are an adversarial verifier. Identify the applicant's single STRONGEST "
+     "claim and stress-test it: is it genuinely national/international tier, with "
+     "real documented scale or selectivity — or just strong-sounding? Flag YES "
+     "only if at least one claim survives that scrutiny as truly exceptional."),
+)
 
-    Returns (is_exceptional: bool, reason: str). Reason is a short human-
-    readable explanation of what triggered the flag (or why it didn't)."""
-    if not _claude_client:
-        return False, "AI evaluation unavailable"
+
+def _exceptionality_rubric(profile):
+    """The shared evidence + rubric block every judge in the panel reads."""
     awards = (profile.get("awards") or "").strip()
     ecs = (profile.get("ecs") or "").strip()
     leadership = (profile.get("leadership") or "").strip()
     is_athlete = bool(profile.get("athlete"))
-    if not (awards or ecs or leadership):
-        return False, "No awards/ECs/leadership submitted"
-    user_msg = f"""STUDENT PROFILE:
+    return f"""STUDENT PROFILE:
 - Awards: {awards or '(blank)'}
 - Extracurriculars: {ecs or '(blank)'}
 - Leadership: {leadership or '(blank)'}
@@ -2857,28 +2868,73 @@ Do NOT flag YES for any of these (these are strong but not exceptional):
 - "Started a business" without clear revenue/users
 - Scholastic Gold Key (regional) — only Gold Medal (national) qualifies
 
-Output EXACTLY one line in this format:
+Output EXACTLY two lines in this format:
 EXCEPTIONAL: YES|NO
 REASON: <one short sentence — if YES, name the credential; if NO, briefly explain why not>"""
+
+
+def evaluate_profile_exceptionality(profile):
+    """Detect truly exceptional applicants (USAMO/IMO medalists, ISEF top, RSI
+    alums, recruited D1 athletes, first-author published researchers, etc.) so
+    the odds model can lift the cap that's right for typical strong applicants
+    but undersells extraordinary ones. Never lowers odds.
+
+    Decided by a PANEL of three independent LLM judges (strict / field-aware /
+    adversarial), majority vote — at least 2 of 3 must say YES. This replaces
+    the old single call plus keyword override, so the verdict is deliberated
+    rather than tripped by a matched word. ~3 cheap Haiku calls, run in
+    parallel, cached 30 days (only recomputes when the profile is edited).
+
+    Returns (is_exceptional: bool, reason: str)."""
+    awards = (profile.get("awards") or "").strip()
+    ecs = (profile.get("ecs") or "").strip()
+    leadership = (profile.get("leadership") or "").strip()
+    if not (awards or ecs or leadership):
+        return False, "No awards/ECs/leadership submitted"
+    if not _claude_client:
+        # No API key at all — last-resort keyword heuristic so odds still vary.
+        kw = _keyword_exceptional(profile)
+        return kw, ("matched a national-credential keyword (AI judges unavailable)"
+                    if kw else "AI evaluation unavailable")
+    user_msg = _exceptionality_rubric(profile)
+
+    def _judge(stance):
+        name, persona = stance
+        raw = _claude(
+            "claude-haiku-4-5-20251001",
+            persona + " Output EXACTLY two lines: 'EXCEPTIONAL: YES' or "
+            "'EXCEPTIONAL: NO', then 'REASON: <one sentence>'.",
+            user_msg, max_tokens=200, temperature=0.4)
+        if not raw:
+            return None
+        vote = "EXCEPTIONAL: YES" in raw.upper()
+        reason = ""
+        for line in raw.splitlines():
+            if line.strip().upper().startswith("REASON:"):
+                reason = line.split(":", 1)[1].strip()
+                break
+        return (vote, reason, name)
+
     try:
-        response = _claude_client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=280,
-            temperature=0,
-            system="You are a strict college admissions evaluator. Default to NO. Only flag truly exceptional, nationally/internationally recognized credentials. Be skeptical — students often inflate. Look for specific verifiable accomplishments.",
-            messages=[{"role":"user","content": user_msg}],
-        )
-        text = (response.content[0].text or "").strip()
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=3) as ex:
+            votes = [v for v in ex.map(_judge, _EXC_JUDGE_STANCES) if v is not None]
     except Exception as e:
-        print(f"Exceptionality eval error: {e}")
-        return False, "evaluation failed"
-    is_exc = "EXCEPTIONAL: YES" in text.upper()
-    reason = ""
-    for line in text.splitlines():
-        if line.strip().upper().startswith("REASON:"):
-            reason = line.split(":", 1)[1].strip()
-            break
-    return is_exc, reason or ("flagged exceptional" if is_exc else "standard profile")
+        print(f"Exceptionality panel error: {e}")
+        votes = []
+    if not votes:
+        return False, "AI evaluation failed"
+
+    yes = [v for v in votes if v[0]]
+    no = [v for v in votes if not v[0]]
+    is_exc = len(yes) >= 2  # majority of the intended 3-judge panel
+    n = len(votes)
+    if is_exc:
+        reason = f"{len(yes)}/{n} judges flagged exceptional: " + (yes[0][1] or "national-tier credential")
+    else:
+        dissent = (f" — {no[0][1]}" if no and no[0][1] else "")
+        reason = f"{len(yes)}/{n} judges flagged exceptional{dissent}"
+    return is_exc, reason[:500]
 
 
 def get_or_evaluate_exceptionality(user_id, profile):
