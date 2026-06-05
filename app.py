@@ -2477,13 +2477,25 @@ def _normalize_score(sat, act):
 
 
 def _is_test_focused_school(school):
-    """Schools where applying test-optional is read as a real signal of
-    weakness. Elite STEM is the clearest case; some Ivies (Yale,
-    Dartmouth, Brown) have already reinstated tests. Tier-1 in general
-    weights tests heavily."""
-    if school.get("slug") in ("mit","caltech","gatech","harvey-mudd","cmu","rpi","wpi","stevens"):
+    """Schools where a SUBMITTED below-median score is a genuine liability —
+    tests are required/expected, so a weak score (or omitting one) really hurts.
+    Two groups: elite STEM/quant (a score is effectively expected) and the
+    selective schools that have REINSTATED a test requirement for the current
+    cycle.
+
+    This is deliberately NOT a blanket `tier == 1`. Many top holistic schools —
+    UChicago, Northwestern, Duke, Columbia, Princeton, and most LACs (Williams,
+    Amherst, Pomona, …) — remain test-OPTIONAL. There, a strong-but-below-median
+    1500 would simply be withheld, so it should get the standard below-median
+    softener (≈ a non-submit) rather than the full forced penalty. The old
+    tier-1 rule swept those test-optional schools into the MIT/Caltech bucket and
+    cratered the fit for an at-or-just-below-25th-percentile score. Update the
+    reinstated set as test policies change."""
+    slug = school.get("slug")
+    if slug in ("mit","caltech","gatech","harvey-mudd","cmu","rpi","wpi","stevens"):
         return True
-    return school.get("tier", 5) == 1
+    # Reinstated / required a standardized test (2025-26 cycle).
+    return slug in ("harvard","yale","dartmouth","brown","upenn","stanford")
 
 
 # Schools that formally drop 9th grade in their GPA calculation.
