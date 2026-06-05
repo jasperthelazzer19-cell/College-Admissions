@@ -2804,23 +2804,25 @@ def _international_pct(school):
     return 0.05  # most US colleges land here
 
 
-# Three independent judge stances for the exceptionality panel. All read the
-# same strict rubric, but from a different vantage so the votes genuinely
-# deliberate instead of echoing one model run: a hard skeptic, a fair
-# field-aware reader (so a policy/humanities/arts kid isn't held to a STEM bar),
-# and an adversarial verifier that stress-tests the single strongest claim.
+# Three independent judges for the exceptionality panel. Each reads the SAME
+# strict rubric, but from a different stance AND on a different model, so the
+# votes genuinely deliberate instead of echoing one model run. Two Anthropic
+# (Haiku + the stronger Sonnet) and one non-Anthropic (OpenAI gpt-4.1-mini) —
+# crossing vendors so a single architecture's blind spot can't sweep all three.
+# Each entry: (label, provider, model, system-persona). provider "openai" falls
+# back to a Claude judge if no OPENAI_KEY is set, so the panel never breaks.
 _EXC_JUDGE_STANCES = (
-    ("strict skeptic",
+    ("strict skeptic", "anthropic", "claude-haiku-4-5-20251001",
      "You are a STRICT, skeptical admissions evaluator. Applicants inflate "
      "constantly. Default hard to NO; only the unambiguous, verifiable "
      "national/international credentials in the rubric clear the bar."),
-    ("field-aware reader",
+    ("field-aware reader", "anthropic", "claude-sonnet-4-6",
      "You are a fair, experienced admissions reader. Default to NO, but judge "
      "the applicant against the TOP of THEIR OWN field — a policy, humanities, "
      "business, or arts achievement can be exceptional with no STEM-olympiad "
      "credential. Do not require ISEF/USAMO for a non-STEM applicant; weigh the "
      "field-appropriate equivalent at the same level of national distinction."),
-    ("adversarial verifier",
+    ("adversarial verifier", "openai", "gpt-4.1-mini",
      "You are an adversarial verifier. Identify the applicant's single STRONGEST "
      "claim and stress-test it: is it genuinely national/international tier, with "
      "real documented scale or selectivity — or just strong-sounding? Flag YES "
@@ -2879,10 +2881,12 @@ def evaluate_profile_exceptionality(profile):
     the odds model can lift the cap that's right for typical strong applicants
     but undersells extraordinary ones. Never lowers odds.
 
-    Decided by a PANEL of three independent LLM judges (strict / field-aware /
-    adversarial), majority vote — at least 2 of 3 must say YES. This replaces
-    the old single call plus keyword override, so the verdict is deliberated
-    rather than tripped by a matched word. ~3 cheap Haiku calls, run in
+    Decided by a PANEL of three independent LLM judges on three different
+    models — Claude Haiku (strict), Claude Sonnet (field-aware), and OpenAI
+    gpt-4.1-mini (adversarial) — majority vote, at least 2 of 3 must say YES.
+    Crossing vendors means one architecture's blind spot can't sweep the panel.
+    Replaces the old single call plus keyword override, so the verdict is
+    deliberated rather than tripped by a matched word. ~3 cheap calls run in
     parallel, cached 30 days (only recomputes when the profile is edited).
 
     Returns (is_exceptional: bool, reason: str)."""
@@ -2899,12 +2903,17 @@ def evaluate_profile_exceptionality(profile):
     user_msg = _exceptionality_rubric(profile)
 
     def _judge(stance):
-        name, persona = stance
-        raw = _claude(
-            "claude-haiku-4-5-20251001",
-            persona + " Output EXACTLY two lines: 'EXCEPTIONAL: YES' or "
-            "'EXCEPTIONAL: NO', then 'REASON: <one sentence>'.",
-            user_msg, max_tokens=200, temperature=0.4)
+        name, provider, model, persona = stance
+        system = (persona + " Output EXACTLY two lines: 'EXCEPTIONAL: YES' or "
+                  "'EXCEPTIONAL: NO', then 'REASON: <one sentence>'.")
+        raw = None
+        if provider == "openai":
+            raw = _openai_chat(model, system, user_msg, max_tokens=200, temperature=0.4)
+            if raw is None:  # no OPENAI_KEY / call failed → fall back to a Claude judge
+                raw = _claude("claude-haiku-4-5-20251001", system, user_msg,
+                              max_tokens=200, temperature=0.4)
+        else:
+            raw = _claude(model, system, user_msg, max_tokens=200, temperature=0.4)
         if not raw:
             return None
         vote = "EXCEPTIONAL: YES" in raw.upper()
@@ -3352,6 +3361,30 @@ def _claude(model, system, user, max_tokens=400, temperature=1.0):
         return msg.content[0].text
     except Exception as e:
         print(f"Claude error: {e}")
+        return None
+
+
+def _openai_chat(model, system, user, max_tokens=200, temperature=0.4):
+    """Minimal OpenAI chat call over HTTP (no SDK dependency). Returns the
+    text content, or None if no key is set / the call fails. Used to give the
+    exceptionality panel one genuinely independent, non-Anthropic judge."""
+    key = os.environ.get("OPENAI_KEY") or os.environ.get("OPENAI_API_KEY")
+    if not key:
+        return None
+    try:
+        r = requests.post(
+            "https://api.openai.com/v1/chat/completions",
+            headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+            json={"model": model, "max_tokens": max_tokens, "temperature": temperature,
+                  "messages": [{"role": "system", "content": system},
+                               {"role": "user", "content": user}]},
+            timeout=30)
+        if r.status_code != 200:
+            print(f"OpenAI error {r.status_code}: {r.text[:160]}")
+            return None
+        return r.json()["choices"][0]["message"]["content"]
+    except Exception as e:
+        print(f"OpenAI error: {e}")
         return None
 
 
