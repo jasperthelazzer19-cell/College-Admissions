@@ -13336,7 +13336,6 @@ def _premium_comparison_html():
         ("Chances calculator — verified CDS odds", True, True),
         ("All school pages, rankings &amp; browse", True, True),
         ("Profile, fit scores &amp; profile grade", True, True),
-        ("AI Advisor messages", f"{FREE_TRIAL_MESSAGES} free", f"{PAID_MONTHLY_LIMIT}/mo"),
         ("Personalized AI strategy, per school", False, True),
         ("My Colleges dashboard — round-by-round", False, True),
         ("List grader (1–10) + admissions simulator", False, True),
