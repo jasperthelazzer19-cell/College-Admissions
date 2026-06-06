@@ -4026,6 +4026,13 @@ def init_db():
         )""")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_page_visits_ts ON page_visits(ts)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_page_visits_visitor ON page_visits(visitor_id, ts)")
+        # Store the user-agent so single-pageview visitors can be counted (real
+        # human) while bots are excluded by UA — no need for the 2+ heuristic on
+        # new data. Legacy rows keep user_agent NULL.
+        try:
+            conn.execute("ALTER TABLE page_visits ADD COLUMN user_agent TEXT")
+        except Exception:
+            pass  # column already exists
         # Per-calibration tally: one row EVERY time a school's chances are run
         # (incl. re-runs), so the admin "most-viewed schools" list reflects true
         # volume, not just unique user-school pairs. Backfilled once from
@@ -8294,11 +8301,13 @@ _BOT_UA_RE = re.compile(
     r"mj12|dotbot|petalbot|gptbot|claudebot|ccbot|bytespider|dataforseo|"
     r"serpapi|amazonbot|applebot|yandex|baidu|sogou|archive\.org|uptime|"
     r"monitor|preview|fetch|scan", re.I)
-# SQL predicate for a "real" visitor — a browser that persisted its cookie and
-# racked up 2+ pageviews. Single-hit visitor_ids are spoofed-UA scrapers. Every
-# admin traffic metric ANDs this in so scrapers are excluded everywhere.
-_REAL_VISITOR_SQL = ("visitor_id IN (SELECT visitor_id FROM page_visits "
-                     "GROUP BY visitor_id HAVING COUNT(*) >= 2)")
+# SQL predicate for a "real" (non-scraper) visit, ANDed into every admin
+# traffic metric. New rows carry a user_agent that already passed the write-time
+# bot filter, so a single pageview counts as a real human. Legacy rows (no UA
+# stored) fall back to the old "2+ pageviews" heuristic, the only scraper signal
+# available for that historical data.
+_REAL_VISITOR_SQL = ("(user_agent IS NOT NULL OR visitor_id IN "
+                     "(SELECT visitor_id FROM page_visits GROUP BY visitor_id HAVING COUNT(*) >= 2))")
 
 @app.before_request
 def _log_page_visit():
@@ -8319,8 +8328,8 @@ def _log_page_visit():
     uid = session.get("user_id")
     try:
         with db() as conn:
-            conn.execute("INSERT INTO page_visits(visitor_id, user_id, path) VALUES(?,?,?)",
-                         (vid, uid, p))
+            conn.execute("INSERT INTO page_visits(visitor_id, user_id, path, user_agent) VALUES(?,?,?,?)",
+                         (vid, uid, p, ua[:300]))
             conn.commit()
     except Exception:
         pass  # logging must never break a request
@@ -13870,8 +13879,7 @@ def admin_stats():
                 "SELECT COUNT(DISTINCT visitor_id) c FROM page_visits"
             ).fetchone()["c"]
             real_visitors = conn.execute(
-                "SELECT COUNT(*) c FROM (SELECT visitor_id FROM page_visits "
-                "GROUP BY visitor_id HAVING COUNT(*) >= 2)"
+                f"SELECT COUNT(DISTINCT visitor_id) c FROM page_visits WHERE {_REAL_VISITOR_SQL}"
             ).fetchone()["c"]
         except Exception:
             all_visitors = real_visitors = 0
