@@ -5084,6 +5084,39 @@ def _match_card(c):
     </div>"""
 
 
+def _composite_dots(slug):
+    """Parse cached AI composite profiles into (gpa, sat_equiv, color) dots.
+    Cache-only — never triggers generation. A clearly-labeled MODEL backdrop
+    (hollow dots) shown until real reported outcomes (solid dots) accumulate."""
+    try:
+        with db() as conn:
+            row = conn.execute("SELECT body FROM school_profiles WHERE college_slug=?", (slug,)).fetchone()
+    except Exception:
+        return []
+    if not row or not row["body"]:
+        return []
+    import re as _re
+    out = []
+    for b in _re.split(r'\n(?=\*\*)', row["body"]):
+        head = b[:140].lower()
+        if "admit" in head or "accept" in head:   col = "#3fb98a"
+        elif "reject" in head or "den" in head:    col = "#ef6b6b"
+        elif "wait" in head:                       col = "#e0a44a"
+        else:
+            continue
+        gm = (_re.search(r'GPA\s*/?\s*Test\s*:\s*([0-4](?:\.\d+)?)', b, _re.I)
+              or _re.search(r'\b([0-4]\.\d{1,2})\b', b))
+        sm = _re.search(r'SAT\s*(\d{3,4})', b, _re.I)
+        sat = int(sm.group(1)) if sm else None
+        if sat is None:
+            am = _re.search(r'ACT\s*(\d{1,2})', b, _re.I)
+            sat = _normalize_score(None, int(am.group(1))) if am else None
+        gpa = float(gm.group(1)) if gm else None
+        if gpa and sat and 2.0 <= gpa <= 4.0 and 800 <= sat <= 1600:
+            out.append((gpa, sat, col))
+    return out
+
+
 def _scattergram_block(c, user):
     """Premium 'students like you' scatter: GPA × SAT, the school's admit zone,
     real reported outcomes (green=admit / red=deny / amber=waitlist), and the
@@ -5144,29 +5177,41 @@ def _scattergram_block(c, user):
     for s in (1100, 1350, 1600):
         ticks += (f'<text x="{M-8}" y="{Y(s)+4}" fill="#7f8893" font-size="11" text-anchor="end">{s}</text>'
                   f'<line x1="{X(GLO)}" y1="{Y(s)}" x2="{X(GHI)}" y2="{Y(s)}" stroke="rgba(255,255,255,.05)"/>')
-    dot_svg = "".join(f'<circle cx="{X(g)}" cy="{Y(s)}" r="4" fill="{col}" fill-opacity=".82"/>'
+    # Real reported outcomes draw SOLID; AI composites draw HOLLOW underneath.
+    comp = _composite_dots(c["slug"])
+    comp_svg = "".join(f'<circle cx="{X(g)}" cy="{Y(s)}" r="4" fill="none" stroke="{col}" '
+                       f'stroke-width="1.5" stroke-opacity=".55"/>'
+                       for g, s, col in comp)
+    dot_svg = "".join(f'<circle cx="{X(g)}" cy="{Y(s)}" r="4" fill="{col}" fill-opacity=".85"/>'
                       for g, s, col in dots)
     you = ""
     if u_gpa is not None and u_sat is not None:
         ux, uy = X(u_gpa), Y(u_sat)
         you = (f'<circle cx="{ux}" cy="{uy}" r="8" fill="#5fc9b6" stroke="#0a131c" stroke-width="2"/>'
                f'<text x="{ux}" y="{uy-13}" fill="#5fc9b6" font-size="12" font-weight="700" text-anchor="middle">YOU</text>')
-    n = len(dots)
-    if n:
-        cap = f"Based on {n} reported outcome{'s' if n != 1 else ''} at {c['name']}. Dashed box = the admitted mid-50% range."
+    n_real, n_comp = len(dots), len(comp)
+    if n_real:
+        cap = (f"{n_real} real reported outcome{'s' if n_real != 1 else ''} (solid)"
+               f"{f' + {n_comp} model composites (hollow)' if n_comp else ''} at {c['name']}. "
+               f"Dashed box = the admitted mid-50% range.")
+    elif n_comp:
+        cap = (f"Hollow dots are {n_comp} MODEL composite profiles — typical admit / waitlist / deny patterns "
+               f"for {c['name']}, not real reported students. Real outcomes appear as solid dots as applicants "
+               f"report them after decisions. Dashed box = the admitted mid-50% range.")
     else:
-        cap = (f"No reported outcomes yet at {c['name']} — for now, here's how you stack up against the admitted "
-               f"mid-50% range (dashed box). Report yours after decisions to help the next applicant.")
+        cap = (f"No data yet for {c['name']} — for now, here's how you stack up against the admitted "
+               f"mid-50% range (dashed box).")
     legend = ('<span style="color:#3fb98a">●</span> admit &nbsp; '
               '<span style="color:#ef6b6b">●</span> deny &nbsp; '
               '<span style="color:#e0a44a">●</span> waitlist &nbsp; '
-              '<span style="color:#5fc9b6">●</span> you')
+              '<span style="color:#5fc9b6">●</span> you<br>'
+              '<span style="font-size:.92em">solid = real reported outcome · hollow = model composite (not a real student)</span>')
     return f"""<div class="card">
   <h3 style="margin-top:0">Students like you <span class="muted" style="font-size:.6em;font-weight:500">· Premium</span></h3>
   <svg viewBox="0 0 {W} {H}" style="width:100%;height:auto;max-width:520px;display:block;margin:6px 0">
     <text x="14" y="{M-18}" fill="#7f8893" font-size="11">SAT</text>
     <text x="{W-8}" y="{H-12}" fill="#7f8893" font-size="11" text-anchor="end">GPA</text>
-    {ticks}{zone}{dot_svg}{you}
+    {ticks}{zone}{comp_svg}{dot_svg}{you}
   </svg>
   <div class="muted" style="font-size:.82em;margin-top:2px">{legend}</div>
   <p class="muted" style="font-size:.82em;margin:8px 0 0;line-height:1.5">{cap}</p>
