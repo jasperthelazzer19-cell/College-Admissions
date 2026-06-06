@@ -69,6 +69,13 @@ STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
 # subscription" link on the paid /upgrade view — present and functional, just
 # not a prominent CTA. Renders only when set, so there's no broken link.
 STRIPE_BILLING_PORTAL_URL = os.environ.get("STRIPE_BILLING_PORTAL_URL", "")
+# Email (deadline reminders). Resend HTTP API — free tier ~3k emails/mo ($0).
+# Dormant until RESEND_API_KEY is set: _send_email no-ops, so nothing breaks.
+# EMAIL_FROM must be on a domain verified in Resend. CRON_KEY (falls back to
+# ADMIN_KEY) guards the daily /cron/deadline-nudges trigger.
+RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
+EMAIL_FROM = os.environ.get("EMAIL_FROM", "Candor <reminders@candoradmit.com>")
+CRON_KEY = os.environ.get("CRON_KEY", "") or os.environ.get("ADMIN_KEY", "")
 ARTICLE_TTL_HOURS = 12   # how long to cache per-college articles
 SCORECARD_TTL_DAYS = 30  # refresh federal stats monthly
 FREE_TRIAL_MESSAGES = 3
@@ -3999,6 +4006,14 @@ def init_db():
         )""")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_outcomes_user ON user_outcomes(user_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_outcomes_school ON user_outcomes(college_slug, actual_outcome)")
+        # Dedupe log for deadline reminder emails (one per user/school/milestone).
+        conn.execute("""CREATE TABLE IF NOT EXISTS deadline_nudges (
+            user_id INTEGER NOT NULL,
+            college_slug TEXT NOT NULL,
+            milestone INTEGER NOT NULL,
+            sent_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(user_id, college_slug, milestone)
+        )""")
         # Anonymous page-view log — feeds /admin/stats "visitors in last hour /
         # 24h" cards. Cookie-based visitor_id so the same browser counts as
         # one across sessions even before signup.
@@ -5069,6 +5084,95 @@ def _match_card(c):
     </div>"""
 
 
+def _scattergram_block(c, user):
+    """Premium 'students like you' scatter: GPA × SAT, the school's admit zone,
+    real reported outcomes (green=admit / red=deny / amber=waitlist), and the
+    user's own position. Gated: free/anon users see a locked teaser instead."""
+    if is_test_blind(c) or c.get("sat_25") is None or c.get("sat_75") is None:
+        return ""
+    is_paid = bool(user and user.get("is_paid"))
+    if not is_paid:
+        return ('<div class="card" style="border:1px dashed var(--border-strong);text-align:center">'
+                '<h3 style="margin-top:0">Students like you</h3>'
+                '<p class="muted" style="margin:0 0 12px;line-height:1.5">See where your GPA + SAT land against '
+                f"{c['name']}'s admit range — and real reported outcomes from other applicants.</p>"
+                '<a class="btn btn-primary btn-sm" href="/upgrade">Unlock with Premium ($3/mo) →</a></div>')
+    prof = get_profile(user["id"]) or {}
+    try:
+        u_gpa = float(prof.get("uw_gpa")) if prof.get("uw_gpa") not in (None, "") else None
+    except (TypeError, ValueError):
+        u_gpa = None
+    try:
+        u_sat = int(prof.get("sat")) if prof.get("sat") not in (None, "") else None
+    except (TypeError, ValueError):
+        u_sat = None
+
+    dots = []
+    try:
+        with db() as conn:
+            rows = conn.execute(
+                "SELECT p.uw_gpa AS g, p.sat AS s, o.actual_outcome AS oc FROM user_outcomes o "
+                "JOIN profiles p ON p.user_id=o.user_id WHERE o.college_slug=? "
+                "AND o.actual_outcome IS NOT NULL AND o.actual_outcome!='' "
+                "AND p.sat IS NOT NULL AND p.uw_gpa IS NOT NULL", (c["slug"],)).fetchall()
+        for r in rows:
+            oc = (r["oc"] or "").lower()
+            if "admit" in oc or "accept" in oc:   kind = "#3fb98a"
+            elif "den" in oc or "reject" in oc:    kind = "#ef6b6b"
+            elif "wait" in oc:                     kind = "#e0a44a"
+            else: continue
+            dots.append((float(r["g"]), int(r["s"]), kind))
+    except Exception:
+        dots = []
+
+    W, H, M = 460, 300, 44
+    pw, ph = W - M - 16, H - M - 30
+    GLO, GHI, SLO, SHI = 3.0, 4.0, 1100, 1600
+    def X(g): return round(M + (max(GLO, min(GHI, g)) - GLO) / (GHI - GLO) * pw, 1)
+    def Y(s): return round((M - 10) + ph - (max(SLO, min(SHI, s)) - SLO) / (SHI - SLO) * ph, 1)
+
+    # admit zone (mid-50% GPA × mid-50% SAT)
+    zx1, zx2 = X(c["gpa_lo"]), X(c["gpa_hi"])
+    zy1, zy2 = Y(c["sat_75"]), Y(c["sat_25"])
+    zone = (f'<rect x="{zx1}" y="{zy1}" width="{round(zx2-zx1,1)}" height="{round(zy2-zy1,1)}" '
+            f'fill="rgba(95,201,182,.12)" stroke="rgba(95,201,182,.4)" stroke-dasharray="4 3" rx="3"/>')
+    # axes ticks
+    ticks = ""
+    for g in (3.0, 3.5, 4.0):
+        ticks += (f'<text x="{X(g)}" y="{H-12}" fill="#7f8893" font-size="11" text-anchor="middle">{g:.1f}</text>'
+                  f'<line x1="{X(g)}" y1="{Y(SHI)}" x2="{X(g)}" y2="{Y(SLO)}" stroke="rgba(255,255,255,.05)"/>')
+    for s in (1100, 1350, 1600):
+        ticks += (f'<text x="{M-8}" y="{Y(s)+4}" fill="#7f8893" font-size="11" text-anchor="end">{s}</text>'
+                  f'<line x1="{X(GLO)}" y1="{Y(s)}" x2="{X(GHI)}" y2="{Y(s)}" stroke="rgba(255,255,255,.05)"/>')
+    dot_svg = "".join(f'<circle cx="{X(g)}" cy="{Y(s)}" r="4" fill="{col}" fill-opacity=".82"/>'
+                      for g, s, col in dots)
+    you = ""
+    if u_gpa is not None and u_sat is not None:
+        ux, uy = X(u_gpa), Y(u_sat)
+        you = (f'<circle cx="{ux}" cy="{uy}" r="8" fill="#5fc9b6" stroke="#0a131c" stroke-width="2"/>'
+               f'<text x="{ux}" y="{uy-13}" fill="#5fc9b6" font-size="12" font-weight="700" text-anchor="middle">YOU</text>')
+    n = len(dots)
+    if n:
+        cap = f"Based on {n} reported outcome{'s' if n != 1 else ''} at {c['name']}. Dashed box = the admitted mid-50% range."
+    else:
+        cap = (f"No reported outcomes yet at {c['name']} — for now, here's how you stack up against the admitted "
+               f"mid-50% range (dashed box). Report yours after decisions to help the next applicant.")
+    legend = ('<span style="color:#3fb98a">●</span> admit &nbsp; '
+              '<span style="color:#ef6b6b">●</span> deny &nbsp; '
+              '<span style="color:#e0a44a">●</span> waitlist &nbsp; '
+              '<span style="color:#5fc9b6">●</span> you')
+    return f"""<div class="card">
+  <h3 style="margin-top:0">Students like you <span class="muted" style="font-size:.6em;font-weight:500">· Premium</span></h3>
+  <svg viewBox="0 0 {W} {H}" style="width:100%;height:auto;max-width:520px;display:block;margin:6px 0">
+    <text x="14" y="{M-18}" fill="#7f8893" font-size="11">SAT</text>
+    <text x="{W-8}" y="{H-12}" fill="#7f8893" font-size="11" text-anchor="end">GPA</text>
+    {ticks}{zone}{dot_svg}{you}
+  </svg>
+  <div class="muted" style="font-size:.82em;margin-top:2px">{legend}</div>
+  <p class="muted" style="font-size:.82em;margin:8px 0 0;line-height:1.5">{cap}</p>
+</div>"""
+
+
 def college_detail_html(slug):
     raw = COLLEGES_BY_SLUG.get(slug)
     if not raw: abort(404)
@@ -5154,6 +5258,7 @@ def college_detail_html(slug):
   </div>
   {_render_earnings_card(c)}
 </div>
+{_scattergram_block(c, user)}
 {render_school_feeders(c)}
 {_match_card(c)}
 <div class="card">
@@ -12968,6 +13073,82 @@ def _deadline_items(uid):
                       "name": c["name"], "slug": slug, "label": label})
     items.sort(key=lambda x: (x["date"], x["name"]))
     return items
+
+
+def _send_email(to, subject, html):
+    """Send one email via Resend. No-op (returns False) until RESEND_API_KEY is
+    set, so the whole reminder system stays dormant and safe until you wire up a
+    provider. Returns True on a 2xx send."""
+    if not RESEND_API_KEY or not to:
+        return False
+    try:
+        r = requests.post(
+            "https://api.resend.com/emails",
+            headers={"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"},
+            json={"from": EMAIL_FROM, "to": [to], "subject": subject, "html": html},
+            timeout=20)
+        if r.status_code >= 300:
+            print(f"resend error {r.status_code}: {r.text[:160]}")
+            return False
+        return True
+    except Exception as e:
+        print(f"resend send error: {e}")
+        return False
+
+
+def _deadline_email_html(item):
+    """Branded HTML for one deadline reminder."""
+    d = item["days"]
+    when = "is TODAY" if d == 0 else (f"is in {d} day" + ("s" if d != 1 else ""))
+    return f"""<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:480px;margin:0 auto;color:#0a131c">
+  <h2 style="margin:0 0 6px">⏰ {item['name']} deadline {when}</h2>
+  <p style="color:#4b5563;margin:0 0 14px">Your <b>{item['label']}</b> application to {item['name']} is due
+     <b>{item['date'].strftime('%B %-d, %Y')}</b>. Confirm the exact deadline on the school's site.</p>
+  <a href="https://candoradmit.com/college/{item['slug']}" style="display:inline-block;background:#0f766e;color:#fff;text-decoration:none;padding:10px 20px;border-radius:8px;font-weight:600">Open in Candor →</a>
+  <p style="color:#9ca3af;font-size:12px;margin:18px 0 0">You're getting this because {item['name']} is on your Candor list.
+     Manage your list at <a href="https://candoradmit.com/deadlines">candoradmit.com/deadlines</a>.</p>
+</div>"""
+
+
+def run_deadline_nudges():
+    """Email paid users whose saved-school deadlines hit a 14/7/1-day milestone.
+    Deduped via the deadline_nudges table (one email per user/school/milestone).
+    Returns the count sent. Driven by the daily /cron/deadline-nudges trigger."""
+    MILESTONES = {14, 7, 1}
+    sent = 0
+    with db() as conn:
+        users = conn.execute("SELECT id, email FROM users WHERE is_paid=1 AND email IS NOT NULL").fetchall()
+    for u in users:
+        for it in _deadline_items(u["id"]):
+            if it["days"] not in MILESTONES:
+                continue
+            ms = it["days"]
+            try:
+                with db() as conn:
+                    cur = conn.execute(
+                        "INSERT OR IGNORE INTO deadline_nudges (user_id, college_slug, milestone) VALUES (?,?,?)",
+                        (u["id"], it["slug"], ms))
+                    conn.commit()
+                    if not cur.rowcount:   # already emailed for this milestone
+                        continue
+                subj = f"{it['name']} {it['label']} deadline — {ms} day{'s' if ms != 1 else ''} left"
+                if _send_email(u["email"], subj, _deadline_email_html(it)):
+                    sent += 1
+            except Exception as e:
+                print(f"deadline nudge error (u{u['id']} {it['slug']}): {e}")
+    return sent
+
+
+@app.route("/cron/deadline-nudges")
+def cron_deadline_nudges():
+    """Daily trigger for deadline reminder emails. Hit it from a scheduler
+    (Railway cron / cron-job.org) once a day: /cron/deadline-nudges?key=CRON_KEY."""
+    if not CRON_KEY or request.args.get("key") != CRON_KEY:
+        return ("unauthorized", 401)
+    if not RESEND_API_KEY:
+        return ("email not configured — set RESEND_API_KEY (and EMAIL_FROM) to enable", 200)
+    n = run_deadline_nudges()
+    return (f"sent {n} reminder email(s)", 200)
 
 
 def _deadlines_teaser(signup):
