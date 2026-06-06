@@ -4026,6 +4026,23 @@ def init_db():
         )""")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_page_visits_ts ON page_visits(ts)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_page_visits_visitor ON page_visits(visitor_id, ts)")
+        # Per-calibration tally: one row EVERY time a school's chances are run
+        # (incl. re-runs), so the admin "most-viewed schools" list reflects true
+        # volume, not just unique user-school pairs. Backfilled once from
+        # saved_chances so historical calibrations aren't lost.
+        conn.execute("""CREATE TABLE IF NOT EXISTS calc_runs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            college_slug TEXT NOT NULL,
+            user_id INTEGER,
+            ts TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )""")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_calc_runs_slug ON calc_runs(college_slug)")
+        try:
+            if conn.execute("SELECT COUNT(*) FROM calc_runs").fetchone()[0] == 0:
+                conn.execute("INSERT INTO calc_runs(college_slug, user_id, ts) "
+                             "SELECT college_slug, user_id, computed_at FROM saved_chances")
+        except Exception as _e:
+            print(f"calc_runs backfill skipped: {_e}")
         # Lead capture from anonymous /college/<slug> visitors. Email + the
         # school they were looking at. No password, no auth — just a list
         # that becomes the seed for outcome-capture and retention emails
@@ -6093,6 +6110,17 @@ def _chances_profile(uid, slug):
     return profile
 
 
+def _log_calc_run(slug, uid=None):
+    """Record one calibration run for a school — every time, including re-runs —
+    so the admin most-viewed list counts true volume, not just unique pairs."""
+    try:
+        with db() as conn:
+            conn.execute("INSERT INTO calc_runs(college_slug, user_id) VALUES (?,?)", (slug, uid))
+            conn.commit()
+    except Exception as e:
+        print(f"calc_run log failed: {e}")
+
+
 def _save_chances_row(uid, slug, r, bullets=None):
     """Persist a chances row. Numbers are always written (so /plans + simulator
     stay current); bullets are written only when provided, otherwise any
@@ -6158,6 +6186,7 @@ def chances_html(slug):
         return redirect(url_for("profile_page"))
     school_data = COLLEGES_BY_SLUG.get(slug)
     if not school_data: abort(404)
+    _log_calc_run(slug, uid)
     exc_reason = profile.get("exceptional_reason")
     # Odds are pure-Python (instant) and computed fresh on every view so they
     # always reflect the current profile (incl. ec_rating / spike / self_rigor)
@@ -10168,6 +10197,8 @@ def api_college_articles(slug):
 @app.route("/college/<slug>/plan")
 @login_required
 def school_plan_page(slug):
+    if slug in COLLEGES_BY_SLUG:
+        _log_calc_run(slug, current_user()["id"])
     return school_plan_html(slug)
 
 
@@ -13810,26 +13841,54 @@ def admin_stats():
             pageviews_24h = conn.execute(
                 "SELECT COUNT(*) c FROM page_visits WHERE ts >= datetime('now','-24 hours')"
             ).fetchone()["c"]
+            visitors_24h_real = conn.execute(
+                "SELECT COUNT(*) c FROM (SELECT visitor_id FROM page_visits "
+                "WHERE ts >= datetime('now','-24 hours') GROUP BY visitor_id HAVING COUNT(*) >= 2)"
+            ).fetchone()["c"]
         except Exception:
-            visitors_1h = visitors_24h = pageviews_24h = 0
+            visitors_1h = visitors_24h = pageviews_24h = visitors_24h_real = 0
+        # All-time visitors, scrapers excluded. Heuristic (same as /admin/traffic):
+        # a real visitor persists a cookie and racks up 2+ pageviews; single-hit
+        # visitor_ids are almost all scrapers (fresh cookie per request).
+        try:
+            all_visitors = conn.execute(
+                "SELECT COUNT(DISTINCT visitor_id) c FROM page_visits"
+            ).fetchone()["c"]
+            real_visitors = conn.execute(
+                "SELECT COUNT(*) c FROM (SELECT visitor_id FROM page_visits "
+                "GROUP BY visitor_id HAVING COUNT(*) >= 2)"
+            ).fetchone()["c"]
+        except Exception:
+            all_visitors = real_visitors = 0
+        scrapers_excluded = max(0, all_visitors - real_visitors)
         recent_users = conn.execute(
             "SELECT email, created_at FROM users ORDER BY created_at DESC LIMIT 15"
         ).fetchall()
         top_schools = conn.execute(
-            "SELECT college_slug, COUNT(*) n FROM saved_chances GROUP BY college_slug ORDER BY n DESC LIMIT 10"
+            "SELECT college_slug, COUNT(*) n FROM calc_runs GROUP BY college_slug ORDER BY n DESC LIMIT 400"
         ).fetchall()
+        total_calibrations = conn.execute("SELECT COUNT(*) c FROM calc_runs").fetchone()["c"]
     recent_html = "".join(
         f'<div style="display:flex;justify-content:space-between;padding:8px 0;border-top:1px solid var(--border);font-size:.88em">'
         f'<span style="color:var(--text)">{r["email"]}</span>'
         f'<span class="muted">{r["created_at"]}</span></div>'
         for r in recent_users
     ) or '<p class="muted">No users yet.</p>'
-    schools_html = "".join(
-        f'<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:.88em">'
-        f'<span>{COLLEGES_BY_SLUG.get(r["college_slug"],{}).get("name", r["college_slug"])}</span>'
-        f'<span class="muted">{r["n"]} chances run</span></div>'
-        for r in top_schools
-    ) or '<p class="muted">No chances calculated yet.</p>'
+    def _school_row(r):
+        return (f'<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:.88em">'
+                f'<span>{COLLEGES_BY_SLUG.get(r["college_slug"],{}).get("name", r["college_slug"])}</span>'
+                f'<span class="muted">{r["n"]} chances run</span></div>')
+    if top_schools:
+        schools_html = "".join(_school_row(r) for r in top_schools[:10])
+        rest = top_schools[10:]
+        if rest:
+            schools_html += (
+                f'<details style="margin-top:6px">'
+                f'<summary style="cursor:pointer;color:var(--teal);font-size:.86em;padding:6px 0">'
+                f'Show all {len(top_schools)} schools →</summary>'
+                f'{"".join(_school_row(r) for r in rest)}</details>')
+    else:
+        schools_html = '<p class="muted">No chances calculated yet.</p>'
     profile_pct = round(profiles_done / max(1, total_users) * 100)
     return _page(f"""
 <h1>Activity</h1>
@@ -13841,9 +13900,14 @@ def admin_stats():
     <div class="delta">unique browsers (cookie-based)</div>
   </div>
   <div class="stat-card">
+    <div class="label">Real visitors 24h</div>
+    <div class="value accent">{visitors_24h_real}</div>
+    <div class="delta">2+ pageviews · scrapers excluded</div>
+  </div>
+  <div class="stat-card">
     <div class="label">Visitors last 24h</div>
     <div class="value">{visitors_24h}</div>
-    <div class="delta">unique browsers</div>
+    <div class="delta">unique browsers · incl. scrapers</div>
   </div>
   <div class="stat-card">
     <div class="label">Page views last 24h</div>
@@ -13853,6 +13917,11 @@ def admin_stats():
 </div>
 <h3 style="margin:24px 0 8px;color:var(--text-2);font-size:.82em;letter-spacing:.6px;text-transform:uppercase;font-weight:600">Cumulative</h3>
 <div class="grid">
+  <div class="stat-card">
+    <div class="label">All-time visitors (real)</div>
+    <div class="value accent">{real_visitors}</div>
+    <div class="delta">2+ pageviews · {scrapers_excluded:,} single-hit scrapers excluded</div>
+  </div>
   <div class="stat-card">
     <div class="label">Total users</div>
     <div class="value accent">{total_users}</div>
@@ -13872,6 +13941,11 @@ def admin_stats():
     <div class="label">Chances run</div>
     <div class="value">{chances_run}</div>
     <div class="delta">unique user-school pairs</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">Total calibrations</div>
+    <div class="value">{total_calibrations}</div>
+    <div class="delta">every run, incl. re-runs</div>
   </div>
   <div class="stat-card">
     <div class="label">Premium unlocks</div>
@@ -13894,10 +13968,11 @@ def admin_stats():
   {recent_html}
 </div>
 <div class="card">
-  <h3 style="margin-top:0">Most-viewed schools</h3>
+  <h3 style="margin-top:0">Most-calibrated schools <span class="muted" style="font-size:.6em;font-weight:500">· {total_calibrations:,} total runs</span></h3>
   {schools_html}
 </div>
-<p class="muted" style="font-size:.78em;margin-top:18px">Refresh anytime. Bookmark this URL for quick access.</p>
+<p class="muted" style="font-size:.78em;margin-top:18px">Auto-refreshes every 90s · scraper-excluded counts use the 2+ pageview heuristic. Bookmark this URL for quick access.</p>
+<script>setTimeout(function(){{location.reload();}}, 90000);</script>
 """, title="Activity — Candor")
 
 
