@@ -8284,6 +8284,21 @@ def llms_txt():
 _VISIT_SKIP_PREFIXES = ("/api/", "/static/", "/admin/")
 _VISIT_SKIP_PATHS = {"/favicon.ico", "/robots.txt"}
 _VISIT_SKIP_SUFFIXES = (".css", ".js", ".png", ".jpg", ".svg", ".ico", ".map", ".webp")
+# Declared bots / crawlers / HTTP libraries — never logged, so they're excluded
+# from every traffic metric at the source. (Spoofed-UA scrapers slip past this,
+# but they get filtered out downstream by the 2+ pageview "real visitor" rule.)
+_BOT_UA_RE = re.compile(
+    r"bot|crawl|spider|slurp|bingpreview|facebookexternalhit|embedly|quora|"
+    r"pinterest|headless|phantom|python-requests|python-urllib|aiohttp|"
+    r"curl/|wget|scrapy|httpclient|go-http|java/|okhttp|libwww|ahrefs|semrush|"
+    r"mj12|dotbot|petalbot|gptbot|claudebot|ccbot|bytespider|dataforseo|"
+    r"serpapi|amazonbot|applebot|yandex|baidu|sogou|archive\.org|uptime|"
+    r"monitor|preview|fetch|scan", re.I)
+# SQL predicate for a "real" visitor — a browser that persisted its cookie and
+# racked up 2+ pageviews. Single-hit visitor_ids are spoofed-UA scrapers. Every
+# admin traffic metric ANDs this in so scrapers are excluded everywhere.
+_REAL_VISITOR_SQL = ("visitor_id IN (SELECT visitor_id FROM page_visits "
+                     "GROUP BY visitor_id HAVING COUNT(*) >= 2)")
 
 @app.before_request
 def _log_page_visit():
@@ -8293,6 +8308,10 @@ def _log_page_visit():
     if p in _VISIT_SKIP_PATHS: return
     if any(p.startswith(x) for x in _VISIT_SKIP_PREFIXES): return
     if any(p.endswith(x) for x in _VISIT_SKIP_SUFFIXES): return
+    # Drop declared bots/crawlers/HTTP-libs and empty-UA requests entirely.
+    ua = request.headers.get("User-Agent", "")
+    if not ua or _BOT_UA_RE.search(ua):
+        return
     vid = request.cookies.get("cv_id")
     if not vid:
         vid = secrets.token_urlsafe(12)
@@ -13821,10 +13840,10 @@ def admin_stats():
         # (path is stored without query string, so /upgrade?for=parent counts too).
         try:
             upgrade_views = conn.execute(
-                "SELECT COUNT(DISTINCT visitor_id) c FROM page_visits WHERE path='/upgrade'"
+                f"SELECT COUNT(DISTINCT visitor_id) c FROM page_visits WHERE path='/upgrade' AND {_REAL_VISITOR_SQL}"
             ).fetchone()["c"]
             upgrade_views_24h = conn.execute(
-                "SELECT COUNT(DISTINCT visitor_id) c FROM page_visits WHERE path='/upgrade' AND ts >= datetime('now','-24 hours')"
+                f"SELECT COUNT(DISTINCT visitor_id) c FROM page_visits WHERE path='/upgrade' AND ts >= datetime('now','-24 hours') AND {_REAL_VISITOR_SQL}"
             ).fetchone()["c"]
         except Exception:
             upgrade_views = upgrade_views_24h = 0
@@ -13833,20 +13852,16 @@ def admin_stats():
         # also UTC, so the math doesn't need a TZ offset.
         try:
             visitors_1h = conn.execute(
-                "SELECT COUNT(DISTINCT visitor_id) c FROM page_visits WHERE ts >= datetime('now','-1 hour')"
+                f"SELECT COUNT(DISTINCT visitor_id) c FROM page_visits WHERE ts >= datetime('now','-1 hour') AND {_REAL_VISITOR_SQL}"
             ).fetchone()["c"]
             visitors_24h = conn.execute(
-                "SELECT COUNT(DISTINCT visitor_id) c FROM page_visits WHERE ts >= datetime('now','-24 hours')"
+                f"SELECT COUNT(DISTINCT visitor_id) c FROM page_visits WHERE ts >= datetime('now','-24 hours') AND {_REAL_VISITOR_SQL}"
             ).fetchone()["c"]
             pageviews_24h = conn.execute(
-                "SELECT COUNT(*) c FROM page_visits WHERE ts >= datetime('now','-24 hours')"
-            ).fetchone()["c"]
-            visitors_24h_real = conn.execute(
-                "SELECT COUNT(*) c FROM (SELECT visitor_id FROM page_visits "
-                "WHERE ts >= datetime('now','-24 hours') GROUP BY visitor_id HAVING COUNT(*) >= 2)"
+                f"SELECT COUNT(*) c FROM page_visits WHERE ts >= datetime('now','-24 hours') AND {_REAL_VISITOR_SQL}"
             ).fetchone()["c"]
         except Exception:
-            visitors_1h = visitors_24h = pageviews_24h = visitors_24h_real = 0
+            visitors_1h = visitors_24h = pageviews_24h = 0
         # All-time visitors, scrapers excluded. Heuristic (same as /admin/traffic):
         # a real visitor persists a cookie and racks up 2+ pageviews; single-hit
         # visitor_ids are almost all scrapers (fresh cookie per request).
@@ -13897,22 +13912,17 @@ def admin_stats():
   <div class="stat-card">
     <div class="label">Visitors last hour</div>
     <div class="value accent">{visitors_1h}</div>
-    <div class="delta">unique browsers (cookie-based)</div>
-  </div>
-  <div class="stat-card">
-    <div class="label">Real visitors 24h</div>
-    <div class="value accent">{visitors_24h_real}</div>
-    <div class="delta">2+ pageviews · scrapers excluded</div>
+    <div class="delta">real users · bots excluded</div>
   </div>
   <div class="stat-card">
     <div class="label">Visitors last 24h</div>
-    <div class="value">{visitors_24h}</div>
-    <div class="delta">unique browsers · incl. scrapers</div>
+    <div class="value accent">{visitors_24h}</div>
+    <div class="delta">real users · bots excluded</div>
   </div>
   <div class="stat-card">
     <div class="label">Page views last 24h</div>
     <div class="value">{pageviews_24h}</div>
-    <div class="delta">total — incl. repeat views</div>
+    <div class="delta">real users only · incl. repeat views</div>
   </div>
 </div>
 <h3 style="margin:24px 0 8px;color:var(--text-2);font-size:.82em;letter-spacing:.6px;text-transform:uppercase;font-weight:600">Cumulative</h3>
