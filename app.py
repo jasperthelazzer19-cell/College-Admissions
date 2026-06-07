@@ -3336,17 +3336,23 @@ def estimate_odds(school, fit, profile):
     # flat caps undersell them. At exc=0 this is exactly the standard cap (no
     # change vs. before for normal profiles); at exc=1 it's the full lift; in
     # between it ramps smoothly with EC strength. Caps only LIFT — never lower.
+    # c_exc raised 2026-06-06: the exceptional gate is extremely strict (genuine
+    # USAMO/ISEF/recruited/Platinum-tier only — a USACO-Gold profile scored 0/3),
+    # and those applicants really do admit at ~20-30%+ to hyper-elites, so the
+    # old mid-teens lift undersold them. c_std is UNCHANGED, so normal/strong
+    # profiles (the calibration baseline) are completely unaffected; only flagged
+    # or near-exceptional (high EC ramp) profiles move.
     _base = center
     if a < 0.07:
-        c_std, c_exc = min(_base, 0.14), min(_base * 1.5 + 0.08, 0.65)
+        c_std, c_exc = min(_base, 0.14), min(_base * 1.7 + 0.18, 0.70)
     elif a < 0.10:
-        c_std, c_exc = min(_base, 0.18), min(_base * 1.5 + 0.06, 0.72)
+        c_std, c_exc = min(_base, 0.18), min(_base * 1.7 + 0.16, 0.75)
     elif a < 0.20:
-        c_std, c_exc = min(_base, 0.30), min(_base * 1.4 + 0.05, 0.80)
+        c_std, c_exc = min(_base, 0.30), min(_base * 1.55 + 0.13, 0.82)
     elif a < 0.40:
-        c_std, c_exc = min(_base, 0.55), min(_base * 1.3 + 0.03, 0.88)
+        c_std, c_exc = min(_base, 0.55), min(_base * 1.4 + 0.08, 0.90)
     else:
-        c_std, c_exc = min(_base, 0.85), min(_base * 1.2, 0.93)
+        c_std, c_exc = min(_base, 0.85), min(_base * 1.3, 0.93)
     center = c_std + (c_exc - c_std) * exc
     center = _target_honesty_haircut(center)
     # Spread (uncertainty band) is wider at low-accept schools where the outcome
