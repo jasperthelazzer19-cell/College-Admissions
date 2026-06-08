@@ -10350,8 +10350,9 @@ _TIKTOK_EXPORT_HTML = r"""<!doctype html><html lang="en"><head>
     background:linear-gradient(135deg,#2f9e8c,#5fc9b6);color:#04130f}
   .title{font-family:"Newsreader",Georgia,serif;font-weight:600;font-size:62px;line-height:1.08;text-align:center;margin:0 0 16px}
   .meta{color:var(--muted);font-size:27px;text-align:center;margin-bottom:40px}
-  .ccard{width:100%;background:linear-gradient(180deg,#101c2b,#0c1521);border:1px solid var(--border);border-radius:24px;
-    padding:42px 44px;box-shadow:0 0 0 1px rgba(95,201,182,.05),0 30px 80px -30px rgba(0,0,0,.7),0 0 90px -40px rgba(95,201,182,.25)}
+  .ccard{width:100%;flex:1 1 auto;display:flex;flex-direction:column;background:linear-gradient(180deg,#101c2b,#0c1521);border:1px solid var(--border);border-radius:24px;
+    padding:48px 44px;box-shadow:0 0 0 1px rgba(95,201,182,.05),0 30px 80px -30px rgba(0,0,0,.7),0 0 90px -40px rgba(95,201,182,.25)}
+  .bullets{margin-top:auto}
   .ccard-top{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin-bottom:6px}
   .ch-h{font-family:"Newsreader",Georgia,serif;font-size:38px;font-weight:600;margin:0}
   .badges{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}
