@@ -487,6 +487,9 @@ PREF_OPTIONS = {
     "party":        [("any","No preference"), ("high","I want a party scene"), ("medium","Moderate social scene"), ("low","Quiet/dry environment")],
     "research":     [("any","No preference"), ("critical","Research access is critical"), ("nice","Nice to have"), ("none","Not important")],
     "career_intensity": [("any","No preference"), ("preprof","Pre-professional / career-focused"), ("balanced","Balanced"), ("flexible","Exploration / flexible")],
+    "location":     [("any","No preference"), ("near","Close to home"), ("region","In my region"), ("far","Far from home")],
+    "aid":          [("any","No preference"), ("full_need","Meets full financial need"), ("merit","Strong merit scholarships"), ("any_cost","Cost isn't a factor")],
+    "culture":      [("any","No preference"), ("collaborative","Collaborative / low-key"), ("balanced","Balanced"), ("competitive","Intense / competitive")],
 }
 
 REGION_BY_STATE = {

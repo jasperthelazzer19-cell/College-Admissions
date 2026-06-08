@@ -1747,6 +1747,33 @@ def compute_my_fit(profile, school):
     }
 
 
+# Schools that meet ~full demonstrated financial need (need-met, mostly
+# need-only — little/no merit aid). Curated seed list; tier<=1 also treated as
+# need-meeting. Used by the "financial aid generosity" preference.
+MEETS_FULL_NEED = {
+    "harvard","yale","princeton","stanford","mit","columbia","upenn","brown","dartmouth",
+    "cornell","caltech","uchicago","duke","northwestern","johns-hopkins","jhu","rice",
+    "vanderbilt","notre-dame","georgetown","washu","wash-u","emory","ucb","ucla",
+    "williams","amherst","swarthmore","pomona","bowdoin","wellesley","claremont-mckenna",
+    "middlebury","carleton","hamilton","colby","colgate","davidson","vassar","grinnell",
+    "haverford","wesleyan","smith","washington-and-lee","barnard","tufts","bc","boston-college",
+    "wake-forest","colorado-college","macalester","oberlin","bates","scripps","harvey-mudd",
+    "olin","cooper-union",
+}
+# Academic culture seed lists (collaborative vs intense/competitive). Everything
+# not listed defaults to "balanced". Used by the "academic culture" preference.
+COMPETITIVE_SCHOOLS = {
+    "mit","caltech","johns-hopkins","jhu","cornell","uchicago","gatech","ucb","ucla",
+    "cmu","carnegie-mellon","washu","wash-u","nyu","columbia","upenn","berkeley","ucsd",
+    "harvey-mudd","cooper-union","georgetown","northwestern",
+}
+COLLABORATIVE_SCHOOLS = {
+    "brown","stanford","rice","dartmouth","notre-dame","vanderbilt","olin","hampshire",
+    "pomona","davidson","bowdoin","wake-forest","wesleyan","oberlin","macalester","colorado-college",
+    "yale","princeton","bates","carleton","grinnell","kenyon","amherst",
+}
+
+
 def school_match(profile, school):
     """Score how well a school matches the user's preferences, weighted by
     each pref's user-set importance (1-10, default 5). Returns
@@ -1979,6 +2006,53 @@ def school_match(profile, school):
         else:
             out["career_intensity"] = ("mismatch", f"{culture} culture"); add("career_intensity", 0)
 
+    # 14) Location / distance from home — uses the user's home state vs the
+    # school's state and region. Skipped if the user hasn't set a home state.
+    chosen = pref_set(profile, "pref_location")
+    home_state = (profile.get("state") or "").strip()
+    if chosen and home_state:
+        same_state = school.get("state", "") == home_state
+        same_region = region_of(school) == REGION_BY_STATE.get(home_state, "_none_")
+        if "near" in chosen:
+            if same_state: out["location"] = ("match", "in your home state"); add("location", 10)
+            elif same_region: out["location"] = ("neutral", "in your region"); add("location", 7)
+            else: out["location"] = ("mismatch", "far from home"); add("location", 0)
+        elif "region" in chosen:
+            if same_region: out["location"] = ("match", "in your region"); add("location", 10)
+            else: out["location"] = ("mismatch", "outside your region"); add("location", 0)
+        elif "far" in chosen:
+            if not same_region: out["location"] = ("match", "far from home"); add("location", 10)
+            elif same_state: out["location"] = ("mismatch", "in your home state"); add("location", 0)
+            else: out["location"] = ("neutral", "same region"); add("location", 6)
+
+    # 15) Financial aid generosity — meets-full-need (curated/tier<=1) vs merit.
+    chosen = pref_set(profile, "pref_aid")
+    if chosen:
+        slug = school.get("slug")
+        meets_need = slug in MEETS_FULL_NEED or school.get("tier", 5) <= 1
+        if "any_cost" in chosen:
+            out["aid"] = ("match", "cost not a factor"); add("aid", 10)
+        elif "full_need" in chosen:
+            if meets_need: out["aid"] = ("match", "meets full need"); add("aid", 10)
+            else: out["aid"] = ("mismatch", "limited need-based aid"); add("aid", 0)
+        elif "merit" in chosen:
+            # Need-meeting elites are mostly need-only (no merit); others give merit.
+            if not meets_need: out["aid"] = ("match", "offers merit scholarships"); add("aid", 10)
+            else: out["aid"] = ("neutral", "need-based, little merit"); add("aid", 5)
+
+    # 16) Academic culture — collaborative vs competitive (curated seed lists).
+    chosen = pref_set(profile, "pref_culture")
+    if chosen:
+        slug = school.get("slug")
+        cult = ("competitive" if slug in COMPETITIVE_SCHOOLS
+                else "collaborative" if slug in COLLABORATIVE_SCHOOLS else "balanced")
+        if cult in chosen:
+            out["culture"] = ("match", f"{cult} culture"); add("culture", 10)
+        elif "balanced" in chosen or cult == "balanced":
+            out["culture"] = ("neutral", f"{cult} culture"); add("culture", 7)
+        else:
+            out["culture"] = ("mismatch", f"{cult} culture"); add("culture", 0)
+
     overall = round(score / max(1.0, count) * 10, 1) if count else 0
     # Soft additive penalty (capped) for high-importance mismatches. The
     # weighted average already does most of the importance scaling; this is
@@ -1995,7 +2069,7 @@ def school_match(profile, school):
     total = min(total, 0.40)
     overall = round(overall * (1.0 - total), 1)
     # rated_count = number of distinct prefs the user set (not the weight sum)
-    rated = sum(1 for k in ("weather","setting","size","class_size","greek","sports","major_strength","prestige","cost","diversity","party","research","career_intensity") if k in out)
+    rated = sum(1 for k in ("weather","setting","size","class_size","greek","sports","major_strength","prestige","cost","diversity","party","research","career_intensity","location","aid","culture") if k in out)
     return {"per_pref": out, "score": overall, "rated_count": rated}
 
 
@@ -3813,6 +3887,13 @@ def init_db():
                 conn.execute(f"ALTER TABLE profiles ADD COLUMN {col} TEXT DEFAULT 'any'")
             except sqlite3.OperationalError:
                 pass
+        # Preference dimensions added Jun 2026: distance-from-home, financial-aid
+        # generosity, collaborative-vs-competitive academic culture.
+        for col in ("pref_location","pref_aid","pref_culture"):
+            try:
+                conn.execute(f"ALTER TABLE profiles ADD COLUMN {col} TEXT DEFAULT 'any'")
+            except sqlite3.OperationalError:
+                pass
         # Exceptional-applicant flag (May 2026). When true, the odds model
         # lifts caps significantly because flat caps undersell USAMO golds,
         # recruited athletes, ISEF winners, etc. Evaluated by Claude on
@@ -4188,6 +4269,16 @@ def save_profile(user_id, p):
              p.get("pref_diversity") or "any", p.get("pref_party") or "any",
              p.get("pref_research") or "any", p.get("pref_career_intensity") or "any",
              pref_weights, p.get("portfolio") or ""))
+        # Newer preference columns (location / aid / culture) — separate UPDATE
+        # to keep the giant positional INSERT above untouched.
+        try:
+            conn.execute(
+                "UPDATE profiles SET pref_location=?, pref_aid=?, pref_culture=? WHERE user_id=?",
+                (p.get("pref_location") or "any", p.get("pref_aid") or "any",
+                 p.get("pref_culture") or "any", user_id),
+            )
+        except Exception as e:
+            print(f"new-pref save failed: {e}")
         # Year-by-year GPA — separate UPDATE to keep the giant INSERT above
         # untouched. Stored as REAL nullables so empty inputs don't pollute
         # the chances calc with zeros.
@@ -4350,7 +4441,7 @@ def get_pref_weight(profile, key):
 def parse_pref_weights_form(form):
     """Read importance dropdown values from the profile form, return JSON string."""
     out = {}
-    for k in ("weather","setting","size","class_size","greek","sports","major_strength","prestige","cost","diversity","party","research","career_intensity"):
+    for k in ("weather","setting","size","class_size","greek","sports","major_strength","prestige","cost","diversity","party","research","career_intensity","location","aid","culture"):
         try:
             out[k] = max(1, min(10, int(form.get(f"weight_{k}", 5))))
         except (TypeError, ValueError):
@@ -4958,8 +5049,6 @@ NAV = """<div class="nav"><a class="brand" href="/">""" + CANDOR_LOGO_SVG + """C
 <a href="/improve">Improve</a>
 <a href="/plans">My Colleges</a>
 <a href="/deadlines">Deadlines</a>
-<a href="/plans/grade">List Grade</a>
-<a href="/plans/strategist">Strategist</a>
 <a href="/upgrade" style="color:#5fc9b6">Premium</a>
 <span class="sp"></span>
 __USER_LINKS__
@@ -5112,7 +5201,8 @@ def _match_card(c):
                    "class_size":"Class size","greek":"Greek life","sports":"Sports culture",
                    "major_strength":"Major strength","prestige":"Prestige","cost":"Cost",
                    "diversity":"Diversity","party":"Party scene","research":"Research access",
-                   "career_intensity":"Academic culture"}
+                   "career_intensity":"Career focus","location":"Distance from home",
+                   "aid":"Financial aid","culture":"Academic culture"}
     rows = ""
     if m and m.get("per_pref"):
         for key, label in pref_labels.items():
@@ -5843,7 +5933,10 @@ def _pref_form_fields(p):
         "pref_diversity":        "Student body diversity",
         "pref_party":            "Party / social scene",
         "pref_research":         "Research access",
-        "pref_career_intensity": "Academic culture",
+        "pref_career_intensity": "Career focus",
+        "pref_location":         "Distance from home",
+        "pref_aid":              "Financial aid",
+        "pref_culture":          "Academic culture (collaborative ↔ competitive)",
     }
     out = ""
     for key, label in labels.items():
@@ -7614,7 +7707,8 @@ def school_plan_html(slug):
                    "class_size":"Class size","greek":"Greek life","sports":"Sports culture",
                    "major_strength":"Major strength","prestige":"Prestige","cost":"Cost",
                    "diversity":"Diversity","party":"Party scene","research":"Research access",
-                   "career_intensity":"Academic culture"}
+                   "career_intensity":"Career focus","location":"Distance from home",
+                   "aid":"Financial aid","culture":"Academic culture"}
     match_rows = ""
     if m and m.get("per_pref"):
         for key, label in pref_labels.items():
@@ -8514,7 +8608,8 @@ def _read_profile_form(form):
     # comma-separated string. Empty string = no preference.
     for key in ("pref_weather","pref_setting","pref_size","pref_greek","pref_sports",
                 "pref_major_strength","pref_class_size","pref_prestige","pref_cost",
-                "pref_diversity","pref_party","pref_research","pref_career_intensity"):
+                "pref_diversity","pref_party","pref_research","pref_career_intensity",
+                "pref_location","pref_aid","pref_culture"):
         vals = form.getlist(key) if hasattr(form, "getlist") else (form.get(key, "") or "").split(",")
         vals = [v.strip() for v in vals if v and v.strip() and v.strip() != "any"]
         result[key] = ",".join(vals)
