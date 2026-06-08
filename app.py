@@ -6461,8 +6461,12 @@ def chances_html(slug):
         "medium": "You submitted some stats but something's missing (test-optional, or your stats are at the school's median which makes the outcome coin-flippy).",
         "low": "Sparse profile (missing test/GPA or very few ECs) — model can't be precise. Add more details to your profile for a sharper estimate.",
     }[r["confidence"]]
+    export_btn = (
+        f'<a class="btn btn-light btn-sm" href="/chances/{r["slug"]}/export" '
+        f'style="margin-left:auto">Export TikTok slide</a>'
+    ) if _is_creator() else ""
     return _page(f"""
-<div class="bar"><a href="/college/{r['slug']}">&larr; back to {r['school']}</a></div>
+<div class="bar" style="display:flex;align-items:center;gap:8px"><a href="/college/{r['slug']}">&larr; back to {r['school']}</a>{export_btn}</div>
 <div class="card">
   <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
     <div>
@@ -10304,6 +10308,187 @@ def profile_page():
 @login_required
 def chances_page(slug):
     return chances_html(slug)
+
+
+def _is_creator():
+    """TikTok export is restricted to the New Roads content account only."""
+    u = current_user()
+    return bool(u and ((u.get("email") or "").lower() == "jlasser@newroads.org" or u.get("id") == 181))
+
+
+_TIKTOK_EXPORT_HTML = r"""<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Export — __SCHOOL__</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,500;0,600;1,500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.js"></script>
+<style>
+  :root{--bg:#070d16;--teal:#5fc9b6;--text:#e9eef5;--muted:#8a97a8;--card:#0e1825;--border:rgba(255,255,255,.09);--blue:#5aa2ff}
+  *{box-sizing:border-box}
+  body{margin:0;background:#05080e;color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:18px 10px 120px}
+  .controls{position:fixed;left:0;right:0;bottom:0;background:rgba(10,16,24,.96);border-top:1px solid var(--border);
+    display:flex;gap:8px;justify-content:center;padding:12px;z-index:10;backdrop-filter:blur(8px)}
+  .controls button{font-size:15px;font-weight:600;padding:11px 16px;border-radius:10px;border:1px solid var(--border);
+    background:#16202e;color:var(--text);cursor:pointer}
+  .controls .primary{background:linear-gradient(135deg,#2f9e8c,#5fc9b6);color:#04130f;border:none}
+  .stage{display:flex;justify-content:center;overflow:hidden}
+  .scaler{transform-origin:top center}
+  /* ---- the actual export canvas: 1024x1536 ---- */
+  #card{width:1024px;height:1536px;background:
+      radial-gradient(120% 80% at 50% -10%, rgba(95,201,182,.10), transparent 55%),
+      radial-gradient(90% 60% at 50% 110%, rgba(90,162,255,.08), transparent 60%),
+      var(--bg);
+    padding:70px 64px 56px;display:flex;flex-direction:column;align-items:center;position:relative}
+  .pill-top{display:inline-flex;align-items:center;gap:16px;margin-bottom:34px}
+  .pill-top .line{width:46px;height:3px;border-radius:3px;background:linear-gradient(90deg,transparent,var(--teal))}
+  .pill-top .line.r{background:linear-gradient(90deg,var(--teal),transparent)}
+  .pill-top .pill{font-weight:800;letter-spacing:1.5px;font-size:30px;padding:12px 30px;border-radius:999px;
+    background:linear-gradient(135deg,#2f9e8c,#5fc9b6);color:#04130f}
+  .title{font-family:"Newsreader",Georgia,serif;font-weight:600;font-size:62px;line-height:1.08;text-align:center;margin:0 0 16px}
+  .meta{color:var(--muted);font-size:27px;text-align:center;margin-bottom:40px}
+  .ccard{width:100%;background:linear-gradient(180deg,#101c2b,#0c1521);border:1px solid var(--border);border-radius:24px;
+    padding:42px 44px;box-shadow:0 0 0 1px rgba(95,201,182,.05),0 30px 80px -30px rgba(0,0,0,.7),0 0 90px -40px rgba(95,201,182,.25)}
+  .ccard-top{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin-bottom:6px}
+  .ch-h{font-family:"Newsreader",Georgia,serif;font-size:38px;font-weight:600;margin:0}
+  .badges{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+  .badge{font-size:21px;font-weight:700;letter-spacing:.6px;padding:9px 18px;border-radius:999px}
+  .b-tier{background:rgba(139,123,224,.18);color:#bcaef5}
+  .b-conf{border:1.5px solid var(--teal);color:var(--teal)}
+  .fit{color:var(--muted);font-size:24px;margin:2px 0 14px}
+  .odds{font-weight:800;font-size:96px;line-height:1;letter-spacing:-2px;
+    background:linear-gradient(120deg,#5aa2ff,#86c0ff);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;margin:6px 0 8px}
+  .rt-h{color:var(--muted);font-size:23px;margin:26px 0 8px}
+  .rrow{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:15px 0;border-top:1px solid var(--border);font-size:30px}
+  .rrow .rval{font-weight:700;white-space:nowrap}
+  .rrow .sch{color:var(--muted);font-weight:500;font-size:23px}
+  .bullets{margin:30px 0 0;padding:0;list-style:none}
+  .bullets li{position:relative;padding-left:30px;margin-bottom:22px;font-size:28px;line-height:1.42;color:#dbe3ee}
+  .bullets li::before{content:"";position:absolute;left:6px;top:14px;width:8px;height:8px;border-radius:50%;background:var(--teal)}
+  .bullets b{color:#fff}
+  .foot{margin-top:auto;padding-top:34px;color:var(--muted);font-size:26px;letter-spacing:.5px}
+  .foot .lock{opacity:.7;margin-right:6px}
+  /* compact mode */
+  #card.compact .rt-h,#card.compact .rounds{display:none}
+  #card.compact .odds{font-size:128px;margin:16px 0 14px}
+  #card.compact .bullets li{font-size:34px;margin-bottom:30px;line-height:1.45}
+  #card.compact .title{font-size:70px}
+</style></head>
+<body>
+<div class="stage"><div class="scaler" id="scaler">
+__CARD__
+</div></div>
+<div class="controls">
+  <button id="mode">Compact mode</button>
+  <button id="copy">Copy image</button>
+  <button class="primary" id="dl">Save / Download</button>
+</div>
+<script>
+(function(){
+  var card=document.getElementById('card'), scaler=document.getElementById('scaler');
+  function fitPreview(){ var s=Math.min(1,(window.innerWidth-24)/1024); scaler.style.transform='scale('+s+')'; scaler.style.height=(1536*s)+'px'; }
+  window.addEventListener('resize',fitPreview); fitPreview();
+  // auto-shrink bullets if content overflows the 1536 canvas
+  function fitText(){
+    var lis=card.querySelectorAll('.bullets li'); var size=parseFloat(getComputedStyle(lis[0]||document.body).fontSize)||28; var guard=0;
+    while(card.scrollHeight>card.clientHeight && size>17 && guard<40){ size-=1; lis.forEach(function(l){l.style.fontSize=size+'px';l.style.marginBottom=Math.max(10,size*0.6)+'px';}); guard++; }
+  }
+  function render(){ fitText();
+    return htmlToImage.toPng(card,{width:1024,height:1536,pixelRatio:1,cacheBust:true,backgroundColor:'#070d16'}); }
+  document.getElementById('mode').addEventListener('click',function(){
+    card.classList.toggle('compact'); this.textContent=card.classList.contains('compact')?'Full mode':'Compact mode'; setTimeout(fitText,30); });
+  document.getElementById('dl').addEventListener('click',function(){
+    var b=this; b.textContent='Rendering…';
+    render().then(function(url){
+      b.textContent='Save / Download';
+      // mobile: share sheet -> "Save Image" to camera roll
+      try{
+        fetch(url).then(function(r){return r.blob();}).then(function(blob){
+          var file=new File([blob],'candor-__SLUG__.png',{type:'image/png'});
+          if(navigator.canShare && navigator.canShare({files:[file]})){ navigator.share({files:[file]}); return; }
+          var a=document.createElement('a'); a.href=url; a.download='candor-__SLUG__.png'; a.click();
+        });
+      }catch(e){ var a=document.createElement('a'); a.href=url; a.download='candor-__SLUG__.png'; a.click(); }
+    }).catch(function(e){ b.textContent='Save / Download'; alert('Export failed: '+e); });
+  });
+  document.getElementById('copy').addEventListener('click',function(){
+    var b=this; b.textContent='Copying…';
+    render().then(function(url){ return fetch(url).then(function(r){return r.blob();}); }).then(function(blob){
+      return navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);
+    }).then(function(){ b.textContent='Copied ✓'; setTimeout(function(){b.textContent='Copy image';},1500); })
+      .catch(function(){ b.textContent='Copy image'; alert('Copy not supported here — use Save instead.'); });
+  });
+})();
+</script></body></html>"""
+
+
+@app.route("/chances/<slug>/export")
+@login_required
+def chances_export(slug):
+    if not _is_creator():
+        abort(404)
+    uid = current_user()["id"]
+    profile = _chances_profile(uid, slug)
+    if profile is None:
+        return redirect(url_for("profile_page"))
+    school_data = COLLEGES_BY_SLUG.get(slug)
+    if not school_data:
+        abort(404)
+    merged = merged_school(school_data)
+    fit, components = compute_fit(profile, merged)
+    tier = assign_tier(merged, fit, profile)
+    low, high = estimate_odds(merged, fit, profile)
+    conf = confidence_level(profile, components)
+    # Bullets: prefer the cached narrative, else generate fresh.
+    bullets = None
+    with db() as conn:
+        brow = conn.execute("SELECT strength, weakness, differentiator FROM saved_chances "
+                            "WHERE user_id=? AND college_slug=?", (uid, slug)).fetchone()
+    if brow and brow["strength"]:
+        bullets = {"strength": brow["strength"], "weakness": brow["weakness"], "differentiator": brow["differentiator"]}
+    else:
+        bullets = generate_bullets(profile, merged, fit, components, tier, (low, high))
+    # Round breakdown rows.
+    det = admissions_detail(merged)
+    round_rows = ""
+    if det and det.get("rounds"):
+        sub = sub_school_for_major(slug, profile.get("major") or "")
+        pers = personalize_round_odds(uid, merged, det, profile, low, high, sub_school=sub) or {}
+        rates = det.get("rates", {})
+        for code in det["rounds"]:
+            u = pers.get(code)
+            if u is None:
+                continue
+            s = rates.get(code)
+            sch = f' <span class="sch">(school: {s*100:.1f}%)</span>' if s else ""
+            round_rows += (f'<div class="rrow"><span>{ROUND_LABELS.get(code, code)}</span>'
+                           f'<span class="rval">{u*100:.1f}%{sch}</span></div>')
+    accept = round(merged["accept"] * 100, 1)
+    import html as _html
+    esc = _html.escape
+    rounds_block = f'<div class="rt-h">By application round (your odds)</div><div class="rounds">{round_rows}</div>' if round_rows else ""
+    card = f'''<div id="card" class="full">
+  <div class="pill-top"><span class="line"></span><span class="pill">CANDOR SAYS:</span><span class="line r"></span></div>
+  <div class="title">Your plan for {esc(merged["name"])}</div>
+  <div class="meta">{esc(city_state(merged))} &middot; {accept}% acceptance &middot; {esc(merged.get("type",""))}</div>
+  <div class="ccard">
+    <div class="ccard-top">
+      <h2 class="ch-h">Your chances</h2>
+      <div class="badges"><span class="badge b-tier">{esc(tier.upper())}</span><span class="badge b-conf">{esc(conf.upper())} CONFIDENCE</span></div>
+    </div>
+    <div class="fit">profile fit {fit}/100</div>
+    <div class="odds">{low}&ndash;{high}%</div>
+    {rounds_block}
+    <ul class="bullets">
+      <li><b>Strength</b> — {esc(bullets.get("strength",""))}</li>
+      <li><b>Weakness</b> — {esc(bullets.get("weakness",""))}</li>
+      <li><b>Differentiator</b> — {esc(bullets.get("differentiator",""))}</li>
+    </ul>
+  </div>
+  <div class="foot"><span class="lock">&#128274;</span>candoradmit.com</div>
+</div>'''
+    page = (_TIKTOK_EXPORT_HTML.replace("__CARD__", card)
+            .replace("__SLUG__", slug).replace("__SCHOOL__", esc(merged["name"])))
+    return Response(page, mimetype="text/html")
 
 
 @app.route("/chances/<slug>/narrative")
