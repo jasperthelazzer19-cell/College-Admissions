@@ -2882,6 +2882,7 @@ Default to NO. Only return YES if there is unambiguous evidence of:
 - Founded a company with documented revenue or 10k+ users
 - Olympic medalist or international competition winner
 - Top national arts/writing awards: Scholastic Art & Writing GOLD MEDAL (national), national YoungArts winner, Carnegie Hall debut
+- Won a HIGHLY SELECTIVE national scholarship/fellowship — Coca-Cola Scholar, Gates Scholarship, Jack Kent Cooke (College/Young Scholar), Davidson Fellow, Elks Most Valuable Student top winner, or similar (~hundreds of winners nationally, roughly ≤1% acceptance). These are genuinely exceptional. (This does NOT include National Merit Finalist/Commended/Scholar — far less selective, listed below as NOT exceptional.)
 - Nationally recognized in their field (verifiable name recognition)
 
 Do NOT flag YES for any of these (these are strong but not exceptional):
@@ -3157,7 +3158,8 @@ _EXC_INLINE_KW = (
     "ieee", "published in", "first author", "first-author",
     "national merit scholar", "recruited", "youngarts", "carnegie hall",
     "scholastic gold medal", "national champion", "international council",
-    "olympiad medal",
+    "olympiad medal", "coca-cola scholar", "coca cola scholar", "gates scholar",
+    "jack kent cooke", "davidson fellow",
 )
 
 def _keyword_exceptional(profile):
