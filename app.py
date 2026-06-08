@@ -30,7 +30,7 @@ from datetime import datetime, timedelta
 from functools import wraps
 
 import requests
-from flask import Flask, render_template_string, request, redirect, url_for, session, flash, jsonify, abort
+from flask import Flask, render_template_string, request, redirect, url_for, session, flash, jsonify, abort, Response
 from candor_data import *  # static domain data (schools, rankings, weights) — see candor_data.py
 from candor_styles import *  # CSS + HTML/SVG template strings — see candor_styles.py
 
