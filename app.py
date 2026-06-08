@@ -10392,10 +10392,17 @@ __CARD__
   var card=document.getElementById('card'), scaler=document.getElementById('scaler');
   function fitPreview(){ var s=Math.min(1,(window.innerWidth-24)/1024); scaler.style.transform='scale('+s+')'; scaler.style.height=(1536*s)+'px'; }
   window.addEventListener('resize',fitPreview); fitPreview();
-  // auto-shrink bullets if content overflows the 1536 canvas
+  // Adaptive fit: pick the LARGEST bullet size that still fits the 1536 canvas.
+  // Content varies a lot per profile (number of rounds, bullet length, title
+  // length), so we grow text to fill when there's room and shrink when dense.
   function fitText(){
-    var lis=card.querySelectorAll('.bullets li'); var size=parseFloat(getComputedStyle(lis[0]||document.body).fontSize)||31; var guard=0;
-    while(card.scrollHeight>card.clientHeight && size>16 && guard<60){ size-=1; lis.forEach(function(l){l.style.fontSize=size+'px';l.style.marginBottom=Math.max(8,size*0.6)+'px';}); guard++; }
+    var lis=card.querySelectorAll('.bullets li'); if(!lis.length) return;
+    var min=15, max=card.classList.contains('compact')?44:38, best=min, guard=0;
+    for(var size=min; size<=max && guard<80; size++, guard++){
+      lis.forEach(function(l){l.style.fontSize=size+'px';l.style.marginBottom=Math.max(8,Math.round(size*0.68))+'px';});
+      if(card.scrollHeight<=card.clientHeight){ best=size; } else { break; }
+    }
+    lis.forEach(function(l){l.style.fontSize=best+'px';l.style.marginBottom=Math.max(8,Math.round(best*0.68))+'px';});
   }
   // run on load + after the web font settles so the preview never overflows
   fitText(); setTimeout(fitText,120); setTimeout(fitText,500);
