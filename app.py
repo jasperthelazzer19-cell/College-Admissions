@@ -69,6 +69,9 @@ STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
 # subscription" link on the paid /upgrade view — present and functional, just
 # not a prominent CTA. Renders only when set, so there's no broken link.
 STRIPE_BILLING_PORTAL_URL = os.environ.get("STRIPE_BILLING_PORTAL_URL", "")
+# Where cancellation requests go until the Stripe customer portal is enabled.
+# Set CANCEL_EMAIL to a support alias so the personal inbox isn't exposed.
+CANCEL_EMAIL = os.environ.get("CANCEL_EMAIL", "jasperthelazzer19@gmail.com")
 # Email (deadline reminders). Resend HTTP API — free tier ~3k emails/mo ($0).
 # Dormant until RESEND_API_KEY is set: _send_email no-ops, so nothing breaks.
 # EMAIL_FROM must be on a domain verified in Resend. CRON_KEY (falls back to
@@ -5913,6 +5916,7 @@ def profile_html():
     checked = lambda k: 'checked' if p.get(k) else ''
     return _page(f"""
 <h1>Your profile</h1>
+{f'<div class="card" style="margin-bottom:14px;border-color:var(--border-strong);max-width:560px"><div style="font-weight:600;margin-bottom:8px">Candor Premium · active</div>{_cancel_subscription_html()}</div>' if _is_paid else ''}
 <p class="muted">Used by the chances calculator. Be specific — generic answers produce generic odds.</p>
 <form method="post" action="/profile" class="card">
   {csrf_input()}
@@ -13333,6 +13337,20 @@ def deadlines_page():
     return _page(body, title="Deadlines — Candor")
 
 
+def _cancel_subscription_html():
+    """Always-present, easy cancel path. One-click to the Stripe billing portal
+    if it's configured; otherwise a clear email-cancel fallback so a subscriber
+    can ALWAYS cancel, even before the portal is set up. Never hidden."""
+    if STRIPE_BILLING_PORTAL_URL:
+        return (f'<a href="{STRIPE_BILLING_PORTAL_URL}" class="btn btn-light" '
+                f'style="border-color:var(--border-strong)">Manage or cancel subscription →</a>'
+                f'<div class="muted" style="font-size:.8em;margin-top:6px">Cancel anytime on Stripe\'s secure page — you keep access through the period you already paid for.</div>')
+    body = ("Please cancel my Candor Premium subscription.%0D%0A%0D%0AAccount email: ")
+    mail = f"mailto:{CANCEL_EMAIL}?subject=Cancel%20my%20Candor%20Premium&body={body}"
+    return (f'<a href="{mail}" class="btn btn-light" style="border-color:var(--border-strong)">Cancel subscription</a>'
+            f'<div class="muted" style="font-size:.8em;margin-top:6px">Cancel anytime — this emails us and we cancel within 24 hours. You keep access through the period you already paid for, and you won\'t be charged again.</div>')
+
+
 def _premium_comparison_html():
     """Free vs Premium feature-comparison table. Shown on the upgrade page so
     the value gap is legible at a glance (what's free stays free; Premium is
@@ -13409,7 +13427,7 @@ def upgrade_page():
           </div>
           <p class="muted" style="margin:0 0 14px">You're all set. Every premium feature is unlocked on your account. Keep your Stripe email receipt for your records.</p>
           <a href="/plans" class="btn btn-primary">Go to my plan &rarr;</a>
-          {f'<div style="margin-top:20px"><a href="{STRIPE_BILLING_PORTAL_URL}" style="font-size:.72em;color:var(--text-3,#7f8893);text-decoration:underline;opacity:.7">Manage subscription</a></div>' if STRIPE_BILLING_PORTAL_URL else ''}
+          <div style="margin-top:22px;padding-top:16px;border-top:1px solid var(--border)">{_cancel_subscription_html()}</div>
         </div>"""
         return _page(body, title="Upgrade — Candor")
 
