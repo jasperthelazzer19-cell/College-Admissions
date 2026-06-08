@@ -10354,20 +10354,20 @@ _TIKTOK_EXPORT_HTML = r"""<!doctype html><html lang="en"><head>
     padding:48px 44px;box-shadow:0 0 0 1px rgba(95,201,182,.05),0 30px 80px -30px rgba(0,0,0,.7),0 0 90px -40px rgba(95,201,182,.25)}
   .bullets{margin-top:auto}
   .ccard-top{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin-bottom:6px}
-  .ch-h{font-family:"Newsreader",Georgia,serif;font-size:46px;font-weight:600;margin:0}
+  .ch-h{font-family:"Newsreader",Georgia,serif;font-size:42px;font-weight:600;margin:0}
   .badges{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}
-  .badge{font-size:24px;font-weight:700;letter-spacing:.6px;padding:10px 20px;border-radius:999px}
+  .badge{font-size:22px;font-weight:700;letter-spacing:.6px;padding:9px 18px;border-radius:999px}
   .b-tier{background:rgba(139,123,224,.18);color:#bcaef5}
   .b-conf{border:1.5px solid var(--teal);color:var(--teal)}
-  .fit{color:var(--muted);font-size:28px;margin:4px 0 16px}
-  .odds{font-weight:800;font-size:118px;line-height:1;letter-spacing:-2px;
-    background:linear-gradient(120deg,#5aa2ff,#86c0ff);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;margin:8px 0 10px}
-  .rt-h{color:var(--muted);font-size:27px;margin:30px 0 10px}
-  .rrow{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:18px 0;border-top:1px solid var(--border);font-size:35px}
+  .fit{color:var(--muted);font-size:26px;margin:3px 0 14px}
+  .odds{font-weight:800;font-size:108px;line-height:1;letter-spacing:-2px;
+    background:linear-gradient(120deg,#5aa2ff,#86c0ff);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;margin:6px 0 8px}
+  .rt-h{color:var(--muted);font-size:25px;margin:26px 0 8px}
+  .rrow{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:16px 0;border-top:1px solid var(--border);font-size:32px}
   .rrow .rval{font-weight:700;white-space:nowrap}
-  .rrow .sch{color:var(--muted);font-weight:500;font-size:27px}
-  .bullets{margin:34px 0 0;padding:0;list-style:none}
-  .bullets li{position:relative;padding-left:34px;margin-bottom:26px;font-size:34px;line-height:1.42;color:#dbe3ee}
+  .rrow .sch{color:var(--muted);font-weight:500;font-size:25px}
+  .bullets{margin:30px 0 0;padding:0;list-style:none}
+  .bullets li{position:relative;padding-left:32px;margin-bottom:24px;font-size:31px;line-height:1.42;color:#dbe3ee}
   .bullets li::before{content:"";position:absolute;left:6px;top:14px;width:8px;height:8px;border-radius:50%;background:var(--teal)}
   .bullets b{color:#fff}
   .foot{margin-top:auto;padding-top:34px;color:var(--muted);font-size:26px;letter-spacing:.5px}
@@ -10394,9 +10394,12 @@ __CARD__
   window.addEventListener('resize',fitPreview); fitPreview();
   // auto-shrink bullets if content overflows the 1536 canvas
   function fitText(){
-    var lis=card.querySelectorAll('.bullets li'); var size=parseFloat(getComputedStyle(lis[0]||document.body).fontSize)||28; var guard=0;
-    while(card.scrollHeight>card.clientHeight && size>17 && guard<40){ size-=1; lis.forEach(function(l){l.style.fontSize=size+'px';l.style.marginBottom=Math.max(10,size*0.6)+'px';}); guard++; }
+    var lis=card.querySelectorAll('.bullets li'); var size=parseFloat(getComputedStyle(lis[0]||document.body).fontSize)||31; var guard=0;
+    while(card.scrollHeight>card.clientHeight && size>16 && guard<60){ size-=1; lis.forEach(function(l){l.style.fontSize=size+'px';l.style.marginBottom=Math.max(8,size*0.6)+'px';}); guard++; }
   }
+  // run on load + after the web font settles so the preview never overflows
+  fitText(); setTimeout(fitText,120); setTimeout(fitText,500);
+  if(document.fonts && document.fonts.ready){ document.fonts.ready.then(fitText); }
   function render(){ fitText();
     return htmlToImage.toPng(card,{width:1024,height:1536,pixelRatio:1,cacheBust:true,backgroundColor:'#070d16'}); }
   document.getElementById('mode').addEventListener('click',function(){
