@@ -923,6 +923,64 @@ def _render_earnings_card(school):
 </div>'''
 
 
+_career_cache = {}
+def _career_outcomes(slug):
+    """Cached read of the multi-source career-outcomes row for a school."""
+    if slug in _career_cache:
+        return _career_cache[slug]
+    row = None
+    try:
+        with db() as conn:
+            r = conn.execute(
+                "SELECT entry, ten_yr, mid_career, oi, roi, n_sources, sources "
+                "FROM career_outcomes WHERE college_slug=?", (slug,)).fetchone()
+            if r:
+                row = dict(r)
+    except Exception:
+        row = None
+    _career_cache[slug] = row
+    return row
+
+
+def _render_career_outcomes(c):
+    """Career Outcomes card: earnings trajectory (entry -> 10yr -> mid-career)
+    plus how many independent sources back the data. Falls back to the loaded
+    10-yr figure for schools without a full multi-source row."""
+    row = _career_outcomes(c["slug"])
+    earn10 = median_earnings_10yr(c)
+    if not row and not earn10:
+        return ""
+    entry = (row or {}).get("entry")
+    ten = (row or {}).get("ten_yr") or earn10
+    mid = (row or {}).get("mid_career")
+    roi = (row or {}).get("roi")
+    n = (row or {}).get("n_sources") or (1 if earn10 else 0)
+    def k(v): return f"${int(v)//1000}K" if v else "—"
+    def chip(label, val, accent=False):
+        col = "#2b6cff" if accent else "var(--text)"
+        return (f'<div style="flex:1;min-width:90px;text-align:center;padding:10px 8px;'
+                f'background:var(--surface-2);border:1px solid var(--border);border-radius:8px">'
+                f'<div style="font-size:1.35em;font-weight:700;color:{col}">{k(val)}</div>'
+                f'<div class="muted" style="font-size:.72em;text-transform:uppercase;letter-spacing:.4px;margin-top:2px">{label}</div></div>')
+    chips = chip("Entry", entry) + chip("10-year", ten, accent=True)
+    if mid:
+        chips += chip("Mid-career", mid)
+    ratio = earnings_to_cost_ratio(c)
+    payback = ""
+    if ratio:
+        rc = "#5fc9b6" if ratio < 2.0 else ("#fbbf24" if ratio < 3.5 else "#fca5a5")
+        payback = f'<span> · <b style="color:{rc}">{ratio:.1f} yrs</b> to pay back 4 yrs of cost</span>'
+    roi_str = f' · est. lifetime ROI <b>${roi//1000}K</b>' if roi else ""
+    src_note = (f"Earnings cross-referenced across <b>{n} source{'s' if n != 1 else ''}</b> "
+                f"(College Scorecard, Opportunity Insights, Georgetown CEW, FREOPP, PayScale, and more).") if n >= 2 \
+        else "From federal College Scorecard data."
+    return f'''<div class="card">
+  <h3 style="margin-top:0">Career outcomes <span class="muted" style="font-size:.55em;font-weight:500;vertical-align:middle">· {n} sources</span></h3>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 10px">{chips}</div>
+  <div class="muted" style="font-size:.82em;line-height:1.5">Median graduate earnings{payback}{roi_str}.<br>{src_note}</div>
+</div>'''
+
+
 def _render_sub_school_block(slug, highlight_keywords=None):
     """Display the per-college sub-school accept rates on the school detail
     page. If highlight_keywords is provided (typically the user's major),
@@ -4121,6 +4179,13 @@ def init_db():
         )""")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_outcomes_user ON user_outcomes(user_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_outcomes_school ON user_outcomes(college_slug, actual_outcome)")
+        # Multi-source career-outcomes (earnings trajectory + source count) shown
+        # on each school page. Loaded from the merged earnings research.
+        conn.execute("""CREATE TABLE IF NOT EXISTS career_outcomes (
+            college_slug TEXT PRIMARY KEY,
+            entry INTEGER, ten_yr INTEGER, mid_career INTEGER,
+            oi INTEGER, roi INTEGER, n_sources INTEGER, sources TEXT
+        )""")
         # Dedupe log for deadline reminder emails (one per user/school/milestone).
         conn.execute("""CREATE TABLE IF NOT EXISTS deadline_nudges (
             user_id INTEGER NOT NULL,
@@ -5451,6 +5516,7 @@ def college_detail_html(slug):
   </div>
   {_render_earnings_card(c)}
 </div>
+{_render_career_outcomes(c)}
 {_scattergram_block(c, user)}
 {render_school_feeders(c)}
 {_match_card(c)}
