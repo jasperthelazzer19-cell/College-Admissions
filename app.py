@@ -10343,6 +10343,9 @@ _TIKTOK_EXPORT_HTML = r"""<!doctype html><html lang="en"><head>
       radial-gradient(90% 60% at 50% 110%, rgba(90,162,255,.08), transparent 60%),
       var(--bg);
     padding:70px 64px 56px;display:flex;flex-direction:column;align-items:center;position:relative}
+  /* never let flexbox compress rows on top of each other — only bullets resize (via fitText) */
+  #card>*{flex-shrink:0}
+  .ccard>*{flex-shrink:0}
   .pill-top{display:inline-flex;align-items:center;gap:16px;margin-bottom:34px}
   .pill-top .line{width:46px;height:3px;border-radius:3px;background:linear-gradient(90deg,transparent,var(--teal))}
   .pill-top .line.r{background:linear-gradient(90deg,var(--teal),transparent)}
@@ -10350,7 +10353,7 @@ _TIKTOK_EXPORT_HTML = r"""<!doctype html><html lang="en"><head>
     background:linear-gradient(135deg,#2f9e8c,#5fc9b6);color:#04130f}
   .title{font-family:"Newsreader",Georgia,serif;font-weight:600;font-size:62px;line-height:1.08;text-align:center;margin:0 0 16px}
   .meta{color:var(--muted);font-size:27px;text-align:center;margin-bottom:40px}
-  .ccard{width:100%;flex:1 1 auto;display:flex;flex-direction:column;background:linear-gradient(180deg,#101c2b,#0c1521);border:1px solid var(--border);border-radius:24px;
+  .ccard{width:100%;flex:1 0 auto;display:flex;flex-direction:column;background:linear-gradient(180deg,#101c2b,#0c1521);border:1px solid var(--border);border-radius:24px;
     padding:48px 44px;box-shadow:0 0 0 1px rgba(95,201,182,.05),0 30px 80px -30px rgba(0,0,0,.7),0 0 90px -40px rgba(95,201,182,.25)}
   .bullets{margin-top:auto}
   .ccard-top{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin-bottom:6px}
@@ -10377,6 +10380,17 @@ _TIKTOK_EXPORT_HTML = r"""<!doctype html><html lang="en"><head>
   #card.compact .odds{font-size:128px;margin:16px 0 14px}
   #card.compact .bullets li{font-size:34px;margin-bottom:30px;line-height:1.45}
   #card.compact .title{font-size:70px}
+  /* save overlay (long-press the image to save to Photos on iOS) */
+  .ov{position:fixed;inset:0;background:rgba(3,6,11,.97);z-index:50;display:none;flex-direction:column;
+    align-items:center;justify-content:flex-start;overflow:auto;padding:14px 12px 40px}
+  .ov.show{display:flex}
+  .ovh{color:#e9eef5;font-size:16px;text-align:center;margin:6px 0 12px}
+  .ovh b{color:#5fc9b6}
+  #ovimg{width:100%;max-width:460px;height:auto;border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.6);
+    -webkit-touch-callout:default}
+  .ovbtns{display:flex;gap:10px;margin-top:16px}
+  .ovbtn{font-size:15px;font-weight:600;padding:11px 22px;border-radius:10px;border:1px solid var(--border);
+    background:#16202e;color:var(--text);text-decoration:none;cursor:pointer;display:inline-block}
 </style></head>
 <body>
 <div class="stage"><div class="scaler" id="scaler">
@@ -10384,12 +10398,18 @@ __CARD__
 </div></div>
 <div class="controls">
   <button id="mode">Compact mode</button>
-  <button id="copy">Copy image</button>
-  <button class="primary" id="dl">Save / Download</button>
+  <button id="copy">Copy</button>
+  <button class="primary" id="dl">Save image</button>
+</div>
+<div id="ov" class="ov">
+  <p class="ovh">Press &amp; hold the image, then <b>Save to Photos</b></p>
+  <img id="ovimg" alt="Candor slide">
+  <div class="ovbtns"><a id="ovdl" class="ovbtn" download="candor-__SLUG__.png">Download</a><button id="ovx" class="ovbtn">Close</button></div>
 </div>
 <script>
 (function(){
   var card=document.getElementById('card'), scaler=document.getElementById('scaler');
+  var ov=document.getElementById('ov'), ovimg=document.getElementById('ovimg'), ovdl=document.getElementById('ovdl');
   function fitPreview(){ var s=Math.min(1,(window.innerWidth-24)/1024); scaler.style.transform='scale('+s+')'; scaler.style.height=(1536*s)+'px'; }
   window.addEventListener('resize',fitPreview); fitPreview();
   // Adaptive fit: pick the LARGEST bullet size that still fits the 1536 canvas.
@@ -10407,30 +10427,27 @@ __CARD__
   // run on load + after the web font settles so the preview never overflows
   fitText(); setTimeout(fitText,120); setTimeout(fitText,500);
   if(document.fonts && document.fonts.ready){ document.fonts.ready.then(fitText); }
+  // Render at 2x for a crisp 2048x3072 PNG (retina-sharp on TikTok).
   function render(){ fitText();
-    return htmlToImage.toPng(card,{width:1024,height:1536,pixelRatio:1,cacheBust:true,backgroundColor:'#070d16'}); }
+    return htmlToImage.toPng(card,{width:1024,height:1536,pixelRatio:2,cacheBust:true,backgroundColor:'#070d16'}); }
   document.getElementById('mode').addEventListener('click',function(){
     card.classList.toggle('compact'); this.textContent=card.classList.contains('compact')?'Full mode':'Compact mode'; setTimeout(fitText,30); });
+  // Save: render the PNG, then show it full-size so you can long-press -> Save to Photos.
+  // (This is the reliable iOS path — the async share-sheet drops the user gesture and silently fails.)
   document.getElementById('dl').addEventListener('click',function(){
     var b=this; b.textContent='Rendering…';
     render().then(function(url){
-      b.textContent='Save / Download';
-      // mobile: share sheet -> "Save Image" to camera roll
-      try{
-        fetch(url).then(function(r){return r.blob();}).then(function(blob){
-          var file=new File([blob],'candor-__SLUG__.png',{type:'image/png'});
-          if(navigator.canShare && navigator.canShare({files:[file]})){ navigator.share({files:[file]}); return; }
-          var a=document.createElement('a'); a.href=url; a.download='candor-__SLUG__.png'; a.click();
-        });
-      }catch(e){ var a=document.createElement('a'); a.href=url; a.download='candor-__SLUG__.png'; a.click(); }
-    }).catch(function(e){ b.textContent='Save / Download'; alert('Export failed: '+e); });
+      b.textContent='Save image';
+      ovimg.src=url; ovdl.href=url; ov.classList.add('show');
+    }).catch(function(e){ b.textContent='Save image'; alert('Export failed: '+e); });
   });
+  document.getElementById('ovx').addEventListener('click',function(){ ov.classList.remove('show'); });
   document.getElementById('copy').addEventListener('click',function(){
     var b=this; b.textContent='Copying…';
     render().then(function(url){ return fetch(url).then(function(r){return r.blob();}); }).then(function(blob){
       return navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);
-    }).then(function(){ b.textContent='Copied ✓'; setTimeout(function(){b.textContent='Copy image';},1500); })
-      .catch(function(){ b.textContent='Copy image'; alert('Copy not supported here — use Save instead.'); });
+    }).then(function(){ b.textContent='Copied'; setTimeout(function(){b.textContent='Copy';},1500); })
+      .catch(function(){ b.textContent='Copy'; alert('Copy not supported here — use Save instead.'); });
   });
 })();
 </script></body></html>"""
