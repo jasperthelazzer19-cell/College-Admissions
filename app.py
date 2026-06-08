@@ -1815,7 +1815,13 @@ def school_match(profile, school):
     chosen = pref_set(profile, "pref_greek")
     g = greek_strength(school)
     if chosen:
-        if "strong" in chosen and g == "strong":
+        if "some" in chosen:
+            # Flexible: light or medium is ideal, strong is more than wanted but ok
+            if g in ("light", "medium"):
+                out["greek"] = ("match", f"{g} Greek scene"); add("greek", 10)
+            else:
+                out["greek"] = ("neutral", "strong Greek scene"); add("greek", 7)
+        elif "strong" in chosen and g == "strong":
             out["greek"] = ("match", "strong Greek scene"); add("greek", 10)
         elif "avoid" in chosen and g == "light":
             out["greek"] = ("match", "light Greek scene"); add("greek", 10)
@@ -1828,7 +1834,13 @@ def school_match(profile, school):
     chosen = pref_set(profile, "pref_sports")
     s = sports_strength(school)
     if chosen:
-        if "strong" in chosen and s == "strong":
+        if "medium" in chosen:
+            # Flexible: moderate is ideal, either extreme is fine-ish
+            if s == "medium":
+                out["sports"] = ("match", "moderate sports"); add("sports", 10)
+            else:
+                out["sports"] = ("neutral", f"{s} sports culture"); add("sports", 8)
+        elif "strong" in chosen and s == "strong":
             out["sports"] = ("match", "big sports culture"); add("sports", 10)
         elif "low" in chosen and s == "low":
             out["sports"] = ("match", "low-key sports"); add("sports", 10)
@@ -1896,7 +1908,11 @@ def school_match(profile, school):
         size_n = school.get("size", 0) or 0
         urban_ish = setting_of(school) in ("urban", "college_town")
         diverse = (size_n >= 8000) or urban_ish or school.get("type") == "public"
-        if "high" in chosen:
+        if "moderate" in chosen:
+            # Flexible: some diversity is nice, but not a dealbreaker either way
+            out["diversity"] = ("match", "reasonably diverse") if diverse else ("neutral", "less diverse student body")
+            add("diversity", 10 if diverse else 8)
+        elif "high" in chosen:
             out["diversity"] = ("match", "diverse student body") if diverse else ("mismatch", "less diverse student body")
             add("diversity", 10 if diverse else 0)
         else:
@@ -1909,7 +1925,14 @@ def school_match(profile, school):
     if chosen:
         g = greek_strength(school); s = sports_strength(school)
         partyish = (g == "strong") or (s == "strong" and g != "light")
-        if "high" in chosen:
+        deadquiet = (g == "light" and s == "low")
+        if "medium" in chosen:
+            # Moderate social scene: happy with most; mild ding only for extremes
+            if not partyish and not deadquiet:
+                out["party"] = ("match", "moderate social scene"); add("party", 10)
+            else:
+                out["party"] = ("neutral", "very active" if partyish else "very quiet"); add("party", 8)
+        elif "high" in chosen:
             if partyish:
                 out["party"] = ("match", "active social scene"); add("party", 10)
             else:
