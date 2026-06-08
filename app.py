@@ -8539,11 +8539,14 @@ _BOT_UA_RE = re.compile(
     r"serpapi|amazonbot|applebot|yandex|baidu|sogou|archive\.org|uptime|"
     r"monitor|preview|fetch|scan", re.I)
 # SQL predicate for a "real" (non-scraper) visit, ANDed into every admin
-# traffic metric. New rows carry a user_agent that already passed the write-time
-# bot filter, so a single pageview counts as a real human. Legacy rows (no UA
-# stored) fall back to the old "2+ pageviews" heuristic, the only scraper signal
-# available for that historical data.
-_REAL_VISITOR_SQL = ("(user_agent IS NOT NULL OR visitor_id IN "
+# traffic metric. Purely BEHAVIORAL: a real visitor is either logged in or has
+# 2+ pageviews (a persistent cookie across requests). We deliberately do NOT
+# treat "has a user_agent" as proof of human — spoofed-UA scrapers send a normal
+# browser string, slip past the write-time _BOT_UA_RE filter, and would otherwise
+# get counted. Single-hit anonymous visitors are indistinguishable from scrapers
+# by UA alone, so they're excluded. (Verified 2026-06: the old UA clause was
+# inflating the "real" count by ~13% with WP-exploit scanners and bot defaults.)
+_REAL_VISITOR_SQL = ("(user_id IS NOT NULL OR visitor_id IN "
                      "(SELECT visitor_id FROM page_visits GROUP BY visitor_id HAVING COUNT(*) >= 2))")
 
 @app.before_request
