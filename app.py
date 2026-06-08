@@ -5702,11 +5702,11 @@ def _ranking_detail_computed_html(r):
 
     def _k(v): return f"${int(v)//1000}K" if v else "—"
     if r["slug"] == "best-earnings":
-        cols_head = ('<th>After grad</th><th class="hide-sm">6-yr</th>'
-                     '<th>10-yr</th><th class="hide-sm">4-yr cost</th>')
+        cols_head = ('<th class="sortable">After grad</th><th class="sortable hide-sm">6-yr</th>'
+                     '<th class="sortable">10-yr</th><th class="sortable hide-sm">4-yr cost</th>')
     else:
-        cols_head = (f'<th>{metric_label}</th><th class="hide-sm">10-yr earnings</th>'
-                     f'<th class="hide-sm">4-yr cost</th>')
+        cols_head = (f'<th class="sortable">{metric_label}</th><th class="sortable hide-sm">10-yr earnings</th>'
+                     f'<th class="sortable hide-sm">4-yr cost</th>')
     head = f'''<table class="rank-table">
       <thead><tr>
         <th>#</th><th>School</th><th class="hide-sm">Location</th>
@@ -5739,6 +5739,27 @@ def _ranking_detail_computed_html(r):
           <td><a class="btn btn-light btn-sm" href="/college/{c['slug']}">View</a></td>
         </tr>'''
     table = head + body + "</tbody></table>"
+    table += """
+<style>.rank-table th.sortable{cursor:pointer;user-select:none}.rank-table th.sortable:hover{color:var(--teal)}.rank-table th .arr{font-size:.85em}</style>
+<script>
+(function(){
+  var tbl=document.querySelector('table.rank-table'); if(!tbl) return;
+  var tbody=tbl.querySelector('tbody');
+  function val(cell){ if(!cell) return -1; var n=parseFloat(cell.textContent.replace(/[^0-9.\\-]/g,'')); return isNaN(n)?-1:n; }
+  tbl.querySelectorAll('th.sortable').forEach(function(th){
+    th.addEventListener('click',function(){
+      var idx=[].slice.call(th.parentNode.children).indexOf(th);
+      var desc = th.getAttribute('data-dir')!=='desc';
+      tbl.querySelectorAll('th').forEach(function(h){ h.removeAttribute('data-dir'); var a=h.querySelector('.arr'); if(a) a.remove(); });
+      th.setAttribute('data-dir', desc?'desc':'asc');
+      var rows=[].slice.call(tbody.querySelectorAll('tr'));
+      rows.sort(function(a,b){ var av=val(a.children[idx]), bv=val(b.children[idx]); return desc? bv-av : av-bv; });
+      rows.forEach(function(r,i){ tbody.appendChild(r); var rn=r.querySelector('.rank-num'); if(rn) rn.textContent='#'+(i+1); });
+      var s=document.createElement('span'); s.className='arr'; s.textContent=desc?' \\u25BC':' \\u25B2'; th.appendChild(s);
+    });
+  });
+})();
+</script>"""
     horizon_note = ('<br><b>After grad</b> = median ~1 yr after completing the degree · '
                     '<b>6-yr</b> & <b>10-yr</b> = median annual salary 6 and 10 years after first <i>entering</i> '
                     'college (10-yr ≈ 5–6 yrs into a career). All annual salaries, all majors combined.'
