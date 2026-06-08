@@ -5700,12 +5700,17 @@ def _ranking_detail_computed_html(r):
         metric_label = "Years to payback"
     rows = rows[:75]
 
+    def _k(v): return f"${int(v)//1000}K" if v else "—"
+    if r["slug"] == "best-earnings":
+        cols_head = ('<th>After grad</th><th class="hide-sm">6-yr</th>'
+                     '<th>10-yr</th><th class="hide-sm">4-yr cost</th>')
+    else:
+        cols_head = (f'<th>{metric_label}</th><th class="hide-sm">10-yr earnings</th>'
+                     f'<th class="hide-sm">4-yr cost</th>')
     head = f'''<table class="rank-table">
       <thead><tr>
         <th>#</th><th>School</th><th class="hide-sm">Location</th>
-        <th>{metric_label}</th>
-        <th class="hide-sm">10-yr earnings</th>
-        <th class="hide-sm">4-yr cost</th>
+        {cols_head}
         <th class="hide-sm">Type</th>
         <th></th>
       </tr></thead><tbody>'''
@@ -5713,24 +5718,32 @@ def _ranking_detail_computed_html(r):
     for i, x in enumerate(rows):
         c = x["school"]
         loc = city_state(c)
-        if r["slug"] == "best-earnings":
-            metric_val = f"${x['earn']//1000}K"
-        else:
-            metric_val = f"{x['ratio']:.1f} yrs"
         type_pill = f'<span class="pill pill-{c["type"]}" style="font-size:.65em">{c["type"]}</span>'
         four_yr_cost = (x["cost"] or 0) * 4
+        if r["slug"] == "best-earnings":
+            co = _career_outcomes(c["slug"]) or {}
+            cells = (f'<td class="num-col">{_k(co.get("after_grad"))}</td>'
+                     f'<td class="hide-sm num-col">{_k(co.get("entry"))}</td>'
+                     f'<td class="num-col"><b>{_k(x["earn"])}</b></td>'
+                     f'<td class="hide-sm num-col">${four_yr_cost//1000}K</td>')
+        else:
+            cells = (f'<td class="num-col"><b>{x["ratio"]:.1f} yrs</b></td>'
+                     f'<td class="hide-sm num-col">{_k(x["earn"])}</td>'
+                     f'<td class="hide-sm num-col">${four_yr_cost//1000}K</td>')
         body += f'''<tr>
           <td class="rank-num">#{i+1}</td>
           <td class="name"><a href="/college/{c['slug']}">{c['name']}</a></td>
           <td class="hide-sm num-col">{loc}</td>
-          <td class="num-col"><b>{metric_val}</b></td>
-          <td class="hide-sm num-col">${x['earn']//1000}K</td>
-          <td class="hide-sm num-col">${four_yr_cost//1000}K</td>
+          {cells}
           <td class="hide-sm">{type_pill}</td>
           <td><a class="btn btn-light btn-sm" href="/college/{c['slug']}">View</a></td>
         </tr>'''
     table = head + body + "</tbody></table>"
-    note = f'<p class="muted" style="font-size:.85em">Showing top {len(rows)} schools where Scorecard has populated earnings + cost data. Schools without federal earnings data (newer or smaller institutions) won\'t appear here.</p>'
+    horizon_note = ('<br><b>After grad</b> = median ~1 yr after completing the degree · '
+                    '<b>6-yr</b> & <b>10-yr</b> = median annual salary 6 and 10 years after first <i>entering</i> '
+                    'college (10-yr ≈ 5–6 yrs into a career). All annual salaries, all majors combined.'
+                    if r["slug"] == "best-earnings" else "")
+    note = f'<p class="muted" style="font-size:.85em">Showing top {len(rows)} schools where Scorecard has populated earnings + cost data. Schools without federal earnings data (newer or smaller institutions) won\'t appear here.{horizon_note}</p>'
     return _page(f"""
 {RANKING_TABLE_CSS}
 <div class="bar"><a href="/rankings">&larr; all rankings</a></div>
