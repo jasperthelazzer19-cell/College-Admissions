@@ -932,7 +932,7 @@ def _career_outcomes(slug):
     try:
         with db() as conn:
             r = conn.execute(
-                "SELECT entry, ten_yr, mid_career, oi, roi, n_sources, sources "
+                "SELECT entry, ten_yr, mid_career, oi, roi, n_sources, sources, after_grad "
                 "FROM career_outcomes WHERE college_slug=?", (slug,)).fetchone()
             if r:
                 row = dict(r)
