@@ -7875,8 +7875,12 @@ def school_plan_html(slug):
   {f'<div class="muted" style="font-size:.82em;margin-top:6px;font-style:italic">{sub_match["note"]}</div>' if sub_match.get("note") else ""}
 </div>'''
 
+    export_btn = (
+        f'<a class="btn btn-light btn-sm" href="/chances/{slug}/export" '
+        f'style="margin-left:auto">Export TikTok slide</a>'
+    ) if _is_creator() else ""
     return _page(f"""
-<div class="bar"><a href="/college/{slug}">&larr; back to {school['name']}</a></div>
+<div class="bar" style="display:flex;align-items:center;gap:8px"><a href="/college/{slug}">&larr; back to {school['name']}</a>{export_btn}</div>
 <h1>Your plan for {school['name']}</h1>
 <div class="muted">{city_state(school)} · {header_accept}% acceptance · {school['type']}</div>
 {sub_school_html}
