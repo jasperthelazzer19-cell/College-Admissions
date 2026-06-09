@@ -10383,6 +10383,13 @@ _TIKTOK_EXPORT_HTML = r"""<!doctype html><html lang="en"><head>
   #card.compact .odds{font-size:128px;margin:16px 0 14px}
   #card.compact .bullets li{font-size:34px;margin-bottom:30px;line-height:1.45}
   #card.compact .title{font-size:70px}
+  /* grade card: compact = grades only (rings + breakdown), drop the narrative.
+     Higher specificity (.grade.compact) overrides the generic hides above. */
+  #card.grade.compact .rt-h{display:block;margin-top:38px}
+  #card.grade.compact .rounds{display:block}
+  #card.grade.compact .bullets{display:none}
+  #card.grade.compact .rrow{font-size:40px;padding:24px 0}
+  #card.grade.compact .rrow .sch{font-size:31px}
   /* save overlay (long-press the image to save to Photos on iOS) */
   .ov{position:fixed;inset:0;background:rgba(3,6,11,.97);z-index:50;display:none;flex-direction:column;
     align-items:center;justify-content:flex-start;overflow:auto;padding:14px 12px 40px}
@@ -10571,7 +10578,7 @@ def grade_export():
         bullet_items += f'<li><b>Holding it back</b> &mdash; {esc(weaknesses[0])}</li>'
     if g.get("fixes"):
         bullet_items += f'<li><b>Biggest lever</b> &mdash; {esc(g["fixes"][0])}</li>'
-    card = f'''<div id="card" class="full">
+    card = f'''<div id="card" class="full grade">
   <div class="pill-top"><span class="line"></span><span class="pill">CANDOR GRADES:</span><span class="line r"></span></div>
   <div class="title">This applicant, graded out of 100</div>
   <div class="meta">{" &middot; ".join(meta_bits)}</div>
