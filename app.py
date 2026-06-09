@@ -14373,6 +14373,7 @@ def admin_visitors():
         for r in engaged_paths
     )
     return _page(f"""
+<div class="bar"><a href="/admin/stats?key={ADMIN_KEY}">← Stats</a> · <a href="/admin/returning?key={ADMIN_KEY}">Returning users →</a></div>
 <h1>Visitor traffic — last {window}</h1>
 <p class="muted">Real engaged users have 2+ pageviews. Single-hit "visitors" are usually scrapers (no cookie persistence → fresh visitor_id per request).</p>
 <div class="grid">
@@ -14416,6 +14417,139 @@ def admin_visitors():
   {rows_html}
 </div>
 """, title="Visitors — Candor")
+
+
+@app.route("/admin/returning")
+def admin_returning():
+    """Repeat / returning users — signed-up accounts that came back in a new
+    session (hours or days later), not just one continuous visit. A 'comeback'
+    is a pageview ≥2h after that account's previous one; that splits each
+    account's logged-in history into sessions. 2+ sessions = a returning user.
+    Multi-day = came back another day; otherwise they came back the same day.
+    Only signed-up users are counted (tracked by account, not cookie)."""
+    if not ADMIN_KEY or request.args.get("key") != ADMIN_KEY:
+        return ("<h1>401 Unauthorized</h1>", 401)
+    TZ = -7              # PT offset for day-bucketing
+    GAP = 2.0           # hours; gap this large = a new session (a comeback)
+    window = request.args.get("window", "all")
+    wmap = {"7 days": "7 days", "30 days": "30 days", "90 days": "90 days", "all": None}
+    if window not in wmap:
+        window = "all"
+    wclause = f"AND ts >= datetime('now','-{wmap[window]}')" if wmap[window] else ""
+    with db() as conn:
+        rows = conn.execute(f"""
+          WITH ordered AS (
+            SELECT user_id, ts,
+              (julianday(ts) - julianday(LAG(ts) OVER (PARTITION BY user_id ORDER BY ts))) * 24.0 AS gap_h,
+              date(ts, '{TZ} hours') AS d
+            FROM page_visits
+            WHERE user_id IS NOT NULL {wclause}
+          ),
+          per AS (
+            SELECT user_id,
+              COUNT(*) AS hits,
+              COUNT(DISTINCT d) AS active_days,
+              1 + COALESCE(SUM(CASE WHEN gap_h >= {GAP} THEN 1 ELSE 0 END), 0) AS sessions,
+              MIN(ts) AS first_seen, MAX(ts) AS last_seen,
+              MIN(CASE WHEN gap_h >= {GAP} THEN gap_h END) AS first_return_gap_h
+            FROM ordered GROUP BY user_id
+          )
+          SELECT * FROM per
+          ORDER BY sessions DESC, last_seen DESC
+        """).fetchall()
+        emails = {r["id"]: r["email"] for r in conn.execute("SELECT id, email FROM users").fetchall()}
+    real = len(rows)
+    returners = [r for r in rows if r["sessions"] >= 2]
+    nret = len(returners)
+    multiday = sum(1 for r in returners if (r["active_days"] or 1) >= 2)
+    sameday = nret - multiday
+    auth_ret = nret
+    rate = round(nret / real * 100, 1) if real else 0.0
+    # Distribution by number of sessions (2, 3, 4, 5+) and median time-to-return.
+    from collections import Counter
+    dist = Counter(min(r["sessions"], 5) for r in returners)
+    gaps = sorted(r["first_return_gap_h"] for r in returners if r["first_return_gap_h"] is not None)
+    if gaps:
+        med = gaps[len(gaps) // 2]
+        med_str = f"{med:.1f}h" if med < 48 else f"{med/24:.1f}d"
+    else:
+        med_str = "—"
+
+    def _fmt(ts):
+        return (ts or "")[:16].replace("T", " ")
+
+    dist_html = "".join(
+        f'<div style="display:flex;justify-content:space-between;font-size:.9em;padding:4px 0">'
+        f'<span>{("5+" if k==5 else k)} sessions</span><span class="muted">{dist.get(k,0)}</span></div>'
+        for k in (2, 3, 4, 5)
+    )
+    multi_return = sum(1 for r in returners if r["sessions"] >= 3)
+    rows_html = ""
+    for r in returners[:80]:
+        who = emails.get(r["user_id"]) or f'user #{r["user_id"]}'
+        ident = f'<span style="color:var(--teal)">{who}</span>'
+        span_days = r["active_days"] or 1
+        rows_html += (
+            f'<div style="display:flex;gap:12px;padding:7px 0;border-top:1px solid var(--border);font-size:.85em;align-items:center">'
+            f'<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{ident}</span>'
+            f'<span style="width:84px;text-align:right">{r["sessions"]} sessions</span>'
+            f'<span style="width:70px;text-align:right">{span_days} day{"s" if span_days!=1 else ""}</span>'
+            f'<span style="width:60px;text-align:right">{r["hits"]} hits</span>'
+            f'<span style="width:150px;text-align:right" class="muted">{_fmt(r["last_seen"])}</span>'
+            f'</div>'
+        )
+    return _page(f"""
+<div class="bar"><a href="/admin/stats?key={ADMIN_KEY}">← Stats</a> · <a href="/admin/visitors?key={ADMIN_KEY}">Visitors</a></div>
+<h1>Returning users — {window}</h1>
+<p class="muted">Signed-up accounts only. A "comeback" = a pageview ≥{GAP:.0f}h after that account's previous one (a new session). 2+ sessions = they came back. Tracked by account, so it survives device/cookie changes.</p>
+<div class="grid">
+  <div class="stat-card">
+    <div class="label">Returning users</div>
+    <div class="value accent">{nret}</div>
+    <div class="delta">{rate}% of {real} signed-up users came back</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">Came back another day</div>
+    <div class="value">{multiday}</div>
+    <div class="delta">active on 2+ separate days</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">Same day, hours later</div>
+    <div class="value">{sameday}</div>
+    <div class="delta">returned within the same day</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">Came back 3+ times</div>
+    <div class="value">{multi_return}</div>
+    <div class="delta">your stickiest users</div>
+  </div>
+</div>
+<p class="muted" style="margin-top:14px">Window: <a href="?key={ADMIN_KEY}&window=7 days">7d</a> · <a href="?key={ADMIN_KEY}&window=30 days">30d</a> · <a href="?key={ADMIN_KEY}&window=90 days">90d</a> · <a href="?key={ADMIN_KEY}&window=all">all</a></p>
+
+<div class="row" style="margin-top:8px">
+  <div class="card" style="flex:1">
+    <h3 style="margin-top:0">How many times they came back</h3>
+    {dist_html or '<p class="muted">No returning users yet.</p>'}
+  </div>
+  <div class="card" style="flex:1">
+    <h3 style="margin-top:0">Typical time to first return</h3>
+    <div style="font-size:2em;font-weight:800;color:var(--teal)">{med_str}</div>
+    <div class="muted" style="font-size:.85em">median gap before a visitor's first comeback</div>
+  </div>
+</div>
+
+<h2 style="margin-top:24px">Returning users (top 80 by sessions)</h2>
+<div class="card">
+  <div style="display:flex;gap:12px;padding:6px 0;font-size:.78em;color:var(--text-2);text-transform:uppercase;letter-spacing:.4px">
+    <span style="flex:1">who</span>
+    <span style="width:84px;text-align:right">sessions</span>
+    <span style="width:70px;text-align:right">days</span>
+    <span style="width:60px;text-align:right">hits</span>
+    <span style="width:150px;text-align:right">last seen</span>
+  </div>
+  {rows_html or '<p class="muted">No returning users in this window.</p>'}
+</div>
+""", title="Returning users — Candor")
 
 
 @app.route("/admin/stats")
