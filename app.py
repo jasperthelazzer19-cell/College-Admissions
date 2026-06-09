@@ -10543,12 +10543,12 @@ def grade_export():
     import html as _html
     esc = _html.escape
     score100 = max(1, min(100, round(g["overall"] / 10)))
-    if score100 >= 85:   band = "Elite"
-    elif score100 >= 70: band = "Very strong"
-    elif score100 >= 55: band = "Strong"
-    elif score100 >= 40: band = "Solid"
-    elif score100 >= 25: band = "Developing"
-    else:                band = "Early"
+    if score100 >= 85:   band, bcol = "Elite", "#5fc9b6"
+    elif score100 >= 70: band, bcol = "Very strong", "#7dd3fc"
+    elif score100 >= 55: band, bcol = "Strong", "#7dd3fc"
+    elif score100 >= 40: band, bcol = "Solid", "#fcd34d"
+    elif score100 >= 25: band, bcol = "Developing", "#fcd34d"
+    else:                band, bcol = "Early", "#f9a8d4"
     # Meta line: the academic stats viewers grade along to.
     def _g(k): return (str(profile.get(k)).strip() if profile.get(k) not in (None, "") else "")
     sat = _g("sat"); act = _g("act"); uw = _g("uw_gpa")
@@ -10556,15 +10556,11 @@ def grade_export():
     test_str = f"{sat} SAT" if sat else (f"{act} ACT" if act else "Test-blind")
     meta_bits = [b for b in [f"{uw} GPA" if uw else "", test_str, f"{len(ap_list)} APs" if ap_list else "",
                              esc(profile.get("major") or "")] if b]
-    DIM_LABELS = {"academics": "Academics (GPA)", "testing": "Testing", "rigor": "Course rigor",
-                  "extracurriculars": "Extracurriculars", "narrative_hooks": "Narrative & hooks"}
+    dim_list = _grade_dim_list(g)
     dim_rows = ""
-    for k, lbl in DIM_LABELS.items():
-        v = g.get("dimensions", {}).get(k)
-        if v is None:
-            continue
-        pct = max(1, min(100, round(v / 10)))
-        dim_rows += (f'<div class="rrow"><span>{lbl}</span>'
+    for _k, lbl, color, pct in dim_list:
+        dim_rows += (f'<div class="rrow"><span><span style="display:inline-block;width:15px;height:15px;'
+                     f'border-radius:50%;background:{color};margin-right:14px;vertical-align:middle"></span>{lbl}</span>'
                      f'<span class="rval">{pct}<span class="sch"> /100</span></span></div>')
     strengths = g.get("strengths") or []
     weaknesses = g.get("weaknesses") or []
@@ -10584,8 +10580,8 @@ def grade_export():
       <h2 class="ch-h">Overall grade</h2>
       <div class="badges"><span class="badge b-tier">{esc(band.upper())}</span></div>
     </div>
-    <div class="odds">{score100}</div>
-    <div class="fit">out of 100 &middot; graded for top-20 admissions</div>
+    <div style="margin:14px 0 6px">{_grade_rings(dim_list, score100, size=430, stroke=22, gap=11, center_color="#fff", center_sub="out of 100", num_em=124, sub_em=30)}</div>
+    <div class="fit" style="text-align:center">graded for top-20 admissions</div>
     <div class="rt-h">Breakdown</div>
     <div class="rounds">{dim_rows}</div>
     <ul class="bullets">{bullet_items}</ul>
@@ -10976,6 +10972,58 @@ def profile_grade_fragment():
     return _grade_body_html(g)
 
 
+# Ordered dimensions for the concentric ring gauge — outer ring first. Each has
+# a distinct on-brand color reused by the breakdown bars below so viewers can
+# map a ring to its rating.
+GRADE_DIMS = [
+    ("academics",       "Academics (GPA)",   "#5aa2ff"),  # blue
+    ("testing",         "Testing",           "#5fc9b6"),  # teal
+    ("rigor",           "Course rigor",      "#8b7be0"),  # purple
+    ("extracurriculars","Extracurriculars",  "#f5b942"),  # amber
+    ("narrative_hooks", "Narrative & hooks", "#ec6fb0"),  # pink
+]
+
+
+def _grade_dim_list(g):
+    """[(key,label,color,pct)] for the dimensions present in a grade dict."""
+    out = []
+    dims = g.get("dimensions", {}) or {}
+    for key, label, color in GRADE_DIMS:
+        v = dims.get(key)
+        if v is None:
+            continue
+        out.append((key, label, color, max(1, min(100, round(v / 10)))))
+    return out
+
+
+def _grade_rings(dim_list, overall, *, size, stroke, gap, center_color,
+                 center_sub, num_em, sub_em):
+    """Apple-Watch-style concentric gauge: one ring per dimension, outer→inner,
+    each filled only as far as its rating. Overall score sits in the center."""
+    import math
+    cx = size / 2.0
+    outer_r = (size - stroke) / 2.0
+    rings = ""
+    for i, (_k, _lbl, color, pct) in enumerate(dim_list):
+        r = outer_r - i * (stroke + gap)
+        if r < stroke:
+            break
+        circ = 2 * math.pi * r
+        dash = circ * max(0.0, min(1.0, pct / 100.0))
+        rings += (
+            f'<circle cx="{cx}" cy="{cx}" r="{r:.1f}" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="{stroke}"/>'
+            f'<circle cx="{cx}" cy="{cx}" r="{r:.1f}" fill="none" stroke="{color}" stroke-width="{stroke}" '
+            f'stroke-linecap="round" stroke-dasharray="{dash:.1f} {circ:.1f}" transform="rotate(-90 {cx} {cx})"/>'
+        )
+    return f'''<div style="position:relative;width:{size}px;height:{size}px;margin:0 auto;flex-shrink:0">
+  <svg width="{size}" height="{size}" viewBox="0 0 {size} {size}" style="display:block">{rings}</svg>
+  <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center">
+    <div style="font-size:{num_em:.0f}px;font-weight:800;line-height:1;letter-spacing:-1px;color:{center_color}">{overall}</div>
+    <div style="font-size:{sub_em:.0f}px;color:rgba(233,238,245,.55);margin-top:2px">{center_sub}</div>
+  </div>
+</div>'''
+
+
 def _grade_body_html(g):
     from html import escape as _h
     export_btn = (' <a class="btn btn-light" href="/grade/export">Export TikTok slide</a>'
@@ -10989,24 +11037,16 @@ def _grade_body_html(g):
     elif score100 >= 25: band, bcol = "Developing", "#fcd34d"
     else:                band, bcol = "Early", "#f9a8d4"
 
-    DIM_LABELS = {
-        "academics": "Academics (GPA)", "testing": "Testing",
-        "rigor": "Course rigor", "extracurriculars": "Extracurriculars",
-        "narrative_hooks": "Narrative & hooks",
-    }
+    dim_list = _grade_dim_list(g)
     dim_rows = ""
-    for k, lbl in DIM_LABELS.items():
-        v = g["dimensions"].get(k)
-        if v is None:
-            continue
-        pct = max(1, min(100, round(v / 10)))
+    for _k, lbl, color, pct in dim_list:
         dim_rows += f"""
 <div style="margin:12px 0">
   <div style="display:flex;justify-content:space-between;font-size:.9em;margin-bottom:5px">
-    <span>{lbl}</span><span class="muted" style="font-weight:600">{pct}/100</span>
+    <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:{color};margin-right:8px;vertical-align:middle"></span>{lbl}</span><span class="muted" style="font-weight:600">{pct}/100</span>
   </div>
   <div style="height:8px;background:var(--bg-2);border-radius:999px;overflow:hidden">
-    <div style="height:100%;width:{pct}%;background:var(--accent-grad);border-radius:999px"></div>
+    <div style="height:100%;width:{pct}%;background:{color};border-radius:999px"></div>
   </div>
 </div>"""
 
@@ -11021,12 +11061,13 @@ def _grade_body_html(g):
     summary_html = f'<p class="muted" style="font-size:1.02em;line-height:1.55;margin:6px 0 0">{_h(g["summary"])}</p>' if g.get("summary") else ""
     fb_note = '<p class="muted" style="font-size:.8em;margin-top:18px">Heuristic estimate — AI grader temporarily unavailable.</p>' if g.get("_fallback") else ""
 
+    ring_html = _grade_rings(dim_list, score100, size=216, stroke=12, gap=6,
+                             center_color=bcol, center_sub="out of 100", num_em=46, sub_em=15)
     body = f"""
-<div class="card" style="display:flex;align-items:center;gap:26px;flex-wrap:wrap">
-  <div style="text-align:center;min-width:140px">
-    <div style="font-size:4.2em;font-weight:800;line-height:1;letter-spacing:-2px;color:{bcol}">{score100}</div>
-    <div class="muted" style="font-size:.82em;margin-top:2px">out of 100</div>
-    <div style="margin-top:8px;display:inline-block;padding:4px 12px;border-radius:999px;font-size:.78em;font-weight:600;background:rgba(95,201,182,.12);color:{bcol};border:1px solid rgba(95,201,182,.25)">{band}</div>
+<div class="card" style="display:flex;align-items:center;gap:30px;flex-wrap:wrap">
+  <div style="text-align:center;min-width:170px">
+    {ring_html}
+    <div style="margin-top:14px;display:inline-block;padding:4px 14px;border-radius:999px;font-size:.78em;font-weight:600;background:rgba(95,201,182,.12);color:{bcol};border:1px solid rgba(95,201,182,.25)">{band}</div>
   </div>
   <div style="flex:1;min-width:260px">{summary_html or '<p class="muted">Your profile, dimension by dimension, is below.</p>'}</div>
 </div>
