@@ -14458,13 +14458,15 @@ def admin_returning():
           ORDER BY sessions DESC, last_seen DESC
         """).fetchall()
         emails = {r["id"]: r["email"] for r in conn.execute("SELECT id, email FROM users").fetchall()}
-    real = len(rows)
+        total_users = conn.execute("SELECT COUNT(*) c FROM users").fetchone()["c"]
+    tracked = len(rows)                       # users with any logged-in pageview
     returners = [r for r in rows if r["sessions"] >= 2]
     nret = len(returners)
     multiday = sum(1 for r in returners if (r["active_days"] or 1) >= 2)
     sameday = nret - multiday
-    auth_ret = nret
-    rate = round(nret / real * 100, 1) if real else 0.0
+    # Retention against ALL signups (the honest denominator). Note coverage:
+    # only `tracked` of `total_users` have logged-in pageviews to judge from.
+    rate = round(nret / total_users * 100, 1) if total_users else 0.0
     # Distribution by number of sessions (2, 3, 4, 5+) and median time-to-return.
     from collections import Counter
     dist = Counter(min(r["sessions"], 5) for r in returners)
@@ -14501,12 +14503,12 @@ def admin_returning():
     return _page(f"""
 <div class="bar"><a href="/admin/stats?key={ADMIN_KEY}">← Stats</a> · <a href="/admin/visitors?key={ADMIN_KEY}">Visitors</a></div>
 <h1>Returning users — {window}</h1>
-<p class="muted">Signed-up accounts only. A "comeback" = a pageview ≥{GAP:.0f}h after that account's previous one (a new session). 2+ sessions = they came back. Tracked by account, so it survives device/cookie changes.</p>
+<p class="muted">Signed-up accounts only. A "comeback" = a pageview ≥{GAP:.0f}h after that account's previous one (a new session). 2+ sessions = they came back. Tracked by account, so it survives device/cookie changes. We have logged-in pageviews for <b>{tracked}</b> of your <b>{total_users}</b> users (the rest signed up but haven't browsed while logged in since visit-logging began), so returns can only be detected for those {tracked}.</p>
 <div class="grid">
   <div class="stat-card">
     <div class="label">Returning users</div>
     <div class="value accent">{nret}</div>
-    <div class="delta">{rate}% of {real} signed-up users came back</div>
+    <div class="delta">{rate}% of all {total_users} signups · {round(nret/tracked*100,1) if tracked else 0}% of {tracked} tracked</div>
   </div>
   <div class="stat-card">
     <div class="label">Came back another day</div>
