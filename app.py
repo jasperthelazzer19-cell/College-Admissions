@@ -14658,6 +14658,7 @@ def admin_stats():
     profile_pct = round(profiles_done / max(1, total_users) * 100)
     return _page(f"""
 <h1>Activity</h1>
+<div class="bar" style="margin-bottom:6px"><a href="/admin/returning?key={ADMIN_KEY}">Returning users →</a> · <a href="/admin/visitors?key={ADMIN_KEY}">Visitors →</a> · <a href="/admin/data-status?key={ADMIN_KEY}">Data status →</a></div>
 <h3 style="margin:18px 0 8px;color:var(--text-2);font-size:.82em;letter-spacing:.6px;text-transform:uppercase;font-weight:600">Live traffic</h3>
 <div class="grid">
   <div class="stat-card">
