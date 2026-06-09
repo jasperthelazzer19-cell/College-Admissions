@@ -10385,11 +10385,12 @@ _TIKTOK_EXPORT_HTML = r"""<!doctype html><html lang="en"><head>
   #card.compact .title{font-size:70px}
   /* grade card: compact = grades only (rings + breakdown), drop the narrative.
      Higher specificity (.grade.compact) overrides the generic hides above. */
-  #card.grade.compact .rt-h{display:block;margin-top:38px}
+  #card.grade.compact .title{font-size:54px}
+  #card.grade.compact .rt-h{display:block;margin-top:30px}
   #card.grade.compact .rounds{display:block}
   #card.grade.compact .bullets{display:none}
-  #card.grade.compact .rrow{font-size:40px;padding:24px 0}
-  #card.grade.compact .rrow .sch{font-size:31px}
+  #card.grade.compact .rrow{font-size:36px;padding:18px 0}
+  #card.grade.compact .rrow .sch{font-size:29px}
   /* save overlay (long-press the image to save to Photos on iOS) */
   .ov{position:fixed;inset:0;background:rgba(3,6,11,.97);z-index:50;display:none;flex-direction:column;
     align-items:center;justify-content:flex-start;overflow:auto;padding:14px 12px 40px}
@@ -10587,7 +10588,7 @@ def grade_export():
       <h2 class="ch-h">Overall grade</h2>
       <div class="badges"><span class="badge b-tier">{esc(band.upper())}</span></div>
     </div>
-    <div style="margin:14px 0 6px">{_grade_rings(dim_list, score100, size=430, stroke=20, gap=10, num_em=150, uid="ex")}</div>
+    <div style="margin:10px 0 4px">{_grade_rings(dim_list, score100, size=360, stroke=18, gap=9, num_em=130, uid="ex")}</div>
     <div class="fit" style="text-align:center">graded for top-20 admissions</div>
     <div class="rt-h">Breakdown</div>
     <div class="rounds">{dim_rows}</div>
@@ -11041,9 +11042,10 @@ def _grade_rings(dim_list, overall, *, size, stroke, gap, num_em, uid="r"):
             f'<circle cx="{cx}" cy="{cx}" r="{r:.1f}" fill="none" stroke="url(#{gid})" stroke-width="{stroke}" '
             f'stroke-linecap="round" stroke-dasharray="{dash:.1f} {circ:.1f}" transform="{sweep}"/>'
         )
-    # Keep the number inside the innermost ring's clear hole.
+    # Keep the number well inside the innermost ring's clear hole. Two-digit
+    # scores are wide, so size off the hole diameter with generous padding.
     hole = max(0, (inner_r - stroke / 2.0) * 2.0)
-    num_px = min(num_em, hole * 0.82)
+    num_px = min(num_em, hole * 0.58)
     return f'''<div style="position:relative;width:{size}px;height:{size}px;margin:0 auto;flex-shrink:0">
   <svg width="{size}" height="{size}" viewBox="0 0 {size} {size}" style="display:block"><defs>{defs}</defs>{rings}</svg>
   <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center">
