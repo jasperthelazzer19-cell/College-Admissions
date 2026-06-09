@@ -10580,7 +10580,7 @@ def grade_export():
       <h2 class="ch-h">Overall grade</h2>
       <div class="badges"><span class="badge b-tier">{esc(band.upper())}</span></div>
     </div>
-    <div style="margin:14px 0 6px">{_grade_rings(dim_list, score100, size=430, stroke=22, gap=11, center_color="#fff", center_sub="out of 100", num_em=124, sub_em=30)}</div>
+    <div style="margin:14px 0 6px">{_grade_rings(dim_list, score100, size=430, stroke=22, gap=11, center_sub="out of 100", num_em=124, sub_em=30, uid="ex")}</div>
     <div class="fit" style="text-align:center">graded for top-20 admissions</div>
     <div class="rt-h">Breakdown</div>
     <div class="rounds">{dim_rows}</div>
@@ -10972,16 +10972,23 @@ def profile_grade_fragment():
     return _grade_body_html(g)
 
 
-# Ordered dimensions for the concentric ring gauge — outer ring first. Each has
-# a distinct on-brand color reused by the breakdown bars below so viewers can
-# map a ring to its rating.
+# Ordered dimensions for the concentric ring gauge — outer ring first. Colors
+# are a tight Candor teal→blue ramp (no rainbow): cohesive brand gradient,
+# still distinguishable ring-to-ring. Reused by the breakdown bars below.
 GRADE_DIMS = [
-    ("academics",       "Academics (GPA)",   "#5aa2ff"),  # blue
-    ("testing",         "Testing",           "#5fc9b6"),  # teal
-    ("rigor",           "Course rigor",      "#8b7be0"),  # purple
-    ("extracurriculars","Extracurriculars",  "#f5b942"),  # amber
-    ("narrative_hooks", "Narrative & hooks", "#ec6fb0"),  # pink
+    ("academics",       "Academics (GPA)",   "#5fc9b6"),  # teal
+    ("testing",         "Testing",           "#57c3cb"),
+    ("rigor",           "Course rigor",      "#54b3df"),
+    ("extracurriculars","Extracurriculars",  "#56a6ef"),
+    ("narrative_hooks", "Narrative & hooks", "#5aa2ff"),  # blue
 ]
+
+
+def _lighten(hex_c, amt=0.4):
+    h = hex_c.lstrip("#")
+    r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+    r = int(r + (255 - r) * amt); g = int(g + (255 - g) * amt); b = int(b + (255 - b) * amt)
+    return f"#{r:02x}{g:02x}{b:02x}"
 
 
 def _grade_dim_list(g):
@@ -10996,29 +11003,35 @@ def _grade_dim_list(g):
     return out
 
 
-def _grade_rings(dim_list, overall, *, size, stroke, gap, center_color,
-                 center_sub, num_em, sub_em):
-    """Apple-Watch-style concentric gauge: one ring per dimension, outer→inner,
-    each filled only as far as its rating. Overall score sits in the center."""
+def _grade_rings(dim_list, overall, *, size, stroke, gap, center_sub,
+                 num_em, sub_em, uid="r"):
+    """Apple-Watch-style concentric gauge in Candor's teal→blue gradient: one
+    ring per dimension, outer→inner, each filled only as far as its rating.
+    Each ring carries a soft gradient (its color → a lighter tint) for the
+    signature Candor sheen. Overall score sits in the center, gradient-filled."""
     import math
     cx = size / 2.0
     outer_r = (size - stroke) / 2.0
-    rings = ""
+    defs, rings = "", ""
     for i, (_k, _lbl, color, pct) in enumerate(dim_list):
         r = outer_r - i * (stroke + gap)
         if r < stroke:
             break
+        gid = f"g{uid}{i}"
+        defs += (f'<linearGradient id="{gid}" x1="0" y1="0" x2="1" y2="1">'
+                 f'<stop offset="0" stop-color="{color}"/>'
+                 f'<stop offset="1" stop-color="{_lighten(color)}"/></linearGradient>')
         circ = 2 * math.pi * r
         dash = circ * max(0.0, min(1.0, pct / 100.0))
         rings += (
             f'<circle cx="{cx}" cy="{cx}" r="{r:.1f}" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="{stroke}"/>'
-            f'<circle cx="{cx}" cy="{cx}" r="{r:.1f}" fill="none" stroke="{color}" stroke-width="{stroke}" '
+            f'<circle cx="{cx}" cy="{cx}" r="{r:.1f}" fill="none" stroke="url(#{gid})" stroke-width="{stroke}" '
             f'stroke-linecap="round" stroke-dasharray="{dash:.1f} {circ:.1f}" transform="rotate(-90 {cx} {cx})"/>'
         )
     return f'''<div style="position:relative;width:{size}px;height:{size}px;margin:0 auto;flex-shrink:0">
-  <svg width="{size}" height="{size}" viewBox="0 0 {size} {size}" style="display:block">{rings}</svg>
+  <svg width="{size}" height="{size}" viewBox="0 0 {size} {size}" style="display:block"><defs>{defs}</defs>{rings}</svg>
   <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center">
-    <div style="font-size:{num_em:.0f}px;font-weight:800;line-height:1;letter-spacing:-1px;color:{center_color}">{overall}</div>
+    <div style="font-size:{num_em:.0f}px;font-weight:800;line-height:1;letter-spacing:-1px;background:linear-gradient(120deg,#5fc9b6,#5aa2ff);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent">{overall}</div>
     <div style="font-size:{sub_em:.0f}px;color:rgba(233,238,245,.55);margin-top:2px">{center_sub}</div>
   </div>
 </div>'''
@@ -11062,7 +11075,7 @@ def _grade_body_html(g):
     fb_note = '<p class="muted" style="font-size:.8em;margin-top:18px">Heuristic estimate — AI grader temporarily unavailable.</p>' if g.get("_fallback") else ""
 
     ring_html = _grade_rings(dim_list, score100, size=216, stroke=12, gap=6,
-                             center_color=bcol, center_sub="out of 100", num_em=46, sub_em=15)
+                             center_sub="out of 100", num_em=46, sub_em=15, uid="pg")
     body = f"""
 <div class="card" style="display:flex;align-items:center;gap:30px;flex-wrap:wrap">
   <div style="text-align:center;min-width:170px">
