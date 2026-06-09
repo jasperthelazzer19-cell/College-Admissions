@@ -10526,6 +10526,77 @@ def chances_export(slug):
     return Response(page, mimetype="text/html")
 
 
+@app.route("/grade/export")
+@login_required
+def grade_export():
+    """New-Roads-only TikTok export of the /100 profile grade — the 'CANDOR'S
+    SCORE' reveal slide. Mirrors chances_export but renders the grade card."""
+    if not _is_creator():
+        abort(404)
+    uid = current_user()["id"]
+    profile = get_profile(uid)
+    if not profile:
+        return redirect(url_for("profile_page"))
+    g = _grade_cached(uid, profile, compute=True)
+    if not g:
+        return redirect(url_for("profile_grade_page"))
+    import html as _html
+    esc = _html.escape
+    score100 = max(1, min(100, round(g["overall"] / 10)))
+    if score100 >= 85:   band = "Elite"
+    elif score100 >= 70: band = "Very strong"
+    elif score100 >= 55: band = "Strong"
+    elif score100 >= 40: band = "Solid"
+    elif score100 >= 25: band = "Developing"
+    else:                band = "Early"
+    # Meta line: the academic stats viewers grade along to.
+    def _g(k): return (str(profile.get(k)).strip() if profile.get(k) not in (None, "") else "")
+    sat = _g("sat"); act = _g("act"); uw = _g("uw_gpa")
+    ap_list = [a.strip() for a in (profile.get("aps") or "").split(",") if a.strip()]
+    test_str = f"{sat} SAT" if sat else (f"{act} ACT" if act else "Test-blind")
+    meta_bits = [b for b in [f"{uw} GPA" if uw else "", test_str, f"{len(ap_list)} APs" if ap_list else "",
+                             esc(profile.get("major") or "")] if b]
+    DIM_LABELS = {"academics": "Academics (GPA)", "testing": "Testing", "rigor": "Course rigor",
+                  "extracurriculars": "Extracurriculars", "narrative_hooks": "Narrative & hooks"}
+    dim_rows = ""
+    for k, lbl in DIM_LABELS.items():
+        v = g.get("dimensions", {}).get(k)
+        if v is None:
+            continue
+        pct = max(1, min(100, round(v / 10)))
+        dim_rows += (f'<div class="rrow"><span>{lbl}</span>'
+                     f'<span class="rval">{pct}<span class="sch"> /100</span></span></div>')
+    strengths = g.get("strengths") or []
+    weaknesses = g.get("weaknesses") or []
+    bullet_items = ""
+    if strengths:
+        bullet_items += f'<li><b>Strength</b> &mdash; {esc(strengths[0])}</li>'
+    if weaknesses:
+        bullet_items += f'<li><b>Holding it back</b> &mdash; {esc(weaknesses[0])}</li>'
+    if g.get("fixes"):
+        bullet_items += f'<li><b>Biggest lever</b> &mdash; {esc(g["fixes"][0])}</li>'
+    card = f'''<div id="card" class="full">
+  <div class="pill-top"><span class="line"></span><span class="pill">CANDOR GRADES:</span><span class="line r"></span></div>
+  <div class="title">This applicant, graded out of 100</div>
+  <div class="meta">{" &middot; ".join(meta_bits)}</div>
+  <div class="ccard">
+    <div class="ccard-top">
+      <h2 class="ch-h">Overall grade</h2>
+      <div class="badges"><span class="badge b-tier">{esc(band.upper())}</span></div>
+    </div>
+    <div class="odds">{score100}</div>
+    <div class="fit">out of 100 &middot; graded for top-20 admissions</div>
+    <div class="rt-h">Breakdown</div>
+    <div class="rounds">{dim_rows}</div>
+    <ul class="bullets">{bullet_items}</ul>
+  </div>
+  <div class="foot"><span class="lock">&#128274;</span>candoradmit.com</div>
+</div>'''
+    page = (_TIKTOK_EXPORT_HTML.replace("__CARD__", card)
+            .replace("__SLUG__", "grade").replace("__SCHOOL__", "Profile Grade"))
+    return Response(page, mimetype="text/html")
+
+
 @app.route("/chances/<slug>/narrative")
 @login_required
 def chances_narrative(slug):
@@ -10907,6 +10978,8 @@ def profile_grade_fragment():
 
 def _grade_body_html(g):
     from html import escape as _h
+    export_btn = (' <a class="btn btn-light" href="/grade/export">Export TikTok slide</a>'
+                  if _is_creator() else "")
     score100 = max(1, min(100, round(g["overall"] / 10)))
     # Color + label band for the headline.
     if score100 >= 85:   band, bcol = "Elite", "#5fc9b6"
@@ -10979,7 +11052,7 @@ def _grade_body_html(g):
   <ul style="list-style:none;padding:0;margin:0">{_bullets(g.get("fixes"), "#7dd3fc")}</ul>
 </div>
 {fb_note}
-<p style="margin-top:18px"><a class="btn btn-primary" href="/plans">See your school list →</a> <a class="btn btn-light" href="/profile">Update profile</a></p>
+<p style="margin-top:18px"><a class="btn btn-primary" href="/plans">See your school list →</a> <a class="btn btn-light" href="/profile">Update profile</a>{export_btn}</p>
 """
     return body
 
