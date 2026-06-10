@@ -3588,7 +3588,13 @@ def generate_bullets(profile, school, fit, components, tier, odds):
     test_compare = "Student did not submit a test score."
     sat = profile.get("sat")
     act = profile.get("act")
-    if sat and school.get("sat_25") is not None and school.get("sat_75") is not None:
+    # Test-blind schools (UC system) keep a stored SAT/ACT range for DISPLAY but
+    # legally don't consider scores. Gate the range-comparison on `not test_blind`
+    # so a submitted score is never written up as a strength/weakness — otherwise
+    # the narrative cites "SAT 1480 inside UCLA's 1290-1510" even though UCLA is
+    # test-blind. (The odds engine already ignores it via is_test_blind.)
+    test_blind = is_test_blind(school)
+    if not test_blind and sat and school.get("sat_25") is not None and school.get("sat_75") is not None:
         test_str = f"SAT {sat}"
         if sat >= school["sat_75"]:
             test_compare = f"SAT {sat} is AT OR ABOVE the 75th percentile ({school['sat_75']}) of admits — top of the range."
@@ -3597,7 +3603,7 @@ def generate_bullets(profile, school, fit, components, tier, odds):
         else:
             gap = school["sat_25"] - sat
             test_compare = f"SAT {sat} is BELOW the 25th percentile ({school['sat_25']}) of admits — gap of {gap} points."
-    elif act and school.get("act_25") is not None and school.get("act_75") is not None:
+    elif not test_blind and act and school.get("act_25") is not None and school.get("act_75") is not None:
         test_str = f"ACT {act}"
         if act >= school["act_75"]:
             test_compare = f"ACT {act} is AT OR ABOVE the 75th percentile ({school['act_75']}) of admits — top of the range."
@@ -3671,7 +3677,7 @@ def generate_bullets(profile, school, fit, components, tier, odds):
 - Awards: {profile.get('awards','(blank)') or '(blank)'}
 - Hooks for THIS school: legacy_generations={legacy_generations_at(profile, school)} (0 means no legacy here, even if the student has legacy elsewhere), first_gen={profile.get('first_gen')}, athlete={profile.get('athlete')}
 
-Target: {school['name']} (acceptance {round(school['accept']*100,1)}%, GPA midpoint ~{round((school['gpa_lo']+school['gpa_hi'])/2,2)}, {('test-blind — scores not considered' if school.get('sat_25') is None else f"SAT mid-50% {school['sat_25']}-{school['sat_75']}, ACT mid-50% {school['act_25']}-{school['act_75']}")}).
+Target: {school['name']} (acceptance {round(school['accept']*100,1)}%, GPA midpoint ~{round((school['gpa_lo']+school['gpa_hi'])/2,2)}, {('test-blind — scores not considered' if test_blind else f"SAT mid-50% {school['sat_25']}-{school['sat_75']}, ACT mid-50% {school['act_25']}-{school['act_75']}")}).
 Computed fit: {fit}/100. Tier: {tier}. Odds: {odds[0]}-{odds[1]}%.
 
 PRE-COMPUTED COMPARISONS (use these exactly, do NOT recompute):
@@ -3683,6 +3689,7 @@ CRITICAL RULES:
 - DO NOT compute test/GPA percentiles yourself — use the pre-computed comparisons.
 - DO NOT invent percentile rankings or stats not provided.
 - If the student submitted ACT, only reference the ACT range — never compare ACT to SAT.
+{('- This school is TEST-BLIND: do NOT mention, cite, or frame the SAT/ACT score as a strength, weakness, or factor of any kind. Scores are legally not considered in admissions here.' if test_blind else '')}
 
 Output exactly three lines. Each is ONE tight sentence (~25 words max) — specific to THIS applicant and THIS school. Lead with the concrete number/award; no preamble, no filler, no hedging. Shorter is better as long as it still lands.
 STRENGTH: <one sentence: the strongest thing working in their favor here and why it matters at this school>
