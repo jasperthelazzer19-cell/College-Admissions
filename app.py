@@ -5107,25 +5107,36 @@ def fetch_articles(college_slug):
 
 
 NAV = """<div class="nav"><a class="brand" href="/">""" + CANDOR_LOGO_SVG + """Candor</a>
-<a href="/rankings/my-fit">★ My Fit</a>
+__UPGRADE_CTA__<a href="/rankings/my-fit">★ My Fit</a>
 <a href="/colleges">Browse</a>
 <a href="/rankings">Rankings</a>
 <a href="/grade">Profile Grade</a>
 <a href="/improve">Improve</a>
 <a href="/plans">My Colleges</a>
 <a href="/deadlines">Deadlines</a>
-<a href="/upgrade" style="color:#5fc9b6">Premium</a>
 <span class="sp"></span>
 __USER_LINKS__
 </div>"""
+
+# Loud, always-visible upgrade button pinned right after the logo (first nav
+# item → survives mobile wrap). Only shown to logged-in FREE users; paid users
+# and anon visitors don't see it. This is the primary /upgrade entry point —
+# replaces the old thin teal "Premium" text link that was buried 8th in the row.
+NAV_UPGRADE_BTN = (
+    '<a href="/upgrade" class="nav-upgrade" style="background:#5fc9b6;color:#06121a;'
+    'font-weight:700;padding:6px 14px;border-radius:8px;text-decoration:none;'
+    'white-space:nowrap;box-shadow:0 2px 10px rgba(95,201,182,.35);margin-right:6px">'
+    '⚡ Go Premium</a> '
+)
 
 
 def _nav():
     user = current_user()
     if user:
-        return NAV.replace("__USER_LINKS__",
+        cta = "" if bool(user.get("is_paid")) else NAV_UPGRADE_BTN
+        return NAV.replace("__UPGRADE_CTA__", cta).replace("__USER_LINKS__",
             f'<a href="/profile">Profile</a> <a href="/logout">Logout</a> <span class="muted" style="font-size:.85em">{user["email"]}</span>')
-    return NAV.replace("__USER_LINKS__", '<a href="/login">Login</a> <a href="/signup" class="btn btn-primary btn-sm">Sign up</a>')
+    return NAV.replace("__UPGRADE_CTA__", "").replace("__USER_LINKS__", '<a href="/login">Login</a> <a href="/signup" class="btn btn-primary btn-sm">Sign up</a>')
 
 
 def _flash():
