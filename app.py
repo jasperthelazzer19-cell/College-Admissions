@@ -10568,7 +10568,7 @@ def grade_export():
         return redirect(url_for("profile_grade_page"))
     import html as _html
     esc = _html.escape
-    score100 = max(1, min(100, round(g["overall"] / 10)))
+    score100 = _display_grade(max(1, min(100, round(g["overall"] / 10))))
     if score100 >= 85:   band, bcol = "Elite", "#5fc9b6"
     elif score100 >= 70: band, bcol = "Very strong", "#7dd3fc"
     elif score100 >= 55: band, bcol = "Strong", "#7dd3fc"
@@ -11017,15 +11017,31 @@ def _lighten(hex_c, amt=0.4):
     return f"#{r:02x}{g:02x}{b:02x}"
 
 
+def _display_grade(x):
+    """Presentation-only curve for the /100 Candor grade. The grader scores on a
+    T20-relative scale where the normal applicant band is ~30-65 raw — which reads
+    as a harsh 'D' to anyone who reads /100 like a school grade. This lifts the
+    DISPLAYED number to match human intuition (raw 62 -> ~77) via a gentle power
+    curve (gamma 0.55): monotonic, keeps the top end honest (90+ stays 90s, 100
+    stays 100) and lifts the muddy middle. Display ONLY — the grade dict is not
+    used in odds/fit/exceptional, so nothing downstream of admissions math moves."""
+    try:
+        x = max(0.0, min(100.0, float(x)))
+    except (TypeError, ValueError):
+        return x
+    return max(1, min(100, round(100 * (x / 100.0) ** 0.55)))
+
+
 def _grade_dim_list(g):
-    """[(key,label,color,pct)] for the dimensions present in a grade dict."""
+    """[(key,label,color,pct)] for the dimensions present in a grade dict. pct is
+    run through _display_grade so the bars/rings match the curved headline score."""
     out = []
     dims = g.get("dimensions", {}) or {}
     for key, label, color in GRADE_DIMS:
         v = dims.get(key)
         if v is None:
             continue
-        out.append((key, label, color, max(1, min(100, round(v / 10)))))
+        out.append((key, label, color, _display_grade(max(1, min(100, round(v / 10))))))
     return out
 
 
@@ -11076,7 +11092,7 @@ def _grade_body_html(g):
     from html import escape as _h
     export_btn = (' <a class="btn btn-light" href="/grade/export">Export TikTok slide</a>'
                   if _is_creator() else "")
-    score100 = max(1, min(100, round(g["overall"] / 10)))
+    score100 = _display_grade(max(1, min(100, round(g["overall"] / 10))))
     # Color + label band for the headline.
     if score100 >= 85:   band, bcol = "Elite", "#5fc9b6"
     elif score100 >= 70: band, bcol = "Very strong", "#7dd3fc"
