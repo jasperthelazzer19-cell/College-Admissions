@@ -14492,6 +14492,7 @@ def admin_returning():
           ORDER BY sessions DESC, last_seen DESC
         """).fetchall()
         emails = {r["id"]: r["email"] for r in conn.execute("SELECT id, email FROM users").fetchall()}
+        paid_ids = {r["id"] for r in conn.execute("SELECT id FROM users WHERE is_paid=1").fetchall()}
         total_users = conn.execute("SELECT COUNT(*) c FROM users").fetchone()["c"]
     tracked = len(rows)                       # users with any logged-in pageview
     returners = [r for r in rows if r["sessions"] >= 2]
@@ -14523,11 +14524,21 @@ def admin_returning():
     rows_html = ""
     for r in returners[:80]:
         who = emails.get(r["user_id"]) or f'user #{r["user_id"]}'
+        is_prem = r["user_id"] in paid_ids
+        badge = (
+            '<span style="width:78px;text-align:center;font-size:.7em;font-weight:700;'
+            'letter-spacing:.4px;padding:3px 0;border-radius:6px;'
+            + ('background:rgba(95,201,182,.18);color:#5fc9b6;border:1px solid rgba(95,201,182,.45)">PREMIUM'
+               if is_prem else
+               'background:var(--surface-2);color:var(--text-2);border:1px solid var(--border)">NORMAL')
+            + '</span>'
+        )
         ident = f'<span style="color:var(--teal)">{who}</span>'
         span_days = r["active_days"] or 1
         rows_html += (
             f'<div style="display:flex;gap:12px;padding:7px 0;border-top:1px solid var(--border);font-size:.85em;align-items:center">'
             f'<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{ident}</span>'
+            f'{badge}'
             f'<span style="width:84px;text-align:right">{r["sessions"]} sessions</span>'
             f'<span style="width:70px;text-align:right">{span_days} day{"s" if span_days!=1 else ""}</span>'
             f'<span style="width:60px;text-align:right">{r["hits"]} hits</span>'
@@ -14578,6 +14589,7 @@ def admin_returning():
 <div class="card">
   <div style="display:flex;gap:12px;padding:6px 0;font-size:.78em;color:var(--text-2);text-transform:uppercase;letter-spacing:.4px">
     <span style="flex:1">who</span>
+    <span style="width:78px;text-align:center">plan</span>
     <span style="width:84px;text-align:right">sessions</span>
     <span style="width:70px;text-align:right">days</span>
     <span style="width:60px;text-align:right">hits</span>
