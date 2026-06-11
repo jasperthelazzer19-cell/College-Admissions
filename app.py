@@ -10619,6 +10619,76 @@ def grade_export():
     return Response(page, mimetype="text/html")
 
 
+@app.route("/compare/export")
+@login_required
+def compare_export():
+    """New-Roads-only TikTok export for the 'Which college is most likely to
+    admit this student?' format. Ranks N schools by Candor odds (highest first),
+    winner highlighted, on ONE slide. Pass ?slugs=uva,unc,umich (comma-sep).
+    Uses the same merged_school -> compute_fit -> estimate_odds path as the
+    real chances pages, so the numbers match."""
+    if not _is_creator():
+        abort(404)
+    from html import escape as _esc
+    uid = current_user()["id"]
+    slugs = [s.strip() for s in (request.args.get("slugs") or "").split(",") if s.strip()]
+    if not slugs:
+        return ("Add ?slugs=uva,unc,umich (comma-separated college slugs)", 400)
+    profile, results = None, []
+    for slug in slugs:
+        sch = COLLEGES_BY_SLUG.get(slug)
+        if not sch:
+            continue
+        prof = _chances_profile(uid, slug)   # runs the real exceptionality panel (cached after 1st)
+        if prof is None:
+            return redirect(url_for("profile_page"))
+        profile = prof
+        merged = merged_school(sch)
+        cf = compute_fit(prof, merged)
+        fit = cf[0] if isinstance(cf, tuple) else cf
+        low, high = estimate_odds(merged, fit, prof)
+        results.append({"name": merged["name"], "low": low, "high": high,
+                        "mid": (low + high) / 2.0,
+                        "instate": (prof.get("state") or "").lower() == (merged.get("state") or "").lower()})
+    if not results:
+        abort(404)
+    results.sort(key=lambda r: r["mid"], reverse=True)
+    p = profile
+    bits = []
+    if p.get("uw_gpa"): bits.append(f'{p["uw_gpa"]} GPA')
+    if p.get("sat"): bits.append(f'{p["sat"]} SAT')
+    elif p.get("act"): bits.append(f'ACT {p["act"]}')
+    if p.get("major"): bits.append(_esc(p["major"]))
+    if p.get("state"): bits.append(f'{_esc(p["state"])} resident')
+    meta = " &middot; ".join(bits)
+    rows = ""
+    for i, r in enumerate(results):
+        win = (i == 0)
+        if win:
+            tag = ' <span class="sch">&larr; best odds</span>'
+        elif r["instate"]:
+            tag = ' <span class="sch">in-state</span>'
+        else:
+            tag = ' <span class="sch">out-of-state</span>'
+        style = (' style="background:rgba(95,201,182,.14);border-radius:10px;padding:6px 10px"'
+                 if win else "")
+        rows += (f'<div class="rrow"{style}><span>{i+1}. {_esc(r["name"])}{tag}</span>'
+                 f'<span class="rval">{r["low"]}&ndash;{r["high"]}%</span></div>')
+    card = f'''<div id="card" class="full compare">
+  <div class="pill-top"><span class="line"></span><span class="pill">CANDOR RANKS:</span><span class="line r"></span></div>
+  <div class="title">Which school is most likely to admit this student?</div>
+  <div class="meta">{meta}</div>
+  <div class="ccard">
+    <div class="rt-h">Ranked by Candor odds</div>
+    <div class="rounds">{rows}</div>
+  </div>
+  <div class="foot"><span class="lock">&#128274;</span>candoradmit.com</div>
+</div>'''
+    page = (_TIKTOK_EXPORT_HTML.replace("__CARD__", card)
+            .replace("__SLUG__", "compare").replace("__SCHOOL__", "Comparison"))
+    return Response(page, mimetype="text/html")
+
+
 @app.route("/chances/<slug>/narrative")
 @login_required
 def chances_narrative(slug):
