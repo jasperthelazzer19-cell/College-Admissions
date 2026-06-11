@@ -10332,6 +10332,12 @@ def profile_page():
 @app.route("/chances/<slug>")
 @login_required
 def chances_page(slug):
+    # CONTENT MODE (New Roads account only): the chances page IS the clean
+    # TikTok slide by default — screenshot-ready reveal, no detailed-page
+    # clutter, Save/Copy built in. Real users are never affected. ?full=1
+    # falls back to the normal analytical chances page (for verifying numbers).
+    if _is_creator() and request.args.get("full") != "1":
+        return chances_export(slug)
     return chances_html(slug)
 
 
