@@ -5137,9 +5137,22 @@ NAV_UPGRADE_BTN = (
 )
 
 
+NAV_CONTENT = ('<div class="nav"><a class="brand" href="/content/chances">' + CANDOR_LOGO_SVG + 'Candor · CONTENT</a>'
+    '<a href="/content/chances">🎬 Chances</a>'
+    '<a href="/grade/export">📊 Grade</a>'
+    '<a href="/content/compare">⚖️ Compare</a>'
+    '<span class="sp"></span>'
+    '<a href="/colleges?full=1" style="font-size:.82em;opacity:.65">full site</a> '
+    '<a href="/logout">Logout</a></div>')
+
+
 def _nav():
     user = current_user()
     if user:
+        # New Roads content account: export-first nav (Chances picker → export
+        # slide, Grade → grade export, Compare → ranked slide builder).
+        if _is_creator():
+            return NAV_CONTENT
         cta = "" if bool(user.get("is_paid")) else NAV_UPGRADE_BTN
         return NAV.replace("__UPGRADE_CTA__", cta).replace("__USER_LINKS__",
             f'<a href="/profile">Profile</a> <a href="/logout">Logout</a> <span class="muted" style="font-size:.85em">{user["email"]}</span>')
@@ -10693,6 +10706,79 @@ def compare_export():
     page = (_TIKTOK_EXPORT_HTML.replace("__CARD__", card)
             .replace("__SLUG__", "compare").replace("__SCHOOL__", "Comparison"))
     return Response(page, mimetype="text/html")
+
+
+_CONTENT_PICKER_CSS = """<style>
+.cms-search{width:100%;padding:13px 16px;font-size:1.05em;border-radius:12px;border:1px solid var(--border-strong);background:var(--surface-2);color:var(--text);margin:0 0 16px;box-sizing:border-box}
+.cms-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;padding-bottom:110px}
+.cms-card{display:flex;flex-direction:column;gap:3px;padding:14px;border-radius:12px;border:1px solid var(--border-strong);background:var(--surface-2);text-decoration:none;color:var(--text);cursor:pointer;transition:transform .12s,border-color .12s;position:relative}
+.cms-card:hover{border-color:#5fc9b6;transform:translateY(-2px)}
+.cms-card.sel{border-color:#5fc9b6;background:rgba(95,201,182,.14)}
+.cms-name{font-weight:700;font-size:.95em;line-height:1.2}
+.cms-meta{font-size:.74em;color:var(--text-2)}
+.cms-card input{position:absolute;top:9px;right:9px;width:18px;height:18px;accent-color:#5fc9b6}
+.cmp-bar{position:fixed;left:0;right:0;bottom:0;background:var(--bg);border-top:1px solid var(--border-strong);padding:12px 16px;text-align:center;z-index:60}
+.cmp-go{background:#5fc9b6;color:#06121a;font-weight:800;padding:13px 30px;border:0;border-radius:11px;font-size:1.05em;cursor:pointer}
+.cmp-go:disabled{opacity:.35;cursor:not-allowed}
+</style>"""
+
+def _content_school_cards(mode):
+    rows = sorted(COLLEGES, key=lambda c: c["accept"])
+    out = []
+    for c in rows:
+        slug, nm = c["slug"], c["name"]
+        meta = f'{c["state"]} · {round(c["accept"]*100,1)}%'
+        if mode == "chances":
+            out.append(f'<a class="cms-card" href="/chances/{slug}" data-n="{nm.lower()}">'
+                       f'<span class="cms-name">{nm}</span><span class="cms-meta">{meta}</span></a>')
+        else:
+            out.append(f'<label class="cms-card" data-n="{nm.lower()}">'
+                       f'<input type="checkbox" class="cmp-chk" value="{slug}">'
+                       f'<span class="cms-name">{nm}</span><span class="cms-meta">{meta}</span></label>')
+    return "\n".join(out)
+
+
+@app.route("/content/chances")
+@login_required
+def content_chances():
+    """New-Roads content mode: tap a school → straight to its chances export slide."""
+    if not _is_creator():
+        abort(404)
+    grid = _content_school_cards("chances")
+    body = (_CONTENT_PICKER_CSS +
+        '<h1 style="margin:0 0 2px">🎬 Chances</h1>'
+        '<p class="muted" style="margin:0 0 16px">Tap a school — goes straight to the export slide. (Add <code>?full=1</code> on a chances page for the analytical view.)</p>'
+        '<input class="cms-search" id="cms-search" placeholder="Search schools…" autocomplete="off">'
+        f'<div class="cms-grid" id="cms-grid">{grid}</div>'
+        '<script>(function(){var s=document.getElementById("cms-search"),g=document.getElementById("cms-grid");'
+        's.addEventListener("input",function(){var q=s.value.toLowerCase();'
+        'g.querySelectorAll(".cms-card").forEach(function(c){c.style.display=c.dataset.n.indexOf(q)>-1?"":"none";});});'
+        's.focus();})();</script>')
+    return _page(body, title="Content · Chances")
+
+
+@app.route("/content/compare")
+@login_required
+def content_compare():
+    """New-Roads content mode: pick 2-4 schools → ranked 'who admits this student?' slide."""
+    if not _is_creator():
+        abort(404)
+    grid = _content_school_cards("compare")
+    body = (_CONTENT_PICKER_CSS +
+        '<h1 style="margin:0 0 2px">⚖️ Compare</h1>'
+        '<p class="muted" style="margin:0 0 16px">Pick 2–4 schools, then generate the ranked reveal slide.</p>'
+        '<input class="cms-search" id="cms-search" placeholder="Search schools…" autocomplete="off">'
+        f'<div class="cms-grid" id="cms-grid">{grid}</div>'
+        '<div class="cmp-bar"><button class="cmp-go" id="cmp-go" disabled>Generate slide</button></div>'
+        '<script>(function(){var s=document.getElementById("cms-search"),g=document.getElementById("cms-grid"),go=document.getElementById("cmp-go");'
+        'function sel(){return [].slice.call(g.querySelectorAll(".cmp-chk:checked")).map(function(x){return x.value;});}'
+        'function upd(){var n=sel().length;go.disabled=n<2;go.textContent=n?("Generate slide ("+n+")"):"Generate slide";}'
+        's.addEventListener("input",function(){var q=s.value.toLowerCase();'
+        'g.querySelectorAll(".cms-card").forEach(function(c){c.style.display=c.dataset.n.indexOf(q)>-1?"":"none";});});'
+        'g.addEventListener("change",function(e){if(e.target.classList.contains("cmp-chk")){e.target.closest(".cms-card").classList.toggle("sel",e.target.checked);upd();}});'
+        'go.addEventListener("click",function(){var v=sel();if(v.length>=2)location.href="/compare/export?slugs="+v.join(",");});'
+        's.focus();})();</script>')
+    return _page(body, title="Content · Compare")
 
 
 @app.route("/chances/<slug>/narrative")
