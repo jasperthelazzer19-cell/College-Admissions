@@ -11405,19 +11405,28 @@ def profile_slide_export(slug):
 
 
 def _white_card_wrap(inner_html, pad="80px 78px 64px"):
-    """Wrap profile content in an opaque white #card. The white sits on a
-    full-bleed CHILD div (which html-to-image reliably captures) — the #card
-    root's own inline background gets dropped by html-to-image's style cloning,
-    so on the dark export template (canvas fill #070d16) the card came out dark
-    and the dark text vanished. The backing layer fixes that for good."""
+    """Wrap profile content in an opaque white #card.
+
+    Two things this guarantees:
+    1) White background survives html-to-image — the white sits on a full-bleed
+       CHILD div (the #card root's own inline bg gets dropped by html-to-image's
+       style cloning, so on the dark export template the card came out dark).
+    2) Nothing gets cut off — the content is measured and scaled-to-fit the 1536
+       canvas (the template's fitText only handles .bullets, not profile lists,
+       so dense profiles used to overflow). Scales down only when needed."""
     return (
         '<link href="https://fonts.googleapis.com/css2?family=Anton&display=swap" rel="stylesheet">'
-        '<div id="card" style="width:1024px;height:1536px;position:relative;'
+        '<div id="card" style="width:1024px;height:1536px;position:relative;overflow:hidden;'
         "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif\">"
         '<div style="position:absolute;inset:0;background:#fff"></div>'
-        f'<div style="position:relative;height:100%;box-sizing:border-box;padding:{pad};'
-        'display:flex;flex-direction:column;align-items:stretch;color:#111">'
-        + inner_html + '</div></div>')
+        f'<div id="pcontent" style="position:absolute;top:0;left:0;width:1024px;box-sizing:border-box;'
+        f'padding:{pad};color:#111;transform-origin:top center;display:flex;flex-direction:column;align-items:stretch">'
+        + inner_html + '</div></div>'
+        '<script>(function(){function fit(){var c=document.getElementById("pcontent");if(!c)return;'
+        'c.style.transform="none";var h=c.scrollHeight;if(h>1536){c.style.transform="scale("+(1536/h)+")";}}'
+        'fit();setTimeout(fit,150);setTimeout(fit,600);'
+        'if(document.fonts&&document.fonts.ready){document.fonts.ready.then(fit);}'
+        'window.addEventListener("load",fit);})();</script>')
 
 
 def _profile_card_body(p, title, accent, footer_html):
