@@ -10482,16 +10482,28 @@ __CARD__
   // Render at 2x for a crisp 2048x3072 PNG (retina-sharp on TikTok).
   function render(){ fitText();
     return htmlToImage.toPng(card,{width:1024,height:1536,pixelRatio:2,cacheBust:true,backgroundColor:'#070d16'}); }
+  // Pre-render a PNG blob in the background so the Save TAP can hand it straight
+  // to the iOS share sheet ("Save Image" -> camera roll) synchronously — keeping
+  // it inside the user gesture instead of awaiting a slow render (which iOS kills).
+  var _png=null;
+  function prerender(){ _png=null; fitText();
+    htmlToImage.toBlob(card,{width:1024,height:1536,pixelRatio:2,cacheBust:true,backgroundColor:'#070d16'}).then(function(b){_png=b;}).catch(function(){}); }
+  setTimeout(prerender,700);
+  if(document.fonts && document.fonts.ready){ document.fonts.ready.then(function(){ setTimeout(prerender,250); }); }
   document.getElementById('mode').addEventListener('click',function(){
-    card.classList.toggle('compact'); this.textContent=card.classList.contains('compact')?'Full mode':'Compact mode'; setTimeout(fitText,30); });
-  // Save: render the PNG, then show it full-size so you can long-press -> Save to Photos.
-  // (This is the reliable iOS path — the async share-sheet drops the user gesture and silently fails.)
+    card.classList.toggle('compact'); this.textContent=card.classList.contains('compact')?'Full mode':'Compact mode';
+    setTimeout(function(){ fitText(); prerender(); },40); });
+  // Save -> native iOS share sheet (tap "Save Image" = straight to Photos). Falls
+  // back to a long-pressable full-size image where share isn't supported.
   document.getElementById('dl').addEventListener('click',function(){
-    var b=this; b.textContent='Rendering…';
-    render().then(function(url){
-      b.textContent='Save image';
-      ovimg.src=url; ovdl.href=url; ov.classList.add('show');
-    }).catch(function(e){ b.textContent='Save image'; alert('Export failed: '+e); });
+    var b=this;
+    if(_png && navigator.canShare){
+      var f=new File([_png],'candor.png',{type:'image/png'});
+      if(navigator.canShare({files:[f]})){ navigator.share({files:[f]}).catch(function(){}); return; }
+    }
+    b.textContent='Rendering…';
+    render().then(function(url){ b.textContent='Save image'; ovimg.src=url; if(ovdl) ovdl.href=url; ov.classList.add('show'); })
+      .catch(function(e){ b.textContent='Save image'; alert('Export failed: '+e); });
   });
   document.getElementById('ovx').addEventListener('click',function(){ ov.classList.remove('show'); });
   document.getElementById('copy').addEventListener('click',function(){
@@ -11197,9 +11209,16 @@ def h2hprofiles_export():
  <script>
   function fit(){var s=Math.min(0.5,(window.innerWidth-20)/1024);document.querySelectorAll('.wrap').forEach(function(w){w.style.transform='scale('+s+')';w.style.height=(1536*s)+'px';});}
   fit();window.addEventListener('resize',fit);
+  var blobs={};
+  function pr(id){blobs[id]=null;htmlToImage.toBlob(document.getElementById(id),{width:1024,height:1536,pixelRatio:2,cacheBust:true,backgroundColor:'#ffffff'}).then(function(b){blobs[id]=b;}).catch(function(){});}
+  function prAll(){pr('cardA');pr('cardB');}
+  setTimeout(prAll,800);
+  if(document.fonts&&document.fonts.ready){document.fonts.ready.then(function(){setTimeout(prAll,300);});}
   document.querySelectorAll('.controls button').forEach(function(b){b.addEventListener('click',function(){
-    var card=document.getElementById(b.dataset.c),t=b.textContent;b.textContent='Rendering...';
-    htmlToImage.toPng(card,{width:1024,height:1536,pixelRatio:2,cacheBust:true,backgroundColor:'#ffffff'}).then(function(url){
+    var id=b.dataset.c, blob=blobs[id];
+    if(blob && navigator.canShare){var f=new File([blob],b.dataset.n+'.png',{type:'image/png'});if(navigator.canShare({files:[f]})){navigator.share({files:[f]}).catch(function(){});return;}}
+    var t=b.textContent;b.textContent='Rendering...';
+    htmlToImage.toPng(document.getElementById(id),{width:1024,height:1536,pixelRatio:2,cacheBust:true,backgroundColor:'#ffffff'}).then(function(url){
       document.getElementById('ovimg').src=url;document.getElementById('ov').classList.add('show');b.textContent=t;
     }).catch(function(e){b.textContent=t;alert('Export failed: '+e);});
   });});
