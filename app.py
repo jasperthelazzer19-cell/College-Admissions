@@ -5138,6 +5138,7 @@ NAV_UPGRADE_BTN = (
 
 
 NAV_CONTENT = ('<div class="nav"><a class="brand" href="/content/chances">' + CANDOR_LOGO_SVG + 'Candor · CONTENT</a>'
+    '<a href="/content/setprofile">✍️ Set</a>'
     '<a href="/content/profile">🪪 Profile</a>'
     '<a href="/content/chances">🎬 Chances</a>'
     '<a href="/grade/export">📊 Grade</a>'
@@ -10434,6 +10435,154 @@ def profile_page():
         nxt = session.pop("next_url", None)
         if nxt: return redirect(nxt)
     return profile_html()
+
+
+_SETPROFILE_FIELDS = """
+uw_gpa            float, unweighted GPA on a 4.0 scale (e.g. 3.92). null if unknown.
+weighted_gpa      float, weighted GPA if given (e.g. 4.4). null if not given.
+sat               int, total SAT 400-1600. null if the student only has an ACT or is test-optional.
+sat_math          int, SAT math section (200-800). null if unknown.
+sat_ebrw          int, SAT reading/writing section (200-800). null if unknown.
+act               int, ACT composite 1-36. null if none.
+act_math act_english act_reading act_science   int subscores 1-36, null if unknown.
+major             string, intended major (e.g. "Computer Science"). "" if unknown.
+state             string, FULL state name, not abbreviation (e.g. "California", "North Carolina"). "" if unknown.
+school_type       one of "public","private","charter","magnet","homeschool" or "" if unknown.
+ecs               string. ALL extracurriculars, one per line. Keep the student's wording. "" if none.
+leadership        string. Leadership positions / titles, one per line. "" if none.
+awards            string. Honors and awards, one per line. "" if none.
+aps               string. AP/IB/honors courses taken, comma-separated. "" if none.
+legacy            bool. true if a parent attended a college they're applying to.
+first_gen         bool. true if first-generation college student.
+athlete           bool. true ONLY if a recruited/varsity athlete relevant to admissions.
+is_international  bool. true if an international (non-US) applicant.
+"""
+
+def _parse_profile_text(text):
+    """Turn a pasted ChatGPT-style student blurb into the Candor profile dict.
+    Extraction only — we never set odds, ec_rating, spike, or is_exceptional
+    here; save_profile runs the real grader so the demo odds stay authentic."""
+    system = ("You convert a pasted student admissions profile into STRICT JSON for a "
+              "college-chances tool. Output ONLY a single JSON object, no prose, no code "
+              "fences. Use exactly these keys (omit none; use null or \"\" when unknown). "
+              "Do not invent numbers that aren't in the text.\n\nFIELDS:\n" + _SETPROFILE_FIELDS)
+    raw = _claude("claude-sonnet-4-6", system, text, max_tokens=1200, temperature=0)
+    if not raw:
+        return None, "LLM call failed (no ANTHROPIC_KEY set or API error)."
+    s = raw.strip()
+    if s.startswith("```"):
+        s = s.strip("`")
+        s = s[s.find("{"):]
+    i, j = s.find("{"), s.rfind("}")
+    if i == -1 or j == -1:
+        return None, f"Could not find JSON in the model output: {raw[:200]}"
+    try:
+        # strict=False tolerates literal newlines/tabs inside string values,
+        # which the model sometimes emits for multi-line ECs/awards lists.
+        d = json.JSONDecoder(strict=False).decode(s[i:j+1])
+    except Exception as e:
+        return None, f"JSON parse error: {e}\n{raw[:300]}"
+    # Coerce types defensively so a stray string doesn't poison the odds calc.
+    def _num(v, cast):
+        try:
+            if v in (None, "", "null"): return None
+            return cast(v)
+        except Exception:
+            return None
+    p = {
+        "uw_gpa": _num(d.get("uw_gpa"), float),
+        "weighted_gpa": _num(d.get("weighted_gpa"), float),
+        "sat": _num(d.get("sat"), int), "act": _num(d.get("act"), int),
+        "sat_math": _num(d.get("sat_math"), int), "sat_ebrw": _num(d.get("sat_ebrw"), int),
+        "act_math": _num(d.get("act_math"), int), "act_english": _num(d.get("act_english"), int),
+        "act_reading": _num(d.get("act_reading"), int), "act_science": _num(d.get("act_science"), int),
+        "major": (d.get("major") or "").strip(),
+        "state": (d.get("state") or "").strip(),
+        "school_type": (d.get("school_type") or "").strip(),
+        "ecs": (d.get("ecs") or "").strip(),
+        "leadership": (d.get("leadership") or "").strip(),
+        "awards": (d.get("awards") or "").strip(),
+        "aps": (d.get("aps") or "").strip(),
+        "legacy": bool(d.get("legacy")), "first_gen": bool(d.get("first_gen")),
+        "athlete": bool(d.get("athlete")), "is_international": bool(d.get("is_international")),
+    }
+    return p, None
+
+
+@app.route("/content/setprofile", methods=["GET", "POST"])
+@login_required
+def content_setprofile():
+    """New-Roads content mode: paste a ChatGPT-style profile blurb → it parses
+    and fills the logged-in account's profile, then runs the real grader."""
+    if not _is_creator():
+        abort(404)
+    from html import escape as _esc
+    uid = current_user()["id"]
+    result_html = ""
+    if request.method == "POST":
+        text = (request.form.get("blurb") or "").strip()
+        if not text:
+            flash("Paste a profile first.", "error")
+        else:
+            p, err = _parse_profile_text(text)
+            if err:
+                flash(err, "error")
+            else:
+                save_profile(uid, p)
+                with db() as conn:
+                    conn.execute("DELETE FROM tailored_advice WHERE user_id=?", (uid,))
+                    conn.execute("DELETE FROM saved_chances WHERE user_id=?", (uid,))
+                    conn.execute("UPDATE profiles SET grade_json=NULL, grade_key=NULL, "
+                                 "exceptional_evaluated_at=NULL WHERE user_id=?", (uid,))
+                    conn.commit()
+                fresh = get_profile(uid)
+                if fresh:
+                    try:
+                        get_or_evaluate_exceptionality(uid, fresh)
+                    except Exception as e:
+                        print(f"exceptionality eval on setprofile failed: {e}")
+                flash("Profile filled and graded. Pick a school in Chances / Profile to export.", "success")
+                rows = "".join(
+                    f'<tr><td style="padding:4px 12px 4px 0;color:#9aa6b6">{_esc(k)}</td>'
+                    f'<td style="padding:4px 0;font-weight:700">{_esc(str(v)) if v not in (None,"",False) else "—"}</td></tr>'
+                    for k, v in [("GPA (uw)", p["uw_gpa"]), ("Weighted", p["weighted_gpa"]),
+                                 ("SAT", p["sat"]), ("ACT", p["act"]), ("Major", p["major"]),
+                                 ("State", p["state"]), ("ECs", (p["ecs"][:120] + "…") if len(p["ecs"]) > 120 else p["ecs"]),
+                                 ("Leadership", (p["leadership"][:120] + "…") if len(p["leadership"]) > 120 else p["leadership"]),
+                                 ("Awards", (p["awards"][:120] + "…") if len(p["awards"]) > 120 else p["awards"]),
+                                 ("First-gen", p["first_gen"]), ("Legacy", p["legacy"]),
+                                 ("Athlete", p["athlete"]), ("International", p["is_international"])])
+                result_html = ('<div style="margin-top:18px;background:#0f1b2e;border:1px solid #24344f;'
+                               'border-radius:14px;padding:18px"><div style="font-weight:800;margin-bottom:8px;'
+                               'color:#5fc9b6">✅ Filled this in:</div><table>' + rows + '</table>'
+                               '<div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">'
+                               '<a href="/content/chances" style="background:#5fc9b6;color:#06121a;font-weight:800;'
+                               'padding:11px 18px;border-radius:10px;text-decoration:none">🎬 Go to Chances</a>'
+                               '<a href="/content/profile" style="background:#1a2a52;color:#fff;font-weight:800;'
+                               'padding:11px 18px;border-radius:10px;text-decoration:none">🪪 Go to Profile</a></div></div>')
+
+    cur = get_profile(uid) or {}
+    cur_line = ""
+    if cur.get("uw_gpa") or cur.get("sat") or cur.get("act") or cur.get("major"):
+        bits = []
+        if cur.get("uw_gpa"): bits.append(f"GPA {cur['uw_gpa']}")
+        if cur.get("sat"): bits.append(f"SAT {cur['sat']}")
+        if cur.get("act"): bits.append(f"ACT {cur['act']}")
+        if cur.get("major"): bits.append(_esc(cur["major"]))
+        cur_line = ('<div style="color:#9aa6b6;font-size:.9em;margin-bottom:14px">Currently set: '
+                    + " · ".join(bits) + "</div>")
+    body = f"""
+    <h1 style="margin:0 0 6px">✍️ Set Profile</h1>
+    <p style="color:#9aa6b6;margin:0 0 14px">Paste the student profile (the same thing you'd paste into ChatGPT — GPA, test scores, ECs, awards, anything). It fills this account's profile and runs the real grader, so the odds stay honest.</p>
+    {cur_line}
+    <form method="post">
+      <textarea name="blurb" rows="14" placeholder="e.g.&#10;GPA: 3.96 UW / 4.5 W&#10;SAT: 1540 (790 M / 750 EBRW)&#10;Major: Computer Science&#10;State: California&#10;ECs: Founded a 1,200-member coding nonprofit; varsity debate captain; research intern at UC Davis lab...&#10;Awards: USACO Gold, National Merit Finalist&#10;First-gen: yes"
+        style="width:100%;box-sizing:border-box;background:#0b1320;color:#e9eef5;border:1px solid #24344f;border-radius:12px;padding:14px;font-size:15px;line-height:1.5;font-family:inherit"></textarea>
+      <button type="submit" style="margin-top:12px;background:#5fc9b6;color:#06121a;font-weight:800;border:0;border-radius:12px;padding:14px 22px;font-size:16px;cursor:pointer;width:100%">Fill profile →</button>
+    </form>
+    {result_html}
+    """
+    return _page(body, "Set Profile · Candor")
 
 
 @app.route("/chances/<slug>")
