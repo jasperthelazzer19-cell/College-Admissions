@@ -3361,6 +3361,34 @@ def _target_honesty_haircut(center):
     return center
 
 
+# Per-school MANUAL overrides for the safety floor, keyed by slug. Value is a
+# multiplier on the computed floor target (1.0 = no change). Use this to dial an
+# individual high-accept school up/down without touching the shared logic — the
+# leak-proof, per-school knob. Only applies at schools with accept >= SAFETY_FLOOR_GATE.
+SAFETY_FLOOR_OVERRIDE = {}
+SAFETY_FLOOR_GATE = 0.65  # below this accept rate the floor NEVER applies (no leak into targets/reaches)
+
+def _safety_floor_center(a, fit, school):
+    """At high-accept schools, a qualified applicant should not be undersold far
+    below the school's own base rate. Returns a per-school FLOOR for the odds
+    center, derived from THIS school's (residency-adjusted) accept rate `a` and
+    the applicant's fit. Structurally gated by the caller to accept >= the gate,
+    so reach/target schools are physically untouched — nothing leaks.
+
+    Shape (multiplier on the base rate `a`, then per-school override):
+      fit >= 58  strong  -> above base rate (you clear the bar comfortably)
+      fit >= 42  solid   -> ~base rate
+      fit >= 30  median  -> modestly below
+      fit <  30  weak    -> well below (still possible, not promised)
+    """
+    if fit >= 58:   target = a + (1.0 - a) * 0.45     # e.g. 0.90 -> 0.945
+    elif fit >= 42: target = a * 0.96
+    elif fit >= 30: target = a * 0.82
+    else:           target = a * 0.58
+    mult = SAFETY_FLOOR_OVERRIDE.get(school.get("slug"), 1.0)
+    return max(0.0, min(0.97, target * mult))
+
+
 def estimate_odds(school, fit, profile):
     """Harsher version. Markets and admissions are noisy; previous curve was
     over-generous in the middle of the fit range. Tighter slope + lower caps
@@ -3515,6 +3543,12 @@ def estimate_odds(school, fit, profile):
         c_std, c_exc = min(_base, 0.85), min(_base * 1.3, 0.93)
     center = c_std + (c_exc - c_std) * exc
     center = _target_honesty_haircut(center)
+    # Per-school safety floor: at high-accept schools (gated to accept >= the
+    # SAFETY_FLOOR_GATE so it CANNOT touch reaches/targets), a qualified applicant
+    # is never undersold below ~base rate. Only LIFTS, keyed per-school, so the
+    # number stops contradicting the "Safety" label. No leak by construction.
+    if (school.get("accept") or 0) >= SAFETY_FLOOR_GATE:
+        center = max(center, _safety_floor_center(a, fit, school))
     # Spread (uncertainty band) is wider at low-accept schools where the outcome
     # is genuinely more uncertain, and narrower at high-accept schools where
     # the prediction is more confident. Previous formula (center * 0.35) was
