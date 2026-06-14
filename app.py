@@ -5138,6 +5138,7 @@ NAV_UPGRADE_BTN = (
 
 
 NAV_CONTENT = ('<div class="nav"><a class="brand" href="/content/chances">' + CANDOR_LOGO_SVG + 'Candor · CONTENT</a>'
+    '<a href="/content/profile">🪪 Profile</a>'
     '<a href="/content/chances">🎬 Chances</a>'
     '<a href="/grade/export">📊 Grade</a>'
     '<a href="/content/compare">⚖️ Compare</a>'
@@ -10949,6 +10950,130 @@ def content_compare():
         'go.addEventListener("click",function(){var v=sel();if(v.length>=2)location.href="/compare/export?slugs="+v.join(",");});'
         's.focus();})();</script>')
     return _page(body, title="Content · Compare")
+
+
+# Per-school brand for the profile/question slide: (SHORT TITLE, hex color).
+# Colors chosen to read boldly on a WHITE background (maize/gold-only schools
+# use their blue instead). Fallback derives a short name + navy.
+SCHOOL_BRAND = {
+    "ucb": ("BERKELEY", "#FDB515"), "uc-berkeley": ("BERKELEY", "#FDB515"),
+    "ucla": ("UCLA", "#2774AE"), "harvard": ("HARVARD", "#A51C30"),
+    "yale": ("YALE", "#00356B"), "stanford": ("STANFORD", "#8C1515"),
+    "mit": ("MIT", "#A31F34"), "uva": ("UVA", "#232D4B"),
+    "unc": ("UNC", "#4B9CD3"), "umich": ("MICHIGAN", "#00274C"),
+    "usc": ("USC", "#990000"), "northwestern": ("NORTHWESTERN", "#4E2A84"),
+    "princeton": ("PRINCETON", "#E77500"), "columbia": ("COLUMBIA", "#1D4F91"),
+    "cornell": ("CORNELL", "#B31B1B"), "upenn": ("PENN", "#011F5B"),
+    "brown": ("BROWN", "#4E3629"), "dartmouth": ("DARTMOUTH", "#00693E"),
+    "duke": ("DUKE", "#00539B"), "caltech": ("CALTECH", "#FF6C0C"),
+    "nyu": ("NYU", "#57068C"), "uchicago": ("CHICAGO", "#800000"),
+    "jhu": ("JOHNS HOPKINS", "#002D72"), "johns-hopkins": ("JOHNS HOPKINS", "#002D72"),
+    "gatech": ("GEORGIA TECH", "#B3A369"), "rice": ("RICE", "#002D72"),
+    "vanderbilt": ("VANDERBILT", "#866D4B"), "notre-dame": ("NOTRE DAME", "#0C2340"),
+    "georgetown": ("GEORGETOWN", "#041E42"), "ucsd": ("UC SAN DIEGO", "#182B49"),
+    "ucsb": ("UC SANTA BARBARA", "#003660"), "uci": ("UC IRVINE", "#0064A4"),
+    "ucd": ("UC DAVIS", "#022851"), "uc-davis": ("UC DAVIS", "#022851"),
+    "ut-austin": ("TEXAS", "#BF5700"), "uw": ("WASHINGTON", "#4B2E83"),
+    "wisconsin": ("WISCONSIN", "#C5050C"), "uiuc": ("ILLINOIS", "#13294B"),
+    "purdue": ("PURDUE", "#B1810B"), "ucla-anderson": ("UCLA", "#2774AE"),
+}
+
+# Optional real-logo overrides (slug -> image URL). Empty until logo files are
+# supplied; until then the slide uses a styled wordmark.
+SCHOOL_LOGOS = {}
+
+def _school_brand(slug, name):
+    if slug in SCHOOL_BRAND:
+        return SCHOOL_BRAND[slug]
+    short = (name or slug).upper()
+    for pre in ("UNIVERSITY OF ", "THE ", "COLLEGE OF "):
+        if short.startswith(pre):
+            short = short[len(pre):]
+    return (short[:22], "#1a2a52")
+
+
+@app.route("/content/profile")
+@login_required
+def content_profile():
+    """New-Roads content mode: tap a school → the 'SCHOOL?' question/profile slide."""
+    if not _is_creator():
+        abort(404)
+    return _content_picker_page("Content · Profile", "🪪 Profile",
+        "Tap a school — generates the 'SCHOOL?' question slide (white, school colors, logo) from the current student.",
+        href_tpl="/profile/{slug}/export")
+
+
+@app.route("/profile/<slug>/export")
+@login_required
+def profile_slide_export(slug):
+    if not _is_creator():
+        abort(404)
+    from html import escape as _esc
+    sch = COLLEGES_BY_SLUG.get(slug)
+    if not sch:
+        abort(404)
+    p = get_profile(181)
+    if not p:
+        return redirect(url_for("profile_page"))
+    short, color = _school_brand(slug, sch.get("name"))
+
+    def numln(n, label):
+        return (f'<li><span style="color:{color};font-weight:800">{_esc(str(n))}</span> {_esc(label)}</li>')
+    def plainln(t):
+        return f'<li>{_esc(t)}</li>'
+
+    # ACADEMICS
+    acad = []
+    if p.get("uw_gpa") is not None: acad.append(numln(p["uw_gpa"], "UW GPA"))
+    if p.get("weighted_gpa") is not None: acad.append(numln(p["weighted_gpa"], "W GPA"))
+    if p.get("sat"):
+        sm, se = p.get("sat_math"), p.get("sat_ebrw")
+        sub = f" ({sm} Math, {se} RW)" if sm and se else ""
+        acad.append(numln(p["sat"], f"SAT{sub}"))
+    elif p.get("act"):
+        acad.append(numln(p["act"], "ACT"))
+    aps = [a.strip() for a in (p.get("aps") or "").split(",") if a.strip()]
+    if aps: acad.append(numln(len(aps), "APs"))
+    for aw in [x.strip() for x in (p.get("awards") or "").split("\n") if x.strip()]:
+        acad.append(plainln(aw))
+
+    # EXTRACURRICULARS: residency + ecs + leadership-not-already-listed
+    ecs = [x.strip() for x in (p.get("ecs") or "").split("\n") if x.strip()]
+    lead = [x.strip() for x in (p.get("leadership") or "").split("\n") if x.strip()]
+    ec_lines = []
+    st = (p.get("state") or "").strip()
+    if st: ec_lines.append(f"{st} Resident")
+    seen = set()
+    for e in ecs + lead:
+        k = e.lower()
+        if k not in seen:
+            seen.add(k); ec_lines.append(e)
+
+    logo_url = SCHOOL_LOGOS.get(slug)
+    if logo_url:
+        logo_html = f'<img src="{logo_url}" style="height:150px;object-fit:contain;margin:36px auto 0">'
+    else:
+        logo_html = (f'<div style="margin:40px auto 0;font-family:Georgia,\'Times New Roman\',serif;'
+                     f'font-style:italic;font-weight:700;font-size:80px;color:{color};letter-spacing:-1px">{_esc(short.title())}</div>')
+
+    li_css = "font-size:30px;line-height:1.5;margin:0"
+    acad_html = "".join(acad).replace("<li>", f'<li style="{li_css}">')
+    ec_html = "".join(plainln(x) for x in ec_lines).replace("<li>", f'<li style="{li_css}">')
+    head_css = ("font-family:'Anton',sans-serif;font-weight:400;letter-spacing:.5px;"
+                "font-size:56px;margin:0 0 14px;color:#111")
+
+    card = f'''<link href="https://fonts.googleapis.com/css2?family=Anton&display=swap" rel="stylesheet">
+<div id="card" style="width:1024px;height:1536px;background:#fff;color:#111;padding:80px 78px 64px;display:flex;flex-direction:column;align-items:stretch;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+  <div style="font-family:'Anton',sans-serif;font-weight:400;font-size:150px;line-height:.92;color:{color};letter-spacing:-1px;margin:0 0 30px">{_esc(short)}?</div>
+  <div style="{head_css}">ACADEMICS</div>
+  <ul style="list-style:disc;margin:0 0 34px;padding-left:34px;color:#111">{acad_html}</ul>
+  <div style="{head_css}">EXTRACURRICULARS</div>
+  <ul style="list-style:disc;margin:0;padding-left:34px;color:#111">{ec_html}</ul>
+  {logo_html}
+</div>'''
+    page = (_TIKTOK_EXPORT_HTML.replace("__CARD__", card)
+            .replace("__SLUG__", "profile").replace("__SCHOOL__", _esc(short)))
+    return Response(page, mimetype="text/html")
 
 
 @app.route("/chances/<slug>/narrative")
