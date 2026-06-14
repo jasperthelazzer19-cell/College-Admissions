@@ -10576,6 +10576,7 @@ def content_setprofile():
     <p style="color:#9aa6b6;margin:0 0 14px">Paste the student profile (the same thing you'd paste into ChatGPT — GPA, test scores, ECs, awards, anything). It fills this account's profile and runs the real grader, so the odds stay honest.</p>
     {cur_line}
     <form method="post">
+      {csrf_input()}
       <textarea name="blurb" rows="14" placeholder="e.g.&#10;GPA: 3.96 UW / 4.5 W&#10;SAT: 1540 (790 M / 750 EBRW)&#10;Major: Computer Science&#10;State: California&#10;ECs: Founded a 1,200-member coding nonprofit; varsity debate captain; research intern at UC Davis lab...&#10;Awards: USACO Gold, National Merit Finalist&#10;First-gen: yes"
         style="width:100%;box-sizing:border-box;background:#0b1320;color:#e9eef5;border:1px solid #24344f;border-radius:12px;padding:14px;font-size:15px;line-height:1.5;font-family:inherit"></textarea>
       <button type="submit" style="margin-top:12px;background:#5fc9b6;color:#06121a;font-weight:800;border:0;border-radius:12px;padding:14px 22px;font-size:16px;cursor:pointer;width:100%">Fill profile →</button>
