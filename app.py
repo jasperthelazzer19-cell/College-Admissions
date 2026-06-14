@@ -10699,10 +10699,11 @@ def compare_export():
     ranked_txt = "; ".join(f"{i+1}. {r['name']} {r['low']}-{r['high']}% ({'in-state' if r['instate'] else 'out-of-state'})"
                            for i, r in enumerate(results))
     meta_plain = meta.replace("&middot;", "·")
-    blurb = _content_blurb(
+    bullets = _content_bullets(
         "You explain a college-odds ranking.",
-        f"Student: {meta_plain}. Candor odds, ranked: {ranked_txt}. In 2 tight sentences: which school is most likely and the specific reason (residency, selectivity, fit), plus what separates the rest.")
-    blurb_html = f'<div style="{_BLURB_STYLE}">{_esc(blurb)}</div>' if blurb else ""
+        f"Student: {meta_plain}. Candor odds, ranked: {ranked_txt}. Give 4 bullets: (1) why the top school is the most likely admit (specific: residency, selectivity, fit), (2) what separates the middle of the pack from the bottom, (3) the biggest factor swinging these odds for this student, (4) the most surprising or debatable result in the ranking.",
+        n=4)
+    blurb_html = _bullets_html(bullets)
     card = f'''<div id="card" class="full compare">
   <div class="pill-top"><span class="line"></span><span class="pill">CANDOR RANKS:</span><span class="line r"></span></div>
   <div class="title">Which school is most likely to admit this student?</div>
@@ -10765,6 +10766,34 @@ def _content_blurb(system, user, max_tokens=140):
 
 _BLURB_STYLE = ("margin:14px 2px 0;font-size:.95em;line-height:1.5;color:#c7d0db;"
                 "border-left:3px solid #5fc9b6;padding-left:12px")
+
+
+def _content_bullets(system, user, n=4, max_tokens=420):
+    """Returns a list of n punchy, specific bullet strings for a content slide."""
+    try:
+        raw = _claude("claude-haiku-4-5-20251001",
+            system + f" Output exactly {n} bullets for a TikTok college-admissions slide. Each bullet is ONE tight, specific, punchy sentence — concrete and substantive, no fluff, no hedging. Plain text, one bullet per line, no numbering, no markdown.",
+            user, max_tokens=max_tokens)
+        if not raw:
+            return []
+        lines = [l.strip().lstrip("-•*▸·").strip() for l in raw.split("\n") if l.strip()]
+        return [l for l in lines if len(l) > 4][:n]
+    except Exception as e:
+        print(f"content bullets failed: {e}")
+        return []
+
+
+def _bullets_html(bullets, color="#5fc9b6"):
+    """Big, readable bullet list that fills the export card."""
+    from html import escape as _h
+    if not bullets:
+        return ""
+    items = "".join(
+        f'<li style="margin:0 0 20px;line-height:1.42;display:flex;gap:14px">'
+        f'<span style="color:{color};font-weight:800;flex-shrink:0">▸</span>'
+        f'<span>{_h(b)}</span></li>'
+        for b in bullets)
+    return f'<ul style="list-style:none;padding:0;margin:26px 0 0;font-size:32px;color:#e2e9f1">{items}</ul>'
 
 
 def _content_picker_page(title, heading, sub, mode="link", href_tpl="/chances/{slug}"):
@@ -10853,10 +10882,12 @@ def glowup_export(slug):
     if p.get("major"): bits.append(_esc(p.get("major")))
     meta = " &middot; ".join(bits)
     ladder_txt = "; ".join(f"{lb}: {lo}-{hi}%" for lb, lo, hi in ladder)
-    blurb = _content_blurb(
-        "You explain what moves a student's college odds.",
-        f"{merged['name']} (acceptance {round(merged['accept']*100,1)}%). Odds ladder for this student: {ladder_txt}. In 2 tight sentences: name the single biggest lever (which change jumped the odds most) and why it matters more than the others at this school.")
-    blurb_html = f'<div style="{_BLURB_STYLE}">{_esc(blurb)}</div>' if blurb else ""
+    stats_plain = f'{p.get("uw_gpa")} GPA, {(str(p.get("sat"))+" SAT") if p.get("sat") else "test-blind"}, {p.get("major") or "undecided major"}'
+    bullets = _content_bullets(
+        "You give specific, actionable college-admissions advice.",
+        f'Student ({stats_plain}) applying to {merged["name"]} (acceptance {round(merged["accept"]*100,1)}%). Odds ladder: {ladder_txt}. Give 5 specific advice bullets: (1) the single highest-leverage move and exactly what counts as a real "hook" at this school (name concrete awards/research/competitions), (2) why raising the SAT barely moves the odds here, (3) why GPA alone won\'t do it at this selectivity, (4) the most realistic path to a genuine bump for THIS profile, (5) one blunt reality check.',
+        n=5)
+    blurb_html = _bullets_html(bullets)
     card = f'''<div id="card" class="full compare">
   <div class="pill-top"><span class="line"></span><span class="pill">CANDOR GLOW-UP:</span><span class="line r"></span></div>
   <div class="title">{_esc(merged["name"])} — how to actually move the needle</div>
@@ -10906,10 +10937,11 @@ def headtohead_export(slug):
     aw = (A["lo"] + A["hi"]) >= (B["lo"] + B["hi"])
     def _ss(s):
         return f'{s.get("gpa")} GPA, {(str(s.get("sat"))+" SAT") if s.get("sat") else "test-blind"}, {s.get("major") or "—"}, odds {s["lo"]}-{s["hi"]}%'
-    blurb = _content_blurb(
-        "You compare two college applicants head-to-head.",
-        f'At {merged["name"]}: Student A — {_ss(A)}. Student B — {_ss(B)}. In 2 tight sentences: who is more likely to get in and the ONE thing that decides it between them.')
-    blurb_html = f'<div style="{_BLURB_STYLE};margin-top:18px">{_esc(blurb)}</div>' if blurb else ""
+    bullets = _content_bullets(
+        "You analyze a head-to-head between two college applicants.",
+        f'At {merged["name"]}: Student A — {_ss(A)}. Student B — {_ss(B)}. Give 4 bullets: (1) who is more likely to get in and the single biggest reason, (2) where Student A is clearly stronger, (3) where Student B is clearly stronger, (4) the one factor that ultimately decides it (or could flip it) at this specific school.',
+        n=4)
+    blurb_html = _bullets_html(bullets)
     card = f'''<div id="card" class="full compare">
   <div class="pill-top"><span class="line"></span><span class="pill">CANDOR — WHO GETS IN?</span><span class="line r"></span></div>
   <div class="title">{_esc(merged["name"])}?</div>
