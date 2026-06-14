@@ -1,0 +1,2006 @@
+[
+  {
+    "slug": "harvard",
+    "name": "Harvard",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "stanford",
+    "name": "Stanford",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "mit",
+    "name": "MIT",
+    "payscale_early": 110200,
+    "payscale_mid": 196900
+  },
+  {
+    "slug": "yale",
+    "name": "Yale",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "princeton",
+    "name": "Princeton",
+    "payscale_early": null,
+    "payscale_mid": 194100
+  },
+  {
+    "slug": "columbia",
+    "name": "Columbia",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "uchicago",
+    "name": "University of Chicago",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "upenn",
+    "name": "UPenn",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "brown",
+    "name": "Brown",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "dartmouth",
+    "name": "Dartmouth",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "duke",
+    "name": "Duke",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "northwestern",
+    "name": "Northwestern",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "caltech",
+    "name": "Caltech",
+    "payscale_early": 111000,
+    "payscale_mid": null
+  },
+  {
+    "slug": "cornell",
+    "name": "Cornell",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "jhu",
+    "name": "Johns Hopkins",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "vanderbilt",
+    "name": "Vanderbilt",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "rice",
+    "name": "Rice",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "notre-dame",
+    "name": "Notre Dame",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "cmu",
+    "name": "Carnegie Mellon",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "usc",
+    "name": "USC",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "nyu",
+    "name": "NYU",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "georgetown",
+    "name": "Georgetown",
+    "payscale_early": 74900,
+    "payscale_mid": 142300
+  },
+  {
+    "slug": "ucb",
+    "name": "UC Berkeley",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "ucla",
+    "name": "UCLA",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "ucsd",
+    "name": "UC San Diego",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "umich",
+    "name": "University of Michigan",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "uva",
+    "name": "UVA",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "gatech",
+    "name": "Georgia Tech",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "tufts",
+    "name": "Tufts",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "washu",
+    "name": "Wash U St. Louis",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "emory",
+    "name": "Emory",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "unc",
+    "name": "UNC Chapel Hill",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "bu",
+    "name": "Boston University",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "bc",
+    "name": "Boston College",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "wake-forest",
+    "name": "Wake Forest",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "wm",
+    "name": "William & Mary",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "uf",
+    "name": "University of Florida",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "wisc",
+    "name": "University of Wisconsin",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "uw",
+    "name": "University of Washington",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "ut-austin",
+    "name": "University of Texas at Austin",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "umd",
+    "name": "University of Maryland",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "gwu",
+    "name": "GWU",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "penn-state",
+    "name": "Penn State",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "osu",
+    "name": "Ohio State",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "msu",
+    "name": "Michigan State",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "fsu",
+    "name": "Florida State",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "iu",
+    "name": "Indiana University",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "asu",
+    "name": "Arizona State",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "purdue",
+    "name": "Purdue",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "uiuc",
+    "name": "University of Illinois",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "williams",
+    "name": "Williams",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "amherst",
+    "name": "Amherst",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "swarthmore",
+    "name": "Swarthmore",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "pomona",
+    "name": "Pomona",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "bowdoin",
+    "name": "Bowdoin",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "wellesley",
+    "name": "Wellesley",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "middlebury",
+    "name": "Middlebury",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "carleton",
+    "name": "Carleton",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "haverford",
+    "name": "Haverford",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "vassar",
+    "name": "Vassar",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "babson",
+    "name": "Babson",
+    "payscale_early": 90600,
+    "payscale_mid": 181400
+  },
+  {
+    "slug": "bentley",
+    "name": "Bentley",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "rpi",
+    "name": "RPI",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "wpi",
+    "name": "WPI",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "rose-hulman",
+    "name": "Rose-Hulman",
+    "payscale_early": 95500,
+    "payscale_mid": 171400
+  },
+  {
+    "slug": "uiowa",
+    "name": "University of Iowa",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "umn",
+    "name": "University of Minnesota",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "cu-boulder",
+    "name": "University of Colorado Boulder",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "uoregon",
+    "name": "University of Oregon",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "uconn",
+    "name": "University of Connecticut",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "rutgers",
+    "name": "Rutgers",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "stony-brook",
+    "name": "Stony Brook",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "pitt",
+    "name": "University of Pittsburgh",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "vt",
+    "name": "Virginia Tech",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "tamu",
+    "name": "Texas A&M",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "clemson",
+    "name": "Clemson",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "alabama",
+    "name": "University of Alabama",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "uga",
+    "name": "University of Georgia",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "utk",
+    "name": "University of Tennessee",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "sdsu",
+    "name": "San Diego State",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "arizona",
+    "name": "University of Arizona",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "northeastern",
+    "name": "Northeastern",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "case",
+    "name": "Case Western",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "lehigh",
+    "name": "Lehigh",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "bucknell",
+    "name": "Bucknell",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "villanova",
+    "name": "Villanova",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "tulane",
+    "name": "Tulane",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "miami",
+    "name": "University of Miami",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "american",
+    "name": "American University",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "neiu",
+    "name": "Northeastern Illinois",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "wesleyan",
+    "name": "Wesleyan",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "hamilton",
+    "name": "Hamilton",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "davidson",
+    "name": "Davidson",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "colgate",
+    "name": "Colgate",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "smith",
+    "name": "Smith",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "mt-holyoke",
+    "name": "Mount Holyoke",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "bryn-mawr",
+    "name": "Bryn Mawr",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "bates",
+    "name": "Bates",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "colby",
+    "name": "Colby",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "trinity-ct",
+    "name": "Trinity College",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "conn-college",
+    "name": "Connecticut College",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "skidmore",
+    "name": "Skidmore",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "macalester",
+    "name": "Macalester",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "reed",
+    "name": "Reed",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "grinnell",
+    "name": "Grinnell",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "kenyon",
+    "name": "Kenyon",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "oberlin",
+    "name": "Oberlin",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "whitman",
+    "name": "Whitman",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "pitzer",
+    "name": "Pitzer",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "scripps",
+    "name": "Scripps",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "harvey-mudd",
+    "name": "Harvey Mudd",
+    "payscale_early": 115000,
+    "payscale_mid": 185900
+  },
+  {
+    "slug": "cmc",
+    "name": "Claremont McKenna",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "oxy",
+    "name": "Occidental",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "brandeis",
+    "name": "Brandeis",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "fordham",
+    "name": "Fordham",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "barnard",
+    "name": "Barnard",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "pepperdine",
+    "name": "Pepperdine",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "scu",
+    "name": "Santa Clara",
+    "payscale_early": 87300,
+    "payscale_mid": 173100
+  },
+  {
+    "slug": "lmu",
+    "name": "Loyola Marymount",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "drexel",
+    "name": "Drexel",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "stevens",
+    "name": "Stevens Institute",
+    "payscale_early": null,
+    "payscale_mid": 144300
+  },
+  {
+    "slug": "olin",
+    "name": "Olin College",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "cooper",
+    "name": "Cooper Union",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "berklee",
+    "name": "Berklee College of Music",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "juilliard",
+    "name": "Juilliard",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "pratt",
+    "name": "Pratt Institute",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "parsons",
+    "name": "Parsons (The New School)",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "risd",
+    "name": "Rhode Island School of Design",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "saic",
+    "name": "School of the Art Institute of Chicago",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "uky",
+    "name": "University of Kentucky",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "auburn",
+    "name": "Auburn",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "lsu",
+    "name": "LSU",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "sc",
+    "name": "University of South Carolina",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "missou",
+    "name": "University of Missouri",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "ku",
+    "name": "University of Kansas",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "unl",
+    "name": "University of Nebraska",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "uvm",
+    "name": "University of Vermont",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "udel",
+    "name": "University of Delaware",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "binghamton",
+    "name": "Binghamton University",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "calpoly-slo",
+    "name": "Cal Poly San Luis Obispo",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "sjsu",
+    "name": "San Jose State",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "csulb",
+    "name": "Cal State Long Beach",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "iowa-state",
+    "name": "Iowa State",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "temple",
+    "name": "Temple",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "gmu",
+    "name": "George Mason",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "uh",
+    "name": "University of Houston",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "utah",
+    "name": "University of Utah",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "hawaii",
+    "name": "University of Hawaii Manoa",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "unh",
+    "name": "University of New Hampshire",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "umaine",
+    "name": "University of Maine",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "howard",
+    "name": "Howard University",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "spelman",
+    "name": "Spelman",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "morehouse",
+    "name": "Morehouse",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "famu",
+    "name": "Florida A&M",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "uprm",
+    "name": "University of Puerto Rico Mayag\u00fcez",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "tuskegee",
+    "name": "Tuskegee",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "uci",
+    "name": "UC Irvine",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "ucsb",
+    "name": "UC Santa Barbara",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "ucsc",
+    "name": "UC Santa Cruz",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "ucdavis",
+    "name": "UC Davis",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "ucr",
+    "name": "UC Riverside",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "byu",
+    "name": "BYU",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "baylor",
+    "name": "Baylor",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "tcu",
+    "name": "TCU",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "smu",
+    "name": "SMU",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "liberty",
+    "name": "Liberty",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "umass",
+    "name": "UMass Amherst",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "ncsu",
+    "name": "NC State",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "syracuse",
+    "name": "Syracuse",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "hampton",
+    "name": "Hampton",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "holy-cross",
+    "name": "Holy Cross",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "lafayette",
+    "name": "Lafayette",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "colorado-college",
+    "name": "Colorado College",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "sewanee",
+    "name": "Sewanee",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "rochester",
+    "name": "University of Rochester",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "marquette",
+    "name": "Marquette",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "loyola-chicago",
+    "name": "Loyola Chicago",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "depaul",
+    "name": "DePaul",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "calpoly-pomona",
+    "name": "Cal Poly Pomona",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "suny-buffalo",
+    "name": "SUNY Buffalo",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "fiu",
+    "name": "Florida International",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "ucf",
+    "name": "University of Central Florida",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "colorado-state",
+    "name": "Colorado State",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "cincinnati",
+    "name": "University of Cincinnati",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "usf-tampa",
+    "name": "University of South Florida",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "vcu",
+    "name": "VCU",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "unm",
+    "name": "University of New Mexico",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "wayne-state",
+    "name": "Wayne State",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "gsu",
+    "name": "Georgia State",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "wvu",
+    "name": "West Virginia",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "louisville",
+    "name": "University of Louisville",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "oklahoma-state",
+    "name": "Oklahoma State",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "oklahoma",
+    "name": "University of Oklahoma",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "utsa",
+    "name": "UTSA",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "utd",
+    "name": "UT Dallas",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "oregon-state",
+    "name": "Oregon State",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "wsu",
+    "name": "Washington State",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "unc-charlotte",
+    "name": "UNC Charlotte",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "ecu",
+    "name": "East Carolina",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "kent-state",
+    "name": "Kent State",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "fau",
+    "name": "Florida Atlantic",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "akron",
+    "name": "University of Akron",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "jmu",
+    "name": "James Madison",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "app-state",
+    "name": "Appalachian State",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "col-charleston",
+    "name": "College of Charleston",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "unf",
+    "name": "University of North Florida",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "boise-state",
+    "name": "Boise State",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "unlv",
+    "name": "UNLV",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "odu",
+    "name": "Old Dominion",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "towson",
+    "name": "Towson",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "miss-state",
+    "name": "Mississippi State",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "umbc",
+    "name": "UMBC",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "uri",
+    "name": "University of Rhode Island",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "nau",
+    "name": "Northern Arizona",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "wwu",
+    "name": "Western Washington",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "wmu",
+    "name": "Western Michigan",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "emich",
+    "name": "Eastern Michigan",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "niu",
+    "name": "Northern Illinois",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "ilstu",
+    "name": "Illinois State",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "bgsu",
+    "name": "Bowling Green",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "ohio-u",
+    "name": "Ohio University",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "slu",
+    "name": "Saint Louis University",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "hofstra",
+    "name": "Hofstra",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "tulsa",
+    "name": "University of Tulsa",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "dayton",
+    "name": "University of Dayton",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "usd",
+    "name": "University of San Diego",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "usf-sf",
+    "name": "University of San Francisco",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "chapman",
+    "name": "Chapman",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "seattle-u",
+    "name": "Seattle U",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "catholic",
+    "name": "Catholic University",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "embry-riddle",
+    "name": "Embry-Riddle",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "stetson",
+    "name": "Stetson",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "drake",
+    "name": "Drake",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "butler",
+    "name": "Butler",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "yeshiva",
+    "name": "Yeshiva",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "trinity-tx",
+    "name": "Trinity University",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "mercer",
+    "name": "Mercer",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "belmont",
+    "name": "Belmont",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "elon",
+    "name": "Elon",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "high-point",
+    "name": "High Point",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "quinnipiac",
+    "name": "Quinnipiac",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "pace",
+    "name": "Pace",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "adelphi",
+    "name": "Adelphi",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "marist",
+    "name": "Marist",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "fairfield",
+    "name": "Fairfield",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "loyola-md",
+    "name": "Loyola Maryland",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "gonzaga",
+    "name": "Gonzaga",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "creighton",
+    "name": "Creighton",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "xavier",
+    "name": "Xavier (Cincinnati)",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "sju",
+    "name": "Saint Joseph's",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "providence",
+    "name": "Providence",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "manhattan",
+    "name": "Manhattan College",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "stjohns",
+    "name": "St. John's",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "loyola-no",
+    "name": "Loyola NOLA",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "bard",
+    "name": "Bard",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "rhodes",
+    "name": "Rhodes",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "furman",
+    "name": "Furman",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "samford",
+    "name": "Samford",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "wofford",
+    "name": "Wofford",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "hope",
+    "name": "Hope",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "centre",
+    "name": "Centre",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "lawrence",
+    "name": "Lawrence",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "st-olaf",
+    "name": "St. Olaf",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "beloit",
+    "name": "Beloit",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "depauw",
+    "name": "DePauw",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "dickinson",
+    "name": "Dickinson",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "gettysburg",
+    "name": "Gettysburg",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "muhlenberg",
+    "name": "Muhlenberg",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "sarah-lawrence",
+    "name": "Sarah Lawrence",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "bennington",
+    "name": "Bennington",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "hampshire",
+    "name": "Hampshire",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "wheaton-ma",
+    "name": "Wheaton (MA)",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "richmond",
+    "name": "University of Richmond",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "wlu",
+    "name": "Washington and Lee",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "rit",
+    "name": "RIT",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "njit",
+    "name": "NJIT",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "iit",
+    "name": "Illinois Tech",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "mines",
+    "name": "Colorado Mines",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "texas-tech",
+    "name": "Texas Tech",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "unt",
+    "name": "University of North Texas",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "michigan-tech",
+    "name": "Michigan Tech",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "florida-tech",
+    "name": "Florida Tech",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "xula",
+    "name": "Xavier Louisiana",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "clark-atlanta",
+    "name": "Clark Atlanta",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "ncat",
+    "name": "NC A&T",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "tnstate",
+    "name": "Tennessee State",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "jackson-state",
+    "name": "Jackson State",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "pvamu",
+    "name": "Prairie View A&M",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "morgan-state",
+    "name": "Morgan State",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "texas-southern",
+    "name": "Texas Southern",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "purdue-nw",
+    "name": "Purdue Northwest",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "knox",
+    "name": "Knox",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "allegheny",
+    "name": "Allegheny",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "susquehanna",
+    "name": "Susquehanna",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "bryant",
+    "name": "Bryant",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "agnes-scott",
+    "name": "Agnes Scott College",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "bradley",
+    "name": "Bradley University",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "csu-la",
+    "name": "California State University Los Angeles",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "csu-fullerton",
+    "name": "California State University Fullerton",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "clarkson",
+    "name": "Clarkson University",
+    "payscale_early": 70700,
+    "payscale_mid": 139900
+  },
+  {
+    "slug": "coastal-carolina",
+    "name": "Coastal Carolina University",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "tcnj",
+    "name": "College of New Jersey",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "baruch",
+    "name": "CUNY Baruch College",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "denison",
+    "name": "Denison University",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "duquesne",
+    "name": "Duquesne University",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "earlham",
+    "name": "Earlham College",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "eckerd",
+    "name": "Eckerd College",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "fandm",
+    "name": "Franklin and Marshall College",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "gustavus",
+    "name": "Gustavus Adolphus College",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "ithaca",
+    "name": "Ithaca College",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "juniata",
+    "name": "Juniata College",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "lake-forest",
+    "name": "Lake Forest College",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "lewis-clark",
+    "name": "Lewis & Clark College",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "linfield",
+    "name": "Linfield University",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "msoe",
+    "name": "Milwaukee School of Engineering",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "ramapo",
+    "name": "Ramapo College of New Jersey",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "rollins",
+    "name": "Rollins College",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "st-marys-ca",
+    "name": "Saint Mary's College of California",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "southwestern",
+    "name": "Southwestern University",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "suny-albany",
+    "name": "SUNY Albany",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "suny-purchase",
+    "name": "SUNY Purchase",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "suny-geneseo",
+    "name": "SUNY Geneseo",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "suny-oswego",
+    "name": "SUNY Oswego",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "suny-oneonta",
+    "name": "SUNY Oneonta",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "wooster",
+    "name": "The College of Wooster",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "west-point",
+    "name": "United States Military Academy",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "ucmerced",
+    "name": "University of California Merced",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "umass-lowell",
+    "name": "University of Massachusetts Lowell",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "unr",
+    "name": "University of Nevada-Reno",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "unc-asheville",
+    "name": "University of North Carolina at Asheville",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "uncw",
+    "name": "University of North Carolina Wilmington",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "portland",
+    "name": "University of Portland",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "puget-sound",
+    "name": "University of Puget Sound",
+    "payscale_early": null,
+    "payscale_mid": null
+  },
+  {
+    "slug": "denver",
+    "name": "University of Denver",
+    "payscale_early": null,
+    "payscale_mid": null
+  }
+]

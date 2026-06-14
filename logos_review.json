@@ -1,0 +1,1734 @@
+{
+ "matches": {
+  "harvard": "https://a.espncdn.com/i/teamlogos/ncaa/500/108.png",
+  "stanford": "https://a.espncdn.com/i/teamlogos/ncaa/500/24.png",
+  "mit": "https://a.espncdn.com/i/teamlogos/ncaa/500/109.png",
+  "yale": "https://a.espncdn.com/i/teamlogos/ncaa/500/43.png",
+  "princeton": "https://a.espncdn.com/i/teamlogos/ncaa/500/163.png",
+  "columbia": "https://a.espncdn.com/i/teamlogos/ncaa/500/171.png",
+  "uchicago": "https://a.espncdn.com/i/teamlogos/ncaa/500/80.png",
+  "brown": "https://a.espncdn.com/i/teamlogos/ncaa/500/225.png",
+  "dartmouth": "https://a.espncdn.com/i/teamlogos/ncaa/500/159.png",
+  "duke": "https://a.espncdn.com/i/teamlogos/ncaa/500/150.png",
+  "northwestern": "https://a.espncdn.com/i/teamlogos/ncaa/500/77.png",
+  "cornell": "https://a.espncdn.com/i/teamlogos/ncaa/500/172.png",
+  "jhu": "https://a.espncdn.com/i/teamlogos/ncaa/500/118.png",
+  "vanderbilt": "https://a.espncdn.com/i/teamlogos/ncaa/500/238.png",
+  "rice": "https://a.espncdn.com/i/teamlogos/ncaa/500/242.png",
+  "notre-dame": "https://a.espncdn.com/i/teamlogos/ncaa/500/87.png",
+  "cmu": "https://a.espncdn.com/i/teamlogos/ncaa/500/2102.png",
+  "usc": "https://a.espncdn.com/i/teamlogos/ncaa/500/30.png",
+  "georgetown": "https://a.espncdn.com/i/teamlogos/ncaa/500/46.png",
+  "ucb": "https://a.espncdn.com/i/teamlogos/ncaa/500/25.png",
+  "ucla": "https://a.espncdn.com/i/teamlogos/ncaa/500/26.png",
+  "ucsd": "https://a.espncdn.com/i/teamlogos/ncaa/500/28.png",
+  "umich": "https://a.espncdn.com/i/teamlogos/ncaa/500/130.png",
+  "uva": "https://a.espncdn.com/i/teamlogos/ncaa/500/258.png",
+  "gatech": "https://a.espncdn.com/i/teamlogos/ncaa/500/59.png",
+  "tufts": "https://a.espncdn.com/i/teamlogos/ncaa/500/112.png",
+  "unc": "https://a.espncdn.com/i/teamlogos/ncaa/500/153.png",
+  "bu": "https://a.espncdn.com/i/teamlogos/ncaa/500/103.png",
+  "bc": "https://a.espncdn.com/i/teamlogos/ncaa/500/103.png",
+  "wake-forest": "https://a.espncdn.com/i/teamlogos/ncaa/500/154.png",
+  "wm": "https://a.espncdn.com/i/teamlogos/ncaa/500/2729.png",
+  "uf": "https://a.espncdn.com/i/teamlogos/ncaa/500/57.png",
+  "wisc": "https://a.espncdn.com/i/teamlogos/ncaa/500/275.png",
+  "uw": "https://a.espncdn.com/i/teamlogos/ncaa/500/264.png",
+  "ut-austin": "https://a.espncdn.com/guid/43f30dfa-e0d9-ad12-1cb6-f8ceae32ffb4/logos/default.png",
+  "umd": "https://a.espncdn.com/i/teamlogos/ncaa/500/120.png",
+  "gwu": "https://a.espncdn.com/i/teamlogos/ncaa/500/45.png",
+  "penn-state": "https://a.espncdn.com/i/teamlogos/ncaa/500/213.png",
+  "osu": "https://a.espncdn.com/i/teamlogos/ncaa/500/194.png",
+  "msu": "https://a.espncdn.com/i/teamlogos/ncaa/500/127.png",
+  "fsu": "https://a.espncdn.com/i/teamlogos/ncaa/500/52.png",
+  "iu": "https://a.espncdn.com/i/teamlogos/ncaa/500/84.png",
+  "asu": "https://a.espncdn.com/i/teamlogos/ncaa/500/9.png",
+  "purdue": "https://a.espncdn.com/i/teamlogos/ncaa/500/2509.png",
+  "uiuc": "https://a.espncdn.com/i/teamlogos/ncaa/500/2286.png",
+  "williams": "https://a.espncdn.com/i/teamlogos/ncaa/500/2731.png",
+  "amherst": "https://a.espncdn.com/i/teamlogos/ncaa/500/7.png",
+  "bowdoin": "https://a.espncdn.com/i/teamlogos/ncaa/500/340.png",
+  "middlebury": "https://a.espncdn.com/i/teamlogos/ncaa/500/2394.png",
+  "carleton": "https://a.espncdn.com/i/teamlogos/ncaa/500/2101.png",
+  "bentley": "https://a.espncdn.com/i/teamlogos/ncaa/500/2060.png",
+  "rpi": "https://a.espncdn.com/i/teamlogos/ncaa/500/2528.png",
+  "wpi": "https://a.espncdn.com/i/teamlogos/ncaa/500/2749.png",
+  "rose-hulman": "https://a.espncdn.com/i/teamlogos/ncaa/500/86.png",
+  "uiowa": "https://a.espncdn.com/i/teamlogos/ncaa/500/2294.png",
+  "umn": "https://a.espncdn.com/i/teamlogos/ncaa/500/135.png",
+  "cu-boulder": "https://a.espncdn.com/i/teamlogos/ncaa/500/38.png",
+  "uoregon": "https://a.espncdn.com/i/teamlogos/ncaa/500/2483.png",
+  "uconn": "https://a.espncdn.com/i/teamlogos/ncaa/500/41.png",
+  "rutgers": "https://a.espncdn.com/i/teamlogos/ncaa/500/164.png",
+  "stony-brook": "https://a.espncdn.com/i/teamlogos/ncaa/500/2619.png",
+  "pitt": "https://a.espncdn.com/i/teamlogos/ncaa/500/221.png",
+  "vt": "https://a.espncdn.com/i/teamlogos/ncaa/500/259.png",
+  "tamu": "https://a.espncdn.com/i/teamlogos/ncaa/500/245.png",
+  "clemson": "https://a.espncdn.com/i/teamlogos/ncaa/500/228.png",
+  "alabama": "https://a.espncdn.com/i/teamlogos/ncaa/500/333.png",
+  "uga": "https://a.espncdn.com/i/teamlogos/ncaa/500/61.png",
+  "utk": "https://a.espncdn.com/i/teamlogos/ncaa/500/2633.png",
+  "sdsu": "https://a.espncdn.com/i/teamlogos/ncaa/500/21.png",
+  "arizona": "https://a.espncdn.com/i/teamlogos/ncaa/500/12.png",
+  "northeastern": "https://a.espncdn.com/i/teamlogos/ncaa/500/111.png",
+  "case": "https://a.espncdn.com/i/teamlogos/ncaa/500/2963.png",
+  "lehigh": "https://a.espncdn.com/i/teamlogos/ncaa/500/2329.png",
+  "bucknell": "https://a.espncdn.com/i/teamlogos/ncaa/500/2083.png",
+  "villanova": "https://a.espncdn.com/i/teamlogos/ncaa/500/222.png",
+  "tulane": "https://a.espncdn.com/i/teamlogos/ncaa/500/2655.png",
+  "miami": "https://a.espncdn.com/i/teamlogos/ncaa/500/2390.png",
+  "american": "https://a.espncdn.com/i/teamlogos/ncaa/500/44.png",
+  "hamilton": "https://a.espncdn.com/i/teamlogos/ncaa/500/348.png",
+  "davidson": "https://a.espncdn.com/i/teamlogos/ncaa/500/2166.png",
+  "colgate": "https://a.espncdn.com/i/teamlogos/ncaa/500/2142.png",
+  "bates": "https://a.espncdn.com/i/teamlogos/ncaa/500/121.png",
+  "colby": "https://a.espncdn.com/i/teamlogos/ncaa/500/33.png",
+  "macalester": "https://a.espncdn.com/i/teamlogos/ncaa/500/2359.png",
+  "grinnell": "https://a.espncdn.com/i/teamlogos/ncaa/500/65.png",
+  "kenyon": "https://a.espncdn.com/i/teamlogos/ncaa/500/352.png",
+  "oberlin": "https://a.espncdn.com/i/teamlogos/ncaa/500/391.png",
+  "fordham": "https://a.espncdn.com/i/teamlogos/ncaa/500/2230.png",
+  "pepperdine": "https://a.espncdn.com/i/teamlogos/ncaa/500/2492.png",
+  "scu": "https://a.espncdn.com/i/teamlogos/ncaa/500/2541.png",
+  "lmu": "https://a.espncdn.com/i/teamlogos/ncaa/500/2351.png",
+  "drexel": "https://a.espncdn.com/i/teamlogos/ncaa/500/2182.png",
+  "uky": "https://a.espncdn.com/i/teamlogos/ncaa/500/96.png",
+  "auburn": "https://a.espncdn.com/i/teamlogos/ncaa/500/2.png",
+  "lsu": "https://a.espncdn.com/i/teamlogos/ncaa/500/99.png",
+  "sc": "https://a.espncdn.com/i/teamlogos/ncaa/500/2579.png",
+  "missou": "https://a.espncdn.com/i/teamlogos/ncaa/500/142.png",
+  "ku": "https://a.espncdn.com/i/teamlogos/ncaa/500/2305.png",
+  "unl": "https://a.espncdn.com/i/teamlogos/ncaa/500/158.png",
+  "uvm": "https://a.espncdn.com/i/teamlogos/ncaa/500/261.png",
+  "udel": "https://a.espncdn.com/i/teamlogos/ncaa/500/48.png",
+  "binghamton": "https://a.espncdn.com/i/teamlogos/ncaa/500/2066.png",
+  "calpoly-slo": "https://a.espncdn.com/i/teamlogos/ncaa/500/13.png",
+  "sjsu": "https://a.espncdn.com/i/teamlogos/ncaa/500/23.png",
+  "csulb": "https://a.espncdn.com/i/teamlogos/ncaa/500/299.png",
+  "iowa-state": "https://a.espncdn.com/i/teamlogos/ncaa/500/66.png",
+  "temple": "https://a.espncdn.com/i/teamlogos/ncaa/500/218.png",
+  "gmu": "https://a.espncdn.com/i/teamlogos/ncaa/500/2244.png",
+  "uh": "https://a.espncdn.com/i/teamlogos/ncaa/500/248.png",
+  "utah": "https://a.espncdn.com/i/teamlogos/ncaa/500/254.png",
+  "hawaii": "https://a.espncdn.com/i/teamlogos/ncaa/500/62.png",
+  "unh": "https://a.espncdn.com/i/teamlogos/ncaa/500/160.png",
+  "umaine": "https://a.espncdn.com/i/teamlogos/ncaa/500/311.png",
+  "howard": "https://a.espncdn.com/i/teamlogos/ncaa/500/47.png",
+  "morehouse": "https://a.espncdn.com/i/teamlogos/ncaa/500/60.png",
+  "famu": "https://a.espncdn.com/i/teamlogos/ncaa/500/50.png",
+  "tuskegee": "https://a.espncdn.com/i/teamlogos/ncaa/500/2657.png",
+  "uci": "https://a.espncdn.com/i/teamlogos/ncaa/500/300.png",
+  "ucsb": "https://a.espncdn.com/i/teamlogos/ncaa/500/2540.png",
+  "ucdavis": "https://a.espncdn.com/i/teamlogos/ncaa/500/302.png",
+  "ucr": "https://a.espncdn.com/i/teamlogos/ncaa/500/27.png",
+  "byu": "https://a.espncdn.com/i/teamlogos/ncaa/500/252.png",
+  "baylor": "https://a.espncdn.com/i/teamlogos/ncaa/500/239.png",
+  "tcu": "https://a.espncdn.com/i/teamlogos/ncaa/500/2628.png",
+  "smu": "https://a.espncdn.com/i/teamlogos/ncaa/500/2567.png",
+  "liberty": "https://a.espncdn.com/i/teamlogos/ncaa/500/2335.png",
+  "umass": "https://a.espncdn.com/i/teamlogos/ncaa/500/113.png",
+  "ncsu": "https://a.espncdn.com/i/teamlogos/ncaa/500/152.png",
+  "syracuse": "https://a.espncdn.com/i/teamlogos/ncaa/500/183.png",
+  "hampton": "https://a.espncdn.com/i/teamlogos/ncaa/500/2261.png",
+  "holy-cross": "https://a.espncdn.com/i/teamlogos/ncaa/500/107.png",
+  "lafayette": "https://a.espncdn.com/i/teamlogos/ncaa/500/322.png",
+  "colorado-college": "https://a.espncdn.com/i/teamlogos/ncaa/500/38.png",
+  "sewanee": "https://a.espncdn.com/i/teamlogos/ncaa/500/2553.png",
+  "marquette": "https://a.espncdn.com/i/teamlogos/ncaa/500/269.png",
+  "loyola-chicago": "https://a.espncdn.com/i/teamlogos/ncaa/500/2350.png",
+  "depaul": "https://a.espncdn.com/i/teamlogos/ncaa/500/305.png",
+  "suny-buffalo": "https://a.espncdn.com/i/teamlogos/ncaa/500/2084.png",
+  "fiu": "https://a.espncdn.com/i/teamlogos/ncaa/500/2229.png",
+  "ucf": "https://a.espncdn.com/i/teamlogos/ncaa/500/2116.png",
+  "colorado-state": "https://a.espncdn.com/i/teamlogos/ncaa/500/36.png",
+  "cincinnati": "https://a.espncdn.com/i/teamlogos/ncaa/500/2132.png",
+  "usf-tampa": "https://a.espncdn.com/i/teamlogos/ncaa/500/58.png",
+  "vcu": "https://a.espncdn.com/i/teamlogos/ncaa/500/2670.png",
+  "unm": "https://a.espncdn.com/i/teamlogos/ncaa/500/167.png",
+  "gsu": "https://a.espncdn.com/i/teamlogos/ncaa/500/2247.png",
+  "wvu": "https://a.espncdn.com/i/teamlogos/ncaa/500/277.png",
+  "louisville": "https://a.espncdn.com/i/teamlogos/ncaa/500/97.png",
+  "oklahoma-state": "https://a.espncdn.com/i/teamlogos/ncaa/500/197.png",
+  "oklahoma": "https://a.espncdn.com/i/teamlogos/ncaa/500/201.png",
+  "utsa": "https://a.espncdn.com/i/teamlogos/ncaa/500/2636.png",
+  "oregon-state": "https://a.espncdn.com/i/teamlogos/ncaa/500/204.png",
+  "wsu": "https://a.espncdn.com/i/teamlogos/ncaa/500/265.png",
+  "unc-charlotte": "https://a.espncdn.com/i/teamlogos/ncaa/500/2429.png",
+  "ecu": "https://a.espncdn.com/i/teamlogos/ncaa/500/151.png",
+  "kent-state": "https://a.espncdn.com/i/teamlogos/ncaa/500/2309.png",
+  "fau": "https://a.espncdn.com/i/teamlogos/ncaa/500/2226.png",
+  "akron": "https://a.espncdn.com/i/teamlogos/ncaa/500/2006.png",
+  "jmu": "https://a.espncdn.com/i/teamlogos/ncaa/500/256.png",
+  "col-charleston": "https://a.espncdn.com/i/teamlogos/ncaa/500/232.png",
+  "unf": "https://a.espncdn.com/i/teamlogos/ncaa/500/2454.png",
+  "boise-state": "https://a.espncdn.com/i/teamlogos/ncaa/500/68.png",
+  "unlv": "https://a.espncdn.com/i/teamlogos/ncaa/500/2439.png",
+  "odu": "https://a.espncdn.com/i/teamlogos/ncaa/500/295.png",
+  "towson": "https://a.espncdn.com/i/teamlogos/ncaa/500/119.png",
+  "miss-state": "https://a.espncdn.com/i/teamlogos/ncaa/500/344.png",
+  "umbc": "https://a.espncdn.com/i/teamlogos/ncaa/500/2378.png",
+  "uri": "https://a.espncdn.com/i/teamlogos/ncaa/500/227.png",
+  "nau": "https://a.espncdn.com/i/teamlogos/ncaa/500/2464.png",
+  "wmu": "https://a.espncdn.com/i/teamlogos/ncaa/500/2711.png",
+  "emich": "https://a.espncdn.com/i/teamlogos/ncaa/500/2199.png",
+  "niu": "https://a.espncdn.com/i/teamlogos/ncaa/500/2459.png",
+  "ilstu": "https://a.espncdn.com/i/teamlogos/ncaa/500/2287.png",
+  "bgsu": "https://a.espncdn.com/i/teamlogos/ncaa/500/189.png",
+  "ohio-u": "https://a.espncdn.com/i/teamlogos/ncaa/500/195.png",
+  "slu": "https://a.espncdn.com/i/teamlogos/ncaa/500/139.png",
+  "hofstra": "https://a.espncdn.com/i/teamlogos/ncaa/500/2275.png",
+  "tulsa": "https://a.espncdn.com/i/teamlogos/ncaa/500/202.png",
+  "dayton": "https://a.espncdn.com/i/teamlogos/ncaa/500/2168.png",
+  "usd": "https://a.espncdn.com/i/teamlogos/ncaa/500/301.png",
+  "usf-sf": "https://a.espncdn.com/i/teamlogos/ncaa/500/2539.png",
+  "chapman": "https://a.espncdn.com/i/teamlogos/ncaa/500/411.png",
+  "seattle-u": "https://a.espncdn.com/i/teamlogos/ncaa/500/2547.png",
+  "catholic": "https://a.espncdn.com/i/teamlogos/ncaa/500/2108.png",
+  "stetson": "https://a.espncdn.com/i/teamlogos/ncaa/500/56.png",
+  "drake": "https://a.espncdn.com/i/teamlogos/ncaa/500/2181.png",
+  "butler": "https://a.espncdn.com/i/teamlogos/ncaa/500/2086.png",
+  "mercer": "https://a.espncdn.com/i/teamlogos/ncaa/500/2382.png",
+  "belmont": "https://a.espncdn.com/i/teamlogos/ncaa/500/2057.png",
+  "elon": "https://a.espncdn.com/i/teamlogos/ncaa/500/2210.png",
+  "high-point": "https://a.espncdn.com/i/teamlogos/ncaa/500/2272.png",
+  "quinnipiac": "https://a.espncdn.com/i/teamlogos/ncaa/500/2514.png",
+  "pace": "https://a.espncdn.com/i/teamlogos/ncaa/500/2487.png",
+  "marist": "https://a.espncdn.com/i/teamlogos/ncaa/500/2368.png",
+  "fairfield": "https://a.espncdn.com/i/teamlogos/ncaa/500/2217.png",
+  "loyola-md": "https://a.espncdn.com/i/teamlogos/ncaa/500/2352.png",
+  "gonzaga": "https://a.espncdn.com/i/teamlogos/ncaa/500/2250.png",
+  "creighton": "https://a.espncdn.com/i/teamlogos/ncaa/500/156.png",
+  "sju": "https://a.espncdn.com/i/teamlogos/ncaa/500/2603.png",
+  "providence": "https://a.espncdn.com/i/teamlogos/ncaa/500/2507.png",
+  "manhattan": "https://a.espncdn.com/i/teamlogos/ncaa/500/2363.png",
+  "stjohns": "https://a.espncdn.com/i/teamlogos/ncaa/500/2599.png",
+  "rhodes": "https://a.espncdn.com/i/teamlogos/ncaa/500/2519.png",
+  "furman": "https://a.espncdn.com/i/teamlogos/ncaa/500/231.png",
+  "samford": "https://a.espncdn.com/i/teamlogos/ncaa/500/2535.png",
+  "wofford": "https://a.espncdn.com/i/teamlogos/ncaa/500/2747.png",
+  "hope": "https://a.espncdn.com/i/teamlogos/ncaa/500/2812.png",
+  "centre": "https://a.espncdn.com/i/teamlogos/ncaa/500/2121.png",
+  "lawrence": "https://a.espncdn.com/i/teamlogos/ncaa/500/268.png",
+  "st-olaf": "https://a.espncdn.com/i/teamlogos/ncaa/500/133.png",
+  "beloit": "https://a.espncdn.com/i/teamlogos/ncaa/500/266.png",
+  "depauw": "https://a.espncdn.com/i/teamlogos/ncaa/500/83.png",
+  "dickinson": "https://a.espncdn.com/i/teamlogos/ncaa/500/2175.png",
+  "gettysburg": "https://a.espncdn.com/guid/729c7315-1812-052c-1123-f44cf21b435c/logos/default.png",
+  "muhlenberg": "https://a.espncdn.com/i/teamlogos/ncaa/500/2422.png",
+  "richmond": "https://a.espncdn.com/i/teamlogos/ncaa/500/257.png",
+  "wlu": "https://a.espncdn.com/i/teamlogos/ncaa/500/2688.png",
+  "njit": "https://a.espncdn.com/i/teamlogos/ncaa/500/2885.png",
+  "mines": "https://a.espncdn.com/i/teamlogos/ncaa/500/2146.png",
+  "texas-tech": "https://a.espncdn.com/i/teamlogos/ncaa/500/2641.png",
+  "unt": "https://a.espncdn.com/i/teamlogos/ncaa/500/249.png",
+  "michigan-tech": "https://a.espncdn.com/i/teamlogos/ncaa/500/2392.png",
+  "clark-atlanta": "https://a.espncdn.com/i/teamlogos/ncaa/500/2805.png",
+  "ncat": "https://a.espncdn.com/i/teamlogos/ncaa/500/2448.png",
+  "tnstate": "https://a.espncdn.com/i/teamlogos/ncaa/500/2634.png",
+  "jackson-state": "https://a.espncdn.com/i/teamlogos/ncaa/500/2296.png",
+  "pvamu": "https://a.espncdn.com/i/teamlogos/ncaa/500/2504.png",
+  "morgan-state": "https://a.espncdn.com/i/teamlogos/ncaa/500/2415.png",
+  "texas-southern": "https://a.espncdn.com/i/teamlogos/ncaa/500/2640.png",
+  "knox": "https://a.espncdn.com/i/teamlogos/ncaa/500/255.png",
+  "allegheny": "https://a.espncdn.com/i/teamlogos/ncaa/500/2018.png",
+  "susquehanna": "https://a.espncdn.com/i/teamlogos/ncaa/500/216.png",
+  "bryant": "https://a.espncdn.com/i/teamlogos/ncaa/500/2803.png",
+  "bradley": "https://a.espncdn.com/i/teamlogos/ncaa/500/71.png",
+  "coastal-carolina": "https://a.espncdn.com/i/teamlogos/ncaa/500/324.png",
+  "tcnj": "https://a.espncdn.com/i/teamlogos/ncaa/500/2442.png",
+  "denison": "https://a.espncdn.com/i/teamlogos/ncaa/500/2171.png",
+  "duquesne": "https://a.espncdn.com/i/teamlogos/ncaa/500/2184.png",
+  "fandm": "https://a.espncdn.com/i/teamlogos/ncaa/500/2234.png",
+  "gustavus": "https://a.espncdn.com/i/teamlogos/ncaa/500/2968.png",
+  "ithaca": "https://a.espncdn.com/i/teamlogos/ncaa/500/175.png",
+  "juniata": "https://a.espncdn.com/i/teamlogos/ncaa/500/246.png",
+  "lake-forest": "https://a.espncdn.com/i/teamlogos/ncaa/500/262.png",
+  "lewis-clark": "https://a.espncdn.com/i/teamlogos/ncaa/500/2333.png",
+  "linfield": "https://a.espncdn.com/i/teamlogos/ncaa/500/203.png",
+  "southwestern": "https://a.espncdn.com/i/teamlogos/ncaa/500/2588.png",
+  "wooster": "https://a.espncdn.com/i/teamlogos/ncaa/500/2748.png",
+  "uncw": "https://a.espncdn.com/i/teamlogos/ncaa/500/350.png",
+  "portland": "https://a.espncdn.com/i/teamlogos/ncaa/500/2501.png",
+  "puget-sound": "https://a.espncdn.com/i/teamlogos/ncaa/500/2508.png",
+  "denver": "https://a.espncdn.com/i/teamlogos/ncaa/500/2172.png",
+  "arkansas": "https://a.espncdn.com/i/teamlogos/ncaa/500/8.png",
+  "kansas-state": "https://a.espncdn.com/i/teamlogos/ncaa/500/2306.png",
+  "texas-state": "https://a.espncdn.com/i/teamlogos/ncaa/500/326.png",
+  "missouri-st": "https://a.espncdn.com/i/teamlogos/ncaa/500/2402.png",
+  "uab": "https://a.espncdn.com/i/teamlogos/ncaa/500/5.png",
+  "memphis": "https://a.espncdn.com/i/teamlogos/ncaa/500/235.png",
+  "toledo": "https://a.espncdn.com/i/teamlogos/ncaa/500/2649.png",
+  "wichita-state": "https://a.espncdn.com/i/teamlogos/ncaa/500/2724.png",
+  "marshall": "https://a.espncdn.com/i/teamlogos/ncaa/500/276.png",
+  "montana-state": "https://a.espncdn.com/i/teamlogos/ncaa/500/147.png",
+  "montana": "https://a.espncdn.com/i/teamlogos/ncaa/500/149.png",
+  "idaho": "https://a.espncdn.com/i/teamlogos/ncaa/500/70.png",
+  "wyoming": "https://a.espncdn.com/i/teamlogos/ncaa/500/2751.png",
+  "north-dakota": "https://a.espncdn.com/i/teamlogos/ncaa/500/155.png",
+  "new-mexico-state": "https://a.espncdn.com/i/teamlogos/ncaa/500/166.png",
+  "ball-state": "https://a.espncdn.com/i/teamlogos/ncaa/500/2050.png",
+  "central-michigan": "https://a.espncdn.com/i/teamlogos/ncaa/500/2117.png",
+  "portland-state": "https://a.espncdn.com/i/teamlogos/ncaa/500/2502.png",
+  "utep": "https://a.espncdn.com/i/teamlogos/ncaa/500/2638.png",
+  "kennesaw-state": "https://a.espncdn.com/i/teamlogos/ncaa/500/338.png",
+  "florida-gulf-coast": "https://a.espncdn.com/i/teamlogos/ncaa/500/526.png",
+  "western-kentucky": "https://a.espncdn.com/i/teamlogos/ncaa/500/98.png",
+  "sacramento-state": "https://a.espncdn.com/i/teamlogos/ncaa/500/16.png",
+  "wright-state": "https://a.espncdn.com/i/teamlogos/ncaa/500/2750.png",
+  "louisiana-tech": "https://a.espncdn.com/i/teamlogos/ncaa/500/2348.png",
+  "south-alabama": "https://a.espncdn.com/i/teamlogos/ncaa/500/6.png",
+  "seton-hall": "https://a.espncdn.com/i/teamlogos/ncaa/500/2550.png",
+  "union-college": "https://a.espncdn.com/i/teamlogos/ncaa/500/237.png",
+  "wabash": "https://a.espncdn.com/i/teamlogos/ncaa/500/89.png",
+  "kalamazoo": "https://a.espncdn.com/i/teamlogos/ncaa/500/126.png",
+  "hillsdale": "https://a.espncdn.com/i/teamlogos/ncaa/500/2273.png",
+  "ursinus": "https://a.espncdn.com/i/teamlogos/ncaa/500/2667.png",
+  "willamette": "https://a.espncdn.com/i/teamlogos/ncaa/500/2930.png",
+  "st-lawrence": "https://a.espncdn.com/i/teamlogos/ncaa/500/2779.png",
+  "hendrix": "https://a.espncdn.com/i/teamlogos/ncaa/500/418.png",
+  "nc-central": "https://a.espncdn.com/i/teamlogos/ncaa/500/2428.png",
+  "bethune-cookman": "https://a.espncdn.com/i/teamlogos/ncaa/500/2065.png"
+ },
+ "review": [
+  [
+   "harvard",
+   "Harvard",
+   "Harvard Crimson"
+  ],
+  [
+   "stanford",
+   "Stanford",
+   "Stanford Cardinal"
+  ],
+  [
+   "mit",
+   "MIT",
+   "MIT Engineers"
+  ],
+  [
+   "yale",
+   "Yale",
+   "Yale Bulldogs"
+  ],
+  [
+   "princeton",
+   "Princeton",
+   "Princeton Tigers"
+  ],
+  [
+   "columbia",
+   "Columbia",
+   "Columbia Lions"
+  ],
+  [
+   "uchicago",
+   "University of Chicago",
+   "Chicago Maroons"
+  ],
+  [
+   "brown",
+   "Brown",
+   "Brown Bears"
+  ],
+  [
+   "dartmouth",
+   "Dartmouth",
+   "Dartmouth Big Green"
+  ],
+  [
+   "duke",
+   "Duke",
+   "Duke Blue Devils"
+  ],
+  [
+   "northwestern",
+   "Northwestern",
+   "Northwestern Wildcats"
+  ],
+  [
+   "cornell",
+   "Cornell",
+   "Cornell Big Red"
+  ],
+  [
+   "jhu",
+   "Johns Hopkins",
+   "Johns Hopkins University Blue Jays"
+  ],
+  [
+   "vanderbilt",
+   "Vanderbilt",
+   "Vanderbilt Commodores"
+  ],
+  [
+   "rice",
+   "Rice",
+   "Rice Owls"
+  ],
+  [
+   "notre-dame",
+   "Notre Dame",
+   "Notre Dame Fighting Irish"
+  ],
+  [
+   "cmu",
+   "Carnegie Mellon",
+   "Carnegie Mellon Tartans"
+  ],
+  [
+   "usc",
+   "USC",
+   "USC Trojans"
+  ],
+  [
+   "georgetown",
+   "Georgetown",
+   "Georgetown Hoyas"
+  ],
+  [
+   "ucb",
+   "UC Berkeley",
+   "California Golden Bears"
+  ],
+  [
+   "ucla",
+   "UCLA",
+   "UCLA Bruins"
+  ],
+  [
+   "ucsd",
+   "UC San Diego",
+   "UC San Diego Tritons"
+  ],
+  [
+   "umich",
+   "University of Michigan",
+   "Michigan Wolverines"
+  ],
+  [
+   "uva",
+   "UVA",
+   "Virginia Cavaliers"
+  ],
+  [
+   "gatech",
+   "Georgia Tech",
+   "Georgia Tech Yellow Jackets"
+  ],
+  [
+   "tufts",
+   "Tufts",
+   "Tufts Jumbos"
+  ],
+  [
+   "unc",
+   "UNC Chapel Hill",
+   "North Carolina Tar Heels"
+  ],
+  [
+   "bu",
+   "Boston University",
+   "Boston College Eagles"
+  ],
+  [
+   "bc",
+   "Boston College",
+   "Boston College Eagles"
+  ],
+  [
+   "wake-forest",
+   "Wake Forest",
+   "Wake Forest Demon Deacons"
+  ],
+  [
+   "wm",
+   "William & Mary",
+   "William & Mary Tribe"
+  ],
+  [
+   "uf",
+   "University of Florida",
+   "Florida Gators"
+  ],
+  [
+   "wisc",
+   "University of Wisconsin",
+   "Wisconsin Badgers"
+  ],
+  [
+   "uw",
+   "University of Washington",
+   "Washington Huskies"
+  ],
+  [
+   "ut-austin",
+   "University of Texas at Austin",
+   "Texas College Steers"
+  ],
+  [
+   "umd",
+   "University of Maryland",
+   "Maryland Terrapins"
+  ],
+  [
+   "gwu",
+   "GWU",
+   "George Washington Revolutionaries"
+  ],
+  [
+   "penn-state",
+   "Penn State",
+   "Penn State Nittany Lions"
+  ],
+  [
+   "osu",
+   "Ohio State",
+   "Ohio State Buckeyes"
+  ],
+  [
+   "msu",
+   "Michigan State",
+   "Michigan State Spartans"
+  ],
+  [
+   "fsu",
+   "Florida State",
+   "Florida State Seminoles"
+  ],
+  [
+   "iu",
+   "Indiana University",
+   "Indiana Hoosiers"
+  ],
+  [
+   "asu",
+   "Arizona State",
+   "Arizona State Sun Devils"
+  ],
+  [
+   "purdue",
+   "Purdue",
+   "Purdue Boilermakers"
+  ],
+  [
+   "uiuc",
+   "University of Illinois",
+   "Illinois College Blueboys"
+  ],
+  [
+   "williams",
+   "Williams",
+   "Williams Ephs"
+  ],
+  [
+   "amherst",
+   "Amherst",
+   "Amherst Mammoths"
+  ],
+  [
+   "bowdoin",
+   "Bowdoin",
+   "Bowdoin Polar Bears"
+  ],
+  [
+   "middlebury",
+   "Middlebury",
+   "Middlebury Panthers"
+  ],
+  [
+   "carleton",
+   "Carleton",
+   "Carleton Knights"
+  ],
+  [
+   "bentley",
+   "Bentley",
+   "Bentley Falcons"
+  ],
+  [
+   "rpi",
+   "RPI",
+   "Rensselaer Engineers"
+  ],
+  [
+   "wpi",
+   "WPI",
+   "WPI Engineers"
+  ],
+  [
+   "rose-hulman",
+   "Rose-Hulman",
+   "Rose Hulman Fightin' Engineers"
+  ],
+  [
+   "uiowa",
+   "University of Iowa",
+   "Iowa Hawkeyes"
+  ],
+  [
+   "umn",
+   "University of Minnesota",
+   "Minnesota Golden Gophers"
+  ],
+  [
+   "cu-boulder",
+   "University of Colorado Boulder",
+   "Colorado Buffaloes"
+  ],
+  [
+   "uoregon",
+   "University of Oregon",
+   "Oregon Ducks"
+  ],
+  [
+   "uconn",
+   "University of Connecticut",
+   "UConn Huskies"
+  ],
+  [
+   "rutgers",
+   "Rutgers",
+   "Rutgers Scarlet Knights"
+  ],
+  [
+   "stony-brook",
+   "Stony Brook",
+   "Stony Brook Seawolves"
+  ],
+  [
+   "pitt",
+   "University of Pittsburgh",
+   "Pittsburgh Panthers"
+  ],
+  [
+   "vt",
+   "Virginia Tech",
+   "Virginia Tech Hokies"
+  ],
+  [
+   "tamu",
+   "Texas A&M",
+   "Texas A&M Aggies"
+  ],
+  [
+   "clemson",
+   "Clemson",
+   "Clemson Tigers"
+  ],
+  [
+   "alabama",
+   "University of Alabama",
+   "Alabama Crimson Tide"
+  ],
+  [
+   "uga",
+   "University of Georgia",
+   "Georgia Bulldogs"
+  ],
+  [
+   "utk",
+   "University of Tennessee",
+   "Tennessee Volunteers"
+  ],
+  [
+   "sdsu",
+   "San Diego State",
+   "San Diego State Aztecs"
+  ],
+  [
+   "arizona",
+   "University of Arizona",
+   "Arizona Wildcats"
+  ],
+  [
+   "northeastern",
+   "Northeastern",
+   "Northeastern Huskies"
+  ],
+  [
+   "case",
+   "Case Western",
+   "Case Western Reserve Spartans"
+  ],
+  [
+   "lehigh",
+   "Lehigh",
+   "Lehigh Mountain Hawks"
+  ],
+  [
+   "bucknell",
+   "Bucknell",
+   "Bucknell Bison"
+  ],
+  [
+   "villanova",
+   "Villanova",
+   "Villanova Wildcats"
+  ],
+  [
+   "tulane",
+   "Tulane",
+   "Tulane Green Wave"
+  ],
+  [
+   "miami",
+   "University of Miami",
+   "Miami Hurricanes"
+  ],
+  [
+   "american",
+   "American University",
+   "American University Eagles"
+  ],
+  [
+   "hamilton",
+   "Hamilton",
+   "Hamilton Continentals"
+  ],
+  [
+   "davidson",
+   "Davidson",
+   "Davidson Wildcats"
+  ],
+  [
+   "colgate",
+   "Colgate",
+   "Colgate Raiders"
+  ],
+  [
+   "bates",
+   "Bates",
+   "Bates Bobcats"
+  ],
+  [
+   "colby",
+   "Colby",
+   "Colby White Mules"
+  ],
+  [
+   "macalester",
+   "Macalester",
+   "Macalester Scots"
+  ],
+  [
+   "grinnell",
+   "Grinnell",
+   "Grinnell Pioneers"
+  ],
+  [
+   "kenyon",
+   "Kenyon",
+   "Kenyon Owls"
+  ],
+  [
+   "oberlin",
+   "Oberlin",
+   "Oberlin Yeomen"
+  ],
+  [
+   "fordham",
+   "Fordham",
+   "Fordham Rams"
+  ],
+  [
+   "pepperdine",
+   "Pepperdine",
+   "Pepperdine Waves"
+  ],
+  [
+   "scu",
+   "Santa Clara",
+   "Santa Clara Broncos"
+  ],
+  [
+   "lmu",
+   "Loyola Marymount",
+   "Loyola Marymount Lions"
+  ],
+  [
+   "drexel",
+   "Drexel",
+   "Drexel Dragons"
+  ],
+  [
+   "uky",
+   "University of Kentucky",
+   "Kentucky Wildcats"
+  ],
+  [
+   "auburn",
+   "Auburn",
+   "Auburn Tigers"
+  ],
+  [
+   "lsu",
+   "LSU",
+   "LSU Tigers"
+  ],
+  [
+   "sc",
+   "University of South Carolina",
+   "South Carolina Gamecocks"
+  ],
+  [
+   "missou",
+   "University of Missouri",
+   "Missouri Tigers"
+  ],
+  [
+   "ku",
+   "University of Kansas",
+   "Kansas Jayhawks"
+  ],
+  [
+   "unl",
+   "University of Nebraska",
+   "Nebraska Cornhuskers"
+  ],
+  [
+   "uvm",
+   "University of Vermont",
+   "Vermont Catamounts"
+  ],
+  [
+   "udel",
+   "University of Delaware",
+   "Delaware Blue Hens"
+  ],
+  [
+   "binghamton",
+   "Binghamton University",
+   "Binghamton Bearcats"
+  ],
+  [
+   "calpoly-slo",
+   "Cal Poly San Luis Obispo",
+   "Cal Poly Mustangs"
+  ],
+  [
+   "sjsu",
+   "San Jose State",
+   "San Jos\u00e9 State Spartans"
+  ],
+  [
+   "csulb",
+   "Cal State Long Beach",
+   "Long Beach State Beach"
+  ],
+  [
+   "iowa-state",
+   "Iowa State",
+   "Iowa State Cyclones"
+  ],
+  [
+   "temple",
+   "Temple",
+   "Temple Owls"
+  ],
+  [
+   "gmu",
+   "George Mason",
+   "George Mason University Patriots"
+  ],
+  [
+   "uh",
+   "University of Houston",
+   "Houston Cougars"
+  ],
+  [
+   "utah",
+   "University of Utah",
+   "Utah Utes"
+  ],
+  [
+   "hawaii",
+   "University of Hawaii Manoa",
+   "Hawai'i Rainbow Warriors"
+  ],
+  [
+   "unh",
+   "University of New Hampshire",
+   "New Hampshire Wildcats"
+  ],
+  [
+   "umaine",
+   "University of Maine",
+   "Maine Black Bears"
+  ],
+  [
+   "howard",
+   "Howard University",
+   "Howard Bison"
+  ],
+  [
+   "morehouse",
+   "Morehouse",
+   "Morehouse Maroon Tigers"
+  ],
+  [
+   "famu",
+   "Florida A&M",
+   "Florida A&M Rattlers"
+  ],
+  [
+   "tuskegee",
+   "Tuskegee",
+   "Tuskegee Golden Tigers"
+  ],
+  [
+   "uci",
+   "UC Irvine",
+   "UC Irvine Anteaters"
+  ],
+  [
+   "ucsb",
+   "UC Santa Barbara",
+   "UC Santa Barbara Gauchos"
+  ],
+  [
+   "ucdavis",
+   "UC Davis",
+   "UC Davis Aggies"
+  ],
+  [
+   "ucr",
+   "UC Riverside",
+   "UC Riverside Highlanders"
+  ],
+  [
+   "byu",
+   "BYU",
+   "BYU Cougars"
+  ],
+  [
+   "baylor",
+   "Baylor",
+   "Baylor Bears"
+  ],
+  [
+   "tcu",
+   "TCU",
+   "TCU Horned Frogs"
+  ],
+  [
+   "smu",
+   "SMU",
+   "SMU Mustangs"
+  ],
+  [
+   "liberty",
+   "Liberty",
+   "Liberty Flames"
+  ],
+  [
+   "umass",
+   "UMass Amherst",
+   "Massachusetts Minutemen"
+  ],
+  [
+   "ncsu",
+   "NC State",
+   "NC State Wolfpack"
+  ],
+  [
+   "syracuse",
+   "Syracuse",
+   "Syracuse Orange"
+  ],
+  [
+   "hampton",
+   "Hampton",
+   "Hampton Pirates"
+  ],
+  [
+   "holy-cross",
+   "Holy Cross",
+   "Holy Cross Crusaders"
+  ],
+  [
+   "lafayette",
+   "Lafayette",
+   "Lafayette Leopards"
+  ],
+  [
+   "colorado-college",
+   "Colorado College",
+   "Colorado Buffaloes"
+  ],
+  [
+   "sewanee",
+   "Sewanee",
+   "Sewanee Tigers"
+  ],
+  [
+   "marquette",
+   "Marquette",
+   "Marquette Golden Eagles"
+  ],
+  [
+   "loyola-chicago",
+   "Loyola Chicago",
+   "Loyola Chicago Ramblers"
+  ],
+  [
+   "depaul",
+   "DePaul",
+   "DePaul Blue Demons"
+  ],
+  [
+   "suny-buffalo",
+   "SUNY Buffalo",
+   "Buffalo Bulls"
+  ],
+  [
+   "fiu",
+   "Florida International",
+   "Florida International Panthers"
+  ],
+  [
+   "ucf",
+   "University of Central Florida",
+   "UCF Knights"
+  ],
+  [
+   "colorado-state",
+   "Colorado State",
+   "Colorado State Rams"
+  ],
+  [
+   "cincinnati",
+   "University of Cincinnati",
+   "Cincinnati Bearcats"
+  ],
+  [
+   "usf-tampa",
+   "University of South Florida",
+   "South Florida Bulls"
+  ],
+  [
+   "vcu",
+   "VCU",
+   "VCU Rams"
+  ],
+  [
+   "unm",
+   "University of New Mexico",
+   "New Mexico Lobos"
+  ],
+  [
+   "gsu",
+   "Georgia State",
+   "Georgia State Panthers"
+  ],
+  [
+   "wvu",
+   "West Virginia",
+   "West Virginia Mountaineers"
+  ],
+  [
+   "louisville",
+   "University of Louisville",
+   "Louisville Cardinals"
+  ],
+  [
+   "oklahoma-state",
+   "Oklahoma State",
+   "Oklahoma State Cowboys"
+  ],
+  [
+   "oklahoma",
+   "University of Oklahoma",
+   "Oklahoma Sooners"
+  ],
+  [
+   "utsa",
+   "UTSA",
+   "UTSA Roadrunners"
+  ],
+  [
+   "oregon-state",
+   "Oregon State",
+   "Oregon State Beavers"
+  ],
+  [
+   "wsu",
+   "Washington State",
+   "Washington State Cougars"
+  ],
+  [
+   "unc-charlotte",
+   "UNC Charlotte",
+   "Charlotte 49ers"
+  ],
+  [
+   "ecu",
+   "East Carolina",
+   "East Carolina Pirates"
+  ],
+  [
+   "kent-state",
+   "Kent State",
+   "Kent State Golden Flashes"
+  ],
+  [
+   "fau",
+   "Florida Atlantic",
+   "Florida Atlantic Owls"
+  ],
+  [
+   "akron",
+   "University of Akron",
+   "Akron Zips"
+  ],
+  [
+   "jmu",
+   "James Madison",
+   "James Madison Dukes"
+  ],
+  [
+   "col-charleston",
+   "College of Charleston",
+   "Charleston Cougars"
+  ],
+  [
+   "unf",
+   "University of North Florida",
+   "North Florida Ospreys"
+  ],
+  [
+   "boise-state",
+   "Boise State",
+   "Boise State Broncos"
+  ],
+  [
+   "unlv",
+   "UNLV",
+   "UNLV Rebels"
+  ],
+  [
+   "odu",
+   "Old Dominion",
+   "Old Dominion Monarchs"
+  ],
+  [
+   "towson",
+   "Towson",
+   "Towson Tigers"
+  ],
+  [
+   "miss-state",
+   "Mississippi State",
+   "Mississippi State Bulldogs"
+  ],
+  [
+   "umbc",
+   "UMBC",
+   "UMBC Retrievers"
+  ],
+  [
+   "uri",
+   "University of Rhode Island",
+   "Rhode Island Rams"
+  ],
+  [
+   "nau",
+   "Northern Arizona",
+   "Northern Arizona Lumberjacks"
+  ],
+  [
+   "wmu",
+   "Western Michigan",
+   "Western Michigan Broncos"
+  ],
+  [
+   "emich",
+   "Eastern Michigan",
+   "Eastern Michigan Eagles"
+  ],
+  [
+   "niu",
+   "Northern Illinois",
+   "Northern Illinois Huskies"
+  ],
+  [
+   "ilstu",
+   "Illinois State",
+   "Illinois State Redbirds"
+  ],
+  [
+   "bgsu",
+   "Bowling Green",
+   "Bowling Green Falcons"
+  ],
+  [
+   "ohio-u",
+   "Ohio University",
+   "Ohio Bobcats"
+  ],
+  [
+   "slu",
+   "Saint Louis University",
+   "Saint Louis Billikens"
+  ],
+  [
+   "hofstra",
+   "Hofstra",
+   "Hofstra Pride"
+  ],
+  [
+   "tulsa",
+   "University of Tulsa",
+   "Tulsa Golden Hurricane"
+  ],
+  [
+   "dayton",
+   "University of Dayton",
+   "Dayton Flyers"
+  ],
+  [
+   "usd",
+   "University of San Diego",
+   "San Diego Toreros"
+  ],
+  [
+   "usf-sf",
+   "University of San Francisco",
+   "San Francisco Dons"
+  ],
+  [
+   "chapman",
+   "Chapman",
+   "Chapman Panthers"
+  ],
+  [
+   "seattle-u",
+   "Seattle U",
+   "Seattle U Redhawks"
+  ],
+  [
+   "catholic",
+   "Catholic University",
+   "Catholic Cardinals"
+  ],
+  [
+   "stetson",
+   "Stetson",
+   "Stetson Hatters"
+  ],
+  [
+   "drake",
+   "Drake",
+   "Drake Bulldogs"
+  ],
+  [
+   "butler",
+   "Butler",
+   "Butler Bulldogs"
+  ],
+  [
+   "mercer",
+   "Mercer",
+   "Mercer Bears"
+  ],
+  [
+   "belmont",
+   "Belmont",
+   "Belmont Bruins"
+  ],
+  [
+   "elon",
+   "Elon",
+   "Elon Phoenix"
+  ],
+  [
+   "high-point",
+   "High Point",
+   "High Point Panthers"
+  ],
+  [
+   "quinnipiac",
+   "Quinnipiac",
+   "Quinnipiac Bobcats"
+  ],
+  [
+   "pace",
+   "Pace",
+   "Pace Setters"
+  ],
+  [
+   "marist",
+   "Marist",
+   "Marist Red Foxes"
+  ],
+  [
+   "fairfield",
+   "Fairfield",
+   "Fairfield Stags"
+  ],
+  [
+   "loyola-md",
+   "Loyola Maryland",
+   "Loyola Maryland Greyhounds"
+  ],
+  [
+   "gonzaga",
+   "Gonzaga",
+   "Gonzaga Bulldogs"
+  ],
+  [
+   "creighton",
+   "Creighton",
+   "Creighton Bluejays"
+  ],
+  [
+   "sju",
+   "Saint Joseph's",
+   "Saint Joseph's Hawks"
+  ],
+  [
+   "providence",
+   "Providence",
+   "Providence Friars"
+  ],
+  [
+   "manhattan",
+   "Manhattan College",
+   "Manhattan Jaspers"
+  ],
+  [
+   "stjohns",
+   "St. John's",
+   "St. John's Red Storm"
+  ],
+  [
+   "rhodes",
+   "Rhodes",
+   "Rhodes Lynx"
+  ],
+  [
+   "furman",
+   "Furman",
+   "Furman Paladins"
+  ],
+  [
+   "samford",
+   "Samford",
+   "Samford Bulldogs"
+  ],
+  [
+   "wofford",
+   "Wofford",
+   "Wofford Terriers"
+  ],
+  [
+   "hope",
+   "Hope",
+   "Hope Flying Dutchmen"
+  ],
+  [
+   "centre",
+   "Centre",
+   "Centre Colonels"
+  ],
+  [
+   "lawrence",
+   "Lawrence",
+   "Lawrence Vikings"
+  ],
+  [
+   "st-olaf",
+   "St. Olaf",
+   "St. Olaf Oles"
+  ],
+  [
+   "beloit",
+   "Beloit",
+   "Beloit Buccaneers"
+  ],
+  [
+   "depauw",
+   "DePauw",
+   "DePauw Tigers"
+  ],
+  [
+   "dickinson",
+   "Dickinson",
+   "Dickinson Red Devils"
+  ],
+  [
+   "gettysburg",
+   "Gettysburg",
+   "Gettysburg Bullets"
+  ],
+  [
+   "muhlenberg",
+   "Muhlenberg",
+   "Muhlenberg Mules"
+  ],
+  [
+   "richmond",
+   "University of Richmond",
+   "Richmond Spiders"
+  ],
+  [
+   "wlu",
+   "Washington and Lee",
+   "Washington and Lee Generals"
+  ],
+  [
+   "njit",
+   "NJIT",
+   "NJIT Highlanders"
+  ],
+  [
+   "mines",
+   "Colorado Mines",
+   "Colorado School of Mines Orediggers"
+  ],
+  [
+   "texas-tech",
+   "Texas Tech",
+   "Texas Tech Red Raiders"
+  ],
+  [
+   "unt",
+   "University of North Texas",
+   "North Texas Mean Green"
+  ],
+  [
+   "michigan-tech",
+   "Michigan Tech",
+   "Michigan Tech Huskies"
+  ],
+  [
+   "clark-atlanta",
+   "Clark Atlanta",
+   "Clark Atlanta Panthers"
+  ],
+  [
+   "ncat",
+   "NC A&T",
+   "North Carolina A&T Aggies"
+  ],
+  [
+   "tnstate",
+   "Tennessee State",
+   "Tennessee State Tigers"
+  ],
+  [
+   "jackson-state",
+   "Jackson State",
+   "Jackson State Tigers"
+  ],
+  [
+   "pvamu",
+   "Prairie View A&M",
+   "Prairie View A&M Panthers"
+  ],
+  [
+   "morgan-state",
+   "Morgan State",
+   "Morgan State Bears"
+  ],
+  [
+   "texas-southern",
+   "Texas Southern",
+   "Texas Southern Tigers"
+  ],
+  [
+   "knox",
+   "Knox",
+   "Knox Prairie Fire"
+  ],
+  [
+   "allegheny",
+   "Allegheny",
+   "Allegheny Gators"
+  ],
+  [
+   "susquehanna",
+   "Susquehanna",
+   "Susquehanna River Hawks"
+  ],
+  [
+   "bryant",
+   "Bryant",
+   "Bryant Bulldogs"
+  ],
+  [
+   "bradley",
+   "Bradley University",
+   "Bradley Braves"
+  ],
+  [
+   "coastal-carolina",
+   "Coastal Carolina University",
+   "Coastal Carolina Chanticleers"
+  ],
+  [
+   "tcnj",
+   "College of New Jersey",
+   "The College of New Jersey Lions"
+  ],
+  [
+   "denison",
+   "Denison University",
+   "Denison Big Red"
+  ],
+  [
+   "duquesne",
+   "Duquesne University",
+   "Duquesne Dukes"
+  ],
+  [
+   "fandm",
+   "Franklin and Marshall College",
+   "Franklin & Marshall Diplomats"
+  ],
+  [
+   "gustavus",
+   "Gustavus Adolphus College",
+   "Gustavus Adolphus Golden Gusties"
+  ],
+  [
+   "ithaca",
+   "Ithaca College",
+   "Ithaca Bombers"
+  ],
+  [
+   "juniata",
+   "Juniata College",
+   "Juniata Eagles"
+  ],
+  [
+   "lake-forest",
+   "Lake Forest College",
+   "Lake Forest Foresters"
+  ],
+  [
+   "lewis-clark",
+   "Lewis & Clark College",
+   "Lewis & Clark River Otters"
+  ],
+  [
+   "linfield",
+   "Linfield University",
+   "Linfield Wildcats"
+  ],
+  [
+   "southwestern",
+   "Southwestern University",
+   "Southwestern U Pirates"
+  ],
+  [
+   "wooster",
+   "The College of Wooster",
+   "Wooster Fighting Scots"
+  ],
+  [
+   "uncw",
+   "University of North Carolina Wilmington",
+   "UNC Wilmington Seahawks"
+  ],
+  [
+   "portland",
+   "University of Portland",
+   "Portland Pilots"
+  ],
+  [
+   "puget-sound",
+   "University of Puget Sound",
+   "Puget Sound Loggers"
+  ],
+  [
+   "denver",
+   "University of Denver",
+   "Denver Pioneers"
+  ],
+  [
+   "arkansas",
+   "University of Arkansas",
+   "Arkansas Razorbacks"
+  ],
+  [
+   "kansas-state",
+   "Kansas State University",
+   "Kansas State Wildcats"
+  ],
+  [
+   "texas-state",
+   "Texas State University",
+   "Texas State Bobcats"
+  ],
+  [
+   "missouri-st",
+   "Missouri S&T",
+   "Missouri S&T Miners"
+  ],
+  [
+   "uab",
+   "University of Alabama at Birmingham",
+   "UAB Blazers"
+  ],
+  [
+   "memphis",
+   "University of Memphis",
+   "Memphis Tigers"
+  ],
+  [
+   "toledo",
+   "University of Toledo",
+   "Toledo Rockets"
+  ],
+  [
+   "wichita-state",
+   "Wichita State University",
+   "Wichita State Shockers"
+  ],
+  [
+   "marshall",
+   "Marshall University",
+   "Marshall Thundering Herd"
+  ],
+  [
+   "montana-state",
+   "Montana State University",
+   "Montana State Bobcats"
+  ],
+  [
+   "montana",
+   "University of Montana",
+   "Montana Grizzlies"
+  ],
+  [
+   "idaho",
+   "University of Idaho",
+   "Idaho Vandals"
+  ],
+  [
+   "wyoming",
+   "University of Wyoming",
+   "Wyoming Cowboys"
+  ],
+  [
+   "north-dakota",
+   "University of North Dakota",
+   "North Dakota Fighting Hawks"
+  ],
+  [
+   "new-mexico-state",
+   "New Mexico State University",
+   "New Mexico State Aggies"
+  ],
+  [
+   "ball-state",
+   "Ball State University",
+   "Ball State Cardinals"
+  ],
+  [
+   "central-michigan",
+   "Central Michigan University",
+   "Central Michigan Chippewas"
+  ],
+  [
+   "portland-state",
+   "Portland State University",
+   "Portland State Vikings"
+  ],
+  [
+   "utep",
+   "University of Texas at El Paso",
+   "UTEP Miners"
+  ],
+  [
+   "kennesaw-state",
+   "Kennesaw State University",
+   "Kennesaw State Owls"
+  ],
+  [
+   "florida-gulf-coast",
+   "Florida Gulf Coast University",
+   "Florida Gulf Coast Eagles"
+  ],
+  [
+   "western-kentucky",
+   "Western Kentucky University",
+   "Western Kentucky Hilltoppers"
+  ],
+  [
+   "sacramento-state",
+   "Sacramento State",
+   "Sacramento State Hornets"
+  ],
+  [
+   "wright-state",
+   "Wright State University",
+   "Wright State Raiders"
+  ],
+  [
+   "louisiana-tech",
+   "Louisiana Tech University",
+   "Louisiana Tech Bulldogs"
+  ],
+  [
+   "south-alabama",
+   "University of South Alabama",
+   "South Alabama Jaguars"
+  ],
+  [
+   "seton-hall",
+   "Seton Hall University",
+   "Seton Hall Pirates"
+  ],
+  [
+   "union-college",
+   "Union College",
+   "Union Garnet Chargers"
+  ],
+  [
+   "wabash",
+   "Wabash College",
+   "Wabash Little Giants"
+  ],
+  [
+   "kalamazoo",
+   "Kalamazoo College",
+   "Kalamazoo Hornets"
+  ],
+  [
+   "hillsdale",
+   "Hillsdale College",
+   "Hillsdale Chargers"
+  ],
+  [
+   "ursinus",
+   "Ursinus College",
+   "Ursinus Bears"
+  ],
+  [
+   "willamette",
+   "Willamette University",
+   "Willamette Bearcats"
+  ],
+  [
+   "st-lawrence",
+   "St. Lawrence University",
+   "St. Lawrence Saints"
+  ],
+  [
+   "hendrix",
+   "Hendrix College",
+   "Hendrix Warriors"
+  ],
+  [
+   "nc-central",
+   "North Carolina Central University",
+   "North Carolina Central Eagles"
+  ],
+  [
+   "bethune-cookman",
+   "Bethune-Cookman University",
+   "Bethune-Cookman Wildcats"
+  ]
+ ]
+}
