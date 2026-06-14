@@ -10799,11 +10799,12 @@ def _bullets_html(bullets, color="#5fc9b6"):
     return f'<ul class="bullets" style="list-style:none;padding:0;margin:24px 0 0;color:#e2e9f1">{items}</ul>'
 
 
-def _content_picker_page(title, heading, sub, mode="link", href_tpl="/chances/{slug}"):
+def _content_picker_page(title, heading, sub, mode="link", href_tpl="/chances/{slug}", top_html=""):
     grid = _content_school_cards(mode, href_tpl)
     body = (_CONTENT_PICKER_CSS +
         f'<h1 style="margin:0 0 2px">{heading}</h1>'
         f'<p class="muted" style="margin:0 0 16px">{sub}</p>'
+        f'{top_html}'
         '<input class="cms-search" id="cms-search" placeholder="Search schools…" autocomplete="off">'
         f'<div class="cms-grid" id="cms-grid">{grid}</div>'
         '<script>(function(){var s=document.getElementById("cms-search"),g=document.getElementById("cms-grid");'
@@ -11034,9 +11035,13 @@ def content_profile():
     """New-Roads content mode: tap a school → the 'SCHOOL?' question/profile slide."""
     if not _is_creator():
         abort(404)
+    top = ('<div style="display:flex;gap:10px;margin:0 0 18px;flex-wrap:wrap">'
+           '<a href="/profile-neutral/export" style="flex:1;min-width:150px;text-align:center;background:#1a2a52;color:#fff;font-weight:800;padding:15px;border-radius:12px;text-decoration:none">🧑 Neutral (no school)</a>'
+           '<a href="/h2hprofiles/export" style="flex:1;min-width:150px;text-align:center;background:#5fc9b6;color:#06121a;font-weight:800;padding:15px;border-radius:12px;text-decoration:none">👥 Compare A vs B</a>'
+           '</div>')
     return _content_picker_page("Content · Profile", "🪪 Profile",
-        "Tap a school — generates the 'SCHOOL?' question slide (white, school colors, logo) from the current student.",
-        href_tpl="/profile/{slug}/export")
+        "Tap a school for the 'SCHOOL?' slide — or pick Neutral / Compare above.",
+        href_tpl="/profile/{slug}/export", top_html=top)
 
 
 @app.route("/profile/<slug>/export")
@@ -11201,6 +11206,27 @@ def h2hprofiles_export():
   document.getElementById('ovx').addEventListener('click',function(){document.getElementById('ov').classList.remove('show');});
  </script></body></html>"""
     page = page.replace("__CSS__", cardcss).replace("__A__", bodyA).replace("__B__", bodyB)
+    return Response(page, mimetype="text/html")
+
+
+@app.route("/profile-neutral/export")
+@login_required
+def profile_neutral_export():
+    """Neutral profile slide — 'STUDENT?' header, no school, no logo."""
+    if not _is_creator():
+        abort(404)
+    from html import escape as _esc
+    p = get_profile(181)
+    if not p:
+        return redirect(url_for("profile_page"))
+    foot = '<div style="margin:auto auto 0;text-align:center;color:#aab;font-size:26px;font-style:italic;font-family:Georgia,serif">candoradmit.com</div>'
+    body = _profile_card_body(p, "STUDENT?", "#1a2a52", foot)
+    card = ('<link href="https://fonts.googleapis.com/css2?family=Anton&display=swap" rel="stylesheet">'
+            '<div id="card" style="width:1024px;height:1536px;background:#fff;color:#111;padding:80px 78px 64px;'
+            "display:flex;flex-direction:column;align-items:stretch;"
+            "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif\">" + body + '</div>')
+    page = (_TIKTOK_EXPORT_HTML.replace("__CARD__", card)
+            .replace("__SLUG__", "profile").replace("__SCHOOL__", "Student"))
     return Response(page, mimetype="text/html")
 
 
