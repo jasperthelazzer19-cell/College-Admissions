@@ -10978,9 +10978,10 @@ SCHOOL_BRAND = {
     "purdue": ("PURDUE", "#B1810B"), "ucla-anderson": ("UCLA", "#2774AE"),
 }
 
-# Optional real-logo overrides (slug -> image URL). Empty until logo files are
-# supplied; until then the slide uses a styled wordmark.
-SCHOOL_LOGOS = {}
+# Real athletic logos (ESPN) downloaded to static/logos/, served same-origin so
+# html-to-image can render them into the export. Schools without an entry (D3
+# etc.) fall back to a styled wordmark.
+SCHOOL_LOGOS = {"bc": "/static/logos/bc.png", "boston-college": "/static/logos/boston-college.png", "brown": "/static/logos/brown.png", "bu": "/static/logos/bu.png", "columbia": "/static/logos/columbia.png", "cornell": "/static/logos/cornell.png", "dartmouth": "/static/logos/dartmouth.png", "duke": "/static/logos/duke.png", "florida": "/static/logos/florida.png", "gatech": "/static/logos/gatech.png", "georgetown": "/static/logos/georgetown.png", "harvard": "/static/logos/harvard.png", "michigan-state": "/static/logos/michigan-state.png", "northwestern": "/static/logos/northwestern.png", "notre-dame": "/static/logos/notre-dame.png", "ohio-state": "/static/logos/ohio-state.png", "osu": "/static/logos/osu.png", "penn-state": "/static/logos/penn-state.png", "princeton": "/static/logos/princeton.png", "purdue": "/static/logos/purdue.png", "rice": "/static/logos/rice.png", "stanford": "/static/logos/stanford.png", "tamu": "/static/logos/tamu.png", "texas-am": "/static/logos/texas-am.png", "tufts": "/static/logos/tufts.png", "uc-berkeley": "/static/logos/uc-berkeley.png", "uc-davis": "/static/logos/uc-davis.png", "ucb": "/static/logos/ucb.png", "ucd": "/static/logos/ucd.png", "uci": "/static/logos/uci.png", "ucla": "/static/logos/ucla.png", "ucsb": "/static/logos/ucsb.png", "ucsd": "/static/logos/ucsd.png", "ufl": "/static/logos/ufl.png", "uga": "/static/logos/uga.png", "uiuc": "/static/logos/uiuc.png", "umich": "/static/logos/umich.png", "unc": "/static/logos/unc.png", "unc-chapel-hill": "/static/logos/unc-chapel-hill.png", "usc": "/static/logos/usc.png", "ut-austin": "/static/logos/ut-austin.png", "uva": "/static/logos/uva.png", "uw": "/static/logos/uw.png", "vanderbilt": "/static/logos/vanderbilt.png", "virginia-tech": "/static/logos/virginia-tech.png", "vt": "/static/logos/vt.png", "wake-forest": "/static/logos/wake-forest.png", "wisconsin": "/static/logos/wisconsin.png", "yale": "/static/logos/yale.png"}
 
 def _school_brand(slug, name):
     if slug in SCHOOL_BRAND:
@@ -11051,7 +11052,7 @@ def profile_slide_export(slug):
 
     logo_url = SCHOOL_LOGOS.get(slug)
     if logo_url:
-        logo_html = f'<img src="{logo_url}" style="height:150px;object-fit:contain;margin:36px auto 0">'
+        logo_html = f'<img src="{logo_url}" style="height:185px;object-fit:contain;margin:auto auto 0;display:block">'
     else:
         logo_html = (f'<div style="margin:40px auto 0;font-family:Georgia,\'Times New Roman\',serif;'
                      f'font-style:italic;font-weight:700;font-size:80px;color:{color};letter-spacing:-1px">{_esc(short.title())}</div>')
