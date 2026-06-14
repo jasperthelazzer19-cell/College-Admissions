@@ -11392,18 +11392,32 @@ def profile_slide_export(slug):
     head_css = ("font-family:'Anton',sans-serif;font-weight:400;letter-spacing:.5px;"
                 "font-size:56px;margin:0 0 14px;color:#111")
 
-    card = f'''<link href="https://fonts.googleapis.com/css2?family=Anton&display=swap" rel="stylesheet">
-<div id="card" style="width:1024px;height:1536px;background:#fff;color:#111;padding:80px 78px 64px;display:flex;flex-direction:column;align-items:stretch;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
-  <div style="font-family:'Anton',sans-serif;font-weight:400;font-size:150px;line-height:.92;color:{color};letter-spacing:-1px;margin:0 0 30px">{_esc(short)}?</div>
+    inner = f'''<div style="font-family:'Anton',sans-serif;font-weight:400;font-size:150px;line-height:.92;color:{color};letter-spacing:-1px;margin:0 0 30px">{_esc(short)}?</div>
   <div style="{head_css}">ACADEMICS</div>
   <ul style="list-style:disc;margin:0 0 34px;padding-left:34px;color:#111">{acad_html}</ul>
   <div style="{head_css}">EXTRACURRICULARS</div>
   <ul style="list-style:disc;margin:0;padding-left:34px;color:#111">{ec_html}</ul>
-  {logo_html}
-</div>'''
+  {logo_html}'''
+    card = _white_card_wrap(inner)
     page = (_TIKTOK_EXPORT_HTML.replace("__CARD__", card)
             .replace("__SLUG__", "profile").replace("__SCHOOL__", _esc(short)))
     return Response(page, mimetype="text/html")
+
+
+def _white_card_wrap(inner_html, pad="80px 78px 64px"):
+    """Wrap profile content in an opaque white #card. The white sits on a
+    full-bleed CHILD div (which html-to-image reliably captures) — the #card
+    root's own inline background gets dropped by html-to-image's style cloning,
+    so on the dark export template (canvas fill #070d16) the card came out dark
+    and the dark text vanished. The backing layer fixes that for good."""
+    return (
+        '<link href="https://fonts.googleapis.com/css2?family=Anton&display=swap" rel="stylesheet">'
+        '<div id="card" style="width:1024px;height:1536px;position:relative;'
+        "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif\">"
+        '<div style="position:absolute;inset:0;background:#fff"></div>'
+        f'<div style="position:relative;height:100%;box-sizing:border-box;padding:{pad};'
+        'display:flex;flex-direction:column;align-items:stretch;color:#111">'
+        + inner_html + '</div></div>')
 
 
 def _profile_card_body(p, title, accent, footer_html):
@@ -11516,10 +11530,7 @@ def profile_neutral_export():
         return redirect(url_for("profile_page"))
     foot = '<div style="margin:auto auto 0;text-align:center;color:#aab;font-size:26px;font-style:italic;font-family:Georgia,serif">candoradmit.com</div>'
     body = _profile_card_body(p, "STUDENT?", "#1a2a52", foot)
-    card = ('<link href="https://fonts.googleapis.com/css2?family=Anton&display=swap" rel="stylesheet">'
-            '<div id="card" style="width:1024px;height:1536px;background:#fff;color:#111;padding:80px 78px 64px;'
-            "display:flex;flex-direction:column;align-items:stretch;"
-            "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif\">" + body + '</div>')
+    card = _white_card_wrap(body)
     page = (_TIKTOK_EXPORT_HTML.replace("__CARD__", card)
             .replace("__SLUG__", "profile").replace("__SCHOOL__", "Student"))
     return Response(page, mimetype="text/html")
