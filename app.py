@@ -10773,7 +10773,7 @@ def _content_bullets(system, user, n=4, max_tokens=420):
     """Returns a list of n punchy, specific bullet strings for a content slide."""
     try:
         raw = _claude("claude-haiku-4-5-20251001",
-            system + f" Output exactly {n} bullets for a TikTok college-admissions slide. Each bullet is ONE tight, specific, punchy sentence — concrete and substantive, no fluff, no hedging. Plain text, one bullet per line, no numbering, no markdown.",
+            system + f" Output exactly {n} bullets for a TikTok slide. Each bullet is a SHORT punchy fragment — 7 to 13 words MAX, like a caption, NOT a full sentence. Specific and concrete but tight; cut every filler word. Plain text, one per line, no numbering, no markdown.",
             user, max_tokens=max_tokens)
         if not raw:
             return []
@@ -10888,8 +10888,8 @@ def glowup_export(slug):
     stats_plain = f'{p.get("uw_gpa")} GPA, {(str(p.get("sat"))+" SAT") if p.get("sat") else "test-blind"}, {p.get("major") or "undecided major"}'
     bullets = _content_bullets(
         "You give specific, actionable college-admissions advice.",
-        f'Student ({stats_plain}) applying to {merged["name"]} (acceptance {round(merged["accept"]*100,1)}%). Odds ladder: {ladder_txt}. Give 5 specific advice bullets: (1) the single highest-leverage move and exactly what counts as a real "hook" at this school (name concrete awards/research/competitions), (2) why raising the SAT barely moves the odds here, (3) why GPA alone won\'t do it at this selectivity, (4) the most realistic path to a genuine bump for THIS profile, (5) one blunt reality check.',
-        n=5)
+        f'Student ({stats_plain}) applying to {merged["name"]} (acceptance {round(merged["accept"]*100,1)}%). Odds ladder: {ladder_txt}. Give 4 short advice bullets: (1) the single highest-leverage move + a concrete hook example, (2) why a higher SAT barely helps here, (3) why GPA alone won\'t cut it, (4) a blunt reality check. Keep each to a few words.',
+        n=4)
     blurb_html = _bullets_html(bullets)
     card = f'''<div id="card" class="full compare">
   <div class="pill-top"><span class="line"></span><span class="pill">CANDOR GLOW-UP:</span><span class="line r"></span></div>
