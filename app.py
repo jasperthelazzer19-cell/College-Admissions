@@ -10695,6 +10695,13 @@ def compare_export():
                  if win else "")
         rows += (f'<div class="rrow"{style}><span>{i+1}. {_esc(r["name"])}{tag}</span>'
                  f'<span class="rval">{r["low"]}&ndash;{r["high"]}%</span></div>')
+    ranked_txt = "; ".join(f"{i+1}. {r['name']} {r['low']}-{r['high']}% ({'in-state' if r['instate'] else 'out-of-state'})"
+                           for i, r in enumerate(results))
+    meta_plain = meta.replace("&middot;", "·")
+    blurb = _content_blurb(
+        "You explain a college-odds ranking.",
+        f"Student: {meta_plain}. Candor odds, ranked: {ranked_txt}. In 2 tight sentences: which school is most likely and the specific reason (residency, selectivity, fit), plus what separates the rest.")
+    blurb_html = f'<div style="{_BLURB_STYLE}">{_esc(blurb)}</div>' if blurb else ""
     card = f'''<div id="card" class="full compare">
   <div class="pill-top"><span class="line"></span><span class="pill">CANDOR RANKS:</span><span class="line r"></span></div>
   <div class="title">Which school is most likely to admit this student?</div>
@@ -10702,6 +10709,7 @@ def compare_export():
   <div class="ccard">
     <div class="rt-h">Ranked by Candor odds</div>
     <div class="rounds">{rows}</div>
+    {blurb_html}
   </div>
   <div class="foot"><span class="lock">&#128274;</span>candoradmit.com</div>
 </div>'''
@@ -10740,6 +10748,22 @@ def _content_school_cards(mode, href_tpl="/chances/{slug}"):
             out.append(f'<a class="cms-card" href="{href}" data-n="{nm.lower()}">'
                        f'<span class="cms-name">{nm}</span><span class="cms-meta">{meta}</span></a>')
     return "\n".join(out)
+
+
+def _content_blurb(system, user, max_tokens=140):
+    """Short, punchy Haiku-written blurb for a content slide. Empty string on failure."""
+    try:
+        txt = _claude("claude-haiku-4-5-20251001",
+                      system + " Write for a TikTok college-admissions slide: punchy, specific, no hedging, no preamble, plain text (no markdown).",
+                      user, max_tokens=max_tokens)
+        return (txt or "").strip()
+    except Exception as e:
+        print(f"content blurb failed: {e}")
+        return ""
+
+
+_BLURB_STYLE = ("margin:14px 2px 0;font-size:.95em;line-height:1.5;color:#c7d0db;"
+                "border-left:3px solid #5fc9b6;padding-left:12px")
 
 
 def _content_picker_page(title, heading, sub, mode="link", href_tpl="/chances/{slug}"):
@@ -10814,8 +10838,10 @@ def glowup_export(slug):
         acc = {**acc, "gpa": round(tgpa, 2)}; steps.append((f"Bring GPA to {round(tgpa,2)}", dict(acc)))
     acc = {**acc, "is_exceptional": True}; steps.append(("Add a national-tier hook", dict(acc)))
     rows = ""
+    ladder = []
     for i, (label, kw) in enumerate(steps):
         lo, hi = counterfactual_lift(profile, merged, **kw)
+        ladder.append((label, lo, hi))
         last = (i == len(steps) - 1)
         style = ' style="background:rgba(95,201,182,.16);border-radius:10px;padding:6px 10px"' if last else ""
         rows += (f'<div class="rrow"{style}><span>{_esc(label)}</span>'
@@ -10825,6 +10851,11 @@ def glowup_export(slug):
     if p.get("sat"): bits.append(f'{p.get("sat")} SAT')
     if p.get("major"): bits.append(_esc(p.get("major")))
     meta = " &middot; ".join(bits)
+    ladder_txt = "; ".join(f"{lb}: {lo}-{hi}%" for lb, lo, hi in ladder)
+    blurb = _content_blurb(
+        "You explain what moves a student's college odds.",
+        f"{merged['name']} (acceptance {round(merged['accept']*100,1)}%). Odds ladder for this student: {ladder_txt}. In 2 tight sentences: name the single biggest lever (which change jumped the odds most) and why it matters more than the others at this school.")
+    blurb_html = f'<div style="{_BLURB_STYLE}">{_esc(blurb)}</div>' if blurb else ""
     card = f'''<div id="card" class="full compare">
   <div class="pill-top"><span class="line"></span><span class="pill">CANDOR GLOW-UP:</span><span class="line r"></span></div>
   <div class="title">{_esc(merged["name"])} — how to actually move the needle</div>
@@ -10832,6 +10863,7 @@ def glowup_export(slug):
   <div class="ccard">
     <div class="rt-h">Your odds, step by step</div>
     <div class="rounds">{rows}</div>
+    {blurb_html}
   </div>
   <div class="foot"><span class="lock">&#128274;</span>candoradmit.com</div>
 </div>'''
@@ -10871,6 +10903,12 @@ def headtohead_export(slug):
                 f'<div style="font-size:.85em;color:#c7d0db">{s.get("gpa")} GPA &middot; {sat}</div>'
                 f'<div style="font-size:.8em;color:#9aa6b6">{_esc(s.get("major") or "")}</div></div>')
     aw = (A["lo"] + A["hi"]) >= (B["lo"] + B["hi"])
+    def _ss(s):
+        return f'{s.get("gpa")} GPA, {(str(s.get("sat"))+" SAT") if s.get("sat") else "test-blind"}, {s.get("major") or "—"}, odds {s["lo"]}-{s["hi"]}%'
+    blurb = _content_blurb(
+        "You compare two college applicants head-to-head.",
+        f'At {merged["name"]}: Student A — {_ss(A)}. Student B — {_ss(B)}. In 2 tight sentences: who is more likely to get in and the ONE thing that decides it between them.')
+    blurb_html = f'<div style="{_BLURB_STYLE};margin-top:18px">{_esc(blurb)}</div>' if blurb else ""
     card = f'''<div id="card" class="full compare">
   <div class="pill-top"><span class="line"></span><span class="pill">CANDOR — WHO GETS IN?</span><span class="line r"></span></div>
   <div class="title">{_esc(merged["name"])}?</div>
@@ -10880,6 +10918,7 @@ def headtohead_export(slug):
       <div style="display:flex;align-items:center;font-weight:800;color:#9aa6b6;font-size:1.1em">vs</div>
       {col("B", B, not aw)}
     </div>
+    {blurb_html}
   </div>
   <div class="foot"><span class="lock">&#128274;</span>candoradmit.com</div>
 </div>'''
