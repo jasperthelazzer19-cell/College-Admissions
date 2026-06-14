@@ -10539,6 +10539,7 @@ _TIKTOK_EXPORT_HTML = r"""<!doctype html><html lang="en"><head>
 __CARD__
 </div></div>
 <div class="controls">
+  <button id="exit">&larr; Exit</button>
   <button id="mode">Compact mode</button>
   <button id="copy">Copy</button>
   <button class="primary" id="dl">Save image</button>
@@ -10574,6 +10575,8 @@ __CARD__
     return htmlToImage.toPng(card,{width:1024,height:1536,pixelRatio:2,cacheBust:true,backgroundColor:'#070d16'}); }
   function renderBlob(){ fitText();
     return htmlToImage.toBlob(card,{width:1024,height:1536,pixelRatio:2,cacheBust:true,backgroundColor:'#070d16'}); }
+  document.getElementById('exit').addEventListener('click',function(){
+    if(window.history.length>1){ window.history.back(); } else { window.location.href='/'; } });
   document.getElementById('mode').addEventListener('click',function(){
     card.classList.toggle('compact'); this.textContent=card.classList.contains('compact')?'Full mode':'Compact mode'; setTimeout(fitText,30); });
   // Save -> render the slide CLEAN on tap (layout fully settled), then show the
@@ -11294,7 +11297,7 @@ def h2hprofiles_export():
    <div class="slide"><div class="lbl">STUDENT A</div><div class="wrap" id="wA"><div id="cardA" style="__CSS__">__A__</div></div></div>
    <div class="slide"><div class="lbl">STUDENT B</div><div class="wrap" id="wB"><div id="cardB" style="__CSS__">__B__</div></div></div>
  </div>
- <div class="controls"><button data-c="cardA" data-n="student-a">Save A</button><button data-c="cardB" data-n="student-b">Save B</button></div>
+ <div class="controls"><button id="exit" style="background:#1a2433;color:#e9eef5">&larr; Exit</button><button data-c="cardA" data-n="student-a">Save A</button><button data-c="cardB" data-n="student-b">Save B</button></div>
  <div class="ov" id="ov"><span class="x" id="ovx">&#10005;</span><img id="ovimg"><div style="text-align:center;padding:14px"><button id="ovshare" style="background:#5fc9b6;color:#04130f;font-weight:800;padding:13px 30px;border:0;border-radius:11px;font-size:16px">&#128241; Save to Photos</button></div></div>
  <script>
   function fit(){var s=Math.min(0.5,(window.innerWidth-20)/1024);document.querySelectorAll('.wrap').forEach(function(w){w.style.transform='scale('+s+')';w.style.height=(1536*s)+'px';});}
@@ -11311,6 +11314,7 @@ def h2hprofiles_export():
     alert('Press & hold the image, then Save to Photos.');
   });
   document.getElementById('ovx').addEventListener('click',function(){document.getElementById('ov').classList.remove('show');});
+  document.getElementById('exit').addEventListener('click',function(){if(window.history.length>1){window.history.back();}else{window.location.href='/';}});
  </script></body></html>"""
     page = page.replace("__CSS__", cardcss).replace("__A__", bodyA).replace("__B__", bodyB)
     return Response(page, mimetype="text/html")
