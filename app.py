@@ -11398,35 +11398,71 @@ def profile_slide_export(slug):
   <div style="{head_css}">EXTRACURRICULARS</div>
   <ul style="list-style:disc;margin:0;padding-left:34px;color:#111">{ec_html}</ul>
   {logo_html}'''
-    card = _white_card_wrap(inner)
-    page = (_TIKTOK_EXPORT_HTML.replace("__CARD__", card)
-            .replace("__SLUG__", "profile").replace("__SCHOOL__", _esc(short)))
-    return Response(page, mimetype="text/html")
+    return Response(_profile_export_page(inner, dl_name=slug), mimetype="text/html")
 
 
-def _white_card_wrap(inner_html, pad="80px 78px 64px"):
-    """Wrap profile content in an opaque white #card.
+_PROFILE_EXPORT_HTML = r"""<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Profile · Candor</title>
+<link href="https://fonts.googleapis.com/css2?family=Anton&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.js"></script>
+<style>
+ body{margin:0;background:#070d16;color:#e9eef5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;padding:16px 0 120px}
+ .stage{display:flex;justify-content:center;overflow:hidden}
+ .scaler{transform-origin:top center}
+ .controls{position:fixed;left:0;right:0;bottom:0;background:rgba(10,16,24,.96);border-top:1px solid rgba(255,255,255,.09);display:flex;gap:10px;justify-content:center;padding:12px;z-index:10}
+ .controls button{font-size:15px;font-weight:800;padding:13px 24px;border-radius:11px;border:none;background:#16202e;color:#e9eef5;cursor:pointer}
+ .controls .primary{background:linear-gradient(135deg,#2f9e8c,#5fc9b6);color:#04130f}
+ .ov{position:fixed;inset:0;background:#000;display:none;z-index:50;overflow:auto;text-align:center;padding:16px}
+ .ov.show{display:block}
+ .ovh{color:#fff;font-size:15px;margin:6px 0 14px}
+ .ov img{width:100%;max-width:520px;border-radius:8px}
+ .ovbtns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:14px}
+ .ovbtn{font-size:16px;font-weight:800;padding:13px 22px;border-radius:11px;border:0;text-decoration:none;color:#e9eef5;background:#16202e;cursor:pointer}
+</style></head><body>
+<div class="stage"><div class="scaler" id="scaler">__CARD__</div></div>
+<div class="controls"><button id="exit">&larr; Exit</button><button class="primary" id="dl">Save image</button></div>
+<div class="ov" id="ov">
+  <p class="ovh">Tap <b>Save to Photos</b> below &mdash; or press &amp; hold the image.</p>
+  <img id="ovimg" alt="Candor profile">
+  <div class="ovbtns"><button id="ovshare" class="ovbtn" style="background:#5fc9b6;color:#04130f">&#128241; Save to Photos</button><a id="ovdl" class="ovbtn" download="candor-__DL__.png">Download</a><button id="ovx" class="ovbtn">Close</button></div>
+</div>
+<script>
+ var card=document.getElementById('card'),scaler=document.getElementById('scaler');
+ var ov=document.getElementById('ov'),ovimg=document.getElementById('ovimg'),ovdl=document.getElementById('ovdl');
+ function fitPreview(){var s=Math.min(0.5,(window.innerWidth-24)/1024);scaler.style.transform='scale('+s+')';scaler.style.height=(1536*s)+'px';}
+ window.addEventListener('resize',fitPreview);fitPreview();
+ // Scale the profile content down to fit the 1536 canvas so nothing is cut off.
+ function fitContent(){var c=document.getElementById('pcontent');if(!c)return;c.style.transform='none';var h=c.scrollHeight;if(h>1536){c.style.transform='scale('+(1536/h)+')';}}
+ fitContent();setTimeout(fitContent,150);setTimeout(fitContent,600);
+ if(document.fonts&&document.fonts.ready){document.fonts.ready.then(fitContent);}
+ window.addEventListener('load',fitContent);
+ // White canvas fill so the slide saves as a clean white card (this is why the
+ // dark chances template was glitching the profile save).
+ function renderBlob(){fitContent();return htmlToImage.toBlob(card,{width:1024,height:1536,pixelRatio:2,cacheBust:true,backgroundColor:'#ffffff'});}
+ var _sb=null;
+ document.getElementById('dl').addEventListener('click',function(){var b=this;b.textContent='Rendering…';
+   renderBlob().then(function(blob){_sb=blob;var u=URL.createObjectURL(blob);ovimg.src=u;if(ovdl)ovdl.href=u;ov.classList.add('show');b.textContent='Save image';})
+   .catch(function(e){b.textContent='Save image';alert('Export failed: '+e);});});
+ document.getElementById('ovshare').addEventListener('click',function(){
+   if(_sb&&navigator.canShare){var f=new File([_sb],'candor.png',{type:'image/png'});if(navigator.canShare({files:[f]})){navigator.share({files:[f]}).catch(function(){});return;}}
+   alert('Press & hold the image above, then Save to Photos.');});
+ document.getElementById('ovx').addEventListener('click',function(){ov.classList.remove('show');});
+ document.getElementById('exit').addEventListener('click',function(){if(window.history.length>1){window.history.back();}else{window.location.href='/';}});
+</script></body></html>"""
 
-    Two things this guarantees:
-    1) White background survives html-to-image — the white sits on a full-bleed
-       CHILD div (the #card root's own inline bg gets dropped by html-to-image's
-       style cloning, so on the dark export template the card came out dark).
-    2) Nothing gets cut off — the content is measured and scaled-to-fit the 1536
-       canvas (the template's fitText only handles .bullets, not profile lists,
-       so dense profiles used to overflow). Scales down only when needed."""
-    return (
-        '<link href="https://fonts.googleapis.com/css2?family=Anton&display=swap" rel="stylesheet">'
-        '<div id="card" style="width:1024px;height:1536px;position:relative;overflow:hidden;'
-        "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif\">"
-        '<div style="position:absolute;inset:0;background:#fff"></div>'
-        f'<div id="pcontent" style="position:absolute;top:0;left:0;width:1024px;box-sizing:border-box;'
-        f'padding:{pad};color:#111;transform-origin:top center;display:flex;flex-direction:column;align-items:stretch">'
-        + inner_html + '</div></div>'
-        '<script>(function(){function fit(){var c=document.getElementById("pcontent");if(!c)return;'
-        'c.style.transform="none";var h=c.scrollHeight;if(h>1536){c.style.transform="scale("+(1536/h)+")";}}'
-        'fit();setTimeout(fit,150);setTimeout(fit,600);'
-        'if(document.fonts&&document.fonts.ready){document.fonts.ready.then(fit);}'
-        'window.addEventListener("load",fit);})();</script>')
+
+def _profile_export_page(inner_html, dl_name="profile", pad="80px 78px 64px"):
+    """Render a white profile slide on its OWN white-canvas template (NOT the
+    dark chances template, which was bleeding dark into the save and glitching
+    it). Content auto-scales to fit so nothing is cut off."""
+    card = ('<link href="https://fonts.googleapis.com/css2?family=Anton&display=swap" rel="stylesheet">'
+            '<div id="card" style="width:1024px;height:1536px;background:#fff;position:relative;overflow:hidden;'
+            "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif\">"
+            f'<div id="pcontent" style="position:absolute;top:0;left:0;width:1024px;box-sizing:border-box;'
+            f'padding:{pad};color:#111;transform-origin:top center;display:flex;flex-direction:column;align-items:stretch">'
+            + inner_html + '</div></div>')
+    return _PROFILE_EXPORT_HTML.replace("__CARD__", card).replace("__DL__", dl_name)
 
 
 def _profile_card_body(p, title, accent, footer_html):
@@ -11539,10 +11575,7 @@ def profile_neutral_export():
         return redirect(url_for("profile_page"))
     foot = '<div style="margin:auto auto 0;text-align:center;color:#aab;font-size:26px;font-style:italic;font-family:Georgia,serif">candoradmit.com</div>'
     body = _profile_card_body(p, "STUDENT?", "#1a2a52", foot)
-    card = _white_card_wrap(body)
-    page = (_TIKTOK_EXPORT_HTML.replace("__CARD__", card)
-            .replace("__SLUG__", "profile").replace("__SCHOOL__", "Student"))
-    return Response(page, mimetype="text/html")
+    return Response(_profile_export_page(body, dl_name="profile"), mimetype="text/html")
 
 
 @app.route("/chances/<slug>/narrative")
