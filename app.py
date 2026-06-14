@@ -5141,6 +5141,8 @@ NAV_CONTENT = ('<div class="nav"><a class="brand" href="/content/chances">' + CA
     '<a href="/content/chances">🎬 Chances</a>'
     '<a href="/grade/export">📊 Grade</a>'
     '<a href="/content/compare">⚖️ Compare</a>'
+    '<a href="/content/glowup">📈 Glow-up</a>'
+    '<a href="/content/headtohead">🆚 H2H</a>'
     '<span class="sp"></span>'
     '<a href="/colleges?full=1" style="font-size:.82em;opacity:.65">full site</a> '
     '<a href="/logout">Logout</a></div>')
@@ -10722,20 +10724,36 @@ _CONTENT_PICKER_CSS = """<style>
 .cmp-go:disabled{opacity:.35;cursor:not-allowed}
 </style>"""
 
-def _content_school_cards(mode):
+def _content_school_cards(mode, href_tpl="/chances/{slug}"):
+    """mode='link' -> each card links to href_tpl.format(slug=...); mode='compare' -> checkbox."""
     rows = sorted(COLLEGES, key=lambda c: c["accept"])
     out = []
     for c in rows:
         slug, nm = c["slug"], c["name"]
         meta = f'{c["state"]} · {round(c["accept"]*100,1)}%'
-        if mode == "chances":
-            out.append(f'<a class="cms-card" href="/chances/{slug}" data-n="{nm.lower()}">'
-                       f'<span class="cms-name">{nm}</span><span class="cms-meta">{meta}</span></a>')
-        else:
+        if mode == "compare":
             out.append(f'<label class="cms-card" data-n="{nm.lower()}">'
                        f'<input type="checkbox" class="cmp-chk" value="{slug}">'
                        f'<span class="cms-name">{nm}</span><span class="cms-meta">{meta}</span></label>')
+        else:
+            href = href_tpl.format(slug=slug)
+            out.append(f'<a class="cms-card" href="{href}" data-n="{nm.lower()}">'
+                       f'<span class="cms-name">{nm}</span><span class="cms-meta">{meta}</span></a>')
     return "\n".join(out)
+
+
+def _content_picker_page(title, heading, sub, mode="link", href_tpl="/chances/{slug}"):
+    grid = _content_school_cards(mode, href_tpl)
+    body = (_CONTENT_PICKER_CSS +
+        f'<h1 style="margin:0 0 2px">{heading}</h1>'
+        f'<p class="muted" style="margin:0 0 16px">{sub}</p>'
+        '<input class="cms-search" id="cms-search" placeholder="Search schools…" autocomplete="off">'
+        f'<div class="cms-grid" id="cms-grid">{grid}</div>'
+        '<script>(function(){var s=document.getElementById("cms-search"),g=document.getElementById("cms-grid");'
+        's.addEventListener("input",function(){var q=s.value.toLowerCase();'
+        'g.querySelectorAll(".cms-card").forEach(function(c){c.style.display=c.dataset.n.indexOf(q)>-1?"":"none";});});'
+        's.focus();})();</script>')
+    return _page(body, title=title)
 
 
 @app.route("/content/chances")
@@ -10744,17 +10762,130 @@ def content_chances():
     """New-Roads content mode: tap a school → straight to its chances export slide."""
     if not _is_creator():
         abort(404)
-    grid = _content_school_cards("chances")
-    body = (_CONTENT_PICKER_CSS +
-        '<h1 style="margin:0 0 2px">🎬 Chances</h1>'
-        '<p class="muted" style="margin:0 0 16px">Tap a school — goes straight to the export slide. (Add <code>?full=1</code> on a chances page for the analytical view.)</p>'
-        '<input class="cms-search" id="cms-search" placeholder="Search schools…" autocomplete="off">'
-        f'<div class="cms-grid" id="cms-grid">{grid}</div>'
-        '<script>(function(){var s=document.getElementById("cms-search"),g=document.getElementById("cms-grid");'
-        's.addEventListener("input",function(){var q=s.value.toLowerCase();'
-        'g.querySelectorAll(".cms-card").forEach(function(c){c.style.display=c.dataset.n.indexOf(q)>-1?"":"none";});});'
-        's.focus();})();</script>')
-    return _page(body, title="Content · Chances")
+    return _content_picker_page("Content · Chances", "🎬 Chances",
+        "Tap a school — goes straight to the export slide. (Add <code>?full=1</code> on a chances page for the analytical view.)",
+        href_tpl="/chances/{slug}")
+
+
+@app.route("/content/glowup")
+@login_required
+def content_glowup():
+    """New-Roads content mode: tap a school → glow-up ladder export (now → improved odds)."""
+    if not _is_creator():
+        abort(404)
+    return _content_picker_page("Content · Glow-up", "📈 Glow-up",
+        "Tap a school — shows the current student's odds now vs after improvements.",
+        href_tpl="/glowup/{slug}/export")
+
+
+@app.route("/content/headtohead")
+@login_required
+def content_headtohead():
+    """New-Roads content mode: tap a school → Student A (New Roads) vs Student B (demopixam)."""
+    if not _is_creator():
+        abort(404)
+    return _content_picker_page("Content · Head-to-head", "🆚 Head-to-head",
+        "Tap a school — Student A (this account) vs Student B (the 2nd profile). Send me a 2nd profile to set B.",
+        href_tpl="/headtohead/{slug}/export")
+
+
+@app.route("/glowup/<slug>/export")
+@login_required
+def glowup_export(slug):
+    if not _is_creator():
+        abort(404)
+    from html import escape as _esc
+    sch = COLLEGES_BY_SLUG.get(slug)
+    if not sch:
+        abort(404)
+    merged = merged_school(sch)
+    profile = _chances_profile(181, slug)
+    if profile is None:
+        return redirect(url_for("profile_page"))
+    # ladder of cumulative improvements
+    steps = [("Right now", {})]
+    acc = {}
+    cur_sat = profile.get("sat")
+    if not is_test_blind(merged) and cur_sat and merged.get("sat_75") and cur_sat < merged["sat_75"]:
+        t = min(1600, int(merged["sat_75"])); acc = {**acc, "sat": t}; steps.append((f"Raise SAT to {t}", dict(acc)))
+    cur_gpa = profile.get("uw_gpa")
+    tgpa = min(4.0, merged.get("gpa_hi", 4.0))
+    if cur_gpa and cur_gpa < tgpa - 0.01:
+        acc = {**acc, "gpa": round(tgpa, 2)}; steps.append((f"Bring GPA to {round(tgpa,2)}", dict(acc)))
+    acc = {**acc, "is_exceptional": True}; steps.append(("Add a national-tier hook", dict(acc)))
+    rows = ""
+    for i, (label, kw) in enumerate(steps):
+        lo, hi = counterfactual_lift(profile, merged, **kw)
+        last = (i == len(steps) - 1)
+        style = ' style="background:rgba(95,201,182,.16);border-radius:10px;padding:6px 10px"' if last else ""
+        rows += (f'<div class="rrow"{style}><span>{_esc(label)}</span>'
+                 f'<span class="rval">{lo}&ndash;{hi}%</span></div>')
+    p = profile
+    bits = [f'{p.get("uw_gpa")} GPA']
+    if p.get("sat"): bits.append(f'{p.get("sat")} SAT')
+    if p.get("major"): bits.append(_esc(p.get("major")))
+    meta = " &middot; ".join(bits)
+    card = f'''<div id="card" class="full compare">
+  <div class="pill-top"><span class="line"></span><span class="pill">CANDOR GLOW-UP:</span><span class="line r"></span></div>
+  <div class="title">{_esc(merged["name"])} — how to actually move the needle</div>
+  <div class="meta">{meta}</div>
+  <div class="ccard">
+    <div class="rt-h">Your odds, step by step</div>
+    <div class="rounds">{rows}</div>
+  </div>
+  <div class="foot"><span class="lock">&#128274;</span>candoradmit.com</div>
+</div>'''
+    page = (_TIKTOK_EXPORT_HTML.replace("__CARD__", card)
+            .replace("__SLUG__", "glowup").replace("__SCHOOL__", _esc(merged["name"])))
+    return Response(page, mimetype="text/html")
+
+
+@app.route("/headtohead/<slug>/export")
+@login_required
+def headtohead_export(slug):
+    if not _is_creator():
+        abort(404)
+    from html import escape as _esc
+    sch = COLLEGES_BY_SLUG.get(slug)
+    if not sch:
+        abort(404)
+    merged = merged_school(sch)
+    def side(uid):
+        prof = _chances_profile(uid, slug)
+        if prof is None:
+            return None
+        cf = compute_fit(prof, merged); fit = cf[0] if isinstance(cf, tuple) else cf
+        lo, hi = estimate_odds(merged, fit, prof)
+        return {"gpa": prof.get("uw_gpa"), "sat": prof.get("sat"), "major": prof.get("major"),
+                "lo": lo, "hi": hi}
+    A = side(181); B = side(38)
+    if B is None:
+        return _page('<h1>Student B isn\'t set yet</h1><p class="muted">Send me a 2nd profile and I\'ll store it as Student B (the demopixam account), then this works.</p>', title="Head-to-head")
+    def col(letter, s, win):
+        star = ' &#11088;' if win else ''
+        sat = f'{s["sat"]} SAT' if s.get("sat") else 'test-blind'
+        return (f'<div style="flex:1;text-align:center;padding:10px 8px;border-radius:12px;'
+                + ('background:rgba(95,201,182,.14)' if win else 'background:transparent') + '">'
+                f'<div style="font-size:.8em;letter-spacing:1px;color:#9aa6b6;font-weight:700">STUDENT {letter}{star}</div>'
+                f'<div style="font-size:2.4em;font-weight:800;color:#5fc9b6;margin:6px 0">{s["lo"]}&ndash;{s["hi"]}%</div>'
+                f'<div style="font-size:.85em;color:#c7d0db">{s.get("gpa")} GPA &middot; {sat}</div>'
+                f'<div style="font-size:.8em;color:#9aa6b6">{_esc(s.get("major") or "")}</div></div>')
+    aw = (A["lo"] + A["hi"]) >= (B["lo"] + B["hi"])
+    card = f'''<div id="card" class="full compare">
+  <div class="pill-top"><span class="line"></span><span class="pill">CANDOR — WHO GETS IN?</span><span class="line r"></span></div>
+  <div class="title">{_esc(merged["name"])}?</div>
+  <div class="ccard">
+    <div style="display:flex;gap:10px;align-items:stretch">
+      {col("A", A, aw)}
+      <div style="display:flex;align-items:center;font-weight:800;color:#9aa6b6;font-size:1.1em">vs</div>
+      {col("B", B, not aw)}
+    </div>
+  </div>
+  <div class="foot"><span class="lock">&#128274;</span>candoradmit.com</div>
+</div>'''
+    page = (_TIKTOK_EXPORT_HTML.replace("__CARD__", card)
+            .replace("__SLUG__", "h2h").replace("__SCHOOL__", _esc(merged["name"])))
+    return Response(page, mimetype="text/html")
 
 
 @app.route("/content/compare")
