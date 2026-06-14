@@ -10669,8 +10669,8 @@ _TIKTOK_EXPORT_HTML = r"""<!doctype html><html lang="en"><head>
   .pill-top .line.r{background:linear-gradient(90deg,var(--teal),transparent)}
   .pill-top .pill{font-weight:800;letter-spacing:1.5px;font-size:30px;padding:12px 30px;border-radius:999px;
     background:linear-gradient(135deg,#2f9e8c,#5fc9b6);color:#04130f}
-  .title{font-family:"Newsreader",Georgia,serif;font-weight:600;font-size:62px;line-height:1.08;text-align:center;margin:0 0 16px}
-  .meta{color:var(--muted);font-size:27px;text-align:center;margin-bottom:40px}
+  .title{font-family:"Newsreader",Georgia,serif;font-weight:600;font-size:54px;line-height:1.22;text-align:center;margin:0 0 26px;padding:0 10px}
+  .meta{color:var(--muted);font-size:27px;text-align:center;margin:0 0 40px}
   .ccard{width:100%;flex:1 0 auto;display:flex;flex-direction:column;background:linear-gradient(180deg,#101c2b,#0c1521);border:1px solid var(--border);border-radius:24px;
     padding:48px 44px;box-shadow:0 0 0 1px rgba(95,201,182,.05),0 30px 80px -30px rgba(0,0,0,.7),0 0 90px -40px rgba(95,201,182,.25)}
   .bullets{margin-top:auto}
@@ -10751,18 +10751,28 @@ __CARD__
     }
     lis.forEach(function(l){l.style.fontSize=best+'px';l.style.marginBottom=Math.max(8,Math.round(best*0.68))+'px';});
   }
+  // Shrink the "Your plan for <School>" title until it fits on ONE line, so a
+  // wrapped 2nd line can never collide with the meta/location row below it
+  // (html-to-image mis-measures wrapped serif height -> overlap).
+  function fitTitle(){
+    var t=card.querySelector('.title'); if(!t) return;
+    var size=card.classList.contains('compact')?60:54;
+    t.style.whiteSpace='nowrap'; t.style.fontSize=size+'px';
+    var guard=0;
+    while(t.scrollWidth>t.clientWidth && size>26 && guard<60){ size-=2; guard++; t.style.fontSize=size+'px'; }
+  }
   // run on load + after the web font settles so the preview never overflows
-  fitText(); setTimeout(fitText,120); setTimeout(fitText,500);
-  if(document.fonts && document.fonts.ready){ document.fonts.ready.then(fitText); }
+  fitText(); fitTitle(); setTimeout(function(){fitText();fitTitle();},120); setTimeout(function(){fitText();fitTitle();},500);
+  if(document.fonts && document.fonts.ready){ document.fonts.ready.then(function(){fitText();fitTitle();}); }
   // Render at 2x for a crisp 2048x3072 PNG (retina-sharp on TikTok).
-  function render(){ fitText();
+  function render(){ fitText(); fitTitle();
     return htmlToImage.toPng(card,{width:1024,height:1536,pixelRatio:2,cacheBust:true,backgroundColor:'#070d16'}); }
-  function renderBlob(){ fitText();
+  function renderBlob(){ fitText(); fitTitle();
     return htmlToImage.toBlob(card,{width:1024,height:1536,pixelRatio:2,cacheBust:true,backgroundColor:'#070d16'}); }
   document.getElementById('exit').addEventListener('click',function(){
     if(window.history.length>1){ window.history.back(); } else { window.location.href='/'; } });
   document.getElementById('mode').addEventListener('click',function(){
-    card.classList.toggle('compact'); this.textContent=card.classList.contains('compact')?'Full mode':'Compact mode'; setTimeout(fitText,30); });
+    card.classList.toggle('compact'); this.textContent=card.classList.contains('compact')?'Full mode':'Compact mode'; setTimeout(function(){fitText();fitTitle();},30); });
   // Save -> render the slide CLEAN on tap (layout fully settled), then show the
   // overlay with the image + a one-tap "Save to Photos". The share fires from the
   // overlay button: a fresh user gesture with the blob already ready, so iOS keeps it.
