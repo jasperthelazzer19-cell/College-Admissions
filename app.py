@@ -5144,6 +5144,7 @@ NAV_CONTENT = ('<div class="nav"><a class="brand" href="/content/chances">' + CA
     '<a href="/content/compare">⚖️ Compare</a>'
     '<a href="/content/glowup">📈 Glow-up</a>'
     '<a href="/content/headtohead">🆚 H2H</a>'
+    '<a href="/h2hprofiles/export">👥 A/B</a>'
     '<span class="sp"></span>'
     '<a href="/colleges?full=1" style="font-size:.82em;opacity:.65">full site</a> '
     '<a href="/logout">Logout</a></div>')
@@ -10687,15 +10688,15 @@ def compare_export():
     for i, r in enumerate(results):
         win = (i == 0)
         if win:
-            tag = ' <span class="sch">&larr; best odds</span>'
+            tag = ' <span class="sch">&larr; best</span>'
         elif r["instate"]:
             tag = ' <span class="sch">in-state</span>'
         else:
-            tag = ' <span class="sch">out-of-state</span>'
-        style = (' style="background:rgba(95,201,182,.14);border-radius:10px;padding:6px 10px"'
-                 if win else "")
-        rows += (f'<div class="rrow"{style}><span>{i+1}. {_esc(r["name"])}{tag}</span>'
-                 f'<span class="rval">{r["low"]}&ndash;{r["high"]}%</span></div>')
+            tag = ' <span class="sch">OOS</span>'
+        bg = "background:rgba(95,201,182,.16);" if win else ""
+        rows += (f'<div class="rrow" style="{bg}border-radius:12px;padding:14px 14px;font-size:38px;font-weight:700;align-items:center">'
+                 f'<span>{i+1}. {_esc(r["name"])}{tag}</span>'
+                 f'<span class="rval" style="font-size:42px;font-weight:800;color:#5fc9b6">{r["low"]}&ndash;{r["high"]}%</span></div>')
     ranked_txt = "; ".join(f"{i+1}. {r['name']} {r['low']}-{r['high']}% ({'in-state' if r['instate'] else 'out-of-state'})"
                            for i, r in enumerate(results))
     meta_plain = meta.replace("&middot;", "·")
@@ -10789,11 +10790,13 @@ def _bullets_html(bullets, color="#5fc9b6"):
     if not bullets:
         return ""
     items = "".join(
-        f'<li style="margin:0 0 20px;line-height:1.42;display:flex;gap:14px">'
+        f'<li style="line-height:1.4;display:flex;gap:14px">'
         f'<span style="color:{color};font-weight:800;flex-shrink:0">▸</span>'
         f'<span>{_h(b)}</span></li>'
         for b in bullets)
-    return f'<ul style="list-style:none;padding:0;margin:26px 0 0;font-size:32px;color:#e2e9f1">{items}</ul>'
+    # class="bullets" -> the export template's fitText() auto-sizes these to fill
+    # the card and never overflow.
+    return f'<ul class="bullets" style="list-style:none;padding:0;margin:24px 0 0;color:#e2e9f1">{items}</ul>'
 
 
 def _content_picker_page(title, heading, sub, mode="link", href_tpl="/chances/{slug}"):
@@ -10928,12 +10931,12 @@ def headtohead_export(slug):
     def col(letter, s, win):
         star = ' &#11088;' if win else ''
         sat = f'{s["sat"]} SAT' if s.get("sat") else 'test-blind'
-        return (f'<div style="flex:1;text-align:center;padding:10px 8px;border-radius:12px;'
-                + ('background:rgba(95,201,182,.14)' if win else 'background:transparent') + '">'
-                f'<div style="font-size:.8em;letter-spacing:1px;color:#9aa6b6;font-weight:700">STUDENT {letter}{star}</div>'
-                f'<div style="font-size:2.4em;font-weight:800;color:#5fc9b6;margin:6px 0">{s["lo"]}&ndash;{s["hi"]}%</div>'
-                f'<div style="font-size:.85em;color:#c7d0db">{s.get("gpa")} GPA &middot; {sat}</div>'
-                f'<div style="font-size:.8em;color:#9aa6b6">{_esc(s.get("major") or "")}</div></div>')
+        return (f'<div style="flex:1;text-align:center;padding:22px 12px;border-radius:16px;'
+                + ('background:rgba(95,201,182,.16)' if win else 'background:transparent') + '">'
+                f'<div style="font-size:30px;letter-spacing:2px;color:#9aa6b6;font-weight:800;margin-bottom:10px">STUDENT {letter}{star}</div>'
+                f'<div style="font-size:96px;font-weight:800;color:#5fc9b6;line-height:1;letter-spacing:-2px;margin:6px 0 14px">{s["lo"]}&ndash;{s["hi"]}%</div>'
+                f'<div style="font-size:30px;color:#dfe7f0;font-weight:600">{s.get("gpa")} GPA &middot; {sat}</div>'
+                f'<div style="font-size:26px;color:#9aa6b6;margin-top:4px">{_esc(s.get("major") or "")}</div></div>')
     aw = (A["lo"] + A["hi"]) >= (B["lo"] + B["hi"])
     def _ss(s):
         return f'{s.get("gpa")} GPA, {(str(s.get("sat"))+" SAT") if s.get("sat") else "test-blind"}, {s.get("major") or "—"}, odds {s["lo"]}-{s["hi"]}%'
@@ -11106,6 +11109,98 @@ def profile_slide_export(slug):
 </div>'''
     page = (_TIKTOK_EXPORT_HTML.replace("__CARD__", card)
             .replace("__SLUG__", "profile").replace("__SCHOOL__", _esc(short)))
+    return Response(page, mimetype="text/html")
+
+
+def _profile_card_body(p, title, accent, footer_html):
+    """Inner HTML of a white profile slide (title + ACADEMICS + EXTRACURRICULARS)."""
+    from html import escape as _h
+    def numln(n, label):
+        return f'<li style="font-size:30px;line-height:1.5;margin:0"><span style="color:{accent};font-weight:800">{_h(str(n))}</span> {_h(label)}</li>'
+    def plainln(t):
+        return f'<li style="font-size:30px;line-height:1.5;margin:0">{_h(t)}</li>'
+    acad = []
+    if p.get("uw_gpa") is not None: acad.append(numln(p["uw_gpa"], "UW GPA"))
+    if p.get("weighted_gpa") is not None: acad.append(numln(p["weighted_gpa"], "W GPA"))
+    if p.get("sat"):
+        sm, se = p.get("sat_math"), p.get("sat_ebrw")
+        sub = f" ({sm} Math, {se} RW)" if sm and se else ""
+        acad.append(numln(p["sat"], f"SAT{sub}"))
+    elif p.get("act"):
+        acad.append(numln(p["act"], "ACT"))
+    apl = [a.strip() for a in (p.get("aps") or "").split(",") if a.strip()]
+    if apl: acad.append(numln(len(apl), "APs"))
+    for aw in [x.strip() for x in (p.get("awards") or "").split("\n") if x.strip()]:
+        acad.append(plainln(aw))
+    ecs = [x.strip() for x in (p.get("ecs") or "").split("\n") if x.strip()]
+    lead = [x.strip() for x in (p.get("leadership") or "").split("\n") if x.strip()]
+    ec_lines, seen = [], set()
+    st = (p.get("state") or "").strip()
+    if st: ec_lines.append(f"{st} Resident")
+    for e in ecs + lead:
+        if e.lower() not in seen:
+            seen.add(e.lower()); ec_lines.append(e)
+    head_css = "font-family:'Anton',sans-serif;font-weight:400;letter-spacing:.5px;font-size:56px;margin:0 0 14px;color:#111"
+    return (f'<div style="font-family:\'Anton\',sans-serif;font-weight:400;font-size:140px;line-height:.92;color:{accent};letter-spacing:-1px;margin:0 0 30px">{title}</div>'
+            f'<div style="{head_css}">ACADEMICS</div>'
+            f'<ul style="list-style:disc;margin:0 0 34px;padding-left:34px;color:#111">{"".join(acad)}</ul>'
+            f'<div style="{head_css}">EXTRACURRICULARS</div>'
+            f'<ul style="list-style:disc;margin:0;padding-left:34px;color:#111">{"".join(plainln(x) for x in ec_lines)}</ul>'
+            f'{footer_html}')
+
+
+@app.route("/content/h2hprofiles")
+@app.route("/h2hprofiles/export")
+@login_required
+def h2hprofiles_export():
+    """Two swipeable white profile slides — Student A (181) then Student B (38)."""
+    if not _is_creator():
+        abort(404)
+    A = get_profile(181); B = get_profile(38)
+    if not A or not B:
+        return _page('<h1>Need both profiles</h1><p class="muted">Set Student A (New Roads) and Student B (demopixam) first, then this generates both profile slides.</p>', title="A/B Profiles")
+    foot = '<div style="margin:auto auto 0;text-align:center;color:#aab;font-size:26px;font-style:italic;font-family:Georgia,serif">candoradmit.com</div>'
+    bodyA = _profile_card_body(A, "STUDENT A", "#2774AE", foot)
+    bodyB = _profile_card_body(B, "STUDENT B", "#A51C30", foot)
+    cardcss = ("width:1024px;height:1536px;background:#fff;color:#111;padding:80px 78px 64px;"
+               "display:flex;flex-direction:column;align-items:stretch;"
+               "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif")
+    page = """<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>A/B Profiles</title>
+<link href="https://fonts.googleapis.com/css2?family=Anton&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.js"></script>
+<style>
+ body{margin:0;background:#0a0f17;color:#e9eef5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
+ .hint{text-align:center;color:#9aa6b6;font-size:14px;letter-spacing:1px;padding:12px}
+ .track{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
+ .slide{flex:0 0 100%;scroll-snap-align:center;display:flex;flex-direction:column;align-items:center;padding:0 0 96px}
+ .lbl{font-size:13px;letter-spacing:2px;color:#5fc9b6;font-weight:800;margin:0 0 10px}
+ .wrap{transform-origin:top center}
+ .controls{position:fixed;left:0;right:0;bottom:0;background:rgba(10,16,24,.96);display:flex;gap:10px;justify-content:center;padding:12px;z-index:10;backdrop-filter:blur(8px)}
+ .controls button{font-size:15px;font-weight:800;padding:12px 26px;border-radius:10px;border:none;background:linear-gradient(135deg,#2f9e8c,#5fc9b6);color:#04130f}
+ .ov{position:fixed;inset:0;background:#000;display:none;z-index:50;overflow:auto;text-align:center;padding:14px}
+ .ov.show{display:block} .ov img{width:100%;max-width:520px}
+ .ov .x{position:fixed;top:10px;right:16px;color:#fff;font-size:32px;cursor:pointer}
+</style></head><body>
+ <div class="hint">&#9664; STUDENT A &nbsp;&middot;&nbsp; swipe for STUDENT B &#9654;</div>
+ <div class="track">
+   <div class="slide"><div class="lbl">STUDENT A</div><div class="wrap" id="wA"><div id="cardA" style="__CSS__">__A__</div></div></div>
+   <div class="slide"><div class="lbl">STUDENT B</div><div class="wrap" id="wB"><div id="cardB" style="__CSS__">__B__</div></div></div>
+ </div>
+ <div class="controls"><button data-c="cardA" data-n="student-a">Save A</button><button data-c="cardB" data-n="student-b">Save B</button></div>
+ <div class="ov" id="ov"><span class="x" id="ovx">&#10005;</span><img id="ovimg"></div>
+ <script>
+  function fit(){var s=Math.min(0.5,(window.innerWidth-20)/1024);document.querySelectorAll('.wrap').forEach(function(w){w.style.transform='scale('+s+')';w.style.height=(1536*s)+'px';});}
+  fit();window.addEventListener('resize',fit);
+  document.querySelectorAll('.controls button').forEach(function(b){b.addEventListener('click',function(){
+    var card=document.getElementById(b.dataset.c),t=b.textContent;b.textContent='Rendering...';
+    htmlToImage.toPng(card,{width:1024,height:1536,pixelRatio:2,cacheBust:true,backgroundColor:'#ffffff'}).then(function(url){
+      document.getElementById('ovimg').src=url;document.getElementById('ov').classList.add('show');b.textContent=t;
+    }).catch(function(e){b.textContent=t;alert('Export failed: '+e);});
+  });});
+  document.getElementById('ovx').addEventListener('click',function(){document.getElementById('ov').classList.remove('show');});
+ </script></body></html>"""
+    page = page.replace("__CSS__", cardcss).replace("__A__", bodyA).replace("__B__", bodyB)
     return Response(page, mimetype="text/html")
 
 
