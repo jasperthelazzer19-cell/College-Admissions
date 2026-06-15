@@ -10645,6 +10645,7 @@ _TIKTOK_EXPORT_HTML = r"""<!doctype html><html lang="en"><head>
 <title>Export — __SCHOOL__</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,500;0,600;1,500&display=swap" rel="stylesheet">
+__NEWSFACE__
 <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.js"></script>
 <style>
   :root{--bg:#070d16;--teal:#5fc9b6;--text:#e9eef5;--muted:#8a97a8;--card:#0e1825;--border:rgba(255,255,255,.09);--blue:#5aa2ff}
@@ -10671,13 +10672,13 @@ _TIKTOK_EXPORT_HTML = r"""<!doctype html><html lang="en"><head>
   .pill-top .line.r{background:linear-gradient(90deg,var(--teal),transparent)}
   .pill-top .pill{font-weight:800;letter-spacing:1.5px;font-size:30px;padding:12px 30px;border-radius:999px;
     background:linear-gradient(135deg,#2f9e8c,#5fc9b6);color:#04130f}
-  .title{font-family:"Newsreader",Georgia,serif;font-weight:600;font-size:54px;line-height:1.22;text-align:center;margin:0 0 26px;padding:0 10px}
+  .title{font-family:"NewsreaderEmb","Newsreader",Georgia,serif;font-weight:600;font-size:54px;line-height:1.22;text-align:center;margin:0 0 26px;padding:0 10px}
   .meta{color:var(--muted);font-size:27px;text-align:center;margin:0 0 40px}
   .ccard{width:100%;flex:1 0 auto;display:flex;flex-direction:column;background:linear-gradient(180deg,#101c2b,#0c1521);border:1px solid var(--border);border-radius:24px;
     padding:48px 44px;box-shadow:0 0 0 1px rgba(95,201,182,.05),0 30px 80px -30px rgba(0,0,0,.7),0 0 90px -40px rgba(95,201,182,.25)}
   .bullets{margin-top:auto}
   .ccard-top{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin-bottom:6px}
-  .ch-h{font-family:"Newsreader",Georgia,serif;font-size:42px;font-weight:600;margin:0}
+  .ch-h{font-family:"NewsreaderEmb","Newsreader",Georgia,serif;font-size:42px;font-weight:600;margin:0}
   .badges{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}
   .badge{font-size:22px;font-weight:700;letter-spacing:.6px;padding:9px 18px;border-radius:999px}
   .b-tier{background:rgba(139,123,224,.18);color:#bcaef5}
@@ -10809,6 +10810,19 @@ __CARD__
   });
 })();
 </script></body></html>"""
+
+# Newsreader (the serif for the .title + "Your chances"/.ch-h header in the dark
+# chances/grade exports) embedded as base64 @font-face (family 'NewsreaderEmb').
+# Same iOS html-to-image issue as Inter/Anton: the cross-origin Google serif can't
+# be fetched mid-render, so the save fell back to a wider/heavier serif with
+# mismatched metrics -> the ghosted/overlapping title. Inlining removes the fetch.
+try:
+    with open(os.path.join(os.path.dirname(__file__), "newsreader_face.css"), encoding="utf-8") as _f:
+        _NEWS_FACE = "<style>" + _f.read() + "</style>"
+except Exception as _e:
+    print(f"newsreader_face load failed: {_e}")
+    _NEWS_FACE = ""
+_TIKTOK_EXPORT_HTML = _TIKTOK_EXPORT_HTML.replace("__NEWSFACE__", _NEWS_FACE)
 
 
 @app.route("/chances/<slug>/export")
