@@ -1,0 +1,2922 @@
+[
+  {
+    "_id": "1tecv98",
+    "_url": "https://reddit.com/r/collegeresults/comments/1tecv98/fgli_who_didnt_get_into_any_t20s_proves_everyone/",
+    "gpa_uw": 3.6,
+    "gpa_w": 4.2,
+    "sat": null,
+    "act": 35,
+    "rank_pct": null,
+    "state": "California",
+    "gender": "F",
+    "race": "Asian",
+    "first_gen": true,
+    "international": false,
+    "income": "low",
+    "major": "biochemistry/cell biology",
+    "hooks": [
+      "first_gen",
+      "low_income"
+    ],
+    "ecs": "competitive research internship, part-time jobs (x2), hospital volunteer, school club leadership",
+    "awards": "National Merit Commended, AP Scholar, PVSA Bronze, Hagan Scholarship Finalist",
+    "results": [
+      {
+        "school": "University of Southern California",
+        "outcome": "accepted",
+        "round": "RD"
+      }
+    ]
+  },
+  {
+    "_id": "1sv0abb",
+    "_url": "https://reddit.com/r/collegeresults/comments/1sv0abb/a_testament_to_the_randomness_of_college/",
+    "gpa_uw": null,
+    "gpa_w": 4.17,
+    "sat": 1540,
+    "act": null,
+    "rank_pct": null,
+    "state": "Massachusetts",
+    "gender": "M",
+    "race": "",
+    "first_gen": false,
+    "international": false,
+    "income": "middle",
+    "major": "physics/biochemistry",
+    "hooks": [],
+    "ecs": "nonprofit founder raising $15k for Sudanese civil war families, 3 summer research positions (2 published), STUCO VP, Key Club VP, student body president, 3 jobs",
+    "awards": "",
+    "results": [
+      {
+        "school": "Amherst College",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Bowdoin College",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Swarthmore College",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Middlebury College",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Grinnell College",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Claremont McKenna College",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Dartmouth College",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Cornell University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Bates College",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Colby College",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Colgate University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Case Western Reserve University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "University of Massachusetts Amherst",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Occidental College",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Wesleyan University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Williams College",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "University of Virginia",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Emory University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Georgia Institute of Technology",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "University of California, Berkeley",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of California, Los Angeles",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "University of California, Santa Barbara",
+        "outcome": "waitlisted",
+        "round": "RD"
+      }
+    ]
+  },
+  {
+    "_id": "1s6ich3",
+    "_url": "https://reddit.com/r/collegeresults/comments/1s6ich3/rejected_everywhere/",
+    "gpa_uw": null,
+    "gpa_w": 4.7,
+    "sat": null,
+    "act": 34,
+    "rank_pct": 1,
+    "state": "Midwest",
+    "gender": "M",
+    "race": "South Asian",
+    "first_gen": false,
+    "international": false,
+    "income": "high",
+    "major": "neuroscience/public health/health policy",
+    "hooks": [
+      "legacy"
+    ],
+    "ecs": "telemedicine startup, bone fracture detection app, research at Brown/Harvard/CMU, government intern India, journalism intern, nonprofit founder, international tutoring",
+    "awards": "Coca-Cola Scholars Semifinalist, Government of India Intern Award, National Indian Classical Dance Awardee, Elks Most Valuable Student Quarterfinalist",
+    "results": [
+      {
+        "school": "Harvard University",
+        "outcome": "rejected",
+        "round": "REA"
+      },
+      {
+        "school": "University of California, Los Angeles",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "University of California, Berkeley",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Northwestern University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Brown University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Columbia University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Cornell University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Dartmouth College",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "University of Michigan",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Tufts University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Vanderbilt University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Washington University in St. Louis",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Boston University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of Florida",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of North Carolina at Chapel Hill",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of California, San Diego",
+        "outcome": "waitlisted",
+        "round": "RD"
+      }
+    ]
+  },
+  {
+    "_id": "1s0s6ka",
+    "_url": "https://reddit.com/r/collegeresults/comments/1s0s6ka/short_nonbinary_bags_t10/",
+    "gpa_uw": 3.96,
+    "gpa_w": null,
+    "sat": 1440,
+    "act": 33,
+    "rank_pct": 10,
+    "state": "Midwest",
+    "gender": "F",
+    "race": "White",
+    "first_gen": false,
+    "international": false,
+    "income": "low",
+    "major": "biophysics/pre-med",
+    "hooks": [],
+    "ecs": "1000+ hours CNA patient care (paid), Youth Apprentice Program, Red Cross volunteer, 13 years Girl Scouts with Youth Leadership Academy, GSA president",
+    "awards": "Honor Roll all four years",
+    "results": [
+      {
+        "school": "University of Wisconsin-Madison",
+        "outcome": "accepted",
+        "round": "EA"
+      },
+      {
+        "school": "University of Iowa",
+        "outcome": "accepted",
+        "round": "EA"
+      },
+      {
+        "school": "University of Minnesota Twin Cities",
+        "outcome": "accepted",
+        "round": "EA"
+      },
+      {
+        "school": "University College Dublin",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Royal College of Surgeons Ireland",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Johns Hopkins University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Tufts University",
+        "outcome": "rejected",
+        "round": "RD"
+      }
+    ]
+  },
+  {
+    "_id": "1tubx9l",
+    "_url": "https://reddit.com/r/collegeresults/comments/1tubx9l/community_college_orphan_transfer_bags_a_few_top/",
+    "gpa_uw": null,
+    "gpa_w": null,
+    "sat": null,
+    "act": null,
+    "rank_pct": null,
+    "state": "California",
+    "gender": "F",
+    "race": "Latina",
+    "first_gen": false,
+    "international": false,
+    "income": "low",
+    "major": "political science",
+    "hooks": [
+      "low_income"
+    ],
+    "ecs": "City Attorney internship, food pantry worker, Youth Think Tank, CC Honors Program",
+    "awards": "Dean's List, Seal of Biliteracy",
+    "results": [
+      {
+        "school": "Pomona College",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Bowdoin College",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Vanderbilt University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of California, Los Angeles",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "New York University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Reed College",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Occidental College",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Loyola Marymount University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of California, Irvine",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of California, San Diego",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of California, Santa Barbara",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of California, Berkeley",
+        "outcome": "waitlisted",
+        "round": "RD"
+      },
+      {
+        "school": "Bryn Mawr College",
+        "outcome": "waitlisted",
+        "round": "RD"
+      },
+      {
+        "school": "Claremont McKenna College",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "University of Southern California",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Cornell University",
+        "outcome": "rejected",
+        "round": "RD"
+      }
+    ]
+  },
+  {
+    "_id": "1t2e2vt",
+    "_url": "https://reddit.com/r/collegeresults/comments/1t2e2vt/meatloaf_addict_applies_to_every_ivy_and_the/",
+    "gpa_uw": null,
+    "gpa_w": 4.6,
+    "sat": 1580,
+    "act": null,
+    "rank_pct": null,
+    "state": "California",
+    "gender": "M",
+    "race": "Asian",
+    "first_gen": false,
+    "international": false,
+    "income": "middle",
+    "major": "electrical engineering/computer science",
+    "hooks": [],
+    "ecs": "prestigious summer research program, ML research at top-20 school, computational biology research, community service club president (800 students), Math Club president, after-school teacher, Varsity Soccer, newspaper editor-in-chief",
+    "awards": "Science Fair, AMCs, USABO, first student to present at research conference",
+    "results": [
+      {
+        "school": "University of California, Berkeley",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of California, Los Angeles",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of Pennsylvania",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Columbia University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Carnegie Mellon University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "New York University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Brown University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Cornell University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Dartmouth College",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Vanderbilt University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Johns Hopkins University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of Texas at Austin",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of Michigan",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Georgia Institute of Technology",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of Illinois Urbana-Champaign",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of Southern California",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of California, San Diego",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of California, Santa Barbara",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of California, Irvine",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of California, Davis",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of California, Santa Cruz",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Duke University",
+        "outcome": "waitlisted",
+        "round": "RD"
+      },
+      {
+        "school": "Princeton University",
+        "outcome": "waitlisted",
+        "round": "RD"
+      },
+      {
+        "school": "University of Chicago",
+        "outcome": "waitlisted",
+        "round": "RD"
+      },
+      {
+        "school": "Harvard University",
+        "outcome": "rejected",
+        "round": "REA"
+      },
+      {
+        "school": "Yale University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Stanford University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Northwestern University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "University of Washington",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "California Institute of Technology",
+        "outcome": "rejected",
+        "round": "RD"
+      }
+    ]
+  },
+  {
+    "_id": "1qijaup",
+    "_url": "https://reddit.com/r/collegeresults/comments/1qijaup/purdue_acceptance/",
+    "gpa_uw": 4.0,
+    "gpa_w": 4.6,
+    "sat": 1350,
+    "act": null,
+    "rank_pct": null,
+    "state": "",
+    "gender": "F",
+    "race": "",
+    "first_gen": false,
+    "international": false,
+    "income": "",
+    "major": "biochemistry",
+    "hooks": [],
+    "ecs": "Marching band (CO), class officer, school clubs, NHS, Key Club",
+    "awards": "National Recognition Program Rural/Small Town Student",
+    "results": [
+      {
+        "school": "Purdue University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Pennsylvania State University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of Alabama",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of Louisville",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of Nebraska-Lincoln",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Harvard University",
+        "outcome": "deferred",
+        "round": "EA"
+      }
+    ]
+  },
+  {
+    "_id": "1taed0z",
+    "_url": "https://reddit.com/r/collegeresults/comments/1taed0z/35_uw_gpa_prep_school_asian_gets_accepted_off_the/",
+    "gpa_uw": 3.5,
+    "gpa_w": null,
+    "sat": 1550,
+    "act": null,
+    "rank_pct": null,
+    "state": "",
+    "gender": "M",
+    "race": "East Asian",
+    "first_gen": false,
+    "international": false,
+    "income": "high",
+    "major": "",
+    "hooks": [
+      "legacy"
+    ],
+    "ecs": "Harvard research internships (biostats/data science), 4 sports 10 seasons, CS club head, Asian affinity group head, violin 10 years, Asian Americans in STEM nonprofit, senior proctor",
+    "awards": "University Invitational Math Comp Top 5, Physics Comps team placement, AP with distinction",
+    "results": [
+      {
+        "school": "Harvard University",
+        "outcome": "rejected",
+        "round": "EA"
+      },
+      {
+        "school": "Rice University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Pomona College",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Brown University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "University of California, Los Angeles",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "University of California, Berkeley",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "University of Pennsylvania",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Stanford University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Yale University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Columbia University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "University of Southern California",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Harvey Mudd College",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "University of California, Santa Cruz",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of California, Santa Barbara",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of California, San Diego",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Wesleyan University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Claremont McKenna College",
+        "outcome": "waitlisted",
+        "round": "RD"
+      },
+      {
+        "school": "University of California, Irvine",
+        "outcome": "waitlisted",
+        "round": "RD"
+      },
+      {
+        "school": "University of Chicago",
+        "outcome": "accepted",
+        "round": "RD"
+      }
+    ]
+  },
+  {
+    "_id": "1s6csfq",
+    "_url": "https://reddit.com/r/collegeresults/comments/1s6csfq/asian_girl_with_9_hour_twitter_screen_time_bags/",
+    "gpa_uw": null,
+    "gpa_w": 4.48,
+    "sat": 1520,
+    "act": null,
+    "rank_pct": 10,
+    "state": "Virginia",
+    "gender": "F",
+    "race": "Asian",
+    "first_gen": true,
+    "international": false,
+    "income": "middle",
+    "major": "history",
+    "hooks": [
+      "first_gen"
+    ],
+    "ecs": "art club president, independent writer and artist, Latin club officer, feminist club VP, volunteer transcriber (Smithsonian/Library of Congress), quizbowl, environmental club officer",
+    "awards": "Regional Scholastic Poetry 2 Gold Keys 1 Silver Key, National Merit Commended, State Latin Convention awards",
+    "results": [
+      {
+        "school": "Harvard University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Yale University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Princeton University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Stanford University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Massachusetts Institute of Technology",
+        "outcome": "accepted",
+        "round": "RD"
+      }
+    ]
+  },
+  {
+    "_id": "1tnxcv7",
+    "_url": "https://reddit.com/r/collegeresults/comments/1tnxcv7/artistic_asian_is_pleasantly_surprised/",
+    "gpa_uw": 4.0,
+    "gpa_w": 4.75,
+    "sat": null,
+    "act": 36,
+    "rank_pct": null,
+    "state": "South",
+    "gender": "F",
+    "race": "Asian",
+    "first_gen": false,
+    "international": false,
+    "income": "high",
+    "major": "humanities (English/history/anthropology/political science)",
+    "hooks": [],
+    "ecs": "competition club president, service job (keyholding), TA at school, church volunteer, art TA at college, art student, yearbook art director, music lessons",
+    "awards": "National Merit Semifinalist/Finalist, Poet Laureate in district, AP Scholar with Distinction, Service Learning Award 300+ hours",
+    "results": []
+  },
+  {
+    "_id": "1st9fp2",
+    "_url": "https://reddit.com/r/collegeresults/comments/1st9fp2/nahhhh_this_niche_asian_girl_got_hella_lucky/",
+    "gpa_uw": null,
+    "gpa_w": null,
+    "sat": 1550,
+    "act": null,
+    "rank_pct": null,
+    "state": "New Jersey",
+    "gender": "F",
+    "race": "Asian",
+    "first_gen": true,
+    "international": false,
+    "income": "middle",
+    "major": "sociology/archaeology",
+    "hooks": [
+      "first_gen"
+    ],
+    "ecs": "sociology teacher at recovery center afterschool program, community cultural show, Smithsonian/Library of Congress transcriber, literary magazine leadership, political intern, humanities club leadership, theater",
+    "awards": "National Merit Semifinalist, Cultural community service award, AP Scholar with Distinction",
+    "results": [
+      {
+        "school": "Rutgers University",
+        "outcome": "accepted",
+        "round": "EA"
+      },
+      {
+        "school": "Drew University",
+        "outcome": "accepted",
+        "round": "EA"
+      },
+      {
+        "school": "Elon University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Villanova University",
+        "outcome": "accepted",
+        "round": "EA"
+      },
+      {
+        "school": "American University",
+        "outcome": "accepted",
+        "round": "EA"
+      },
+      {
+        "school": "Boston College",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Wesleyan University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Swarthmore College",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Cornell University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of Pennsylvania",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Hamilton College",
+        "outcome": "waitlisted",
+        "round": "RD"
+      },
+      {
+        "school": "Dartmouth College",
+        "outcome": "waitlisted",
+        "round": "RD"
+      },
+      {
+        "school": "Brown University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Vanderbilt University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Columbia University",
+        "outcome": "rejected",
+        "round": "RD"
+      }
+    ]
+  },
+  {
+    "_id": "1sjlitb",
+    "_url": "https://reddit.com/r/collegeresults/comments/1sjlitb/bookworm_bags_dream_ivy_t20_no_rejections/",
+    "gpa_uw": null,
+    "gpa_w": null,
+    "sat": 1460,
+    "act": null,
+    "rank_pct": 1,
+    "state": "",
+    "gender": "F",
+    "race": "White",
+    "first_gen": false,
+    "international": false,
+    "income": "high",
+    "major": "political science",
+    "hooks": [],
+    "ecs": "Book Club founder, student First Amendment Rights activist (national TV/podcasts/news), Odyssey of the Mind 2x Worlds Finalist 9yrs, Dance 15yrs, Varsity Field Hockey 4yrs, Band/Marching Band, Debate Club, School Board Rep",
+    "awards": "Prestigious First Amendment Award, Journalism recognition award, NHS/NAHS, Big Future Rural Student Award, AP Scholar with Honors, 0.25% acceptance rate leadership program",
+    "results": [
+      {
+        "school": "Ithaca College",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Carnegie Mellon University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Yale University",
+        "outcome": "accepted",
+        "round": "REA"
+      },
+      {
+        "school": "Harvard University",
+        "outcome": "waitlisted",
+        "round": "RD"
+      }
+    ]
+  },
+  {
+    "_id": "1seq98q",
+    "_url": "https://reddit.com/r/collegeresults/comments/1seq98q/olympiad_winner_gets_spiritually_humbled_copes_by/",
+    "gpa_uw": 3.84,
+    "gpa_w": 4.21,
+    "sat": 1490,
+    "act": null,
+    "rank_pct": null,
+    "state": "California",
+    "gender": "M",
+    "race": "Asian",
+    "first_gen": false,
+    "international": false,
+    "income": "high",
+    "major": "economics/business economics",
+    "hooks": [],
+    "ecs": "International board of major financial literacy org, econ olympiad winner, fellowship with social impact project reaching hundreds of thousands, banking intern with statistics model, city advisory board, policy research think tank, church advisory board, creative work",
+    "awards": "IEO Open perfect score, national leadership award, congressional recognition, California legislature recognition, Forbes recognition",
+    "results": [
+      {
+        "school": "University of California, Irvine",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Indiana University",
+        "outcome": "accepted",
+        "round": "EA"
+      },
+      {
+        "school": "Fordham University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of California, Santa Barbara",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of California, Davis",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of California, Santa Cruz",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of California, Riverside",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Pennsylvania State University",
+        "outcome": "accepted",
+        "round": "EA"
+      },
+      {
+        "school": "University of California, Merced",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "San Diego State University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of California, Los Angeles",
+        "outcome": "waitlisted",
+        "round": "RD"
+      },
+      {
+        "school": "University of California, San Diego",
+        "outcome": "waitlisted",
+        "round": "RD"
+      },
+      {
+        "school": "University of Washington",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Harvard University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Yale University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Princeton University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Columbia University",
+        "outcome": "rejected",
+        "round": "ED"
+      },
+      {
+        "school": "Brown University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Dartmouth College",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "University of Pennsylvania",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Cornell University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Stanford University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Duke University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "New York University",
+        "outcome": "rejected",
+        "round": "ED2"
+      },
+      {
+        "school": "University of Chicago",
+        "outcome": "rejected",
+        "round": "EA"
+      },
+      {
+        "school": "Northwestern University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Vanderbilt University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Rice University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "University of California, Berkeley",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "University of Southern California",
+        "outcome": "rejected",
+        "round": "EA"
+      }
+    ]
+  },
+  {
+    "_id": "1r6nzhq",
+    "_url": "https://reddit.com/r/collegeresults/comments/1r6nzhq/white_boy_who_likes_steely_dan_hits_the_big_time/",
+    "gpa_uw": 3.78,
+    "gpa_w": 4.25,
+    "sat": null,
+    "act": 32,
+    "rank_pct": null,
+    "state": "Tennessee",
+    "gender": "M",
+    "race": "White",
+    "first_gen": false,
+    "international": false,
+    "income": "low",
+    "major": "political science",
+    "hooks": [
+      "low_income"
+    ],
+    "ecs": "Model UN delegate/lawyer, Mock Trial lawyer, research paper with poli sci professor, film production assistant/editor, Drama Club actor, film with speaking role, Tri-M Music vocalist, cashier/cook at fast food, golf team",
+    "awards": "AllState Choir Alternate, Outstanding Lawyer Team MUN, Best Written Memorial MUN, 3rd Place State National History Day",
+    "results": [
+      {
+        "school": "Georgetown University",
+        "outcome": "deferred",
+        "round": "REA"
+      },
+      {
+        "school": "Colorado College",
+        "outcome": "rejected",
+        "round": "EA"
+      },
+      {
+        "school": "University of Tennessee",
+        "outcome": "accepted",
+        "round": "EA"
+      },
+      {
+        "school": "Washington University in St. Louis",
+        "outcome": "accepted",
+        "round": "ED2"
+      }
+    ]
+  },
+  {
+    "_id": "1qu9bc5",
+    "_url": "https://reddit.com/r/collegeresults/comments/1qu9bc5/young_lesbian_with_low_gpa_fights_her_ea/",
+    "gpa_uw": null,
+    "gpa_w": 3.28,
+    "sat": 1440,
+    "act": null,
+    "rank_pct": null,
+    "state": "Florida",
+    "gender": "F",
+    "race": "White",
+    "first_gen": false,
+    "international": false,
+    "income": "low",
+    "major": "political science",
+    "hooks": [
+      "low_income"
+    ],
+    "ecs": "freelance journalism, political volunteering",
+    "awards": "Scholastic Silver Key, Spanish Honor Society, Writing Award x3, Dean's List, Thespian Honor Society",
+    "results": [
+      {
+        "school": "Smith College",
+        "outcome": "rejected",
+        "round": "ED"
+      },
+      {
+        "school": "Ursinus College",
+        "outcome": "accepted",
+        "round": "EA"
+      },
+      {
+        "school": "University of Rhode Island",
+        "outcome": "accepted",
+        "round": "EA"
+      },
+      {
+        "school": "Ithaca College",
+        "outcome": "accepted",
+        "round": "EA"
+      },
+      {
+        "school": "American University",
+        "outcome": "accepted",
+        "round": "EA"
+      },
+      {
+        "school": "Emerson College",
+        "outcome": "accepted",
+        "round": "EA"
+      },
+      {
+        "school": "Sarah Lawrence College",
+        "outcome": "accepted",
+        "round": "EA"
+      },
+      {
+        "school": "Bard College",
+        "outcome": "accepted",
+        "round": "EA"
+      },
+      {
+        "school": "Brandeis University",
+        "outcome": "accepted",
+        "round": "EA"
+      },
+      {
+        "school": "Bryn Mawr College",
+        "outcome": "accepted",
+        "round": "ED2"
+      }
+    ]
+  },
+  {
+    "_id": "1q23oi5",
+    "_url": "https://reddit.com/r/collegeresults/comments/1q23oi5/nepo_baby_ahh_application/",
+    "gpa_uw": 4.18,
+    "gpa_w": null,
+    "sat": null,
+    "act": 36,
+    "rank_pct": 5,
+    "state": "North Carolina",
+    "gender": "M",
+    "race": "Asian",
+    "first_gen": false,
+    "international": false,
+    "income": "middle",
+    "major": "public policy/biology",
+    "hooks": [
+      "legacy"
+    ],
+    "ecs": "School newspaper managing editor, Science Olympiad top-3 state medals, French Horn 1st chair, research assistant at Duke (plant immunology), Varsity Volleyball co-captain, food insecurity nonprofit VP, Residential Advisor",
+    "awards": "USABO Top-50 Semifinalist, Scholastic Gold Keys x4, PVSA Gold x4, Wharton Investment Competition Top-150",
+    "results": [
+      {
+        "school": "Duke University",
+        "outcome": "accepted",
+        "round": "ED"
+      }
+    ]
+  },
+  {
+    "_id": "1t1wuwl",
+    "_url": "https://reddit.com/r/collegeresults/comments/1t1wuwl/artsy_black_kid_is_a_chill_guy_goes_for_stem/",
+    "gpa_uw": null,
+    "gpa_w": null,
+    "sat": 1530,
+    "act": 34,
+    "rank_pct": null,
+    "state": "New Jersey",
+    "gender": "M",
+    "race": "Black",
+    "first_gen": false,
+    "international": false,
+    "income": "middle",
+    "major": "electrical and computer engineering",
+    "hooks": [
+      "URM"
+    ],
+    "ecs": "Music producer, Jazz Band head guitarist, theater actor, book drive coordinator (1000 books), ECE internship, Black Affinity Club co-head, Health Club outreach coordinator, Art Club board member, grant committee head",
+    "awards": "Honor Roll, Theater Award winner, Community Service Award",
+    "results": []
+  },
+  {
+    "_id": "1snm9a4",
+    "_url": "https://reddit.com/r/collegeresults/comments/1snm9a4/middle_class_asian_with_a_late_start_gets_lucky/",
+    "gpa_uw": 4.0,
+    "gpa_w": 4.71,
+    "sat": 1590,
+    "act": null,
+    "rank_pct": 1,
+    "state": "Southeast",
+    "gender": "M",
+    "race": "Asian",
+    "first_gen": false,
+    "international": false,
+    "income": "middle",
+    "major": "data science/math/engineering",
+    "hooks": [],
+    "ecs": "CS research intern (first author), Math Honor Society president, self-initiated research project, competitive math coach at middle school, STEM summer governor's school, Latin Club co-president, Chamber Orchestra, Scholastic Bowl captain, math tutor",
+    "awards": "First author presenter at minor intl research conference, AIME qualifier, 3rd place state-level student research competition, Rensselaer Medal, National Latin Exam Special Book Award x2, Gold Medal x3",
+    "results": [
+      {
+        "school": "Stanford University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Cornell University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Washington University in St. Louis",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Williams College",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of Virginia",
+        "outcome": "accepted",
+        "round": "EA"
+      },
+      {
+        "school": "Princeton University",
+        "outcome": "waitlisted",
+        "round": "RD"
+      },
+      {
+        "school": "Columbia University",
+        "outcome": "waitlisted",
+        "round": "RD"
+      },
+      {
+        "school": "Dartmouth College",
+        "outcome": "waitlisted",
+        "round": "RD"
+      },
+      {
+        "school": "Vanderbilt University",
+        "outcome": "waitlisted",
+        "round": "RD"
+      },
+      {
+        "school": "Johns Hopkins University",
+        "outcome": "waitlisted",
+        "round": "RD"
+      },
+      {
+        "school": "Northwestern University",
+        "outcome": "waitlisted",
+        "round": "RD"
+      },
+      {
+        "school": "Massachusetts Institute of Technology",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "University of Chicago",
+        "outcome": "rejected",
+        "round": "ED2"
+      },
+      {
+        "school": "Yale University",
+        "outcome": "rejected",
+        "round": "REA"
+      },
+      {
+        "school": "Harvard University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Brown University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "University of Pennsylvania",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Duke University",
+        "outcome": "rejected",
+        "round": "RD"
+      }
+    ]
+  },
+  {
+    "_id": "1s9k048",
+    "_url": "https://reddit.com/r/collegeresults/comments/1s9k048/girl_rejected_from_qb_almost_commits_to_instate/",
+    "gpa_uw": 4.0,
+    "gpa_w": 4.34,
+    "sat": null,
+    "act": 34,
+    "rank_pct": null,
+    "state": "Louisiana",
+    "gender": "F",
+    "race": "Asian",
+    "first_gen": true,
+    "international": false,
+    "income": "low",
+    "major": "mechanical engineering/applied mathematics",
+    "hooks": [
+      "first_gen",
+      "low_income",
+      "questbridge"
+    ],
+    "ecs": "STEM summer program 3 summers, musical theatre 9-12, science fair (3rd place regionals), guitar aid engineering project, Lunar New Year/festival volunteering, NHS, AAPI Union president, babysitting, rock climbing, guitar/music",
+    "awards": "QB NCM Finalist, AP Scholar with Distinction, CollegeBoard First Gen Recognition, NASA HUNCH recognition, QB Prep Scholar",
+    "results": []
+  },
+  {
+    "_id": "1rzwh1f",
+    "_url": "https://reddit.com/r/collegeresults/comments/1rzwh1f/2x_early_reject_goes_for_broke_and_snags_t10/",
+    "gpa_uw": 4.0,
+    "gpa_w": 4.7,
+    "sat": null,
+    "act": 35,
+    "rank_pct": 1,
+    "state": "",
+    "gender": "M",
+    "race": "Asian",
+    "first_gen": false,
+    "international": false,
+    "income": "high",
+    "major": "mathematics/political science",
+    "hooks": [],
+    "ecs": "Model UN president, Math Team co-captain, Martial Arts black belt, cello, part-time job, semi-prestigious math summer program, semi-prestigious poli sci summer program, science lab internship",
+    "awards": "National Merit Semifinalist, HYP Book Award, MUN awards, AP Scholar with Distinction",
+    "results": [
+      {
+        "school": "Princeton University",
+        "outcome": "rejected",
+        "round": "REA"
+      },
+      {
+        "school": "University of Chicago",
+        "outcome": "rejected",
+        "round": "ED2"
+      },
+      {
+        "school": "Massachusetts Institute of Technology",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "McGill University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of Texas at Austin",
+        "outcome": "accepted",
+        "round": "EA"
+      },
+      {
+        "school": "University of North Carolina at Chapel Hill",
+        "outcome": "accepted",
+        "round": "EA"
+      },
+      {
+        "school": "University of Virginia",
+        "outcome": "accepted",
+        "round": "EA"
+      },
+      {
+        "school": "Georgia Institute of Technology",
+        "outcome": "accepted",
+        "round": "EA2"
+      },
+      {
+        "school": "University of Illinois Urbana-Champaign",
+        "outcome": "accepted",
+        "round": "EA"
+      },
+      {
+        "school": "Johns Hopkins University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Williams College",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Amherst College",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of California, San Diego",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of California, Los Angeles",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Carnegie Mellon University",
+        "outcome": "waitlisted",
+        "round": "RD"
+      },
+      {
+        "school": "Washington University in St. Louis",
+        "outcome": "waitlisted",
+        "round": "RD"
+      },
+      {
+        "school": "Swarthmore College",
+        "outcome": "waitlisted",
+        "round": "RD"
+      }
+    ]
+  },
+  {
+    "_id": "1m18bkb",
+    "_url": "https://reddit.com/r/collegeresults/comments/1m18bkb/roblox_addicted_chronic_procrastinator_bags_ivy/",
+    "gpa_uw": 3.9,
+    "gpa_w": null,
+    "sat": null,
+    "act": null,
+    "rank_pct": null,
+    "state": "Illinois",
+    "gender": "F",
+    "race": "White",
+    "first_gen": false,
+    "international": false,
+    "income": "low",
+    "major": "business/marketing/real estate/economics/hotel administration",
+    "hooks": [
+      "low_income"
+    ],
+    "ecs": "Girl Scouts (13yrs, sold $25k cookies, 3 intl trips), restaurant job (promoted to front of house), Varsity Volleyball captain, business plan for real estate venture, peer mentorship program, VP Spanish Club, Co-President Economics Club, real estate blog, JV Soccer captain, nonprofit social media director",
+    "awards": "Acorn Equality Fund Luke Scholarship, National Spanish Exam Honorable Mention, Girl Scouts Secret Shopper Award, Volleyball MVP x3, Girl Scout achievement badges",
+    "results": [
+      {
+        "school": "University of Pennsylvania",
+        "outcome": "rejected",
+        "round": "ED"
+      },
+      {
+        "school": "University of North Carolina at Chapel Hill",
+        "outcome": "rejected",
+        "round": "EA"
+      },
+      {
+        "school": "Northeastern University",
+        "outcome": "rejected",
+        "round": "EA"
+      },
+      {
+        "school": "Northwestern University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Columbia University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Princeton University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Stanford University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Illinois State University",
+        "outcome": "accepted",
+        "round": "EA"
+      },
+      {
+        "school": "Drexel University",
+        "outcome": "accepted",
+        "round": "EA"
+      },
+      {
+        "school": "University of Illinois Urbana-Champaign",
+        "outcome": "accepted",
+        "round": "EA"
+      },
+      {
+        "school": "University of Southern California",
+        "outcome": "accepted",
+        "round": "EA"
+      },
+      {
+        "school": "Cornell University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Washington University in St. Louis",
+        "outcome": "waitlisted",
+        "round": "RD"
+      }
+    ]
+  },
+  {
+    "_id": "1rxm7av",
+    "_url": "https://reddit.com/r/collegeresults/comments/1rxm7av/application_of_caltech_2030/",
+    "gpa_uw": 3.8,
+    "gpa_w": null,
+    "sat": 1550,
+    "act": null,
+    "rank_pct": null,
+    "state": "",
+    "gender": "M",
+    "race": "Asian",
+    "first_gen": false,
+    "international": false,
+    "income": "",
+    "major": "computer science",
+    "hooks": [],
+    "ecs": "Hackathon club president (raised $20k), WashU biomedical engineering research intern, NeurIPS workshop presenter, competitive programming USACO, personal coding projects, math club, science olympiad",
+    "awards": "AIME (8/15), NMSQT, Coca-Cola Semifinals, World Policy Olympiad finalist, research fair awards, publication in bioengineering",
+    "results": [
+      {
+        "school": "California Institute of Technology",
+        "outcome": "accepted",
+        "round": "RD"
+      }
+    ]
+  },
+  {
+    "_id": "1rkvzb5",
+    "_url": "https://reddit.com/r/collegeresults/comments/1rkvzb5/adhd_femboy_has_no_idea_what_hes_doing/",
+    "gpa_uw": 3.44,
+    "gpa_w": 3.59,
+    "sat": 1450,
+    "act": null,
+    "rank_pct": null,
+    "state": "California",
+    "gender": "M",
+    "race": "Asian",
+    "first_gen": false,
+    "international": false,
+    "income": "high",
+    "major": "international relations",
+    "hooks": [],
+    "ecs": "Track and Field, Hiking PE TA, Food Bank volunteer, Historical Society volunteer, Jazz Band, Skateboarding Club, Election Day Poll Worker, School Mock Election, Asian American Political Advocacy, Holocaust Education Student Teacher",
+    "awards": "None listed",
+    "results": [
+      {
+        "school": "University of Oregon",
+        "outcome": "accepted",
+        "round": "EA"
+      },
+      {
+        "school": "American University",
+        "outcome": "accepted",
+        "round": "EA"
+      },
+      {
+        "school": "University of Colorado Boulder",
+        "outcome": "accepted",
+        "round": "EA"
+      },
+      {
+        "school": "Whitman College",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Occidental College",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of Washington",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Macalester College",
+        "outcome": "waitlisted",
+        "round": "EA"
+      }
+    ]
+  },
+  {
+    "_id": "1psf5b1",
+    "_url": "https://reddit.com/r/collegeresults/comments/1psf5b1/my_college_results/",
+    "gpa_uw": null,
+    "gpa_w": 3.78,
+    "sat": null,
+    "act": 29,
+    "rank_pct": null,
+    "state": "Pennsylvania",
+    "gender": "F",
+    "race": "White",
+    "first_gen": false,
+    "international": false,
+    "income": "middle",
+    "major": "communications/studio arts",
+    "hooks": [],
+    "ecs": "Social media manager at shoe store, at-home nail business, family business assets manager, NAHS Treasurer, DECA social media manager, horseback riding, Girls Flag Football captain, School Store manager, animal shelter volunteer, yearbook artist",
+    "awards": "District art competition winner, national art competition finalist, DECA districts finalist, school art competition winner, NAHS",
+    "results": [
+      {
+        "school": "Boston College",
+        "outcome": "rejected",
+        "round": "ED"
+      },
+      {
+        "school": "Fairfield University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Providence College",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of Rhode Island",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "The College of New Jersey",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of Pittsburgh",
+        "outcome": "accepted",
+        "round": "RD"
+      }
+    ]
+  },
+  {
+    "_id": "1lbh2k5",
+    "_url": "https://reddit.com/r/collegeresults/comments/1lbh2k5/not_sure_what_i_did_wrong_butttt/",
+    "gpa_uw": null,
+    "gpa_w": null,
+    "sat": null,
+    "act": 32,
+    "rank_pct": null,
+    "state": "Florida",
+    "gender": "F",
+    "race": "",
+    "first_gen": false,
+    "international": false,
+    "income": "",
+    "major": "",
+    "hooks": [],
+    "ecs": "student body president, Model UN president, Mock Trial president, 300+ volunteer hours, homecoming queen, math/history tutor, private equity data integration, varsity basketball captain 4yrs, doctor shadow",
+    "awards": "",
+    "results": [
+      {
+        "school": "Texas Christian University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "American University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of Florida",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Florida State University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "University of Tennessee",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Tulane University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Fordham University",
+        "outcome": "rejected",
+        "round": "RD"
+      }
+    ]
+  },
+  {
+    "_id": "1t5rhaz",
+    "_url": "https://reddit.com/r/collegeresults/comments/1t5rhaz/salutatorian_college_results_i_didnt_apply_to_any/",
+    "gpa_uw": null,
+    "gpa_w": null,
+    "sat": 1540,
+    "act": null,
+    "rank_pct": 1,
+    "state": "",
+    "gender": "M",
+    "race": "White",
+    "first_gen": false,
+    "international": false,
+    "income": "high",
+    "major": "mechanical engineering",
+    "hooks": [
+      "legacy"
+    ],
+    "ecs": "FRC (robotics) captain, Forensics, Model UN, FBLA, JV Hockey, NHS, Band",
+    "awards": "Forensic state champion, school writing award, state science award",
+    "results": [
+      {
+        "school": "Case Western Reserve University",
+        "outcome": "accepted",
+        "round": "EA"
+      },
+      {
+        "school": "University of Akron",
+        "outcome": "accepted",
+        "round": "EA"
+      },
+      {
+        "school": "The Ohio State University",
+        "outcome": "accepted",
+        "round": "EA"
+      },
+      {
+        "school": "Villanova University",
+        "outcome": "accepted",
+        "round": "EA"
+      },
+      {
+        "school": "Rose-Hulman Institute of Technology",
+        "outcome": "accepted",
+        "round": "EA"
+      },
+      {
+        "school": "Pennsylvania State University",
+        "outcome": "accepted",
+        "round": "EA"
+      },
+      {
+        "school": "Virginia Tech",
+        "outcome": "accepted",
+        "round": "EA"
+      },
+      {
+        "school": "Northeastern University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Tufts University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Worcester Polytechnic Institute",
+        "outcome": "waitlisted",
+        "round": "EA"
+      },
+      {
+        "school": "University of Notre Dame",
+        "outcome": "rejected",
+        "round": "EA"
+      },
+      {
+        "school": "University of Massachusetts Amherst",
+        "outcome": "rejected",
+        "round": "EA"
+      },
+      {
+        "school": "Boston College",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Georgetown University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Santa Clara University",
+        "outcome": "rejected",
+        "round": "EA"
+      }
+    ]
+  },
+  {
+    "_id": "1s6iezw",
+    "_url": "https://reddit.com/r/collegeresults/comments/1s6iezw/devastated_neuro_enthusiast_gets_rejected/",
+    "gpa_uw": 4.0,
+    "gpa_w": null,
+    "sat": 1570,
+    "act": null,
+    "rank_pct": null,
+    "state": "",
+    "gender": "",
+    "race": "",
+    "first_gen": false,
+    "international": false,
+    "income": "high",
+    "major": "neuroscience",
+    "hooks": [],
+    "ecs": "independent neuroscience research (ISEF, state fair gold), paid research intern in ICU, HOSA exec (ILC 1st place), STEM club co-planner, math club, part-time jobs x2, senior home volunteer, educational content creator, intl neuroscience org contributor",
+    "awards": "ISEF finalist, state fair gold+grand award, HOSA ILC winner, national top 3 neuroscience competition, state research bursary, intl neuroscience olympiad semifinalist, med/disease olympiad silver",
+    "results": [
+      {
+        "school": "Princeton University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Amherst College",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Williams College",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Colgate University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Johns Hopkins University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Northeastern University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Harvard University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Northwestern University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Cornell University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Yale University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Brown University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Columbia University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Stanford University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "University of Pennsylvania",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Vanderbilt University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Duke University",
+        "outcome": "waitlisted",
+        "round": "RD"
+      }
+    ]
+  },
+  {
+    "_id": "1r4762t",
+    "_url": "https://reddit.com/r/collegeresults/comments/1r4762t/got_into_my_dream_school_you_got_this/",
+    "gpa_uw": 4.0,
+    "gpa_w": 4.55,
+    "sat": 1540,
+    "act": null,
+    "rank_pct": 5,
+    "state": "Texas",
+    "gender": "F",
+    "race": "South Asian",
+    "first_gen": false,
+    "international": false,
+    "income": "",
+    "major": "computer science",
+    "hooks": [],
+    "ecs": "CS Club Officer, part-time coding tutor job, tech/research internship (website + data), volunteer software engineer, Harp (3x gold, 10+ concerts), Science NHS Officer, volunteer coding teacher, knitting club officer, university research workshop, philosophy club competition team, investing",
+    "awards": "National Merit Semifinalist, Top 6 State History Award, Top 10 State German Contest, local coding comps 2nd place, National German Exam Silver",
+    "results": [
+      {
+        "school": "University of Texas at Dallas",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of Texas at San Antonio",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of Houston",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Texas A&M University",
+        "outcome": "accepted",
+        "round": "EA"
+      },
+      {
+        "school": "University of Texas at Austin",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of Illinois Urbana-Champaign",
+        "outcome": "accepted",
+        "round": "EA"
+      },
+      {
+        "school": "Purdue University",
+        "outcome": "accepted",
+        "round": "EA"
+      },
+      {
+        "school": "Northeastern University",
+        "outcome": "accepted",
+        "round": "EA"
+      },
+      {
+        "school": "University of Wisconsin-Madison",
+        "outcome": "accepted",
+        "round": "EA"
+      },
+      {
+        "school": "University of Colorado Boulder",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Johns Hopkins University",
+        "outcome": "accepted",
+        "round": "ED2"
+      },
+      {
+        "school": "Georgia Institute of Technology",
+        "outcome": "deferred",
+        "round": "EA2"
+      },
+      {
+        "school": "University of Southern California",
+        "outcome": "deferred",
+        "round": "EA"
+      },
+      {
+        "school": "Northwestern University",
+        "outcome": "deferred",
+        "round": "ED"
+      }
+    ]
+  },
+  {
+    "_id": "1qqvdfy",
+    "_url": "https://reddit.com/r/collegeresults/comments/1qqvdfy/tx_neuro_gal_gets_into_rice_with_a_full_ride/",
+    "gpa_uw": 3.91,
+    "gpa_w": 4.65,
+    "sat": null,
+    "act": 35,
+    "rank_pct": 5,
+    "state": "Texas",
+    "gender": "F",
+    "race": "Hispanic",
+    "first_gen": false,
+    "international": false,
+    "income": "middle",
+    "major": "neuroscience/cognitive science",
+    "hooks": [
+      "URM"
+    ],
+    "ecs": "Neuro intern at local university, Student Body VP, Editor-in-Chief of school paper, club co-founder and co-president, paid job at gym, volunteer 80+ hours, 1st chair viola and piano in orchestra, Quiz Bowl VP, cheerleading, FCA Co-president",
+    "awards": "National Merit Commended, school scholarship, CollegeBoard Hispanic National Recognition, National Latin Exam Gold Summa Cum Laude, TAPPS Superior Rating Viola Solo, 3rd State Spelling and Vocabulary",
+    "results": [
+      {
+        "school": "Vanderbilt University",
+        "outcome": "rejected",
+        "round": "ED"
+      },
+      {
+        "school": "Rice University",
+        "outcome": "accepted",
+        "round": "ED2"
+      },
+      {
+        "school": "Baylor University",
+        "outcome": "accepted",
+        "round": "EA"
+      },
+      {
+        "school": "Beloit College",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Austin College",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of Texas at Austin",
+        "outcome": "deferred",
+        "round": "EA"
+      }
+    ]
+  },
+  {
+    "_id": "1sohirl",
+    "_url": "https://reddit.com/r/collegeresults/comments/1sohirl/girl_goes_crazy_rd_app_season_and_lands_a_t5_lac/",
+    "gpa_uw": null,
+    "gpa_w": null,
+    "sat": 1290,
+    "act": null,
+    "rank_pct": 5,
+    "state": "",
+    "gender": "F",
+    "race": "Black",
+    "first_gen": true,
+    "international": false,
+    "income": "low",
+    "major": "",
+    "hooks": [
+      "first_gen",
+      "low_income",
+      "URM",
+      "questbridge"
+    ],
+    "ecs": "Summer Camp CIT, Latin Club president, Outdoor Track captain, Religious Retreat leader, Senior Class Rep",
+    "awards": "QuestBridge Finalist, Gates Scholarship Finalist, QuestBridge College Prep Scholar, Cornell Book Award, NHS, Latin Honor Society",
+    "results": [
+      {
+        "school": "Bates College",
+        "outcome": "waitlisted",
+        "round": "RD"
+      },
+      {
+        "school": "Central Connecticut State University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Fordham University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Pennsylvania State University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Stonehill College",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Stony Brook University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of Connecticut",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of Hartford",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of Massachusetts Lowell",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Williams College",
+        "outcome": "waitlisted",
+        "round": "RD"
+      },
+      {
+        "school": "Hampshire College",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Howard University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of Massachusetts Amherst",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Clark University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Quinnipiac University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "College of the Holy Cross",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Yale University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Amherst College",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Cornell University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Princeton University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Brown University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Swarthmore College",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Bowdoin College",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Boston University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Tufts University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Denison University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Wesleyan University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Colby College",
+        "outcome": "waitlisted",
+        "round": "RD"
+      },
+      {
+        "school": "Columbia University",
+        "outcome": "rejected",
+        "round": "RD"
+      }
+    ]
+  },
+  {
+    "_id": "1s5sdcr",
+    "_url": "https://reddit.com/r/collegeresults/comments/1s5sdcr/yuriloving_asian_girl_bags_hypsm/",
+    "gpa_uw": 4.0,
+    "gpa_w": null,
+    "sat": 1570,
+    "act": null,
+    "rank_pct": 1,
+    "state": "",
+    "gender": "F",
+    "race": "Asian",
+    "first_gen": false,
+    "international": false,
+    "income": "high",
+    "major": "biology/art practice",
+    "hooks": [],
+    "ecs": "independent research and device invention (1st place intl medical competition), NAHS president, independent art practice (oil paintings, 30+ galleries), hospital volunteering with leadership, Parkinson's research, art club co-president, Stanford internship, swim instructor, art content creator (14.8k followers, 8M views), youth advisory council for congressman",
+    "awards": "1st place HOSA ILC & state, research poster at Stanford medical conference (only HS presenters), YoungArts award winner, 10 Scholastic gold keys, highest state art competition award (<0.46%), 2nd place Harvard conference, congressional art competition 2nd+3rd place, provisional patent",
+    "results": [
+      {
+        "school": "Stanford University",
+        "outcome": "accepted",
+        "round": "REA"
+      },
+      {
+        "school": "Yale University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Rice University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of California, Berkeley",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of California, Los Angeles",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of Texas at Austin",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of Illinois Urbana-Champaign",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of California, San Diego",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Rhode Island School of Design",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Texas A&M University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of Texas at Dallas",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Drexel University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Texas Tech University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Princeton University",
+        "outcome": "waitlisted",
+        "round": "RD"
+      },
+      {
+        "school": "Brown University",
+        "outcome": "waitlisted",
+        "round": "RD"
+      },
+      {
+        "school": "Johns Hopkins University",
+        "outcome": "waitlisted",
+        "round": "RD"
+      },
+      {
+        "school": "Vanderbilt University",
+        "outcome": "waitlisted",
+        "round": "RD"
+      },
+      {
+        "school": "University of Michigan",
+        "outcome": "waitlisted",
+        "round": "RD"
+      },
+      {
+        "school": "Harvard University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Duke University",
+        "outcome": "waitlisted",
+        "round": "RD"
+      }
+    ]
+  },
+  {
+    "_id": "1po93f4",
+    "_url": "https://reddit.com/r/collegeresults/comments/1po93f4/valedictorian_deferred_ed_from_dartmouth_plz/",
+    "gpa_uw": 4.0,
+    "gpa_w": 4.46,
+    "sat": 1590,
+    "act": null,
+    "rank_pct": 1,
+    "state": "",
+    "gender": "M",
+    "race": "White",
+    "first_gen": false,
+    "international": false,
+    "income": "low",
+    "major": "math/computer science",
+    "hooks": [],
+    "ecs": "Senior class rep, Robotics programming lead+co-captain, paid software engineering internship at music tech/AI startup, 380 hrs IT volunteering church, 1099 web design contractor, open-source music software, music producer, powerlifting, JV Basketball",
+    "awards": "State robotics awards (Vex Worlds qualifier), AIME qualifier 3x, USAMO index 233.5, state science team awards, National Spanish Exam Bronze x2 Gold x1",
+    "results": [
+      {
+        "school": "Dartmouth College",
+        "outcome": "deferred",
+        "round": "ED"
+      }
+    ]
+  },
+  {
+    "_id": "1tiaqi7",
+    "_url": "https://reddit.com/r/collegeresults/comments/1tiaqi7/old_fart_pulls_off_ivy_league_mechanical/",
+    "gpa_uw": 3.9,
+    "gpa_w": null,
+    "sat": null,
+    "act": 23,
+    "rank_pct": null,
+    "state": "Tennessee",
+    "gender": "M",
+    "race": "Asian",
+    "first_gen": true,
+    "international": false,
+    "income": "middle",
+    "major": "mechanical engineering",
+    "hooks": [
+      "first_gen"
+    ],
+    "ecs": "US Navy Hospital Corpsman (8 years): department head, medical readiness manager, Marine medic, command fitness leader, tutor",
+    "awards": "Junior Sailor of the Quarter x2, Junior Sailor of the Year, Navy Achievement Medal x3",
+    "results": [
+      {
+        "school": "Colorado School of Mines",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Oregon State University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "North Carolina State University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Cornell University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Brown University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Duke University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Vanderbilt University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "University of Virginia",
+        "outcome": "waitlisted",
+        "round": "RD"
+      }
+    ]
+  },
+  {
+    "_id": "1qysoln",
+    "_url": "https://reddit.com/r/collegeresults/comments/1qysoln/cool_girl_got_cool_results/",
+    "gpa_uw": 4.0,
+    "gpa_w": null,
+    "sat": 1560,
+    "act": null,
+    "rank_pct": 1,
+    "state": "",
+    "gender": "F",
+    "race": "White",
+    "first_gen": false,
+    "international": false,
+    "income": "",
+    "major": "computer science/computer engineering",
+    "hooks": [],
+    "ecs": "Girls State, after-school program volunteering, ML project, class social chair, HS sports teams, coaching special needs students, student ambassador",
+    "awards": "Seal of Biliteracy, Commended Student, AP Scholar with Distinction, local rotary awards",
+    "results": [
+      {
+        "school": "Stevens Institute of Technology",
+        "outcome": "accepted",
+        "round": "EA"
+      },
+      {
+        "school": "Northeastern University",
+        "outcome": "accepted",
+        "round": "EA"
+      },
+      {
+        "school": "University of Maryland",
+        "outcome": "accepted",
+        "round": "EA"
+      },
+      {
+        "school": "Rutgers University",
+        "outcome": "accepted",
+        "round": "EA"
+      },
+      {
+        "school": "Georgia Institute of Technology",
+        "outcome": "accepted",
+        "round": "EA"
+      },
+      {
+        "school": "University of Michigan",
+        "outcome": "accepted",
+        "round": "EA"
+      },
+      {
+        "school": "University of Pittsburgh",
+        "outcome": "accepted",
+        "round": "EA"
+      },
+      {
+        "school": "University of Massachusetts Amherst",
+        "outcome": "accepted",
+        "round": "EA"
+      },
+      {
+        "school": "University of Delaware",
+        "outcome": "accepted",
+        "round": "EA"
+      }
+    ]
+  },
+  {
+    "_id": "1qrlo79",
+    "_url": "https://reddit.com/r/collegeresults/comments/1qrlo79/my_ea_results_as_a_low_income_student_full_ride_to/",
+    "gpa_uw": 3.87,
+    "gpa_w": 4.05,
+    "sat": 1510,
+    "act": null,
+    "rank_pct": 12,
+    "state": "Michigan",
+    "gender": "M",
+    "race": "Asian",
+    "first_gen": false,
+    "international": false,
+    "income": "low",
+    "major": "public health/public policy",
+    "hooks": [
+      "low_income",
+      "legacy"
+    ],
+    "ecs": "Two jobs at hockey rink (16-28 hrs/wk), 80 hrs clinical volunteering, DECA (VP, 3x state champion), MEDLIFE co-engagement director (top 50 global chapter), student council treasurer, Club Baseball captain, Overwatch e-sports (6th nationally), HOSA member",
+    "awards": "DECA State Officer Candidate, 3x DECA State Champion, HOSA State 6th Place, Local Community Impact Award x2, AP Scholar with Honor",
+    "results": [
+      {
+        "school": "College of Charleston",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Michigan State University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of Louisville",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of Missouri",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Pennsylvania State University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "The Ohio State University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of Tennessee",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of Florida",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of Miami",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of Pittsburgh",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of South Carolina",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of Michigan",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of Texas at Austin",
+        "outcome": "deferred",
+        "round": "RD"
+      },
+      {
+        "school": "University of Wisconsin-Madison",
+        "outcome": "deferred",
+        "round": "RD"
+      },
+      {
+        "school": "University of North Carolina at Chapel Hill",
+        "outcome": "rejected",
+        "round": "RD"
+      }
+    ]
+  },
+  {
+    "_id": "1pxjmuo",
+    "_url": "https://reddit.com/r/collegeresults/comments/1pxjmuo/1480_finance_major_my_results_from_last_year/",
+    "gpa_uw": null,
+    "gpa_w": null,
+    "sat": 1480,
+    "act": null,
+    "rank_pct": null,
+    "state": "New York",
+    "gender": "M",
+    "race": "White",
+    "first_gen": false,
+    "international": false,
+    "income": "middle",
+    "major": "business/finance",
+    "hooks": [],
+    "ecs": "Undergraduate research at CUNY (11th), undergraduate research at Syracuse (12th), co-founded school golf team, club soccer, varsity soccer, camp counselor, nonprofit internship, tutor, CS Club treasurer",
+    "awards": "AP Scholar with Distinction",
+    "results": [
+      {
+        "school": "University of Minnesota",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University at Buffalo",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Binghamton University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Indiana University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Fordham University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Stony Brook University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Baruch College",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Syracuse University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Pennsylvania State University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "University of Wisconsin-Madison",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Tulane University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "University of Virginia",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Georgia Institute of Technology",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "University of Illinois Urbana-Champaign",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Vanderbilt University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Boston College",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "City University of New York Macaulay Honors",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Georgetown University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "University of Pennsylvania",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "University of Michigan",
+        "outcome": "waitlisted",
+        "round": "RD"
+      },
+      {
+        "school": "Cornell University",
+        "outcome": "rejected",
+        "round": "RD"
+      }
+    ]
+  },
+  {
+    "_id": "1lvi924",
+    "_url": "https://reddit.com/r/collegeresults/comments/1lvi924/i_struggled_with_college_admissions_as_an_rural/",
+    "gpa_uw": 4.0,
+    "gpa_w": null,
+    "sat": null,
+    "act": 31,
+    "rank_pct": 1,
+    "state": "Montana",
+    "gender": "F",
+    "race": "White",
+    "first_gen": false,
+    "international": false,
+    "income": "middle",
+    "major": "biomedical engineering",
+    "hooks": [],
+    "ecs": "FTC Robotics programmer/captain/outreach (Worlds Inspire award, started robotics scholarship camp), CS projects (traffic sign, athlete mental health app), SkillsUSA president (2x state champion architectural drafting), Student Council president, Band/Choir 1st chair, Mu Alpha Theta president, Volleyball co-captain, Track co-captain, NHS (425+ hrs community service), Religious Education Teacher, Academic Challenge captain",
+    "awards": "NCWIT National HM and Montana Winner x2, Montana State Dean's List FTC Robotics, Philip Sousa Music Award, Carson Scholar Community Service and Leadership Winner",
+    "results": [
+      {
+        "school": "University of Montana",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Montana Tech",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Montana State University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Saint Mary's College of Notre Dame",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of California, Davis",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "Washington State University",
+        "outcome": "accepted",
+        "round": "RD"
+      },
+      {
+        "school": "University of Washington",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "University of California, Berkeley",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "University of California, Los Angeles",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "Stanford University",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "University of Notre Dame",
+        "outcome": "rejected",
+        "round": "RD"
+      },
+      {
+        "school": "University of Texas at Austin",
+        "outcome": "rejected",
+        "round": "RD"
+      }
+    ]
+  }
+]
