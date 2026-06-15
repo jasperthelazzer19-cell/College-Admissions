@@ -32,7 +32,8 @@ CANDOR | GRADED THIS | {S} | APPLICANT'S | PROFILE   (accent: {S}; slide3: grade
 CAN YOU | BEAT THIS | {S} | APPLICANT?   (accent: BEAT THIS, {S}; slide3: grade)
 WHAT'S THIS | {S} | APPLICANT'S | BIGGEST | WEAKNESS?   (accent: {S}, WEAKNESS; slide3: grade)
 I THOUGHT | THIS STUDENT | WOULD GET | INTO {S}...   (accent: {S}; slide3: chances)
-CAN AI | PREDICT | {S} | ADMISSIONS?   (accent: AI, {S}; slide3: grade)"""
+CAN AI | PREDICT | {S} | ADMISSIONS?   (accent: AI, {S}; slide3: grade)
+WHAT WOULD IT TAKE | TO GET THIS | STUDENT INTO | {S}?   (accent: {S}; slide3: glowup)"""
 
 
 def _gen_profile_and_title(slug):
@@ -57,9 +58,11 @@ applicant's odds, or react to a grade/verdict on the applicant. Vary the WORDING
 use (you may lightly remix phrasing), but DO NOT write a narrative sentence describing the student's
 achievements (e.g. NOT "SHE STARTED A WATER MONITORING NETWORK"). It must read like one of these
 families: "would you admit", "guess the odds", "candor told me if", "can you beat", "biggest weakness",
-"I thought they'd get in", "can AI predict", "candor graded this profile".
-NEVER put a specific number or percentage in the title (you do NOT know the real odds/grade; those are
-revealed on a later slide). No "%", no made-up scores.
+"I thought they'd get in", "can AI predict", "candor graded this profile", "what would it take to get in"
+(glow-up). NEVER put a specific number or percentage in the title (you do NOT know the real odds/grade;
+those are revealed on a later slide). No "%", no made-up scores.
+slide3 type: "grade" for grading/score/profile hooks, "glowup" for "what would it take / how to get in /
+glow up" hooks, else "chances".
 The school short name is "{short}". Pick which words get the school's accent color (always the school
 name; optionally one emphasis word). Choose slide3 type: "grade" if about grading/score/profile, else "chances".
 Patterns (| separates lines):

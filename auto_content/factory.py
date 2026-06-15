@@ -58,9 +58,10 @@ def render_slides(slug, slide3, lines):
     hook = urllib.parse.quote("\n".join(lines))
     s1 = _shot(f"{tmp}/s1.png", f"{LOCAL_URL}/title/export?rkey={CRON_KEY}&clean=1&slug={slug}&hook={hook}")
     s2 = _shot(f"{tmp}/s2.png", f"{LOCAL_URL}/profile/{slug}/export?rkey={CRON_KEY}&clean=1")
-    s3url = (f"{LOCAL_URL}/grade/export?rkey={CRON_KEY}&clean=1" if slide3 == "grade"
-             else f"{LOCAL_URL}/chances/{slug}/export?rkey={CRON_KEY}&clean=1")
-    s3 = _shot(f"{tmp}/s3.png", s3url)
+    s3routes = {"grade": "/grade/export", "glowup": f"/glowup/{slug}/export",
+                "chances": f"/chances/{slug}/export"}
+    s3path = s3routes.get(slide3, s3routes["chances"])
+    s3 = _shot(f"{tmp}/s3.png", f"{LOCAL_URL}{s3path}?rkey={CRON_KEY}&clean=1")
     return s1, s2, s3
 
 
@@ -122,9 +123,11 @@ def wait_local_app():
     return False
 
 
-def make_one(dry=False):
-    slug = random.choice(SCHOOLS)
+def make_one(dry=False, slug=None, slide3=None):
+    slug = slug if slug in SCHOOLS else random.choice(SCHOOLS)
     g = gen_profile.generate(slug)          # profile saved to 181 + title copy
+    if slide3 in ("chances", "grade", "glowup"):
+        g["slide3"] = slide3                # honor an explicit request (text-to-make)
     odds, grade, low, high, gnum = odds_grade_text(slug, g["profile"])
     short, accent = app._school_brand(slug, g["name"])
     # Titles never reveal a specific number — the grader/odds are non-deterministic

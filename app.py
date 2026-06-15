@@ -11245,7 +11245,7 @@ def content_headtohead():
 @app.route("/glowup/<slug>/export")
 @login_required
 def glowup_export(slug):
-    if not _is_creator():
+    if not (_is_creator() or _has_render_key()):
         abort(404)
     from html import escape as _esc
     sch = COLLEGES_BY_SLUG.get(slug)
