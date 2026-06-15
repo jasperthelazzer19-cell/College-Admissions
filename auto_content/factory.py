@@ -40,6 +40,25 @@ from auto_content import gen_profile  # noqa: E402
 SCHOOLS = sorted(set(app.INST_LOGOS) & set(app.COLLEGES_BY_SLUG))
 
 
+import re  # noqa: E402
+
+
+def mark_accents(lines, accent_words):
+    """Wrap the accent words/phrases in *asterisks* inside each line so the HTML
+    title colors them in the school's brand color (the LLM returns the accent
+    words as a separate list, not inline)."""
+    aw = sorted({w.strip().upper() for w in (accent_words or []) if w and w.strip()},
+                key=len, reverse=True)
+    out = []
+    for ln in lines:
+        s = ln.upper()
+        for w in aw:
+            pat = re.compile(r'(?<!\*)\b' + re.escape(w) + r'\b(?!\*)')
+            s = pat.sub("*" + w + "*", s, count=1)
+        out.append(s)
+    return out
+
+
 # ── all slides rendered FREE via headless Chrome (no image API) ────────────
 def _shot(out_path, url):
     subprocess.run([CHROME, "--headless=new", "--disable-gpu", "--hide-scrollbars",
@@ -134,7 +153,8 @@ def make_one(dry=False, slug=None, slide3=None):
     # per render, so a number in the title could contradict slide 3. The real
     # value is shown on slide 3.
     lines, accent_words = g["lines"], g["accent_words"]
-    s1, s2, s3 = render_slides(slug, g["slide3"], lines)   # all 3 FREE via Chrome
+    marked = mark_accents(lines, accent_words)             # color accent words
+    s1, s2, s3 = render_slides(slug, g["slide3"], marked)  # all 3 FREE via Chrome
     hook = " ".join(lines)
     payload = dict(school_slug=slug, school_name=g["name"], accent=accent, title_text=hook,
                    title_formula="llm", slide3_type=g["slide3"], profile_json=json.dumps(g["profile"]),

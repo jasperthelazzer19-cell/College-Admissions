@@ -11405,6 +11405,17 @@ SCHOOL_BRAND = {
     "ut-austin": ("TEXAS", "#BF5700"), "uw": ("WASHINGTON", "#4B2E83"),
     "wisconsin": ("WISCONSIN", "#C5050C"), "uiuc": ("ILLINOIS", "#13294B"),
     "purdue": ("PURDUE", "#B1810B"), "ucla-anderson": ("UCLA", "#2774AE"),
+    # Jun 2026: real colors for the remaining content-mode (INST_LOGOS) schools
+    # that were falling back to default navy.
+    "amherst": ("AMHERST", "#3F1F69"), "bc": ("BOSTON COLLEGE", "#98002E"),
+    "bu": ("BU", "#CC0000"), "cmu": ("CARNEGIE MELLON", "#C41230"),
+    "emory": ("EMORY", "#012169"), "miami": ("MIAMI", "#F47321"),
+    "northeastern": ("NORTHEASTERN", "#C8102E"), "rutgers": ("RUTGERS", "#CC0033"),
+    "swarthmore": ("SWARTHMORE", "#862633"), "tufts": ("TUFTS", "#418FDE"),
+    "tulane": ("TULANE", "#006747"), "uf": ("FLORIDA", "#0021A5"),
+    "umd": ("MARYLAND", "#E03A3E"), "villanova": ("VILLANOVA", "#00205B"),
+    "wake-forest": ("WAKE FOREST", "#8C7434"), "washu": ("WASHU", "#A51417"),
+    "williams": ("WILLIAMS", "#500082"), "wisc": ("WISCONSIN", "#C5050C"),
 }
 
 # Real athletic logos (ESPN) downloaded to static/logos/, served same-origin so
