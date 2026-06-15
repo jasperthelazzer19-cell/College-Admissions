@@ -2952,6 +2952,13 @@ def get_demonstrated_interest(user_id, college_slug):
     return row["level"] if row else "none"
 
 
+def _tracks_demonstrated_interest(school, tier):
+    """True only where demonstrated interest is actually weighted: in practice
+    PRIVATE tier-2/3 schools (BU, Tufts, Northeastern, Tulane...). Ivies/MIT/
+    Stanford/UChicago and ALL public schools (UCs, flagships) do NOT track it."""
+    return tier in (2, 3) and school.get("type") != "public"
+
+
 def _di_multiplier(level, school_tier):
     """Demonstrated interest only matters at schools that explicitly weight
     it. Most tier-1 schools (Ivies, MIT) say they don't track it; tier 2-3
@@ -3735,6 +3742,8 @@ CRITICAL RULES:
 - DO NOT invent percentile rankings or stats not provided.
 - If the student submitted ACT, only reference the ACT range — never compare ACT to SAT.
 {('- This school is TEST-BLIND: do NOT mention, cite, or frame the SAT/ACT score as a strength, weakness, or factor of any kind. Scores are legally not considered in admissions here.' if test_blind else '')}
+{('' if school.get('type') == 'public' else '- This is a PRIVATE school: do NOT mention in-state/out-of-state, residency, or home state as a factor — residency is irrelevant at private universities.')}
+{('' if _tracks_demonstrated_interest(school, tier) else "- This school does NOT track demonstrated interest: do NOT mention visiting, interest, demonstrated interest, or 'showing interest' as a factor or suggestion.")}
 
 Output exactly three lines. Each is ONE tight sentence (~25 words max) — specific to THIS applicant and THIS school. Lead with the concrete number/award; no preamble, no filler, no hedging. Shorter is better as long as it still lands.
 STRENGTH: <one sentence: the strongest thing working in their favor here and why it matters at this school>
