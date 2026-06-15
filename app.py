@@ -4333,10 +4333,17 @@ def current_user():
         return dict(row) if row else None
 
 
+def _has_render_key():
+    """Autopilot render bypass: a valid rkey (==CRON_KEY) lets the headless
+    renderer fetch creator-only export pages without a login session. Read-only
+    slide rendering; CRON_KEY is secret."""
+    return bool(CRON_KEY) and request.args.get("rkey") == CRON_KEY
+
+
 def login_required(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
-        if not current_user():
+        if not current_user() and not _has_render_key():
             session["next_url"] = request.path
             return redirect(url_for("login_page"))
         return f(*args, **kwargs)
@@ -10673,10 +10680,8 @@ def _is_creator():
 _TIKTOK_EXPORT_HTML = r"""<!doctype html><html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Export — __SCHOOL__</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,500;0,600;1,500&display=swap" rel="stylesheet">
 __NEWSFACE__
-<script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.js"></script>
+__HEADEXTRA__
 <style>
   :root{--bg:#070d16;--teal:#5fc9b6;--text:#e9eef5;--muted:#8a97a8;--card:#0e1825;--border:rgba(255,255,255,.09);--blue:#5aa2ff}
   *{box-sizing:border-box}
@@ -10750,6 +10755,7 @@ __NEWSFACE__
   .ovbtns{display:flex;gap:10px;margin-top:16px}
   .ovbtn{font-size:15px;font-weight:600;padding:11px 22px;border-radius:10px;border:1px solid var(--border);
     background:#16202e;color:var(--text);text-decoration:none;cursor:pointer;display:inline-block}
+__EXTRACSS__
 </style></head>
 <body>
 <div class="stage"><div class="scaler" id="scaler">
@@ -10838,6 +10844,11 @@ __CARD__
     }).then(function(){ b.textContent='Copied'; setTimeout(function(){b.textContent='Copy';},1500); })
       .catch(function(){ b.textContent='Copy'; alert('Copy not supported here — use Save instead.'); });
   });
+  // Autopilot renderer signal: true once layout + fonts have settled.
+  window.__RENDER_READY__=false;
+  function _ready(){fitText();fitTitle();window.__RENDER_READY__=true;}
+  if(document.fonts && document.fonts.ready){ document.fonts.ready.then(function(){setTimeout(_ready,80);}); }
+  else { setTimeout(_ready,300); }
 })();
 </script></body></html>"""
 
@@ -10854,13 +10865,41 @@ except Exception as _e:
     _NEWS_FACE = ""
 _TIKTOK_EXPORT_HTML = _TIKTOK_EXPORT_HTML.replace("__NEWSFACE__", _NEWS_FACE)
 
+# Clean-render override for headless screenshotting the dark export card: zero the
+# body padding, hide the controls/overlay, and un-scale the card so it sits at the
+# top-left at exact 1024x1536 for a viewport screenshot by the autopilot renderer.
+_TIKTOK_CLEAN_CSS = ("html,body{margin:0!important;padding:0!important;background:#070d16!important}"
+                     ".controls,.ov{display:none!important}"
+                     ".stage{display:block!important;overflow:visible!important}"
+                     ".scaler{transform:none!important;height:auto!important}")
+
+
+# Interactive pages need the external font links + html-to-image (for the Save
+# button). The clean/headless render does NOT — embedded fonts cover it and there's
+# no save button, and waiting on those network fetches stalls Chrome's screenshot.
+_TIKTOK_HEADEXTRA = (
+    '<link rel="preconnect" href="https://fonts.googleapis.com">'
+    '<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,500;0,600;1,500&display=swap" rel="stylesheet">'
+    '<script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.js"></script>')
+
+
+def _tiktok_page(card, slug="", school="", clean=False):
+    """Finish a dark TikTok export page from the shared template, replacing all
+    tokens. clean=True injects the headless-render override and drops the external
+    font/CDN tags (embedded fonts cover it; avoids Chrome stalling on the fetch)."""
+    return (_TIKTOK_EXPORT_HTML.replace("__CARD__", card)
+            .replace("__SLUG__", slug).replace("__SCHOOL__", school)
+            .replace("__HEADEXTRA__", "" if clean else _TIKTOK_HEADEXTRA)
+            .replace("__EXTRACSS__", _TIKTOK_CLEAN_CSS if clean else ""))
+
 
 @app.route("/chances/<slug>/export")
 @login_required
 def chances_export(slug):
-    if not _is_creator():
+    if not (_is_creator() or _has_render_key()):
         abort(404)
-    uid = current_user()["id"]
+    _cu = current_user()
+    uid = _cu["id"] if _cu else 181
     profile = _chances_profile(uid, slug)
     if profile is None:
         return redirect(url_for("profile_page"))
@@ -10920,8 +10959,7 @@ def chances_export(slug):
   </div>
   <div class="foot"><span class="lock">&#128274;</span>candoradmit.com</div>
 </div>'''
-    page = (_TIKTOK_EXPORT_HTML.replace("__CARD__", card)
-            .replace("__SLUG__", slug).replace("__SCHOOL__", esc(merged["name"])))
+    page = _tiktok_page(card, slug, esc(merged["name"]), clean=request.args.get("clean") == "1")
     return Response(page, mimetype="text/html")
 
 
@@ -10930,9 +10968,10 @@ def chances_export(slug):
 def grade_export():
     """New-Roads-only TikTok export of the /100 profile grade — the 'CANDOR'S
     SCORE' reveal slide. Mirrors chances_export but renders the grade card."""
-    if not _is_creator():
+    if not (_is_creator() or _has_render_key()):
         abort(404)
-    uid = current_user()["id"]
+    _cu = current_user()
+    uid = _cu["id"] if _cu else 181
     profile = get_profile(uid)
     if not profile:
         return redirect(url_for("profile_page"))
@@ -10987,8 +11026,7 @@ def grade_export():
   </div>
   <div class="foot"><span class="lock">&#128274;</span>candoradmit.com</div>
 </div>'''
-    page = (_TIKTOK_EXPORT_HTML.replace("__CARD__", card)
-            .replace("__SLUG__", "grade").replace("__SCHOOL__", "Profile Grade"))
+    page = _tiktok_page(card, "grade", "Profile Grade", clean=request.args.get("clean") == "1")
     return Response(page, mimetype="text/html")
 
 
@@ -11066,8 +11104,7 @@ def compare_export():
   </div>
   <div class="foot"><span class="lock">&#128274;</span>candoradmit.com</div>
 </div>'''
-    page = (_TIKTOK_EXPORT_HTML.replace("__CARD__", card)
-            .replace("__SLUG__", "compare").replace("__SCHOOL__", "Comparison"))
+    page = _tiktok_page(card, "compare", "Comparison")
     return Response(page, mimetype="text/html")
 
 
@@ -11253,8 +11290,7 @@ def glowup_export(slug):
   </div>
   <div class="foot"><span class="lock">&#128274;</span>candoradmit.com</div>
 </div>'''
-    page = (_TIKTOK_EXPORT_HTML.replace("__CARD__", card)
-            .replace("__SLUG__", "glowup").replace("__SCHOOL__", _esc(merged["name"])))
+    page = _tiktok_page(card, "glowup", _esc(merged["name"]))
     return Response(page, mimetype="text/html")
 
 
@@ -11309,8 +11345,7 @@ def headtohead_export(slug):
   </div>
   <div class="foot"><span class="lock">&#128274;</span>candoradmit.com</div>
 </div>'''
-    page = (_TIKTOK_EXPORT_HTML.replace("__CARD__", card)
-            .replace("__SLUG__", "h2h").replace("__SCHOOL__", _esc(merged["name"])))
+    page = _tiktok_page(card, "h2h", _esc(merged["name"]))
     return Response(page, mimetype="text/html")
 
 
@@ -11402,17 +11437,36 @@ def _hook_html(hook, accent):
 
 
 def _title_card_body(slug, sch, hook):
-    """Inner HTML for a slide-1 hook card: big Anton caps (accent words colored)
-    + the school logo pinned to the bottom. White canvas, auto-scales to fit."""
+    """Slide-1 hook card in the exact @candor style: the hook is broken into
+    short lines (separated by newlines) and EACH line is scaled independently to
+    span the full width edge-to-edge (the justified-block look), center-aligned,
+    with the school logo at the bottom. Accent words use *asterisks*; a whole
+    line can be accent by wrapping the line. Fills the 9:16 frame densely."""
     short, color = _school_brand(slug, sch.get("name"))
     logo_url = INST_LOGOS.get(slug) or SCHOOL_LOGOS.get(slug)
-    logo_html = (f'<img src="{logo_url}" style="height:240px;object-fit:contain;margin:auto auto 0;display:block">'
-                 if logo_url else '<div style="margin-top:auto"></div>')
-    hk = _hook_html(hook.upper(), color)
-    return (f'<div style="font-family:\'AntonEmb\',\'Anton\',sans-serif;font-weight:400;'
-            f'font-size:132px;line-height:1.0;letter-spacing:-1px;color:#111;'
-            f'text-transform:uppercase;margin:0 0 30px">{hk}</div>'
-            f'{logo_html}')
+    logo_html = (f'<img src="{logo_url}" style="height:300px;max-width:78%;object-fit:contain;display:block;margin:0 auto">'
+                 if logo_url else '')
+    lines = [ln for ln in hook.upper().split("\n") if ln.strip()]
+    line_html = "".join(
+        f'<div class="tline" style="line-height:.95;font-size:120px">'
+        f'<span class="tin" style="display:inline-block;white-space:nowrap">{_hook_html(ln, color)}</span></div>'
+        for ln in lines)
+    return (f'<div id="tcard" style="height:1402px;display:flex;flex-direction:column;'
+            f"font-family:'AntonEmb','Anton',sans-serif;font-weight:400;letter-spacing:-2px;color:#111;text-transform:uppercase\">"
+            f'<div id="tbox" style="display:flex;flex-direction:column;justify-content:center;flex:1;'
+            f'text-align:center;gap:8px">{line_html}</div>'
+            f'<div style="flex:0 0 auto;display:flex;align-items:center;justify-content:center;padding-bottom:10px">{logo_html}</div>'
+            f'</div>'
+            f'<script>(function(){{function fit(){{'
+            f'var box=document.getElementById("tbox");if(!box)return;var cw=box.clientWidth;'
+            f'var ls=[].slice.call(box.querySelectorAll(".tline"));'
+            f'ls.forEach(function(l){{l.style.fontSize="120px";'
+            f'var w=l.querySelector(".tin").getBoundingClientRect().width;'
+            f'if(w>0){{l.style.fontSize=Math.floor(120*cw/w)+"px";}}}});'
+            f'var maxH=1120;if(box.scrollHeight>maxH){{var k=maxH/box.scrollHeight;'
+            f'ls.forEach(function(l){{l.style.fontSize=Math.floor(parseFloat(l.style.fontSize)*k)+"px";}});}}}}'
+            f'if(document.fonts&&document.fonts.ready){{document.fonts.ready.then(fit);}}else{{fit();}}'
+            f'setTimeout(fit,250);setTimeout(fit,700);}})();</script>')
 
 
 @app.route("/title/export")
@@ -11421,7 +11475,7 @@ def title_export():
     """Slide-1 hook card. /title/export?slug=<slug>&hook=<text> (use *word* to
     color a word in the school's accent). New-Roads only. This is the piece that
     used to be made by hand in ChatGPT/Canva."""
-    if not _is_creator():
+    if not (_is_creator() or _has_render_key()):
         abort(404)
     slug = request.args.get("slug", "")
     hook = request.args.get("hook", "")
@@ -11429,7 +11483,8 @@ def title_export():
     if not sch or not hook:
         abort(404)
     body = _title_card_body(slug, sch, hook)
-    return Response(_profile_export_page(body, dl_name=f"{slug}-title", pad="74px 70px 60px"),
+    return Response(_profile_export_page(body, dl_name=f"{slug}-title", pad="74px 70px 60px",
+                                         clean=request.args.get("clean") == "1"),
                     mimetype="text/html")
 
 
@@ -11520,6 +11575,30 @@ def cron_content_release():
             f"{pending} pending; email={'sent' if sent else 'off'}", 200)
 
 
+@app.route("/content/c/<int:cid>")
+def content_view_one(cid):
+    """Single-carousel viewer for the texted link — token-gated (?key=CRON_KEY) so
+    it opens straight on the phone with no login. Long-press each image to save.
+    macOS Messages can't send file attachments via AppleScript, so the autopilot
+    texts THIS link instead."""
+    if not (_is_creator() or _autopilot_authed()):
+        abort(404)
+    with db() as conn:
+        r = conn.execute("SELECT * FROM content_queue WHERE id=?", (cid,)).fetchone()
+    if not r:
+        abort(404)
+    sub = r["odds_text"] or r["grade_text"] or ""
+    imgs = "".join(
+        f'<img src="{r[k]}" alt="slide {i}" style="width:100%;max-width:500px;border-radius:14px;'
+        f'margin:0 0 16px;-webkit-touch-callout:default;display:block;margin-left:auto;margin-right:auto">'
+        for i, k in enumerate(("img1", "img2", "img3"), 1))
+    body = (f'<div style="max-width:540px;margin:0 auto;padding:18px 14px 60px;text-align:center">'
+            f'<div style="font-weight:800;font-size:19px;margin:0 0 2px">{r["title_text"] or r["school_name"]}</div>'
+            f'<div style="color:#7c8aa0;font-size:14px;margin:0 0 18px">{r["school_name"]} · {sub}<br>'
+            f'<b>Long-press each image → Save to Photos</b></div>{imgs}</div>')
+    return _page(body, title="Carousel · Candor")
+
+
 @app.route("/content/queue/<int:cid>/<action>", methods=["POST"])
 @login_required
 def content_queue_action(cid, action):
@@ -11542,8 +11621,11 @@ def content_today():
     if not _is_creator():
         abort(404)
     with db() as conn:
+        # show the WHOLE ready queue (pending + released) so visibility never
+        # depends on the release cron or the Mac being awake — released first.
         released = conn.execute(
-            "SELECT * FROM content_queue WHERE status='released' ORDER BY released_at DESC, id DESC").fetchall()
+            "SELECT * FROM content_queue WHERE status IN ('released','pending') "
+            "ORDER BY CASE status WHEN 'released' THEN 0 ELSE 1 END, id DESC").fetchall()
         pending = conn.execute("SELECT COUNT(*) c FROM content_queue WHERE status='pending'").fetchone()["c"]
         posted = conn.execute("SELECT COUNT(*) c FROM content_queue WHERE status='posted'").fetchone()["c"]
     cards = []
@@ -11594,7 +11676,7 @@ def content_profile():
 @app.route("/profile/<slug>/export")
 @login_required
 def profile_slide_export(slug):
-    if not _is_creator():
+    if not (_is_creator() or _has_render_key()):
         abort(404)
     from html import escape as _esc
     sch = COLLEGES_BY_SLUG.get(slug)
@@ -11656,7 +11738,9 @@ def profile_slide_export(slug):
   <div style="{head_css}">EXTRACURRICULARS</div>
   <ul style="list-style:disc;margin:0;padding-left:34px;color:#111">{ec_html}</ul>
   {logo_html}'''
-    return Response(_profile_export_page(inner, dl_name=slug), mimetype="text/html")
+    return Response(_profile_export_page(inner, dl_name=slug,
+                                         clean=request.args.get("clean") == "1"),
+                    mimetype="text/html")
 
 
 # Inter 700/800 embedded as base64 @font-face (family 'InterEmb'). html-to-image
@@ -11733,18 +11817,45 @@ __INTERFACE__
 </script></body></html>"""
 
 
-def _profile_export_page(inner_html, dl_name="profile", pad="80px 78px 64px"):
+def _profile_export_page(inner_html, dl_name="profile", pad="80px 78px 64px", clean=False):
     """Render a white profile slide on its OWN white-canvas template (NOT the
     dark chances template, which was bleeding dark into the save and glitching
-    it). Content auto-scales to fit so nothing is cut off."""
+    it). Content auto-scales to fit so nothing is cut off.
+
+    clean=True returns a minimal, control-free page with the card at exactly
+    1024x1536 at the top-left — for headless-Chrome screenshot by the autopilot
+    renderer (no scaler, no buttons, fonts embedded, auto-fit runs on load)."""
     card = ('<link href="https://fonts.googleapis.com/css2?family=Anton&display=swap" rel="stylesheet">'
             '<div id="card" style="width:1024px;height:1536px;background:#fff;position:relative;overflow:hidden;'
             "font-family:'InterEmb',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif\">"
             f'<div id="pcontent" style="position:absolute;top:0;left:0;width:1024px;box-sizing:border-box;'
             f'padding:{pad};color:#111;transform-origin:top center;display:flex;flex-direction:column;align-items:stretch">'
             + inner_html + '</div></div>')
+    if clean:
+        return _clean_render_page(card, bg="#ffffff", fit=True)
     return (_PROFILE_EXPORT_HTML.replace("__CARD__", card)
             .replace("__DL__", dl_name).replace("__INTERFACE__", _INTER_FACE))
+
+
+def _clean_render_page(card_html, bg="#ffffff", fit=True):
+    """Minimal headless-render page: embedded fonts + the 1024x1536 card pinned
+    at top-left, no controls/scaler. Sets window.__RENDER_READY__ once fonts and
+    the auto-fit settle, so the renderer can poll before screenshotting."""
+    fit_js = """
+   function fit(){var c=document.getElementById('pcontent');if(!c)return;
+     c.style.transform='none';var h=c.scrollHeight;if(h>1536){c.style.transform='scale('+(1536/h)+')';}}
+   fit();""" if fit else ""
+    return ("<!doctype html><html lang=en><head><meta charset=utf-8>"
+            + _INTER_FACE + _NEWS_FACE
+            + "<style>html,body{margin:0;padding:0;background:" + bg + "}"
+              "#card{box-shadow:none!important}</style></head><body>"
+            + card_html
+            + "<script>" + fit_js + """
+   window.__RENDER_READY__=false;
+   function done(){window.__RENDER_READY__=true;}
+   if(document.fonts&&document.fonts.ready){document.fonts.ready.then(function(){"""
+            + ("fit();" if fit else "") + """setTimeout(done,60);});}else{setTimeout(done,200);}
+   </script></body></html>""")
 
 
 def _profile_card_body(p, title, accent, footer_html):
