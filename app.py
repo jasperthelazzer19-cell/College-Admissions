@@ -3581,6 +3581,11 @@ def confidence_level(profile, components):
 # ─── CLAUDE-POWERED REASONING (with template fallback) ───
 def _claude(model, system, user, max_tokens=400, temperature=1.0):
     if not _claude_client: return None
+    # GRADER_FAST=1 (set only by the TikTok autopilot render process) downgrades
+    # Sonnet -> Haiku to keep content generation cheap. The live site never sets
+    # it, so real users always get the full Sonnet-quality grader.
+    if model and "sonnet" in model and os.environ.get("GRADER_FAST") == "1":
+        model = "claude-haiku-4-5-20251001"
     try:
         msg = _claude_client.messages.create(model=model, max_tokens=max_tokens, temperature=temperature, system=system, messages=[{"role":"user","content":user}])
         return msg.content[0].text

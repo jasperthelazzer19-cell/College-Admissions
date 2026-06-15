@@ -83,7 +83,7 @@ def main():
 
     # spawn the local render app once for the batch
     env = dict(os.environ, PORT=str(factory.LOCAL_PORT), CRON_KEY=factory.CRON_KEY,
-               ANTHROPIC_KEY=factory.ANTHROPIC_KEY)
+               ANTHROPIC_KEY=factory.ANTHROPIC_KEY, GRADER_FAST="1")
     proc = subprocess.Popen([sys.executable, os.path.join(factory.ROOT, "app.py")], env=env,
                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     try:

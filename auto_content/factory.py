@@ -198,7 +198,8 @@ def main():
     for k, v in (("CRON_KEY", CRON_KEY), ("ANTHROPIC_KEY", ANTHROPIC_KEY)):
         if not v:
             print(f"{k} not set — refusing to run."); sys.exit(1)
-    env = dict(os.environ, PORT=str(LOCAL_PORT), CRON_KEY=CRON_KEY, ANTHROPIC_KEY=ANTHROPIC_KEY)
+    env = dict(os.environ, PORT=str(LOCAL_PORT), CRON_KEY=CRON_KEY, ANTHROPIC_KEY=ANTHROPIC_KEY,
+               GRADER_FAST="1")   # cheap Haiku grading for autopilot content only
     proc = subprocess.Popen([sys.executable, os.path.join(ROOT, "app.py")], env=env,
                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     try:
