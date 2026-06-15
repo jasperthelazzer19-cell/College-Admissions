@@ -4325,6 +4325,10 @@ def init_db():
             meta TEXT
         )""")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_cq_status ON content_queue(status, created_at)")
+        try:   # head-to-head needs a 4th slide (title + Student A + Student B + result)
+            conn.execute("ALTER TABLE content_queue ADD COLUMN img4 TEXT")
+        except sqlite3.OperationalError:
+            pass
         conn.commit()
 
 
@@ -11411,7 +11415,7 @@ SCHOOL_BRAND = {
     "ucsb": ("UC SANTA BARBARA", "#003660"), "uci": ("UC IRVINE", "#0064A4"),
     "ucd": ("UC DAVIS", "#022851"), "uc-davis": ("UC DAVIS", "#022851"),
     "ut-austin": ("TEXAS", "#BF5700"), "uw": ("WASHINGTON", "#4B2E83"),
-    "wisconsin": ("WISCONSIN", "#C5050C"), "uiuc": ("ILLINOIS", "#13294B"),
+    "wisconsin": ("WISCONSIN", "#C5050C"), "uiuc": ("ILLINOIS", "#E84A27"),
     "purdue": ("PURDUE", "#B1810B"), "ucla-anderson": ("UCLA", "#2774AE"),
     # Jun 2026: real colors for the remaining content-mode (INST_LOGOS) schools
     # that were falling back to default navy.
@@ -11445,11 +11449,18 @@ def _school_brand(slug, name):
     return (short[:22], "#1a2a52")
 
 
-def _hook_html(hook, accent):
+# Schools whose accent reads better with a colored text outline (matches the
+# logo: e.g. Illinois = orange fill + navy outline).
+SCHOOL_TEXT_OUTLINE = {"uiuc": "#13294B"}
+
+
+def _hook_html(hook, accent, outline=None):
     """Render a hook string into title HTML. Words wrapped in *asterisks* render
     in the school accent color (e.g. "WOULD YOU *ADMIT* THIS STUDENT TO
-    *MICHIGAN*?"); everything else is near-black. Used by the slide-1 generator."""
+    *MICHIGAN*?"); everything else is near-black. `outline` adds a colored
+    text-stroke to the accent words (e.g. Illinois orange w/ navy outline)."""
     from html import escape as _esc
+    stroke = (f";-webkit-text-stroke:3px {outline};paint-order:stroke fill" if outline else "")
     parts, accent_on, buf = [], False, ""
     for ch in hook:
         if ch == "*":
@@ -11460,7 +11471,7 @@ def _hook_html(hook, accent):
             buf += ch
     if buf:
         parts.append((_esc(buf), accent_on))
-    return "".join(f'<span style="color:{accent}">{t}</span>' if a else t for t, a in parts)
+    return "".join(f'<span style="color:{accent}{stroke}">{t}</span>' if a else t for t, a in parts)
 
 
 def _title_card_body(slug, sch, hook, nologo=False):
@@ -11470,13 +11481,14 @@ def _title_card_body(slug, sch, hook, nologo=False):
     with the school logo at the bottom. Accent words use *asterisks*; a whole
     line can be accent by wrapping the line. Fills the 9:16 frame densely."""
     short, color = _school_brand(slug, sch.get("name"))
+    outline = SCHOOL_TEXT_OUTLINE.get(slug)
     logo_url = None if nologo else (INST_LOGOS.get(slug) or SCHOOL_LOGOS.get(slug))
     logo_html = (f'<img src="{logo_url}" style="max-height:250px;max-width:74%;object-fit:contain;display:block;margin:0 auto">'
                  if logo_url else '')
     lines = [ln for ln in hook.upper().split("\n") if ln.strip()]
     line_html = "".join(
         f'<div class="tline" style="line-height:.95;font-size:120px">'
-        f'<span class="tin" style="display:inline-block;white-space:nowrap">{_hook_html(ln, color)}</span></div>'
+        f'<span class="tin" style="display:inline-block;white-space:nowrap">{_hook_html(ln, color, outline)}</span></div>'
         for ln in lines)
     # fixed 360px bottom band with the logo centered in it -> the logo can never
     # reach the card edge (so it never clips), and text fills the space above.
@@ -11496,6 +11508,65 @@ def _title_card_body(slug, sch, hook, nologo=False):
             f'ls.forEach(function(l){{l.style.fontSize=Math.floor(parseFloat(l.style.fontSize)*k)+"px";}});}}}}'
             f'if(document.fonts&&document.fonts.ready){{document.fonts.ready.then(fit);}}else{{fit();}}'
             f'setTimeout(fit,250);setTimeout(fit,700);}})();</script>')
+
+
+def _compare_title_body(slugs):
+    """Compare slide-1: 'THIS STUDENT APPLIED TO {A}, {B} & {C}...' — each school
+    name in ITS OWN brand color, with all the school logos in a row at the bottom.
+    Each line scaled to fill the width (same justified-block look)."""
+    schools = []
+    for s in slugs:
+        sc = COLLEGES_BY_SLUG.get(s)
+        if not sc:
+            continue
+        short, color = _school_brand(s, sc.get("name"))
+        schools.append((short, color, INST_LOGOS.get(s) or SCHOOL_LOGOS.get(s)))
+    n = len(schools)
+    rows = ['THIS STUDENT', 'APPLIED TO']
+    line_html = "".join(
+        f'<div class="tline" style="line-height:.95;font-size:120px">'
+        f'<span class="tin" style="display:inline-block;white-space:nowrap;color:#111">{r}</span></div>'
+        for r in rows)
+    for i, (short, color, _logo) in enumerate(schools):
+        suffix = "," if i < n - 2 else (" &" if i == n - 2 else "...")
+        line_html += (f'<div class="tline" style="line-height:.95;font-size:120px">'
+                      f'<span class="tin" style="display:inline-block;white-space:nowrap">'
+                      f'<span style="color:{color}">{short}</span><span style="color:#111">{suffix}</span>'
+                      f'</span></div>')
+    logos = "".join(f'<img src="{l}" style="max-height:150px;max-width:30%;object-fit:contain">'
+                    for (_s, _c, l) in schools if l)
+    logo_row = (f'<div style="display:flex;align-items:flex-end;justify-content:center;gap:26px;'
+                f'width:100%">{logos}</div>')
+    return (f'<div id="tcard" style="height:1402px;display:flex;flex-direction:column;'
+            f"font-family:'AntonEmb','Anton',sans-serif;font-weight:400;letter-spacing:-2px;color:#111;text-transform:uppercase\">"
+            f'<div id="tbox" style="display:flex;flex-direction:column;justify-content:center;flex:1;'
+            f'text-align:center;gap:8px;min-height:0">{line_html}</div>'
+            f'<div style="flex:0 0 250px;display:flex;align-items:center;justify-content:center">{logo_row}</div>'
+            f'</div>'
+            f'<script>(function(){{function fit(){{'
+            f'var box=document.getElementById("tbox");if(!box)return;var cw=box.clientWidth;'
+            f'var ls=[].slice.call(box.querySelectorAll(".tline"));'
+            f'ls.forEach(function(l){{l.style.fontSize="120px";'
+            f'var w=l.querySelector(".tin").getBoundingClientRect().width;'
+            f'if(w>0){{l.style.fontSize=Math.floor(120*cw/w)+"px";}}}});'
+            f'var maxH=1000;if(box.scrollHeight>maxH){{var k=maxH/box.scrollHeight;'
+            f'ls.forEach(function(l){{l.style.fontSize=Math.floor(parseFloat(l.style.fontSize)*k)+"px";}});}}}}'
+            f'if(document.fonts&&document.fonts.ready){{document.fonts.ready.then(fit);}}else{{fit();}}'
+            f'setTimeout(fit,250);setTimeout(fit,700);}})();</script>')
+
+
+@app.route("/title-compare/export")
+@login_required
+def title_compare_export():
+    """Compare slide-1 ('THIS STUDENT APPLIED TO A, B & C...'). slugs=a,b,c."""
+    if not (_is_creator() or _has_render_key()):
+        abort(404)
+    slugs = [s.strip() for s in (request.args.get("slugs") or "").split(",") if s.strip()]
+    slugs = [s for s in slugs if s in COLLEGES_BY_SLUG][:4]
+    if len(slugs) < 2:
+        abort(404)
+    return Response(_profile_export_page(_compare_title_body(slugs), dl_name="compare-title",
+                                         clean=request.args.get("clean") == "1"), mimetype="text/html")
 
 
 @app.route("/title/export")
@@ -11547,12 +11618,12 @@ def content_queue_push():
         cur = conn.execute(
             """INSERT INTO content_queue
                (school_slug, school_name, accent, title_text, title_formula, slide3_type,
-                profile_json, odds_text, grade_text, img1, img2, img3, meta)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                profile_json, odds_text, grade_text, img1, img2, img3, img4, meta)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (d.get("school_slug"), d.get("school_name"), d.get("accent"),
              d.get("title_text"), d.get("title_formula"), d.get("slide3_type"),
              d.get("profile_json"), d.get("odds_text"), d.get("grade_text"),
-             d.get("img1"), d.get("img2"), d.get("img3"),
+             d.get("img1"), d.get("img2"), d.get("img3"), d.get("img4"),
              json.dumps(d.get("meta")) if d.get("meta") is not None else None))
         conn.commit()
         pending = conn.execute("SELECT COUNT(*) c FROM content_queue WHERE status='pending'").fetchone()["c"]
@@ -11617,10 +11688,11 @@ def content_view_one(cid):
     if not r:
         abort(404)
     sub = r["odds_text"] or r["grade_text"] or ""
+    _keys = [k for k in ("img1", "img2", "img3", "img4") if r[k]]
     imgs = "".join(
         f'<img src="{r[k]}" alt="slide {i}" style="width:100%;max-width:500px;border-radius:14px;'
         f'margin:0 0 16px;-webkit-touch-callout:default;display:block;margin-left:auto;margin-right:auto">'
-        for i, k in enumerate(("img1", "img2", "img3"), 1))
+        for i, k in enumerate(_keys, 1))
     body = (f'<div style="max-width:540px;margin:0 auto;padding:18px 14px 60px;text-align:center">'
             f'<div style="font-weight:800;font-size:19px;margin:0 0 2px">{r["title_text"] or r["school_name"]}</div>'
             f'<div style="color:#7c8aa0;font-size:14px;margin:0 0 18px">{r["school_name"]} · {sub}<br>'
@@ -11663,7 +11735,7 @@ def content_today():
             f'<div style="flex:1;min-width:150px"><img src="{r[k]}" alt="slide {i}" '
             f'style="width:100%;border-radius:12px;border:1px solid #1d2a3d;-webkit-touch-callout:default">'
             f'<div style="text-align:center;font-size:12px;color:#7c8aa0;margin-top:4px">Slide {i} · long-press to save</div></div>'
-            for i, k in enumerate(("img1", "img2", "img3"), 1))
+            for i, k in enumerate([k for k in ("img1", "img2", "img3", "img4") if r[k]], 1))
         meta = f'{r["school_name"] or r["school_slug"] or ""} · {r["slide3_type"] or ""}'
         odds = r["odds_text"] or r["grade_text"] or ""
         cards.append(
@@ -11711,10 +11783,12 @@ def profile_slide_export(slug):
     sch = COLLEGES_BY_SLUG.get(slug)
     if not sch:
         abort(404)
-    p = get_profile(181)
+    _uid = 38 if request.args.get("uid") == "38" else 181
+    p = get_profile(_uid)
     if not p:
         return redirect(url_for("profile_page"))
     short, color = _school_brand(slug, sch.get("name"))
+    _label = request.args.get("label")   # e.g. "STUDENT A" — overrides the "SCHOOL?" header
 
     def numln(n, label):
         return (f'<li><span style="color:{color};font-weight:800">{_esc(str(n))}</span> {_esc(label)}</li>')
@@ -11761,7 +11835,8 @@ def profile_slide_export(slug):
     head_css = ("font-family:'AntonEmb','Anton',sans-serif;font-weight:400;letter-spacing:.5px;"
                 "font-size:56px;margin:0 0 14px;color:#111")
 
-    inner = f'''<div style="font-family:'AntonEmb','Anton',sans-serif;font-weight:400;font-size:150px;line-height:.92;color:{color};letter-spacing:-1px;margin:0 0 30px">{_esc(short)}?</div>
+    _header = _esc(_label) if _label else f"{_esc(short)}?"
+    inner = f'''<div style="font-family:'AntonEmb','Anton',sans-serif;font-weight:400;font-size:150px;line-height:.92;color:{color};letter-spacing:-1px;margin:0 0 30px">{_header}</div>
   <div style="{head_css}">ACADEMICS</div>
   <ul style="list-style:disc;margin:0 0 34px;padding-left:34px;color:#111">{acad_html}</ul>
   <div style="{head_css}">EXTRACURRICULARS</div>

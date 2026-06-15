@@ -206,43 +206,43 @@ def make_single(dry=False, slug=None, slide3=None):
 
 
 def make_compare(dry=False):
-    """One student ranked across several schools (the 'compare' content feature)."""
+    """One student 'applied to' several schools (the 'compare' content feature).
+    Slide 1 = 'THIS STUDENT APPLIED TO A, B & C...' with each school in its own
+    color + all logos; slide 3 = the ranking."""
     slug = random.choice(SCHOOLS)
-    comp = [slug] + random.sample([s for s in SCHOOLS if s != slug], 3)
+    comp = [slug] + random.sample([s for s in SCHOOLS if s != slug], 2)   # 3 schools
     g = gen_profile.generate(slug)          # profile -> 181
     odds, _, _, _, _ = odds_grade_text(slug, g["profile"], want_grade=False)
     accent = app._school_brand(slug, g["name"])[1]
-    lines = random.choice([["CAN THIS STUDENT", "GET INTO ANY", "OF THESE?"],
-                           ["RANKING THIS", "STUDENT'S", "REACH SCHOOLS"],
-                           ["WHICH OF THESE", "WOULD TAKE", "THIS STUDENT?"]])
     tmp = "/tmp/cren_factory"; os.makedirs(tmp, exist_ok=True)
-    s1 = _title_png(slug, lines, [], nologo=True)
+    s1 = _shot(f"{tmp}/c1.png", f"{LOCAL_URL}/title-compare/export?rkey={CRON_KEY}&clean=1&slugs={','.join(comp)}")
     s2 = _shot(f"{tmp}/c2.png", f"{LOCAL_URL}/profile-neutral/export?rkey={CRON_KEY}&clean=1")
     s3 = _shot(f"{tmp}/c3.png", f"{LOCAL_URL}/compare/export?rkey={CRON_KEY}&clean=1&slugs={','.join(comp)}")
     shorts = ", ".join(app._school_brand(s, app.COLLEGES_BY_SLUG[s].get('name'))[0] for s in comp)
     payload = dict(school_slug=slug, school_name=f"Compare: {shorts}", accent=accent,
-                   title_text=" ".join(lines), title_formula="compare", slide3_type="compare",
-                   profile_json=json.dumps(g["profile"]), odds_text=odds, grade_text="",
-                   img1=s1, img2=s2, img3=s3, meta={"compare": comp})
+                   title_text=f"THIS STUDENT APPLIED TO {shorts}", title_formula="compare",
+                   slide3_type="compare", profile_json=json.dumps(g["profile"]),
+                   odds_text=odds, grade_text="", img1=s1, img2=s2, img3=s3, meta={"compare": comp})
     return _finish(payload, dry, f"COMPARE {shorts}")
 
 
 def make_h2h(dry=False):
-    """Two students head-to-head for one school (the 'head-to-head' feature)."""
+    """Head-to-head: 4 slides — title, Student A profile, Student B profile, and
+    the A-vs-B result for one school. Generates TWO profiles (181=A, 38=B)."""
     slug = random.choice(SCHOOLS)
     gA = gen_profile.generate(slug, uid=181)   # student A
     gen_profile.generate(slug, uid=38)         # student B
     short, accent = app._school_brand(slug, gA["name"])
-    lines = [["WHICH STUDENT", "GETS INTO", f"{short}?"],
-             ["WHO GETS INTO", short + ",", "A OR B?"]][random.randint(0, 1)]
+    lines = ["WHICH STUDENT", "GETS INTO", f"{short}?"]
     tmp = "/tmp/cren_factory"; os.makedirs(tmp, exist_ok=True)
     s1 = _title_png(slug, lines, [short])
-    s2 = _shot(f"{tmp}/h2.png", f"{LOCAL_URL}/profile/{slug}/export?rkey={CRON_KEY}&clean=1")
-    s3 = _shot(f"{tmp}/h3.png", f"{LOCAL_URL}/headtohead/{slug}/export?rkey={CRON_KEY}&clean=1")
+    s2 = _shot(f"{tmp}/h2.png", f"{LOCAL_URL}/profile/{slug}/export?rkey={CRON_KEY}&clean=1&uid=181&label=STUDENT%20A")
+    s3 = _shot(f"{tmp}/h3.png", f"{LOCAL_URL}/profile/{slug}/export?rkey={CRON_KEY}&clean=1&uid=38&label=STUDENT%20B")
+    s4 = _shot(f"{tmp}/h4.png", f"{LOCAL_URL}/headtohead/{slug}/export?rkey={CRON_KEY}&clean=1")
     payload = dict(school_slug=slug, school_name=f"H2H: {gA['name']}", accent=accent,
                    title_text=" ".join(lines), title_formula="h2h", slide3_type="h2h",
                    profile_json=json.dumps(gA["profile"]), odds_text="", grade_text="",
-                   img1=s1, img2=s2, img3=s3, meta={"head_to_head": True})
+                   img1=s1, img2=s2, img3=s3, img4=s4, meta={"head_to_head": True})
     return _finish(payload, dry, f"H2H {short}")
 
 
