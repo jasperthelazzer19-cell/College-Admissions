@@ -10758,8 +10758,13 @@ __CARD__
     var t=card.querySelector('.title'); if(!t) return;
     var size=card.classList.contains('compact')?60:54;
     t.style.whiteSpace='nowrap'; t.style.fontSize=size+'px';
+    // measure against the card's INNER width (clientWidth minus horizontal padding),
+    // not the title's own clientWidth — with nowrap the title expands to its content
+    // so its own scrollWidth==clientWidth and it would never shrink (long compare
+    // question was overflowing the card on both sides).
+    var avail=card.clientWidth-128;
     var guard=0;
-    while(t.scrollWidth>t.clientWidth && size>26 && guard<60){ size-=2; guard++; t.style.fontSize=size+'px'; }
+    while(t.scrollWidth>avail && size>20 && guard<90){ size-=2; guard++; t.style.fontSize=size+'px'; }
   }
   // run on load + after the web font settles so the preview never overflows
   fitText(); fitTitle(); setTimeout(function(){fitText();fitTitle();},120); setTimeout(function(){fitText();fitTitle();},500);
