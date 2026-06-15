@@ -8600,7 +8600,7 @@ def service_worker():
     # Network-first for pages (always fresh content/odds), cache-first for static
     # assets (logos, icons). Bump CACHE to invalidate the static cache on deploy.
     js = """
-const CACHE='candor-v9';
+const CACHE='candor-v10';
 const STATIC=/\\/static\\//;
 self.addEventListener('install',e=>{self.skipWaiting();});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});
@@ -11405,7 +11405,7 @@ def profile_slide_export(slug):
         logo_html = (f'<div style="margin:40px auto 0;font-family:Georgia,\'Times New Roman\',serif;'
                      f'font-style:italic;font-weight:700;font-size:80px;color:{color};letter-spacing:-1px">{_esc(short.title())}</div>')
 
-    li_css = "font-size:30px;line-height:1.5;margin:0;font-weight:700"
+    li_css = "font-size:30px;line-height:1.5;margin:0;font-weight:800"
     acad_html = "".join(acad).replace("<li>", f'<li style="{li_css}">')
     ec_html = "".join(plainln(x) for x in ec_lines).replace("<li>", f'<li style="{li_css}">')
     head_css = ("font-family:'Anton',sans-serif;font-weight:400;letter-spacing:.5px;"
@@ -11501,9 +11501,9 @@ def _profile_card_body(p, title, accent, footer_html):
     """Inner HTML of a white profile slide (title + ACADEMICS + EXTRACURRICULARS)."""
     from html import escape as _h
     def numln(n, label):
-        return f'<li style="font-size:30px;line-height:1.5;margin:0;font-weight:700"><span style="color:{accent};font-weight:800">{_h(str(n))}</span> {_h(label)}</li>'
+        return f'<li style="font-size:30px;line-height:1.5;margin:0;font-weight:800"><span style="color:{accent};font-weight:800">{_h(str(n))}</span> {_h(label)}</li>'
     def plainln(t):
-        return f'<li style="font-size:30px;line-height:1.5;margin:0;font-weight:700">{_h(t)}</li>'
+        return f'<li style="font-size:30px;line-height:1.5;margin:0;font-weight:800">{_h(t)}</li>'
     acad = []
     if p.get("uw_gpa") is not None: acad.append(numln(p["uw_gpa"], "UW GPA"))
     if p.get("weighted_gpa") is not None: acad.append(numln(p["weighted_gpa"], "W GPA"))
