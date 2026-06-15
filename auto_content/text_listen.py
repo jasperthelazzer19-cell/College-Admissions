@@ -83,30 +83,57 @@ def text_back(msg):
     subprocess.run(["osascript", "-e", script], capture_output=True, timeout=30)
 
 
+def _is_batch_trigger(text):
+    """True if the text asks for a full batch (not a specific school)."""
+    t = (text or "").lower().strip()
+    if any(c.isalpha() for c in t) is False:   # e.g. just "4"
+        return t in ("4", "16")
+    keys = ("trigger", "make a batch", "batch", "run it", "run the", "fire the",
+            "do a batch", "make 4", "make four", "fresh batch", "give me a batch")
+    return any(k in t for k in keys)
+
+
+def _link(cid):
+    return f"{factory.TARGET_URL}/content/c/{cid}?key={factory.urllib.parse.quote(factory.CRON_KEY)}"
+
+
 def main():
     msgs = new_messages()
     if not msgs:
         return
-    reqs = [(rid, parse_request(txt)) for rid, txt in msgs]
-    todo = [(rid, r) for rid, r in reqs if r]
     max_rowid = max(rid for rid, _ in msgs)
-    if not todo:
+    batch = any(_is_batch_trigger(t) for _, t in msgs)
+    specifics = [(rid, r) for rid, t in msgs
+                 for r in ([parse_request(t)] if not _is_batch_trigger(t) else [None]) if r]
+    if not batch and not specifics:
         _save_rowid(max_rowid); return       # nothing actionable; advance cursor
 
-    # render server in THIS process (shared DB, no cross-process IO error)
     os.environ.setdefault("GRADER_FAST", "1")
     factory.start_local_server()
     try:
         if not factory.wait_local_app():
             print("render server didn't start"); return
-        for rid, r in todo:
+        if batch:
+            n = int(os.environ.get("SLOT_COUNT", "4"))
+            text_back(f"On it — making a fresh batch of {n} \U0001F3AC give me a few min...")
+            made = []
+            for i in range(n):
+                for attempt in range(3):
+                    try:
+                        cid, name = factory.make_one()
+                        if cid:
+                            made.append((cid, name)); break
+                    except Exception as e:
+                        print(f"batch {i} attempt {attempt}: {e}")
+            if made:
+                factory.text_carousels(made)
+        for rid, r in specifics:
             try:
                 text_back(f"Got it — making your {app.COLLEGES_BY_SLUG[r['slug']].get('name')} "
                           f"{r['slide3']} carousel, one sec...")
                 cid, name = factory.make_one(slug=r["slug"], slide3=r["slide3"])
                 if cid:
-                    link = f"{factory.TARGET_URL}/content/c/{cid}?key={factory.urllib.parse.quote(factory.CRON_KEY)}"
-                    text_back(f"Done \U0001F3AC {name}: {link}")
+                    text_back(f"Done \U0001F3AC {name}: {_link(cid)}")
             except Exception as e:
                 print(f"make failed for {r}: {e}")
                 text_back("Sorry, that one failed to generate — try again?")
