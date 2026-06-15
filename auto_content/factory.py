@@ -244,15 +244,51 @@ def make_h2h(dry=False):
     return _finish(payload, dry, f"H2H {short}")
 
 
+# ── daily head-to-head cap (they cost ~2-4x a normal carousel) ─────────────
+H2H_DAILY_CAP = int(os.environ.get("H2H_DAILY_CAP", "2"))
+_H2H_STATE = os.path.join(HERE, ".h2h_state.json")
+
+
+def _h2h_state():
+    import datetime
+    today = datetime.date.today().isoformat()
+    try:
+        d = json.load(open(_H2H_STATE))
+    except Exception:
+        d = {}
+    if d.get("date") != today:
+        d = {"date": today, "count": 0}
+    return d
+
+
+def _h2h_today():
+    return _h2h_state().get("count", 0)
+
+
+def _bump_h2h():
+    d = _h2h_state()
+    d["count"] = d.get("count", 0) + 1
+    try:
+        json.dump(d, open(_H2H_STATE, "w"))
+    except Exception:
+        pass
+
+
 def make_one(dry=False, slug=None, slide3=None, ctype=None):
     """Dispatcher. Explicit slug (text-to-make) -> single. Otherwise rotate types
-    so the feed cycles through every Candor format."""
+    so the feed cycles through every Candor format, capping head-to-head at
+    H2H_DAILY_CAP/day (they cost ~2-4x a normal carousel)."""
     if ctype is None:
-        ctype = "single" if slug else random.choices(
-            ["single", "compare", "h2h"], weights=[6, 2, 2])[0]
+        if slug:
+            ctype = "single"
+        else:
+            ctype = random.choices(["single", "compare", "h2h"], weights=[6, 3, 3])[0]
+            if ctype == "h2h" and _h2h_today() >= H2H_DAILY_CAP:
+                ctype = random.choice(["single", "compare"])
     if ctype == "compare":
         return make_compare(dry)
     if ctype == "h2h":
+        _bump_h2h()
         return make_h2h(dry)
     return make_single(dry, slug, slide3)
 
