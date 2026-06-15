@@ -185,15 +185,18 @@ def main():
         if not wait_local_app():
             print("local render app did not start"); sys.exit(2)
         if "--slot" in sys.argv:
-            # one slot: make SLOT_COUNT fresh carousels (options) and text all links
+            # one slot: make SLOT_COUNT fresh carousels (options) and text all links.
+            # retry each up to 3x — transient SQLite contention clears on retry.
             made = []
             for i in range(slot_count):
-                try:
-                    cid, name = make_one(dry=dry)
-                    if cid:
-                        made.append((cid, name))
-                except Exception as e:
-                    print(f"  carousel {i} failed: {e}")
+                for attempt in range(3):
+                    try:
+                        cid, name = make_one(dry=dry)
+                        if cid:
+                            made.append((cid, name)); break
+                    except Exception as e:
+                        print(f"  carousel {i} attempt {attempt} failed: {e}")
+                        time.sleep(2)
             if made:
                 text_carousels(made)
             print(f"slot done: {len(made)}/{slot_count} made")
