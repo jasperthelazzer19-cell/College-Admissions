@@ -162,10 +162,28 @@ def make_one(dry=False):
                    meta={"lines": lines, "accent_words": accent_words})
     if dry:
         print(f"  [dry] {slug} | {hook[:48]} | {g['slide3']} | {odds} {grade}")
-        return True
+        return None, g["name"]
     res = push(payload)
     print(f"  pushed #{res.get('id')} {slug} | {hook[:44]} | {odds} {grade} | pending={res.get('pending')}")
-    return res.get("ok")
+    return (res.get("id") if res.get("ok") else None), g["name"]
+
+
+def text_link(cid, school):
+    """iMessage the creator a tappable link to one carousel (file attachments are
+    broken via AppleScript on macOS, links send fine)."""
+    num = os.environ.get("PHONE", "")
+    if not num:
+        print("PHONE not set — skipping text"); return False
+    link = f"{TARGET_URL}/content/c/{cid}?key={urllib.parse.quote(CRON_KEY)}"
+    msg = f"New Candor carousel ({school}) ready \U0001F3AC tap to open, long-press each slide to save:"
+    script = (f'tell application "Messages"\n set svc to 1st service whose service type = iMessage\n'
+              f' set b to buddy "{num}" of svc\n send "{msg}" to b\n send "{link}" to b\nend tell')
+    try:
+        subprocess.run(["osascript", "-e", script], check=True, capture_output=True, timeout=30)
+        print(f"  texted link for #{cid} -> {num}")
+        return True
+    except Exception as e:
+        print("  text failed:", e); return False
 
 
 def main():
@@ -180,6 +198,20 @@ def main():
     try:
         if not wait_local_app():
             print("local render app did not start"); sys.exit(2)
+        if "--slot" in sys.argv:
+            # one slot: make a fresh carousel and text its link
+            cid, name = None, ""
+            for attempt in range(3):
+                try:
+                    cid, name = make_one(dry=dry)
+                    if cid:
+                        break
+                except Exception as e:
+                    print(f"  attempt {attempt} failed: {e}")
+            if cid:
+                text_link(cid, name)
+            print(f"slot done: id={cid}")
+            return
         if n_force is not None:
             need = n_force
         else:
@@ -189,7 +221,8 @@ def main():
         ok = 0
         for i in range(need):
             try:
-                if make_one(dry=dry):
+                cid, _ = make_one(dry=dry)
+                if cid:
                     ok += 1
             except Exception as e:
                 print(f"  carousel {i} failed: {e}")
