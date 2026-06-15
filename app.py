@@ -8600,7 +8600,7 @@ def service_worker():
     # Network-first for pages (always fresh content/odds), cache-first for static
     # assets (logos, icons). Bump CACHE to invalidate the static cache on deploy.
     js = """
-const CACHE='candor-v8';
+const CACHE='candor-v9';
 const STATIC=/\\/static\\//;
 self.addEventListener('install',e=>{self.skipWaiting();});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});
