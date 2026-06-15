@@ -3809,9 +3809,17 @@ def db():
     parent = os.path.dirname(DB_PATH)
     if parent:
         os.makedirs(parent, exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=30)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
+    # Wait (don't error) on a locked DB, and use WAL so readers/writers don't
+    # block each other — fixes the "disk I/O error" when the autopilot's
+    # generator process and its render app hit the DB at once.
+    conn.execute("PRAGMA busy_timeout = 30000")
+    try:
+        conn.execute("PRAGMA journal_mode = WAL")
+    except sqlite3.OperationalError:
+        pass
     return conn
 
 
@@ -11444,18 +11452,20 @@ def _title_card_body(slug, sch, hook):
     line can be accent by wrapping the line. Fills the 9:16 frame densely."""
     short, color = _school_brand(slug, sch.get("name"))
     logo_url = INST_LOGOS.get(slug) or SCHOOL_LOGOS.get(slug)
-    logo_html = (f'<img src="{logo_url}" style="height:300px;max-width:78%;object-fit:contain;display:block;margin:0 auto">'
+    logo_html = (f'<img src="{logo_url}" style="max-height:250px;max-width:74%;object-fit:contain;display:block;margin:0 auto">'
                  if logo_url else '')
     lines = [ln for ln in hook.upper().split("\n") if ln.strip()]
     line_html = "".join(
         f'<div class="tline" style="line-height:.95;font-size:120px">'
         f'<span class="tin" style="display:inline-block;white-space:nowrap">{_hook_html(ln, color)}</span></div>'
         for ln in lines)
+    # fixed 360px bottom band with the logo centered in it -> the logo can never
+    # reach the card edge (so it never clips), and text fills the space above.
     return (f'<div id="tcard" style="height:1402px;display:flex;flex-direction:column;'
             f"font-family:'AntonEmb','Anton',sans-serif;font-weight:400;letter-spacing:-2px;color:#111;text-transform:uppercase\">"
             f'<div id="tbox" style="display:flex;flex-direction:column;justify-content:center;flex:1;'
-            f'text-align:center;gap:8px">{line_html}</div>'
-            f'<div style="flex:0 0 auto;display:flex;align-items:center;justify-content:center;padding-bottom:10px">{logo_html}</div>'
+            f'text-align:center;gap:8px;min-height:0">{line_html}</div>'
+            f'<div style="flex:0 0 360px;display:flex;align-items:center;justify-content:center">{logo_html}</div>'
             f'</div>'
             f'<script>(function(){{function fit(){{'
             f'var box=document.getElementById("tbox");if(!box)return;var cw=box.clientWidth;'
@@ -11463,7 +11473,7 @@ def _title_card_body(slug, sch, hook):
             f'ls.forEach(function(l){{l.style.fontSize="120px";'
             f'var w=l.querySelector(".tin").getBoundingClientRect().width;'
             f'if(w>0){{l.style.fontSize=Math.floor(120*cw/w)+"px";}}}});'
-            f'var maxH=1120;if(box.scrollHeight>maxH){{var k=maxH/box.scrollHeight;'
+            f'var maxH=1020;if(box.scrollHeight>maxH){{var k=maxH/box.scrollHeight;'
             f'ls.forEach(function(l){{l.style.fontSize=Math.floor(parseFloat(l.style.fontSize)*k)+"px";}});}}}}'
             f'if(document.fonts&&document.fonts.ready){{document.fonts.ready.then(fit);}}else{{fit();}}'
             f'setTimeout(fit,250);setTimeout(fit,700);}})();</script>')

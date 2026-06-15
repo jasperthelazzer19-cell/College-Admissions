@@ -40,34 +40,7 @@ from auto_content import gen_profile  # noqa: E402
 SCHOOLS = sorted(set(app.INST_LOGOS) & set(app.COLLEGES_BY_SLUG))
 
 
-# ── slide 1: title via gpt-image-1 ─────────────────────────────────────────
-def gen_title_image(name, lines, accent_words):
-    accent = ", ".join(f'"{w}"' for w in accent_words) or f'"{name}"'
-    prompt = (
-        "Vertical 9:16 social-media title slide, pure solid white background, no border, no frame. "
-        "Typography only, in a heavy ultra-condensed bold uppercase sans-serif (like the font 'Anton'), "
-        "center-aligned, lines stacked tightly with small gaps, EACH line scaled large so it spans almost "
-        "the full width. Use EXACTLY these lines, one per line, spelled EXACTLY:\n"
-        + "\n".join(lines) + "\n"
-        f"Color these words in {name}'s official primary brand color: {accent}. Every other word is black. "
-        f"Below the text, centered in the lower area, place the official {name} logo (recognizable, correct colors). "
-        "Clean, crisp, high-contrast, modern. Correct spelling. No watermark, no extra words, no UI."
-    )
-    body = json.dumps({"model": "gpt-image-1", "prompt": prompt, "size": "1024x1536",
-                       "quality": IMG_QUALITY, "n": 1}).encode()
-    req = urllib.request.Request("https://api.openai.com/v1/images/generations", data=body,
-                                 headers={"Authorization": f"Bearer {OPENAI_KEY}", "Content-Type": "application/json"})
-    d = json.loads(urllib.request.urlopen(req, timeout=180).read())
-    b64 = d["data"][0]["b64_json"]
-    try:
-        os.makedirs("/tmp/cren_factory", exist_ok=True)
-        open("/tmp/cren_factory/title.png", "wb").write(base64.b64decode(b64))
-    except Exception:
-        pass
-    return "data:image/png;base64," + b64
-
-
-# ── slides 2 & 3: Candor exports via headless Chrome ───────────────────────
+# ── all slides rendered FREE via headless Chrome (no image API) ────────────
 def _shot(out_path, url):
     subprocess.run([CHROME, "--headless=new", "--disable-gpu", "--hide-scrollbars",
                     "--force-device-scale-factor=2", "--window-size=1024,1536",
@@ -77,13 +50,18 @@ def _shot(out_path, url):
         return "data:image/png;base64," + base64.b64encode(f.read()).decode()
 
 
-def render_candor_slides(slug, slide3):
+def render_slides(slug, slide3, lines):
+    """All 3 slides as PNG data URLs, rendered FREE via headless Chrome against the
+    local Candor app. Slide 1 = HTML title (per-line fill + HD cached logo),
+    slides 2 & 3 = the Candor profile + chances/grade exports."""
     tmp = "/tmp/cren_factory"; os.makedirs(tmp, exist_ok=True)
+    hook = urllib.parse.quote("\n".join(lines))
+    s1 = _shot(f"{tmp}/s1.png", f"{LOCAL_URL}/title/export?rkey={CRON_KEY}&clean=1&slug={slug}&hook={hook}")
     s2 = _shot(f"{tmp}/s2.png", f"{LOCAL_URL}/profile/{slug}/export?rkey={CRON_KEY}&clean=1")
     s3url = (f"{LOCAL_URL}/grade/export?rkey={CRON_KEY}&clean=1" if slide3 == "grade"
              else f"{LOCAL_URL}/chances/{slug}/export?rkey={CRON_KEY}&clean=1")
     s3 = _shot(f"{tmp}/s3.png", s3url)
-    return s2, s3
+    return s1, s2, s3
 
 
 def odds_grade_text(slug, profile):
@@ -151,14 +129,13 @@ def make_one(dry=False):
     short, accent = app._school_brand(slug, g["name"])
     # Titles never reveal a specific number — the grader/odds are non-deterministic
     # per render, so a number in the title could contradict slide 3. The real
-    # value is shown on slide 3. (numeric_title kept for a future deterministic path.)
+    # value is shown on slide 3.
     lines, accent_words = g["lines"], g["accent_words"]
-    s2, s3 = render_candor_slides(slug, g["slide3"])
-    title_img = gen_title_image(g["name"], lines, accent_words)
+    s1, s2, s3 = render_slides(slug, g["slide3"], lines)   # all 3 FREE via Chrome
     hook = " ".join(lines)
     payload = dict(school_slug=slug, school_name=g["name"], accent=accent, title_text=hook,
                    title_formula="llm", slide3_type=g["slide3"], profile_json=json.dumps(g["profile"]),
-                   odds_text=odds, grade_text=grade, img1=title_img, img2=s2, img3=s3,
+                   odds_text=odds, grade_text=grade, img1=s1, img2=s2, img3=s3,
                    meta={"lines": lines, "accent_words": accent_words})
     if dry:
         print(f"  [dry] {slug} | {hook[:48]} | {g['slide3']} | {odds} {grade}")
@@ -168,19 +145,24 @@ def make_one(dry=False):
     return (res.get("id") if res.get("ok") else None), g["name"]
 
 
-def text_link(cid, school):
-    """iMessage the creator a tappable link to one carousel (file attachments are
-    broken via AppleScript on macOS, links send fine)."""
+def text_carousels(items):
+    """iMessage the creator one intro + a tappable link per carousel (file
+    attachments are broken via AppleScript on macOS; links send fine).
+    items = list of (cid, school_name)."""
     num = os.environ.get("PHONE", "")
-    if not num:
-        print("PHONE not set — skipping text"); return False
-    link = f"{TARGET_URL}/content/c/{cid}?key={urllib.parse.quote(CRON_KEY)}"
-    msg = f"New Candor carousel ({school}) ready \U0001F3AC tap to open, long-press each slide to save:"
-    script = (f'tell application "Messages"\n set svc to 1st service whose service type = iMessage\n'
-              f' set b to buddy "{num}" of svc\n send "{msg}" to b\n send "{link}" to b\nend tell')
+    if not num or not items:
+        print("PHONE not set or nothing to text — skipping"); return False
+    intro = (f"\U0001F3AC {len(items)} new Candor carousel option(s) — tap each, "
+             f"long-press the slides to save:")
+    sends = [f' send "{intro}" to b']
+    for cid, school in items:
+        link = f"{TARGET_URL}/content/c/{cid}?key={urllib.parse.quote(CRON_KEY)}"
+        sends.append(f' send "{school}: {link}" to b')
+    script = ('tell application "Messages"\n set svc to 1st service whose service type = iMessage\n'
+              f' set b to buddy "{num}" of svc\n' + "\n".join(sends) + "\nend tell")
     try:
-        subprocess.run(["osascript", "-e", script], check=True, capture_output=True, timeout=30)
-        print(f"  texted link for #{cid} -> {num}")
+        subprocess.run(["osascript", "-e", script], check=True, capture_output=True, timeout=45)
+        print(f"  texted {len(items)} link(s) -> {num}")
         return True
     except Exception as e:
         print("  text failed:", e); return False
@@ -189,7 +171,8 @@ def text_link(cid, school):
 def main():
     dry = "--dry" in sys.argv
     n_force = int(sys.argv[sys.argv.index("--n") + 1]) if "--n" in sys.argv else None
-    for k, v in (("CRON_KEY", CRON_KEY), ("ANTHROPIC_KEY", ANTHROPIC_KEY), ("OPENAI_KEY", OPENAI_KEY)):
+    slot_count = int(os.environ.get("SLOT_COUNT", "4"))   # carousels per slot (16/day = 4)
+    for k, v in (("CRON_KEY", CRON_KEY), ("ANTHROPIC_KEY", ANTHROPIC_KEY)):
         if not v:
             print(f"{k} not set — refusing to run."); sys.exit(1)
     env = dict(os.environ, PORT=str(LOCAL_PORT), CRON_KEY=CRON_KEY, ANTHROPIC_KEY=ANTHROPIC_KEY)
@@ -199,18 +182,18 @@ def main():
         if not wait_local_app():
             print("local render app did not start"); sys.exit(2)
         if "--slot" in sys.argv:
-            # one slot: make a fresh carousel and text its link
-            cid, name = None, ""
-            for attempt in range(3):
+            # one slot: make SLOT_COUNT fresh carousels (options) and text all links
+            made = []
+            for i in range(slot_count):
                 try:
                     cid, name = make_one(dry=dry)
                     if cid:
-                        break
+                        made.append((cid, name))
                 except Exception as e:
-                    print(f"  attempt {attempt} failed: {e}")
-            if cid:
-                text_link(cid, name)
-            print(f"slot done: id={cid}")
+                    print(f"  carousel {i} failed: {e}")
+            if made:
+                text_carousels(made)
+            print(f"slot done: {len(made)}/{slot_count} made")
             return
         if n_force is not None:
             need = n_force
