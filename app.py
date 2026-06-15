@@ -8600,7 +8600,7 @@ def service_worker():
     # Network-first for pages (always fresh content/odds), cache-first for static
     # assets (logos, icons). Bump CACHE to invalidate the static cache on deploy.
     js = """
-const CACHE='candor-v6';
+const CACHE='candor-v7';
 const STATIC=/\\/static\\//;
 self.addEventListener('install',e=>{self.skipWaiting();});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});
@@ -11475,9 +11475,9 @@ def _profile_export_page(inner_html, dl_name="profile", pad="80px 78px 64px"):
     """Render a white profile slide on its OWN white-canvas template (NOT the
     dark chances template, which was bleeding dark into the save and glitching
     it). Content auto-scales to fit so nothing is cut off."""
-    card = ('<link href="https://fonts.googleapis.com/css2?family=Anton&display=swap" rel="stylesheet">'
+    card = ('<link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@500;600;700;800&display=swap" rel="stylesheet">'
             '<div id="card" style="width:1024px;height:1536px;background:#fff;position:relative;overflow:hidden;'
-            "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif\">"
+            "font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif\">"
             f'<div id="pcontent" style="position:absolute;top:0;left:0;width:1024px;box-sizing:border-box;'
             f'padding:{pad};color:#111;transform-origin:top center;display:flex;flex-direction:column;align-items:stretch">'
             + inner_html + '</div></div>')
@@ -11536,10 +11536,10 @@ def h2hprofiles_export():
     bodyB = _profile_card_body(B, "STUDENT B", "#A51C30", foot)
     cardcss = ("width:1024px;height:1536px;background:#fff;color:#111;padding:80px 78px 64px;"
                "display:flex;flex-direction:column;align-items:stretch;"
-               "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif")
+               "font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif")
     page = """<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>A/B Profiles</title>
-<link href="https://fonts.googleapis.com/css2?family=Anton&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.js"></script>
 <style>
  body{margin:0;background:#0a0f17;color:#e9eef5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
