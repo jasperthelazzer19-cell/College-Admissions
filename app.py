@@ -10756,15 +10756,15 @@ __CARD__
   // (html-to-image mis-measures wrapped serif height -> overlap).
   function fitTitle(){
     var t=card.querySelector('.title'); if(!t) return;
-    var size=card.classList.contains('compact')?60:54;
-    t.style.whiteSpace='nowrap'; t.style.fontSize=size+'px';
-    // measure against the card's INNER width (clientWidth minus horizontal padding),
-    // not the title's own clientWidth — with nowrap the title expands to its content
-    // so its own scrollWidth==clientWidth and it would never shrink (long compare
-    // question was overflowing the card on both sides).
-    var avail=card.clientWidth-128;
+    // WRAP-based fit (not nowrap+shrink): a wrapping title can never overflow the
+    // card width, so it survives the html-to-image save render even when the
+    // canvas falls back to a wider serif than the live font (nowrap+shrink looked
+    // fine in preview but the saved compare title was cut off on the right).
+    // Allow up to 2 lines; shrink only if it would exceed that.
+    var size=card.classList.contains('compact')?58:50;
+    t.style.whiteSpace='normal'; t.style.fontSize=size+'px';
     var guard=0;
-    while(t.scrollWidth>avail && size>20 && guard<90){ size-=2; guard++; t.style.fontSize=size+'px'; }
+    while(t.scrollHeight > (size*1.22*2)+6 && size>26 && guard<60){ size-=2; guard++; t.style.fontSize=size+'px'; }
   }
   // run on load + after the web font settles so the preview never overflows
   fitText(); fitTitle(); setTimeout(function(){fitText();fitTitle();},120); setTimeout(function(){fitText();fitTitle();},500);
