@@ -36,12 +36,24 @@ def new_messages():
         print("chat.db not found"); return []
     last = _last_rowid()
     con = sqlite3.connect(f"file:{CHAT_DB}?mode=ro", uri=True)
+    # Don't filter on is_from_me — on a self-thread (Mac + phone share the Apple
+    # ID) the user's own texts can show as is_from_me=1. We instead skip the bot's
+    # OWN output by content (_is_bot_output) so we never loop on our replies.
     rows = con.execute(
         "SELECT m.ROWID, m.text FROM message m JOIN handle h ON m.handle_id=h.ROWID "
-        "WHERE m.is_from_me=0 AND m.ROWID>? AND m.text IS NOT NULL AND h.id LIKE ? "
+        "WHERE m.ROWID>? AND m.text IS NOT NULL AND h.id LIKE ? "
         "ORDER BY m.ROWID ASC", (last, f"%{DIGITS}%")).fetchall()
     con.close()
-    return rows
+    return [(rid, t) for rid, t in rows if not _is_bot_output(t)]
+
+
+def _is_bot_output(text):
+    """True if this message is one the autopilot itself sent (so we never re-trigger
+    on our own replies/notifications)."""
+    t = (text or "").lower()
+    markers = ("\U0001f3ac", "candoradmit.com", "/content/c/", "got it", "one sec",
+               "carousel option", "long-press", "failed to generate")
+    return any(m in t for m in markers)
 
 
 def parse_request(text):
