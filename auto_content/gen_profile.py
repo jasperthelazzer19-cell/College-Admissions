@@ -85,7 +85,7 @@ def _normalize_list_field(v):
     """ECs/awards/leadership must be ONE PER LINE for the profile slide. The model
     sometimes returns them semicolon-joined on one line — split those out."""
     import re
-    parts = re.split(r"[\n;]+", str(v or ""))
+    parts = re.split(r"[\n;|]+", str(v or ""))   # split on newline, semicolon, OR pipe
     return "\n".join(p.strip(" -•\t") for p in parts if p.strip())
 
 
