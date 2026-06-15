@@ -11408,10 +11408,10 @@ def profile_slide_export(slug):
     li_css = "font-size:30px;line-height:1.5;margin:0;font-weight:800"
     acad_html = "".join(acad).replace("<li>", f'<li style="{li_css}">')
     ec_html = "".join(plainln(x) for x in ec_lines).replace("<li>", f'<li style="{li_css}">')
-    head_css = ("font-family:'Anton',sans-serif;font-weight:400;letter-spacing:.5px;"
+    head_css = ("font-family:'AntonEmb','Anton',sans-serif;font-weight:400;letter-spacing:.5px;"
                 "font-size:56px;margin:0 0 14px;color:#111")
 
-    inner = f'''<div style="font-family:'Anton',sans-serif;font-weight:400;font-size:150px;line-height:.92;color:{color};letter-spacing:-1px;margin:0 0 30px">{_esc(short)}?</div>
+    inner = f'''<div style="font-family:'AntonEmb','Anton',sans-serif;font-weight:400;font-size:150px;line-height:.92;color:{color};letter-spacing:-1px;margin:0 0 30px">{_esc(short)}?</div>
   <div style="{head_css}">ACADEMICS</div>
   <ul style="list-style:disc;margin:0 0 34px;padding-left:34px;color:#111">{acad_html}</ul>
   <div style="{head_css}">EXTRACURRICULARS</div>
@@ -11430,6 +11430,17 @@ try:
 except Exception as _e:
     print(f"inter_face load failed: {_e}")
     _INTER_FACE = ""
+
+# Anton (the heavy display font for the title + ACADEMICS/EXTRACURRICULARS headers)
+# embedded as base64 @font-face (family 'AntonEmb'). Same reason as Inter: iOS
+# html-to-image can't fetch the cross-origin Google Font during the canvas render,
+# so the saved slide lost the heavy title/header weight and fell back to a thin
+# serif. Inlining the font means no fetch to block — the display weight survives.
+try:
+    with open(os.path.join(os.path.dirname(__file__), "anton_face.css"), encoding="utf-8") as _f:
+        _INTER_FACE += "<style>" + _f.read() + "</style>"
+except Exception as _e:
+    print(f"anton_face load failed: {_e}")
 
 _PROFILE_EXPORT_HTML = r"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -11525,8 +11536,8 @@ def _profile_card_body(p, title, accent, footer_html):
     for e in ecs + lead:
         if e.lower() not in seen:
             seen.add(e.lower()); ec_lines.append(e)
-    head_css = "font-family:'Anton',sans-serif;font-weight:400;letter-spacing:.5px;font-size:56px;margin:0 0 14px;color:#111"
-    return (f'<div style="font-family:\'Anton\',sans-serif;font-weight:400;font-size:140px;line-height:.92;color:{accent};letter-spacing:-1px;margin:0 0 30px">{title}</div>'
+    head_css = "font-family:'AntonEmb','Anton',sans-serif;font-weight:400;letter-spacing:.5px;font-size:56px;margin:0 0 14px;color:#111"
+    return (f'<div style="font-family:\'AntonEmb\',\'Anton\',sans-serif;font-weight:400;font-size:140px;line-height:.92;color:{accent};letter-spacing:-1px;margin:0 0 30px">{title}</div>'
             f'<div style="{head_css}">ACADEMICS</div>'
             f'<ul style="list-style:disc;margin:0 0 34px;padding-left:34px;color:#111">{"".join(acad)}</ul>'
             f'<div style="{head_css}">EXTRACURRICULARS</div>'
