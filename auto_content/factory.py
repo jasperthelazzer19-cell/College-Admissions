@@ -60,11 +60,14 @@ def mark_accents(lines, accent_words):
 
 
 # ── all slides rendered FREE via headless Chrome (no image API) ────────────
+# NOTE: do NOT add --user-data-dir — with --headless=new it writes the PNG but
+# hangs on exit. Renders run sequentially, so the default profile is fine.
 def _shot(out_path, url):
     subprocess.run([CHROME, "--headless=new", "--disable-gpu", "--hide-scrollbars",
                     "--force-device-scale-factor=2", "--window-size=1024,1536",
-                    "--virtual-time-budget=6000", f"--screenshot={out_path}", url],
-                   check=True, capture_output=True, timeout=120)
+                    "--virtual-time-budget=6000", "--timeout=12000",
+                    f"--screenshot={out_path}", url],
+                   check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=90)
     with open(out_path, "rb") as f:
         return "data:image/png;base64," + base64.b64encode(f.read()).decode()
 
@@ -132,6 +135,30 @@ def push(payload):
     return json.loads(urllib.request.urlopen(req, timeout=90).read())
 
 
+import threading  # noqa: E402
+_server = None
+
+
+def start_local_server():
+    """Serve the Candor app IN THIS PROCESS (a daemon thread) so the generator and
+    the render endpoints share ONE set of DB connections — no cross-process SQLite
+    'disk I/O error'. Replaces spawning a separate app.py."""
+    global _server
+    from werkzeug.serving import make_server
+    _server = make_server("127.0.0.1", LOCAL_PORT, app.app, threaded=True)
+    threading.Thread(target=_server.serve_forever, daemon=True).start()
+
+
+def stop_local_server():
+    global _server
+    if _server:
+        try:
+            _server.shutdown()
+        except Exception:
+            pass
+        _server = None
+
+
 def wait_local_app():
     for _ in range(45):
         try:
@@ -142,30 +169,92 @@ def wait_local_app():
     return False
 
 
-def make_one(dry=False, slug=None, slide3=None):
+def _title_png(slug, lines, accent_words, nologo=False):
+    hook = urllib.parse.quote("\n".join(mark_accents(lines, accent_words)))
+    extra = "&nologo=1" if nologo else ""
+    return _shot("/tmp/cren_factory/t.png",
+                 f"{LOCAL_URL}/title/export?rkey={CRON_KEY}&clean=1&slug={slug}&hook={hook}{extra}")
+
+
+def _finish(payload, dry, label):
+    if dry:
+        print(f"  [dry] {label}")
+        return None, payload["school_name"]
+    res = push(payload)
+    print(f"  pushed #{res.get('id')} {label} | pending={res.get('pending')}")
+    return (res.get("id") if res.get("ok") else None), payload["school_name"]
+
+
+def make_single(dry=False, slug=None, slide3=None):
     slug = slug if slug in SCHOOLS else random.choice(SCHOOLS)
     g = gen_profile.generate(slug)          # profile saved to 181 + title copy
     if slide3 in ("chances", "grade", "glowup"):
         g["slide3"] = slide3                # honor an explicit request (text-to-make)
     odds, grade, low, high, gnum = odds_grade_text(slug, g["profile"])
     short, accent = app._school_brand(slug, g["name"])
-    # Titles never reveal a specific number — the grader/odds are non-deterministic
-    # per render, so a number in the title could contradict slide 3. The real
-    # value is shown on slide 3.
     lines, accent_words = g["lines"], g["accent_words"]
-    marked = mark_accents(lines, accent_words)             # color accent words
-    s1, s2, s3 = render_slides(slug, g["slide3"], marked)  # all 3 FREE via Chrome
+    marked = mark_accents(lines, accent_words)
+    s1, s2, s3 = render_slides(slug, g["slide3"], marked)
     hook = " ".join(lines)
     payload = dict(school_slug=slug, school_name=g["name"], accent=accent, title_text=hook,
                    title_formula="llm", slide3_type=g["slide3"], profile_json=json.dumps(g["profile"]),
                    odds_text=odds, grade_text=grade, img1=s1, img2=s2, img3=s3,
                    meta={"lines": lines, "accent_words": accent_words})
-    if dry:
-        print(f"  [dry] {slug} | {hook[:48]} | {g['slide3']} | {odds} {grade}")
-        return None, g["name"]
-    res = push(payload)
-    print(f"  pushed #{res.get('id')} {slug} | {hook[:44]} | {odds} {grade} | pending={res.get('pending')}")
-    return (res.get("id") if res.get("ok") else None), g["name"]
+    return _finish(payload, dry, f"{slug} | {hook[:40]} | {g['slide3']} | {odds} {grade}")
+
+
+def make_compare(dry=False):
+    """One student ranked across several schools (the 'compare' content feature)."""
+    slug = random.choice(SCHOOLS)
+    comp = [slug] + random.sample([s for s in SCHOOLS if s != slug], 3)
+    g = gen_profile.generate(slug)          # profile -> 181
+    odds, _, _, _, _ = odds_grade_text(slug, g["profile"])
+    accent = app._school_brand(slug, g["name"])[1]
+    lines = random.choice([["CAN THIS STUDENT", "GET INTO ANY", "OF THESE?"],
+                           ["RANKING THIS", "STUDENT'S", "REACH SCHOOLS"],
+                           ["WHICH OF THESE", "WOULD TAKE", "THIS STUDENT?"]])
+    tmp = "/tmp/cren_factory"; os.makedirs(tmp, exist_ok=True)
+    s1 = _title_png(slug, lines, [], nologo=True)
+    s2 = _shot(f"{tmp}/c2.png", f"{LOCAL_URL}/profile-neutral/export?rkey={CRON_KEY}&clean=1")
+    s3 = _shot(f"{tmp}/c3.png", f"{LOCAL_URL}/compare/export?rkey={CRON_KEY}&clean=1&slugs={','.join(comp)}")
+    shorts = ", ".join(app._school_brand(s, app.COLLEGES_BY_SLUG[s].get('name'))[0] for s in comp)
+    payload = dict(school_slug=slug, school_name=f"Compare: {shorts}", accent=accent,
+                   title_text=" ".join(lines), title_formula="compare", slide3_type="compare",
+                   profile_json=json.dumps(g["profile"]), odds_text=odds, grade_text="",
+                   img1=s1, img2=s2, img3=s3, meta={"compare": comp})
+    return _finish(payload, dry, f"COMPARE {shorts}")
+
+
+def make_h2h(dry=False):
+    """Two students head-to-head for one school (the 'head-to-head' feature)."""
+    slug = random.choice(SCHOOLS)
+    gA = gen_profile.generate(slug, uid=181)   # student A
+    gen_profile.generate(slug, uid=38)         # student B
+    short, accent = app._school_brand(slug, gA["name"])
+    lines = [["WHICH STUDENT", "GETS INTO", f"{short}?"],
+             ["WHO GETS INTO", short + ",", "A OR B?"]][random.randint(0, 1)]
+    tmp = "/tmp/cren_factory"; os.makedirs(tmp, exist_ok=True)
+    s1 = _title_png(slug, lines, [short])
+    s2 = _shot(f"{tmp}/h2.png", f"{LOCAL_URL}/profile/{slug}/export?rkey={CRON_KEY}&clean=1")
+    s3 = _shot(f"{tmp}/h3.png", f"{LOCAL_URL}/headtohead/{slug}/export?rkey={CRON_KEY}&clean=1")
+    payload = dict(school_slug=slug, school_name=f"H2H: {gA['name']}", accent=accent,
+                   title_text=" ".join(lines), title_formula="h2h", slide3_type="h2h",
+                   profile_json=json.dumps(gA["profile"]), odds_text="", grade_text="",
+                   img1=s1, img2=s2, img3=s3, meta={"head_to_head": True})
+    return _finish(payload, dry, f"H2H {short}")
+
+
+def make_one(dry=False, slug=None, slide3=None, ctype=None):
+    """Dispatcher. Explicit slug (text-to-make) -> single. Otherwise rotate types
+    so the feed cycles through every Candor format."""
+    if ctype is None:
+        ctype = "single" if slug else random.choices(
+            ["single", "compare", "h2h"], weights=[6, 2, 2])[0]
+    if ctype == "compare":
+        return make_compare(dry)
+    if ctype == "h2h":
+        return make_h2h(dry)
+    return make_single(dry, slug, slide3)
 
 
 def text_carousels(items):
@@ -198,13 +287,11 @@ def main():
     for k, v in (("CRON_KEY", CRON_KEY), ("ANTHROPIC_KEY", ANTHROPIC_KEY)):
         if not v:
             print(f"{k} not set — refusing to run."); sys.exit(1)
-    env = dict(os.environ, PORT=str(LOCAL_PORT), CRON_KEY=CRON_KEY, ANTHROPIC_KEY=ANTHROPIC_KEY,
-               GRADER_FAST="1")   # cheap Haiku grading for autopilot content only
-    proc = subprocess.Popen([sys.executable, os.path.join(ROOT, "app.py")], env=env,
-                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    os.environ.setdefault("GRADER_FAST", "1")   # cheap Haiku grading for autopilot only
+    start_local_server()
     try:
         if not wait_local_app():
-            print("local render app did not start"); sys.exit(2)
+            print("local render server did not start"); sys.exit(2)
         if "--slot" in sys.argv:
             # one slot: make SLOT_COUNT fresh carousels (options) and text all links.
             # retry each up to 3x — transient SQLite contention clears on retry.
@@ -238,11 +325,7 @@ def main():
                 print(f"  carousel {i} failed: {e}")
         print(f"done: {ok}/{need}")
     finally:
-        proc.terminate()
-        try:
-            proc.wait(timeout=10)
-        except Exception:
-            proc.kill()
+        stop_local_server()
 
 
 if __name__ == "__main__":

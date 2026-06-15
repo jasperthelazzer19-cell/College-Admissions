@@ -89,14 +89,32 @@ def _normalize_list_field(v):
     return "\n".join(p.strip(" -•\t") for p in parts if p.strip())
 
 
-def generate(slug=None):
+def _ensure_user(uid):
+    """profiles has a FK to users(id); make sure the slot exists (181 = creator,
+    38 = the head-to-head 'Student B')."""
+    with app.db() as conn:
+        conn.execute("INSERT OR IGNORE INTO users (id,email,password_hash,password_salt) "
+                     "VALUES (?,?,?,?)", (uid, f"autogen{uid}@candor.local", "x", "y"))
+        conn.commit()
+
+
+def generate(slug=None, uid=181):
     slug = slug if slug in app.COLLEGES_BY_SLUG else random.choice(SCHOOLS)
     sch = app.COLLEGES_BY_SLUG[slug]
     d = _gen_profile_and_title(slug)
     profile = d["profile"]
     for f in ("ecs", "leadership", "awards"):
         profile[f] = _normalize_list_field(profile.get(f))
-    app.save_profile(181, profile)
+    import time as _t
+    for _attempt in range(4):                       # retry transient SQLite IO errors
+        try:
+            _ensure_user(uid)
+            app.save_profile(uid, profile)
+            break
+        except Exception as _e:
+            if _attempt == 3:
+                raise
+            _t.sleep(1.5)
     short, _ = app._school_brand(slug, sch.get("name"))
     t = d["title"]
     return {"slug": slug, "name": sch.get("name"), "short": short, "profile": profile,

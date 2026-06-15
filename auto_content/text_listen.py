@@ -81,14 +81,12 @@ def main():
     if not todo:
         _save_rowid(max_rowid); return       # nothing actionable; advance cursor
 
-    # spawn the local render app once for the batch
-    env = dict(os.environ, PORT=str(factory.LOCAL_PORT), CRON_KEY=factory.CRON_KEY,
-               ANTHROPIC_KEY=factory.ANTHROPIC_KEY, GRADER_FAST="1")
-    proc = subprocess.Popen([sys.executable, os.path.join(factory.ROOT, "app.py")], env=env,
-                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    # render server in THIS process (shared DB, no cross-process IO error)
+    os.environ.setdefault("GRADER_FAST", "1")
+    factory.start_local_server()
     try:
         if not factory.wait_local_app():
-            print("render app didn't start"); return
+            print("render server didn't start"); return
         for rid, r in todo:
             try:
                 text_back(f"Got it — making your {app.COLLEGES_BY_SLUG[r['slug']].get('name')} "
@@ -102,11 +100,7 @@ def main():
                 text_back("Sorry, that one failed to generate — try again?")
         _save_rowid(max_rowid)
     finally:
-        proc.terminate()
-        try:
-            proc.wait(timeout=10)
-        except Exception:
-            proc.kill()
+        factory.stop_local_server()
 
 
 if __name__ == "__main__":

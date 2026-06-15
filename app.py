@@ -3817,14 +3817,10 @@ def db():
     conn = sqlite3.connect(DB_PATH, timeout=30)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
-    # Wait (don't error) on a locked DB, and use WAL so readers/writers don't
-    # block each other — fixes the "disk I/O error" when the autopilot's
-    # generator process and its render app hit the DB at once.
+    # Wait up to 30s on a locked DB instead of erroring (handles the autopilot's
+    # concurrent access). NOTE: WAL was tried and caused "disk I/O error" on rapid
+    # successive commits here, so we stay on the default rollback journal.
     conn.execute("PRAGMA busy_timeout = 30000")
-    try:
-        conn.execute("PRAGMA journal_mode = WAL")
-    except sqlite3.OperationalError:
-        pass
     return conn
 
 
@@ -11051,10 +11047,11 @@ def compare_export():
     winner highlighted, on ONE slide. Pass ?slugs=uva,unc,umich (comma-sep).
     Uses the same merged_school -> compute_fit -> estimate_odds path as the
     real chances pages, so the numbers match."""
-    if not _is_creator():
+    if not (_is_creator() or _has_render_key()):
         abort(404)
     from html import escape as _esc
-    uid = current_user()["id"]
+    _cu = current_user()
+    uid = _cu["id"] if _cu else 181
     slugs = [s.strip() for s in (request.args.get("slugs") or "").split(",") if s.strip()]
     if not slugs:
         return ("Add ?slugs=uva,unc,umich (comma-separated college slugs)", 400)
@@ -11117,7 +11114,7 @@ def compare_export():
   </div>
   <div class="foot"><span class="lock">&#128274;</span>candoradmit.com</div>
 </div>'''
-    page = _tiktok_page(card, "compare", "Comparison")
+    page = _tiktok_page(card, "compare", "Comparison", clean=request.args.get("clean") == "1")
     return Response(page, mimetype="text/html")
 
 
@@ -11310,7 +11307,7 @@ def glowup_export(slug):
 @app.route("/headtohead/<slug>/export")
 @login_required
 def headtohead_export(slug):
-    if not _is_creator():
+    if not (_is_creator() or _has_render_key()):
         abort(404)
     from html import escape as _esc
     sch = COLLEGES_BY_SLUG.get(slug)
@@ -11358,7 +11355,7 @@ def headtohead_export(slug):
   </div>
   <div class="foot"><span class="lock">&#128274;</span>candoradmit.com</div>
 </div>'''
-    page = _tiktok_page(card, "h2h", _esc(merged["name"]))
+    page = _tiktok_page(card, "h2h", _esc(merged["name"]), clean=request.args.get("clean") == "1")
     return Response(page, mimetype="text/html")
 
 
@@ -11460,14 +11457,14 @@ def _hook_html(hook, accent):
     return "".join(f'<span style="color:{accent}">{t}</span>' if a else t for t, a in parts)
 
 
-def _title_card_body(slug, sch, hook):
+def _title_card_body(slug, sch, hook, nologo=False):
     """Slide-1 hook card in the exact @candor style: the hook is broken into
     short lines (separated by newlines) and EACH line is scaled independently to
     span the full width edge-to-edge (the justified-block look), center-aligned,
     with the school logo at the bottom. Accent words use *asterisks*; a whole
     line can be accent by wrapping the line. Fills the 9:16 frame densely."""
     short, color = _school_brand(slug, sch.get("name"))
-    logo_url = INST_LOGOS.get(slug) or SCHOOL_LOGOS.get(slug)
+    logo_url = None if nologo else (INST_LOGOS.get(slug) or SCHOOL_LOGOS.get(slug))
     logo_html = (f'<img src="{logo_url}" style="max-height:250px;max-width:74%;object-fit:contain;display:block;margin:0 auto">'
                  if logo_url else '')
     lines = [ln for ln in hook.upper().split("\n") if ln.strip()]
@@ -11508,7 +11505,7 @@ def title_export():
     sch = COLLEGES_BY_SLUG.get(slug)
     if not sch or not hook:
         abort(404)
-    body = _title_card_body(slug, sch, hook)
+    body = _title_card_body(slug, sch, hook, nologo=request.args.get("nologo") == "1")
     return Response(_profile_export_page(body, dl_name=f"{slug}-title", pad="74px 70px 60px",
                                          clean=request.args.get("clean") == "1"),
                     mimetype="text/html")
@@ -11989,7 +11986,7 @@ __INTERFACE__
 @login_required
 def profile_neutral_export():
     """Neutral profile slide — 'STUDENT?' header, no school, no logo."""
-    if not _is_creator():
+    if not (_is_creator() or _has_render_key()):
         abort(404)
     from html import escape as _esc
     p = get_profile(181)
@@ -11997,7 +11994,8 @@ def profile_neutral_export():
         return redirect(url_for("profile_page"))
     foot = '<div style="margin:auto auto 0;text-align:center;color:#aab;font-size:26px;font-style:italic;font-family:Georgia,serif">candoradmit.com</div>'
     body = _profile_card_body(p, "STUDENT?", "#1a2a52", foot)
-    return Response(_profile_export_page(body, dl_name="profile"), mimetype="text/html")
+    return Response(_profile_export_page(body, dl_name="profile",
+                                         clean=request.args.get("clean") == "1"), mimetype="text/html")
 
 
 @app.route("/chances/<slug>/narrative")
