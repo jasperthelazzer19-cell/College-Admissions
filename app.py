@@ -4285,6 +4285,31 @@ def init_db():
         )""")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_interest_email ON interest_signups(email)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_interest_ts ON interest_signups(ts)")
+        # Content Autopilot queue (Jun 2026). The Mac generator (Claude Code on
+        # Max = free) pre-renders full TikTok carousels and pushes them here; the
+        # /cron/content-release trigger releases one per slot (8/12/3/7:30) and
+        # the creator-only /content/today page serves them ready to save. Images
+        # are stored as base64 data URLs so they survive Railway's ephemeral FS.
+        conn.execute("""CREATE TABLE IF NOT EXISTS content_queue (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            status TEXT NOT NULL DEFAULT 'pending',   -- pending|released|posted|skipped
+            slot TEXT,                                -- slot label set at release time
+            school_slug TEXT,
+            school_name TEXT,
+            accent TEXT,
+            title_text TEXT,
+            title_formula TEXT,
+            slide3_type TEXT,
+            profile_json TEXT,
+            odds_text TEXT,
+            grade_text TEXT,
+            img1 TEXT, img2 TEXT, img3 TEXT,          -- base64 data URLs (slide 1/2/3)
+            released_at TEXT,
+            posted_at TEXT,
+            meta TEXT
+        )""")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_cq_status ON content_queue(status, created_at)")
         conn.commit()
 
 
@@ -5172,6 +5197,7 @@ NAV_UPGRADE_BTN = (
 
 
 NAV_CONTENT = ('<div class="nav"><a class="brand" href="/content/chances">' + CANDOR_LOGO_SVG + 'Candor · CONTENT</a>'
+    '<a href="/content/today">📅 Today</a>'
     '<a href="/content/setprofile">✍️ Set</a>'
     '<a href="/content/profile">🪪 Profile</a>'
     '<a href="/content/chances">🎬 Chances</a>'
@@ -8529,6 +8555,10 @@ except Exception:
     _CSRF_ON = False
     print("flask-wtf not available; CSRF disabled")
 
+# Decorator to exempt token-authed / webhook POST routes from CSRF (they
+# authenticate via CRON_KEY or a provider signature, not a browser token).
+_csrf_exempt = csrf.exempt if _CSRF_ON else (lambda f: f)
+
 # ─── BOT / SCRAPER MITIGATION ─────────────────────────────
 # Two cheap defenses: a rate limit on /college/<slug> (humans don't browse
 # 30+ college pages in a minute, scrapers do), and a robots.txt with a
@@ -11351,6 +11381,199 @@ def _school_brand(slug, name):
         if short.startswith(pre):
             short = short[len(pre):]
     return (short[:22], "#1a2a52")
+
+
+def _hook_html(hook, accent):
+    """Render a hook string into title HTML. Words wrapped in *asterisks* render
+    in the school accent color (e.g. "WOULD YOU *ADMIT* THIS STUDENT TO
+    *MICHIGAN*?"); everything else is near-black. Used by the slide-1 generator."""
+    from html import escape as _esc
+    parts, accent_on, buf = [], False, ""
+    for ch in hook:
+        if ch == "*":
+            if buf:
+                parts.append((_esc(buf), accent_on)); buf = ""
+            accent_on = not accent_on
+        else:
+            buf += ch
+    if buf:
+        parts.append((_esc(buf), accent_on))
+    return "".join(f'<span style="color:{accent}">{t}</span>' if a else t for t, a in parts)
+
+
+def _title_card_body(slug, sch, hook):
+    """Inner HTML for a slide-1 hook card: big Anton caps (accent words colored)
+    + the school logo pinned to the bottom. White canvas, auto-scales to fit."""
+    short, color = _school_brand(slug, sch.get("name"))
+    logo_url = INST_LOGOS.get(slug) or SCHOOL_LOGOS.get(slug)
+    logo_html = (f'<img src="{logo_url}" style="height:240px;object-fit:contain;margin:auto auto 0;display:block">'
+                 if logo_url else '<div style="margin-top:auto"></div>')
+    hk = _hook_html(hook.upper(), color)
+    return (f'<div style="font-family:\'AntonEmb\',\'Anton\',sans-serif;font-weight:400;'
+            f'font-size:132px;line-height:1.0;letter-spacing:-1px;color:#111;'
+            f'text-transform:uppercase;margin:0 0 30px">{hk}</div>'
+            f'{logo_html}')
+
+
+@app.route("/title/export")
+@login_required
+def title_export():
+    """Slide-1 hook card. /title/export?slug=<slug>&hook=<text> (use *word* to
+    color a word in the school's accent). New-Roads only. This is the piece that
+    used to be made by hand in ChatGPT/Canva."""
+    if not _is_creator():
+        abort(404)
+    slug = request.args.get("slug", "")
+    hook = request.args.get("hook", "")
+    sch = COLLEGES_BY_SLUG.get(slug)
+    if not sch or not hook:
+        abort(404)
+    body = _title_card_body(slug, sch, hook)
+    return Response(_profile_export_page(body, dl_name=f"{slug}-title", pad="74px 70px 60px"),
+                    mimetype="text/html")
+
+
+# ─── CONTENT AUTOPILOT ────────────────────────────────────────────────────
+# The Mac generator (Claude Code on Max = free) pre-renders carousels and POSTs
+# them to /content/queue/push. A scheduler hits /cron/content-release at each
+# posting slot (8/12/3/7:30) to release one + email the link. /content/today is
+# the creator-only page that serves released carousels ready to save.
+CONTENT_SLOTS = ["08:00", "12:00", "15:00", "19:30"]
+
+
+def _autopilot_authed():
+    """True if the request carries the cron/admin key (Mac generator + cron)."""
+    k = request.args.get("key") or request.headers.get("X-Auto-Key") or (request.form.get("key") if request.form else None)
+    return bool(CRON_KEY) and k == CRON_KEY
+
+
+@app.route("/content/queue/push", methods=["POST"])
+@_csrf_exempt
+def content_queue_push():
+    """Mac generator uploads one fully-rendered carousel. Auth: key=CRON_KEY.
+    Body (JSON): school_slug, school_name, accent, title_text, title_formula,
+    slide3_type, profile_json, odds_text, grade_text, img1, img2, img3, meta.
+    imgN are base64 data URLs (data:image/png;base64,...)."""
+    if not _autopilot_authed():
+        return ("unauthorized", 401)
+    d = request.get_json(silent=True) or {}
+    if not (d.get("img1") and d.get("img2") and d.get("img3")):
+        return ("need img1, img2, img3", 400)
+    with db() as conn:
+        cur = conn.execute(
+            """INSERT INTO content_queue
+               (school_slug, school_name, accent, title_text, title_formula, slide3_type,
+                profile_json, odds_text, grade_text, img1, img2, img3, meta)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (d.get("school_slug"), d.get("school_name"), d.get("accent"),
+             d.get("title_text"), d.get("title_formula"), d.get("slide3_type"),
+             d.get("profile_json"), d.get("odds_text"), d.get("grade_text"),
+             d.get("img1"), d.get("img2"), d.get("img3"),
+             json.dumps(d.get("meta")) if d.get("meta") is not None else None))
+        conn.commit()
+        pending = conn.execute("SELECT COUNT(*) c FROM content_queue WHERE status='pending'").fetchone()["c"]
+    return jsonify(ok=True, id=cur.lastrowid, pending=pending)
+
+
+@app.route("/content/queue/status")
+def content_queue_status():
+    """Buffer health for the Mac generator. Auth: key=CRON_KEY."""
+    if not _autopilot_authed():
+        return ("unauthorized", 401)
+    with db() as conn:
+        rows = conn.execute("SELECT status, COUNT(*) c FROM content_queue GROUP BY status").fetchall()
+    counts = {r["status"]: r["c"] for r in rows}
+    return jsonify(pending=counts.get("pending", 0),
+                   released=counts.get("released", 0),
+                   posted=counts.get("posted", 0),
+                   skipped=counts.get("skipped", 0))
+
+
+@app.route("/cron/content-release", methods=["GET", "POST"])
+@_csrf_exempt
+def cron_content_release():
+    """Release the next queued carousel for a posting slot. Hit at 8/12/3/7:30:
+    /cron/content-release?key=CRON_KEY&slot=08:00 . Releases one pending carousel
+    and emails the creator a link to /content/today."""
+    if not _autopilot_authed():
+        return ("unauthorized", 401)
+    slot = request.args.get("slot", "")
+    with db() as conn:
+        row = conn.execute("SELECT * FROM content_queue WHERE status='pending' ORDER BY id ASC LIMIT 1").fetchone()
+        if not row:
+            return ("queue empty — nothing to release", 200)
+        conn.execute("UPDATE content_queue SET status='released', slot=?, released_at=CURRENT_TIMESTAMP WHERE id=?",
+                     (slot, row["id"]))
+        conn.commit()
+        pending = conn.execute("SELECT COUNT(*) c FROM content_queue WHERE status='pending'").fetchone()["c"]
+    sent = False
+    if RESEND_API_KEY:
+        title = row["title_text"] or f"{row['school_name']} carousel"
+        html = (f'<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:480px;margin:0 auto;color:#0a131c">'
+                f'<h2 style="margin:0 0 6px">🎬 New carousel ready ({slot})</h2>'
+                f'<p style="color:#4b5563;margin:0 0 14px"><b>{title}</b><br>{row["odds_text"] or row["grade_text"] or ""}</p>'
+                f'<a href="https://candoradmit.com/content/today" style="display:inline-block;background:#0f766e;color:#fff;'
+                f'text-decoration:none;padding:11px 22px;border-radius:8px;font-weight:700">Open & save slides →</a>'
+                f'<p style="color:#9ca3af;font-size:12px;margin:16px 0 0">{pending} more queued.</p></div>')
+        sent = _send_email(CANCEL_EMAIL, f"🎬 Candor carousel ready — {slot}", html)
+    return (f"released #{row['id']} ({row['school_name']}) for slot {slot}; "
+            f"{pending} pending; email={'sent' if sent else 'off'}", 200)
+
+
+@app.route("/content/queue/<int:cid>/<action>", methods=["POST"])
+@login_required
+def content_queue_action(cid, action):
+    """Creator marks a released carousel posted / skipped from /content/today."""
+    if not _is_creator():
+        abort(404)
+    if action not in ("posted", "skipped"):
+        abort(400)
+    col = "posted_at" if action == "posted" else "released_at"
+    with db() as conn:
+        conn.execute(f"UPDATE content_queue SET status=?, {col}=CURRENT_TIMESTAMP WHERE id=?", (action, cid))
+        conn.commit()
+    return redirect(url_for("content_today"))
+
+
+@app.route("/content/today")
+@login_required
+def content_today():
+    """Creator-only queue page: released carousels ready to save, newest first."""
+    if not _is_creator():
+        abort(404)
+    with db() as conn:
+        released = conn.execute(
+            "SELECT * FROM content_queue WHERE status='released' ORDER BY released_at DESC, id DESC").fetchall()
+        pending = conn.execute("SELECT COUNT(*) c FROM content_queue WHERE status='pending'").fetchone()["c"]
+        posted = conn.execute("SELECT COUNT(*) c FROM content_queue WHERE status='posted'").fetchone()["c"]
+    cards = []
+    for r in released:
+        imgs = "".join(
+            f'<div style="flex:1;min-width:150px"><img src="{r[k]}" alt="slide {i}" '
+            f'style="width:100%;border-radius:12px;border:1px solid #1d2a3d;-webkit-touch-callout:default">'
+            f'<div style="text-align:center;font-size:12px;color:#7c8aa0;margin-top:4px">Slide {i} · long-press to save</div></div>'
+            for i, k in enumerate(("img1", "img2", "img3"), 1))
+        meta = f'{r["school_name"] or r["school_slug"] or ""} · {r["slide3_type"] or ""}'
+        odds = r["odds_text"] or r["grade_text"] or ""
+        cards.append(
+            f'<div style="background:#0c1521;border:1px solid #1d2a3d;border-radius:16px;padding:16px;margin:0 0 18px">'
+            f'<div style="font-weight:800;font-size:17px;margin:0 0 2px">{r["title_text"] or meta}</div>'
+            f'<div style="color:#7c8aa0;font-size:13px;margin:0 0 12px">{meta} · {odds} · slot {r["slot"] or "—"}</div>'
+            f'<div style="display:flex;gap:10px;flex-wrap:wrap">{imgs}</div>'
+            f'<div style="display:flex;gap:10px;margin-top:14px">'
+            f'<form method="post" action="/content/queue/{r["id"]}/posted" style="flex:1">{csrf_input()}'
+            f'<button style="width:100%;background:#5fc9b6;color:#06121a;font-weight:800;border:0;padding:12px;border-radius:10px">✓ Posted</button></form>'
+            f'<form method="post" action="/content/queue/{r["id"]}/skipped" style="flex:1">{csrf_input()}'
+            f'<button style="width:100%;background:#16202e;color:#e9eef5;font-weight:700;border:1px solid #1d2a3d;padding:12px;border-radius:10px">Skip</button></form>'
+            f'</div></div>')
+    if not cards:
+        cards.append('<div style="color:#7c8aa0;text-align:center;padding:40px 0">No carousels released yet. '
+                     'The generator fills the queue; releases land here at 8 / 12 / 3 / 7:30.</div>')
+    body = (f'<div style="max-width:720px;margin:0 auto;padding:16px 12px 80px">'
+            + f'<h1 style="margin:0 0 4px">📅 Today</h1>'
+            + f'<div style="color:#7c8aa0;font-size:14px;margin:0 0 18px">{pending} queued · {posted} posted · long-press a slide to save to Photos</div>'
+            + "".join(cards) + '</div>')
+    return _page(body, title="Content · Today")
 
 
 @app.route("/content/profile")
@@ -15151,9 +15374,6 @@ def upgrade_thanks():
       <p style="margin-top:16px"><a href="/plans" class="btn btn-light">Go to my plan</a></p>
     </div>{poll}"""
     return _page(body, title="Thanks — Candor")
-
-
-_csrf_exempt = csrf.exempt if _CSRF_ON else (lambda f: f)
 
 
 @app.route("/stripe/webhook", methods=["POST"])
