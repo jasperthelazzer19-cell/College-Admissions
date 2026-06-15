@@ -10411,6 +10411,7 @@ def signup_page():
                     h, salt = hash_password(password)
                     cur = conn.execute("INSERT INTO users (email, password_hash, password_salt) VALUES (?,?,?)", (email, h, salt))
                     conn.commit()
+                    session.permanent = True
                     session["user_id"] = cur.lastrowid
                     flash("Account created — fill in your profile next.", "success")
                     return redirect(session.pop("next_url", None) or url_for("profile_page"))
@@ -10430,6 +10431,7 @@ def login_page():
         with db() as conn:
             row = conn.execute("SELECT * FROM users WHERE email=?", (email,)).fetchone()
         if row and verify_password(password, row["password_hash"], row["password_salt"]):
+            session.permanent = True
             session["user_id"] = row["id"]
             return redirect(session.pop("next_url", None) or url_for("profile_page"))
         flash("Wrong email or password.", "error")
