@@ -87,7 +87,7 @@ def render_slides(slug, slide3, lines):
     return s1, s2, s3
 
 
-def odds_grade_text(slug, profile):
+def odds_grade_text(slug, profile, want_grade=True):
     odds, grade, low, high, gnum = "", "", None, None, None
     try:
         merged = app.merged_school(app.COLLEGES_BY_SLUG[slug])
@@ -96,12 +96,13 @@ def odds_grade_text(slug, profile):
         odds = f"{low}–{high}% chance"
     except Exception as e:
         print("odds:", e)
-    try:
-        g = app._grade_cached(181, profile, compute=True)
-        gnum = max(1, min(100, round(g['overall'] / 10)))
-        grade = f"{gnum}/100"
-    except Exception as e:
-        print("grade:", e)
+    if want_grade:   # only compute the /100 grade when the slide actually shows it
+        try:
+            g = app._grade_cached(181, profile, compute=True)
+            gnum = max(1, min(100, round(g['overall'] / 10)))
+            grade = f"{gnum}/100"
+        except Exception as e:
+            print("grade:", e)
     return odds, grade, low, high, gnum
 
 
@@ -190,7 +191,8 @@ def make_single(dry=False, slug=None, slide3=None):
     g = gen_profile.generate(slug)          # profile saved to 181 + title copy
     if slide3 in ("chances", "grade", "glowup"):
         g["slide3"] = slide3                # honor an explicit request (text-to-make)
-    odds, grade, low, high, gnum = odds_grade_text(slug, g["profile"])
+    odds, grade, low, high, gnum = odds_grade_text(slug, g["profile"],
+                                                   want_grade=(g["slide3"] == "grade"))
     short, accent = app._school_brand(slug, g["name"])
     lines, accent_words = g["lines"], g["accent_words"]
     marked = mark_accents(lines, accent_words)
@@ -208,7 +210,7 @@ def make_compare(dry=False):
     slug = random.choice(SCHOOLS)
     comp = [slug] + random.sample([s for s in SCHOOLS if s != slug], 3)
     g = gen_profile.generate(slug)          # profile -> 181
-    odds, _, _, _, _ = odds_grade_text(slug, g["profile"])
+    odds, _, _, _, _ = odds_grade_text(slug, g["profile"], want_grade=False)
     accent = app._school_brand(slug, g["name"])[1]
     lines = random.choice([["CAN THIS STUDENT", "GET INTO ANY", "OF THESE?"],
                            ["RANKING THIS", "STUDENT'S", "REACH SCHOOLS"],

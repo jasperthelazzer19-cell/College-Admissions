@@ -3141,8 +3141,14 @@ def get_or_evaluate_exceptionality(user_id, profile):
     updated_at = profile.get("updated_at")
     if eval_at and updated_at and eval_at >= updated_at:
         return bool(profile.get("is_exceptional")), profile.get("exceptional_reason") or ""
-    # Otherwise recompute and persist
-    is_exc, reason = evaluate_profile_exceptionality(profile)
+    # Autopilot content (GRADER_FAST): skip the 3-judge LLM panel and use the
+    # cheap keyword check — saves ~3 LLM calls per carousel. The live site never
+    # sets GRADER_FAST, so real users still get the full panel.
+    if os.environ.get("GRADER_FAST") == "1":
+        is_exc = bool(_keyword_exceptional(profile))
+        reason = "keyword-detected" if is_exc else ""
+    else:
+        is_exc, reason = evaluate_profile_exceptionality(profile)
     try:
         with db() as conn:
             conn.execute(
