@@ -4342,6 +4342,17 @@ def init_db():
             conn.execute("ALTER TABLE content_queue ADD COLUMN img4 TEXT")
         except sqlite3.OperationalError:
             pass
+        # "Make a batch now" button on /content/today. The button inserts a row
+        # here; the Mac text-listen daemon polls /content/batch-pending, claims
+        # it, renders the carousels, and texts the links — same path as the text
+        # trigger, just kicked off from the site (rendering needs the local
+        # headless Chrome + DB, so it can't run on Railway).
+        conn.execute("""CREATE TABLE IF NOT EXISTS batch_requests (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            requested_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            count INTEGER NOT NULL DEFAULT 4,
+            claimed_at TEXT
+        )""")
         conn.commit()
 
 
@@ -11698,6 +11709,58 @@ def cron_content_release():
             f"{pending} pending; email={'sent' if sent else 'off'}", 200)
 
 
+@app.route("/content/request-batch", methods=["POST"])
+@login_required
+def content_request_batch():
+    """Creator taps '⚡ Make 4 now' on /content/today. We just drop a request
+    row; the Mac daemon polls /content/batch-pending, renders the batch, and
+    texts the links back (rendering needs the local headless Chrome + DB, so it
+    can't run here)."""
+    if not _is_creator():
+        abort(404)
+    try:
+        n = int(request.form.get("count", 4))
+    except (TypeError, ValueError):
+        n = 4
+    n = max(1, min(8, n))
+    with db() as conn:
+        # Coalesce: if a request is already waiting unclaimed, don't stack more.
+        existing = conn.execute("SELECT id FROM batch_requests WHERE claimed_at IS NULL LIMIT 1").fetchone()
+        if not existing:
+            conn.execute("INSERT INTO batch_requests (count) VALUES (?)", (n,))
+            conn.commit()
+    return redirect(url_for("content_today", requested=1))
+
+
+@app.route("/content/batch-pending")
+def content_batch_pending():
+    """Mac daemon poll: oldest unclaimed batch request. Auth: key=CRON_KEY."""
+    if not _autopilot_authed():
+        return ("unauthorized", 401)
+    with db() as conn:
+        r = conn.execute("SELECT id, count FROM batch_requests WHERE claimed_at IS NULL ORDER BY id ASC LIMIT 1").fetchone()
+    if not r:
+        return jsonify(pending=False)
+    return jsonify(pending=True, id=r["id"], count=r["count"])
+
+
+@app.route("/content/batch-claim", methods=["POST"])
+@_csrf_exempt
+def content_batch_claim():
+    """Mac daemon marks a batch request claimed so it fires exactly once.
+    Auth: key=CRON_KEY."""
+    if not _autopilot_authed():
+        return ("unauthorized", 401)
+    rid = request.args.get("id") or (request.form.get("id") if request.form else None)
+    with db() as conn:
+        if rid:
+            conn.execute("UPDATE batch_requests SET claimed_at=CURRENT_TIMESTAMP WHERE id=?", (rid,))
+        else:
+            conn.execute("UPDATE batch_requests SET claimed_at=CURRENT_TIMESTAMP WHERE claimed_at IS NULL")
+        conn.commit()
+    return jsonify(ok=True)
+
+
 @app.route("/content/c/<int:cid>")
 def content_view_one(cid):
     """Single-carousel viewer for the texted link — token-gated (?key=CRON_KEY) so
@@ -11775,9 +11838,17 @@ def content_today():
     if not cards:
         cards.append('<div style="color:#7c8aa0;text-align:center;padding:40px 0">No carousels released yet. '
                      'The generator fills the queue; releases land here at 8 / 12 / 3 / 7:30.</div>')
+    banner = ('<div style="background:#13351f;border:1px solid #1f7a45;color:#bdf3d0;border-radius:12px;'
+              'padding:12px 14px;margin:0 0 16px;font-weight:600">⚡ Batch requested — rendering 4 fresh '
+              'carousels on the Mac now; the links get texted to you in a few minutes.</div>'
+              if request.args.get("requested") else '')
+    make_btn = (f'<form method="post" action="/content/request-batch" style="margin:0 0 18px">{csrf_input()}'
+                f'<button style="width:100%;background:#5fc9b6;color:#06121a;font-weight:800;border:0;'
+                f'padding:15px;border-radius:12px;font-size:16px;cursor:pointer">⚡ Make 4 fresh carousels now</button></form>')
     body = (f'<div style="max-width:720px;margin:0 auto;padding:16px 12px 80px">'
             + f'<h1 style="margin:0 0 4px">📅 Today</h1>'
             + f'<div style="color:#7c8aa0;font-size:14px;margin:0 0 18px">{pending} queued · {posted} posted · long-press a slide to save to Photos</div>'
+            + banner + make_btn
             + "".join(cards) + '</div>')
     return _page(body, title="Content · Today")
 

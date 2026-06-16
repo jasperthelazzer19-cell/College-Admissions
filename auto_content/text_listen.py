@@ -97,12 +97,37 @@ def _link(cid):
     return f"{factory.TARGET_URL}/content/c/{cid}?key={factory.urllib.parse.quote(factory.CRON_KEY)}"
 
 
+def _web_batch():
+    """Check the website '⚡ Make 4 now' button (/content/today). Returns the
+    requested count if a batch is pending, else None — and claims it immediately
+    so a slow render doesn't double-fire on the next poll."""
+    q = factory.urllib.parse.quote(factory.CRON_KEY)
+    try:
+        with urllib.request.urlopen(f"{factory.TARGET_URL}/content/batch-pending?key={q}", timeout=15) as r:
+            d = json.loads(r.read().decode())
+    except Exception as e:
+        print("web batch poll:", e); return None
+    if not d.get("pending"):
+        return None
+    try:
+        claim = urllib.request.Request(
+            f"{factory.TARGET_URL}/content/batch-claim?key={q}&id={d.get('id','')}", method="POST")
+        urllib.request.urlopen(claim, timeout=15).read()
+    except Exception as e:
+        print("web batch claim:", e)
+    try:
+        return max(1, min(8, int(d.get("count", 4))))
+    except (TypeError, ValueError):
+        return 4
+
+
 def main():
     msgs = new_messages()
-    if not msgs:
+    web_n = _web_batch()
+    if not msgs and not web_n:
         return
-    max_rowid = max(rid for rid, _ in msgs)
-    batch = any(_is_batch_trigger(t) for _, t in msgs)
+    max_rowid = max((rid for rid, _ in msgs), default=_last_rowid())
+    batch = bool(web_n) or any(_is_batch_trigger(t) for _, t in msgs)
     specifics = [(rid, r) for rid, t in msgs
                  for r in ([parse_request(t)] if not _is_batch_trigger(t) else [None]) if r]
     if not batch and not specifics:
@@ -114,7 +139,7 @@ def main():
         if not factory.wait_local_app():
             print("render server didn't start"); return
         if batch:
-            n = int(os.environ.get("SLOT_COUNT", "4"))
+            n = web_n if web_n else int(os.environ.get("SLOT_COUNT", "4"))
             text_back(f"On it — making a fresh batch of {n} \U0001F3AC give me a few min...")
             made = []
             for i in range(n):
