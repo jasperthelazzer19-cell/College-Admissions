@@ -209,12 +209,30 @@ def make_single(dry=False, slug=None, slide3=None):
     return _finish(payload, dry, f"{slug} | {hook[:40]} | {g['slide3']} | {odds} {grade}")
 
 
+def _accept(slug):
+    return app.COLLEGES_BY_SLUG[slug].get("accept") or 0.15
+
+
+def _band_of(anchor):
+    """The other 2 compare schools, picked to sit in the SAME selectivity band as
+    the anchor — so all 3 have close acceptance rates (comparing 3 reaches, or 3
+    targets, not a 4% Ivy next to a 50% school). Window is ±50% relative with a
+    4-point floor; falls back to the nearest-by-accept-rate if the band is thin."""
+    a = _accept(anchor)
+    window = max(0.04, min(0.12, a * 0.5))   # ±50% relative, 4pt floor, 12pt ceiling
+    pool = [s for s in SCHOOLS if s != anchor and abs(_accept(s) - a) <= window]
+    if len(pool) < 2:
+        pool = sorted((s for s in SCHOOLS if s != anchor), key=lambda s: abs(_accept(s) - a))[:6]
+    return random.sample(pool, 2)
+
+
 def make_compare(dry=False):
     """One student 'applied to' several schools (the 'compare' content feature).
     Slide 1 = 'THIS STUDENT APPLIED TO A, B & C...' with each school in its own
-    color + all logos; slide 3 = the ranking."""
+    color + all logos; slide 3 = the ranking. The 3 schools are kept in the same
+    acceptance-rate band so the comparison is apples-to-apples."""
     slug = random.choice(SCHOOLS)
-    comp = [slug] + random.sample([s for s in SCHOOLS if s != slug], 2)   # 3 schools
+    comp = [slug] + _band_of(slug)          # 3 schools, similar selectivity
     g = gen_profile.generate(slug)          # profile -> 181
     odds, _, _, _, _ = odds_grade_text(slug, g["profile"], want_grade=False)
     accent = app._school_brand(slug, g["name"])[1]
