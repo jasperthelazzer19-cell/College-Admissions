@@ -354,6 +354,8 @@ ICONIC_SCHOOLS = {
     "williams","amherst","swarthmore",
     # added 2026-06-16 (recommended batch 1)
     "northeastern","miami","wake-forest","tulane","villanova",
+    # big publics that already had logos (instant-add)
+    "uw","uiuc","umd","purdue","rutgers",
 }
 _POST_STATE = os.path.join(HERE, ".post_state.json")
 _demand_cache = None
