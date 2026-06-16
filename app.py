@@ -11743,6 +11743,10 @@ def _title_frame(line_html, logo_html, maxH=1040, logoH=360, cardH=1402, maxFont
             f'for(var p=0;p<4;p++){{var avail=box.clientHeight-18;'
             f'if(box.scrollHeight<=avail)break;var k=avail/box.scrollHeight;'
             f'ls.forEach(function(l){{l.style.fontSize=Math.floor(parseFloat(l.style.fontSize)*k)+"px";}});}}'
+            # Vertical fill: if the lines leave real slack (e.g. a 4-line single
+            # title), spread them top-to-bottom so the text fills the frame instead
+            # of floating centered. No-op for the dense compare (fills already).
+            f'if(box.scrollHeight < box.clientHeight - 40){{box.style.justifyContent="space-between";}}'
             f'}}'
             f'if(document.fonts&&document.fonts.ready){{document.fonts.ready.then(fit);}}else{{fit();}}'
             f'setTimeout(fit,250);setTimeout(fit,700);}})();</script>')
@@ -11830,7 +11834,7 @@ def title_export():
     if not sch or not hook:
         abort(404)
     body = _title_card_body(slug, sch, hook, nologo=request.args.get("nologo") == "1")
-    return Response(_profile_export_page(body, dl_name=f"{slug}-title", pad="50px 44px 50px",
+    return Response(_profile_export_page(body, dl_name=f"{slug}-title", pad="40px 30px 36px",
                                          clean=request.args.get("clean") == "1"),
                     mimetype="text/html")
 
