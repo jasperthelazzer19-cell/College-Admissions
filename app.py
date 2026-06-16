@@ -116,6 +116,11 @@ _STATE_ABBR = {
 }
 _STATE_NAMES = {v.lower(): v for v in _STATE_ABBR.values()}
 
+def _key_eq(provided, expected):
+    """Constant-time secret-key comparison (avoids the timing side-channel of ==)."""
+    return bool(expected) and hmac.compare_digest(str(provided or ""), str(expected))
+
+
 def _is_safe_path(p):
     """True only for a safe LOCAL redirect target. Blocks protocol-relative
     (//evil.com) and backslash (/\\evil.com) open-redirects and CRLF injection —
@@ -4298,6 +4303,14 @@ def init_db():
             conn.execute("ALTER TABLE saved_schools ADD COLUMN application_round TEXT")
         except sqlite3.OperationalError:
             pass
+        # Profile-version hash on saved_chances so the cached NARRATIVE (prose)
+        # is only served when it still matches the current profile — the numbers
+        # already recompute every view, but the bullets could go stale on a
+        # profile edit via a path that doesn't delete the row.
+        try:
+            conn.execute("ALTER TABLE saved_chances ADD COLUMN profile_hash TEXT")
+        except sqlite3.OperationalError:
+            pass
         try:
             conn.execute("ALTER TABLE saved_chances ADD COLUMN application_round TEXT")
         except sqlite3.OperationalError:
@@ -4487,6 +4500,19 @@ def init_db():
             count INTEGER NOT NULL DEFAULT 4,
             claimed_at TEXT
         )""")
+        # Bounded retention prune (runs on boot; Railway restarts regularly). All
+        # tables exist by here. Keeps the DB from growing forever — content_queue
+        # rows hold base64 PNGs and bloat fastest, so purge posted/skipped at 14d.
+        for sql in (
+            "DELETE FROM page_visits WHERE ts < datetime('now','-90 days')",
+            "DELETE FROM calc_runs  WHERE ts < datetime('now','-90 days')",
+            "DELETE FROM content_queue WHERE status IN ('posted','skipped') AND created_at < datetime('now','-14 days')",
+            "DELETE FROM batch_requests WHERE claimed_at IS NOT NULL AND claimed_at < datetime('now','-1 day')",
+        ):
+            try:
+                conn.execute(sql)
+            except sqlite3.OperationalError:
+                pass   # table/column absent — skip
         conn.commit()
 
 
@@ -4514,7 +4540,7 @@ def _has_render_key():
     """Autopilot render bypass: a valid rkey (==CRON_KEY) lets the headless
     renderer fetch creator-only export pages without a login session. Read-only
     slide rendering; CRON_KEY is secret."""
-    return bool(CRON_KEY) and request.args.get("rkey") == CRON_KEY
+    return _key_eq(request.args.get("rkey"), CRON_KEY)
 
 
 def login_required(f):
@@ -4853,7 +4879,7 @@ def fetch_reddit_profiles(college_slug, force=False):
     No auth required for public read access."""
     school = COLLEGES_BY_SLUG.get(college_slug)
     if not school: return []
-    cutoff = (datetime.utcnow() - timedelta(hours=REDDIT_POSTS_TTL_HOURS)).isoformat()
+    cutoff = (datetime.utcnow() - timedelta(hours=REDDIT_POSTS_TTL_HOURS)).strftime("%Y-%m-%d %H:%M:%S")
     with db() as conn:
         if not force:
             row = conn.execute(
@@ -4975,7 +5001,7 @@ def fetch_reddit_essays(college_slug, force=False):
     profile snippets since essays need full body)."""
     school = COLLEGES_BY_SLUG.get(college_slug)
     if not school: return []
-    cutoff = (datetime.utcnow() - timedelta(hours=REDDIT_POSTS_TTL_HOURS)).isoformat()
+    cutoff = (datetime.utcnow() - timedelta(hours=REDDIT_POSTS_TTL_HOURS)).strftime("%Y-%m-%d %H:%M:%S")
     with db() as conn:
         if not force:
             row = conn.execute(
@@ -5077,7 +5103,7 @@ def extract_real_essays(college_slug, force=False):
     profiles."""
     school = COLLEGES_BY_SLUG.get(college_slug)
     if not school: return []
-    cutoff = (datetime.utcnow() - timedelta(hours=REDDIT_POSTS_TTL_HOURS)).isoformat()
+    cutoff = (datetime.utcnow() - timedelta(hours=REDDIT_POSTS_TTL_HOURS)).strftime("%Y-%m-%d %H:%M:%S")
     with db() as conn:
         conn.execute("CREATE TABLE IF NOT EXISTS school_extracted_essays (college_slug TEXT PRIMARY KEY, body TEXT NOT NULL, generated_at TEXT DEFAULT CURRENT_TIMESTAMP)")
         if not force:
@@ -5186,7 +5212,7 @@ def extract_structured_profiles(college_slug, force=False):
     AI composites which use school_profiles)."""
     school = COLLEGES_BY_SLUG.get(college_slug)
     if not school: return []
-    cutoff = (datetime.utcnow() - timedelta(hours=REDDIT_POSTS_TTL_HOURS)).isoformat()
+    cutoff = (datetime.utcnow() - timedelta(hours=REDDIT_POSTS_TTL_HOURS)).strftime("%Y-%m-%d %H:%M:%S")
     with db() as conn:
         conn.execute("CREATE TABLE IF NOT EXISTS school_reddit_structured (college_slug TEXT PRIMARY KEY, body TEXT NOT NULL, generated_at TEXT DEFAULT CURRENT_TIMESTAMP)")
         if not force:
@@ -5287,7 +5313,7 @@ def fetch_articles(college_slug):
     global _NEWSAPI_429_UNTIL
     school = COLLEGES_BY_SLUG.get(college_slug)
     if not school: return []
-    cutoff = (datetime.utcnow() - timedelta(hours=ARTICLE_TTL_HOURS)).isoformat()
+    cutoff = (datetime.utcnow() - timedelta(hours=ARTICLE_TTL_HOURS)).strftime("%Y-%m-%d %H:%M:%S")
     with db() as conn:
         rows = conn.execute("SELECT title, url, source, published FROM college_articles WHERE college_slug=? AND fetched_at >= ? ORDER BY published DESC LIMIT 6",
                             (college_slug, cutoff)).fetchall()
@@ -6671,22 +6697,25 @@ def _log_calc_run(slug, uid=None):
         print(f"calc_run log failed: {e}")
 
 
-def _save_chances_row(uid, slug, r, bullets=None):
+def _save_chances_row(uid, slug, r, bullets=None, profile=None):
     """Persist a chances row. Numbers are always written (so /plans + simulator
     stay current); bullets are written only when provided, otherwise any
-    existing AI narrative is preserved."""
+    existing AI narrative is preserved. When bullets are written we stamp the
+    profile_hash so the cached prose is only re-served while the profile matches."""
+    phash = _profile_version_hash(profile) if profile is not None else None
     try:
         with db() as conn:
             if bullets is not None:
-                conn.execute("""INSERT INTO saved_chances (user_id, college_slug, tier, odds_low, odds_high, fit, confidence, strength, weakness, differentiator, computed_at)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)
+                conn.execute("""INSERT INTO saved_chances (user_id, college_slug, tier, odds_low, odds_high, fit, confidence, strength, weakness, differentiator, profile_hash, computed_at)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)
                     ON CONFLICT(user_id, college_slug) DO UPDATE SET
                       tier=excluded.tier, odds_low=excluded.odds_low, odds_high=excluded.odds_high,
                       fit=excluded.fit, confidence=excluded.confidence,
                       strength=excluded.strength, weakness=excluded.weakness, differentiator=excluded.differentiator,
+                      profile_hash=excluded.profile_hash,
                       computed_at=CURRENT_TIMESTAMP""",
                     (uid, slug, r["tier"], r["odds_low"], r["odds_high"], r["fit"], r["confidence"],
-                     bullets["strength"], bullets["weakness"], bullets["differentiator"]))
+                     bullets["strength"], bullets["weakness"], bullets["differentiator"], phash))
             else:
                 conn.execute("""INSERT INTO saved_chances (user_id, college_slug, tier, odds_low, odds_high, fit, confidence, computed_at)
                     VALUES (?,?,?,?,?,?,?,CURRENT_TIMESTAMP)
@@ -6759,12 +6788,12 @@ def chances_html(slug):
         with db() as conn:
             brow = conn.execute(
                 "SELECT strength, weakness, differentiator FROM saved_chances "
-                "WHERE user_id=? AND college_slug=? AND computed_at >= ?",
-                (uid, slug, SAVED_CHANCES_MIN_VALID_AT)).fetchone()
+                "WHERE user_id=? AND college_slug=? AND computed_at >= ? AND profile_hash=?",
+                (uid, slug, SAVED_CHANCES_MIN_VALID_AT, _profile_version_hash(profile))).fetchone()
         if brow and brow["strength"]:
             bullets = {"strength": brow["strength"], "weakness": brow["weakness"],
                        "differentiator": brow["differentiator"]}
-    _save_chances_row(uid, slug, r, bullets)
+    _save_chances_row(uid, slug, r, bullets, profile=profile)
     narrative_ready = bullets is not None
     if narrative_ready:
         r.update(bullets)
@@ -7310,7 +7339,7 @@ def get_school_facts(c, force=False):
     Cached 30 days because school facts don't change much."""
     with db() as conn:
         if not force:
-            cutoff = (datetime.utcnow() - timedelta(days=SCHOOL_FACTS_TTL_DAYS)).isoformat()
+            cutoff = (datetime.utcnow() - timedelta(days=SCHOOL_FACTS_TTL_DAYS)).strftime("%Y-%m-%d %H:%M:%S")
             row = conn.execute(
                 "SELECT body FROM school_facts WHERE college_slug=? AND generated_at >= ?",
                 (c["slug"], cutoff)
@@ -7394,7 +7423,7 @@ def get_school_summary(c, force=False):
             pass
     with db() as conn:
         if not force:
-            cutoff = (datetime.utcnow() - timedelta(days=30)).isoformat()
+            cutoff = (datetime.utcnow() - timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
             row = conn.execute(
                 "SELECT body FROM school_summary WHERE college_slug=? AND generated_at >= ?",
                 (c["slug"], cutoff)
@@ -7451,7 +7480,7 @@ def get_school_strategy(c, force=False):
         return {"values": n["values"], "supplemental_strategy": n["supplemental_strategy"]}
     with db() as conn:
         if not force:
-            cutoff = (datetime.utcnow() - timedelta(days=60)).isoformat()
+            cutoff = (datetime.utcnow() - timedelta(days=60)).strftime("%Y-%m-%d %H:%M:%S")
             row = conn.execute(
                 "SELECT school_values, supplemental_strategy FROM school_strategies WHERE college_slug=? AND generated_at >= ?",
                 (c["slug"], cutoff)
@@ -7527,7 +7556,7 @@ def get_school_profiles(c, force=False):
     composites (not specific scraped people). Cached 30 days."""
     with db() as conn:
         if not force:
-            cutoff = (datetime.utcnow() - timedelta(days=SCHOOL_PROFILES_TTL_DAYS)).isoformat()
+            cutoff = (datetime.utcnow() - timedelta(days=SCHOOL_PROFILES_TTL_DAYS)).strftime("%Y-%m-%d %H:%M:%S")
             row = conn.execute(
                 "SELECT body FROM school_profiles WHERE college_slug=? AND generated_at >= ?",
                 (c["slug"], cutoff)
@@ -7597,7 +7626,7 @@ def get_school_essays(c, force=False):
     """Return 2 sample essay openings + links to real archives. Cached 30 days."""
     with db() as conn:
         if not force:
-            cutoff = (datetime.utcnow() - timedelta(days=SCHOOL_PROFILES_TTL_DAYS)).isoformat()
+            cutoff = (datetime.utcnow() - timedelta(days=SCHOOL_PROFILES_TTL_DAYS)).strftime("%Y-%m-%d %H:%M:%S")
             row = conn.execute(
                 "SELECT body FROM school_essays WHERE college_slug=? AND generated_at >= ?",
                 (c["slug"], cutoff)
@@ -7654,7 +7683,7 @@ TAILORED_ADVICE_TTL_DAYS = 7
 # Bump this whenever the tailored-advice prompt changes — anything cached
 # before this timestamp is treated as stale and regenerated. Saves us from
 # manually clearing the table when we fix prompt bugs.
-TAILORED_ADVICE_MIN_VALID_AT = "2026-06-15T23:00:00"
+TAILORED_ADVICE_MIN_VALID_AT = "2026-06-15 23:00:00"
 
 # Saved-chances rows computed before this timestamp are treated as stale
 # and recomputed on next view. Bumped when the odds model changes (e.g.
@@ -7685,10 +7714,14 @@ def get_tailored_advice(user_id, school, profile, force=False):
         "uw_gpa","weighted_gpa","sat","act","major","ecs","leadership","awards",
         "legacy","first_gen","athlete","is_international","state",
         "sat_math","sat_ebrw","act_math","act_english","act_reading","act_science",
+        # also hash the fields the advice prompt actually uses, so editing them
+        # busts the 7-day cache (portfolio + year-by-year GPA + exceptional flag)
+        "portfolio","gpa_freshman","gpa_sophomore","gpa_junior","gpa_senior",
+        "self_rigor","is_exceptional",
     )).encode()).hexdigest()[:16]
     with db() as conn:
         if not force:
-            cutoff = (datetime.utcnow() - timedelta(days=TAILORED_ADVICE_TTL_DAYS)).isoformat()
+            cutoff = (datetime.utcnow() - timedelta(days=TAILORED_ADVICE_TTL_DAYS)).strftime("%Y-%m-%d %H:%M:%S")
             # Take the LATER of: TTL cutoff, prompt-version cutoff. Cached
             # entries from before the prompt fix are treated as stale.
             effective_cutoff = max(cutoff, TAILORED_ADVICE_MIN_VALID_AT)
@@ -11109,7 +11142,8 @@ def chances_export(slug):
     bullets = None
     with db() as conn:
         brow = conn.execute("SELECT strength, weakness, differentiator FROM saved_chances "
-                            "WHERE user_id=? AND college_slug=?", (uid, slug)).fetchone()
+                            "WHERE user_id=? AND college_slug=? AND profile_hash=?",
+                            (uid, slug, _profile_version_hash(profile))).fetchone()
     if brow and brow["strength"]:
         bullets = {"strength": brow["strength"], "weakness": brow["weakness"], "differentiator": brow["differentiator"]}
     else:
@@ -11799,7 +11833,7 @@ CONTENT_SLOTS = ["08:00", "12:00", "15:00", "19:30"]
 def _autopilot_authed():
     """True if the request carries the cron/admin key (Mac generator + cron)."""
     k = request.args.get("key") or request.headers.get("X-Auto-Key") or (request.form.get("key") if request.form else None)
-    return bool(CRON_KEY) and k == CRON_KEY
+    return _key_eq(k, CRON_KEY)
 
 
 @app.route("/content/queue/push", methods=["POST"])
@@ -12377,7 +12411,7 @@ def chances_narrative(slug):
     bullets = generate_bullets(profile, merged, fit, components, tier, (low, high))
     r = {"tier": tier, "odds_low": low, "odds_high": high, "fit": fit,
          "confidence": confidence_level(profile, components), **bullets}
-    _save_chances_row(uid, slug, r, bullets)
+    _save_chances_row(uid, slug, r, bullets, profile=profile)
     return _chances_narrative_ul(r)
 
 
@@ -15638,7 +15672,7 @@ def run_deadline_nudges():
 def cron_deadline_nudges():
     """Daily trigger for deadline reminder emails. Hit it from a scheduler
     (Railway cron / cron-job.org) once a day: /cron/deadline-nudges?key=CRON_KEY."""
-    if not CRON_KEY or request.args.get("key") != CRON_KEY:
+    if not _key_eq(request.args.get("key"), CRON_KEY):
         return ("unauthorized", 401)
     if not RESEND_API_KEY:
         return ("email not configured — set RESEND_API_KEY (and EMAIL_FROM) to enable", 200)
@@ -15988,7 +16022,7 @@ def stripe_webhook():
 @app.route("/admin/grant-paid")
 def admin_grant_paid():
     """Manual fallback: grant paid status by email. Use if webhook isn't set up."""
-    if not ADMIN_KEY or request.args.get("key") != ADMIN_KEY:
+    if not _key_eq(request.args.get("key"), ADMIN_KEY):
         return ("<h1>401 Unauthorized</h1>", 401)
     email = (request.args.get("email") or "").strip().lower()
     if not email:
@@ -16008,7 +16042,7 @@ def admin_calibration():
     """Backtest odds vs. real reported outcomes (user_outcomes). Buckets each
     prediction by midpoint odds, compares predicted vs ACTUAL admit rate.
     Well-calibrated => predicted ~= actual per row. ?key=ADMIN_KEY"""
-    if not ADMIN_KEY or request.args.get("key") != ADMIN_KEY:
+    if not _key_eq(request.args.get("key"), ADMIN_KEY):
         return ("<h1>401 Unauthorized</h1><p>Pass <code>?key=YOUR_ADMIN_KEY</code></p>", 401)
     BUCKETS = [(0,5),(5,10),(10,20),(20,35),(35,50),(50,70),(70,101)]
     try:
@@ -16067,7 +16101,7 @@ def admin_refresh_scorecard():
     """Bulk-refresh all 155 schools' stats from College Scorecard.
     Gated by ADMIN_KEY so only the operator can run it (it's slow + makes
     155 API calls). Hit with ?key=YOUR_ADMIN_KEY."""
-    if not ADMIN_KEY or request.args.get("key") != ADMIN_KEY:
+    if not _key_eq(request.args.get("key"), ADMIN_KEY):
         return ("<h1>401 Unauthorized</h1><p>Pass <code>?key=YOUR_ADMIN_KEY</code></p>", 401)
     if not SCORECARD_KEY:
         return ("<h1>SCORECARD_KEY not configured</h1><p>Set the env var on Railway.</p>", 500)
@@ -16104,7 +16138,7 @@ def admin_refresh_scorecard():
 def admin_visitors():
     """Visitor traffic breakdown — distinguish real engaged users from
     cookie-less scrapers. Pass ?window=1hour or ?window=24hours."""
-    if not ADMIN_KEY or request.args.get("key") != ADMIN_KEY:
+    if not _key_eq(request.args.get("key"), ADMIN_KEY):
         return ("<h1>401 Unauthorized</h1>", 401)
     window = request.args.get("window", "1 hour")
     if window not in ("1 hour", "6 hours", "24 hours", "7 days"):
@@ -16221,7 +16255,7 @@ def admin_returning():
     account's logged-in history into sessions. 2+ sessions = a returning user.
     Multi-day = came back another day; otherwise they came back the same day.
     Only signed-up users are counted (tracked by account, not cookie)."""
-    if not ADMIN_KEY or request.args.get("key") != ADMIN_KEY:
+    if not _key_eq(request.args.get("key"), ADMIN_KEY):
         return ("<h1>401 Unauthorized</h1>", 401)
     TZ = -7              # PT offset for day-bucketing
     GAP = 2.0           # hours; gap this large = a new session (a comeback)
@@ -16363,7 +16397,7 @@ def admin_returning():
 @app.route("/admin/stats")
 def admin_stats():
     """Live activity dashboard. Pulls from existing DB tables."""
-    if not ADMIN_KEY or request.args.get("key") != ADMIN_KEY:
+    if not _key_eq(request.args.get("key"), ADMIN_KEY):
         return ("<h1>401 Unauthorized</h1>", 401)
     # Use Pacific time for "today" counters since Railway runs in UTC
     # but the operator (jasper) is on the West Coast — without this offset
@@ -16547,7 +16581,7 @@ def admin_stats():
 @app.route("/admin/data-status")
 def admin_data_status():
     """Show how many schools have Scorecard overrides applied + fields covered."""
-    if not ADMIN_KEY or request.args.get("key") != ADMIN_KEY:
+    if not _key_eq(request.args.get("key"), ADMIN_KEY):
         return ("<h1>401 Unauthorized</h1>", 401)
     with db() as conn:
         rows = conn.execute("SELECT college_slug, accept, sat_25, sat_75, size, tuition, source, verified_at FROM school_stats_overrides").fetchall()
