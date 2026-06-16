@@ -218,9 +218,10 @@ def generate(slug=None, uid=181, want_slide3=None):
             if _attempt == 3:
                 raise
             _t.sleep(1.5)
-    # Grade with the Max-plan CLI judge (CLAUDE_CLI=1) and persist a realistic
-    # ec_rating + exceptional verdict, so odds aren't inflated by the keyword
-    # grader. No-op when the CLI isn't available (Railway / live site).
+    # Grade with the best judge available (free Max-plan CLI when CLAUDE_CLI=1,
+    # else the Anthropic API) and persist a realistic ec_rating + exceptional
+    # verdict, so odds aren't inflated by the keyword grader. Only no-ops when
+    # neither judge is reachable (no CLI and no API key).
     try:
         app.autopilot_grade_profile(uid, profile)
     except Exception as _e:
