@@ -82,17 +82,24 @@ def _claude_cli(prompt, model="sonnet", timeout=180):
         print("claude-cli error:", e); return None
 
 
-def _cli_grade(profile):
-    """One Max-plan CLI judge call -> {exceptional, ec_rating(1-1000), reason}.
-    Returns None on failure so callers fall back. This replaces BOTH inflation
-    paths the keyword grader caused: the exceptional flag AND the EC rating (the
-    keyword check jumped any 'national merit'/'research' mention to ~810, which
-    lifted the cap even with the flag off)."""
+# System prompt for the API judge path — keeps the API model in the same strict
+# admissions-reader frame the CLI judge gets via _CLI_SYS.
+_GRADE_SYS = ("You are a strict, realistic US college admissions reader. "
+              "Output ONLY the exact JSON requested — no preamble, no commentary, "
+              "no code fences.")
+
+
+def _grade_prompt(profile):
+    """Shared rubric prompt for the exceptionality/EC judge, used by BOTH the
+    Max-plan CLI path and the API path so they grade identically. Returns
+    (prompt, early): when the profile has no awards/ecs/leadership, prompt is
+    None and `early` is a ready result dict the caller returns directly;
+    otherwise `early` is None and prompt is the rubric string."""
     awards = (profile.get("awards") or "").strip()
     ecs = (profile.get("ecs") or "").strip()
     leadership = (profile.get("leadership") or "").strip()
     if not (awards or ecs or leadership):
-        return {"exceptional": False, "ec_rating": 200, "reason": ""}
+        return None, {"exceptional": False, "ec_rating": 200, "reason": ""}
     prompt = (
         "Rate this US college applicant's extracurricular profile and decide if it's truly "
         "exceptional. Be a STRICT, realistic admissions reader.\n\n"
@@ -107,7 +114,12 @@ def _cli_grade(profile):
         "regional awards, and being well-rounded are NOT exceptional and should sit <650.\n\n"
         f"AWARDS: {awards}\nACTIVITIES: {ecs}\nLEADERSHIP: {leadership}\n\n"
         'Return ONLY strict JSON: {"ec_rating": <int 1-1000>, "exceptional": true|false, "reason": "<=12 words"}')
-    out = _claude_cli(prompt, model="sonnet", timeout=120)
+    return prompt, None
+
+
+def _parse_grade(out):
+    """Parse a judge reply (CLI or API) into {exceptional, ec_rating, reason},
+    or None on any failure so callers can fall back."""
     if not out:
         return None
     try:
@@ -122,6 +134,33 @@ def _cli_grade(profile):
         return None
 
 
+def _cli_grade(profile):
+    """One Max-plan CLI judge call -> {exceptional, ec_rating(1-1000), reason}.
+    Returns None on failure so callers fall back. This replaces BOTH inflation
+    paths the keyword grader caused: the exceptional flag AND the EC rating (the
+    keyword check jumped any 'national merit'/'research' mention to ~810, which
+    lifted the cap even with the flag off)."""
+    prompt, early = _grade_prompt(profile)
+    if early is not None:
+        return early
+    return _parse_grade(_claude_cli(prompt, model="sonnet", timeout=120))
+
+
+def _api_grade(profile):
+    """Same rubric as _cli_grade, but over the Anthropic API (Haiku) instead of
+    the Max-plan CLI. This is the cloud / Mac-off path: when a carousel is
+    rendered on Railway or while the Mac is asleep, the CLI judge isn't available,
+    so without this the grader fell back to the keyword hack and odds re-inflated.
+    Cheap (~$0.0005/grade on Haiku). Returns None if no API key or on failure."""
+    if not _claude_client:
+        return None
+    prompt, early = _grade_prompt(profile)
+    if early is not None:
+        return early
+    return _parse_grade(_claude("claude-haiku-4-5-20251001", _GRADE_SYS,
+                                prompt, max_tokens=120, temperature=0.0))
+
+
 def _cli_exceptional(profile):
     """Thin wrapper for the get_or_evaluate path: (is_exceptional, reason) or None."""
     g = _cli_grade(profile)
@@ -129,13 +168,16 @@ def _cli_exceptional(profile):
 
 
 def autopilot_grade_profile(uid, profile):
-    """Grade an autopilot-generated profile with the Max-plan CLI judge and PERSIST
-    the real ec_rating + exceptional verdict to the row, so the (separate) render
-    requests that compute odds read accurate values instead of keyword-inflated
-    ones. One CLI call per carousel; no-op (returns None) if the CLI isn't usable."""
-    if os.environ.get("CLAUDE_CLI") != "1":
-        return None
-    g = _cli_grade(profile)
+    """Grade an autopilot-generated profile with the best judge available and
+    PERSIST the real ec_rating + exceptional verdict to the row, so the (separate)
+    render requests that compute odds read accurate values instead of keyword-
+    inflated ones. Prefers the free Max-plan CLI judge (Mac autopilot env), and
+    falls back to the Anthropic API judge when the CLI isn't usable — that's the
+    cloud / Mac-off path (e.g. phone Make button) so those odds stay accurate too.
+    One judge call per carousel; returns None only when no judge is available."""
+    g = _cli_grade(profile) if os.environ.get("CLAUDE_CLI") == "1" else None
+    if not g:
+        g = _api_grade(profile)
     if not g:
         return None
     profile["is_exceptional"] = g["exceptional"]
