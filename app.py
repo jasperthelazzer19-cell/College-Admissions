@@ -11114,9 +11114,11 @@ def compare_export():
         cf = compute_fit(prof, merged)
         fit = cf[0] if isinstance(cf, tuple) else cf
         low, high = estimate_odds(merged, fit, prof)
+        is_public = merged.get("type") == "public"
         results.append({"name": merged["name"], "low": low, "high": high,
-                        "mid": (low + high) / 2.0,
-                        "instate": (prof.get("state") or "").lower() == (merged.get("state") or "").lower()})
+                        "mid": (low + high) / 2.0, "is_public": is_public,
+                        # residency only exists at publics — never tag a private in-state/OOS
+                        "instate": is_public and (prof.get("state") or "").lower() == (merged.get("state") or "").lower()})
     if not results:
         abort(404)
     results.sort(key=lambda r: r["mid"], reverse=True)
@@ -11133,16 +11135,20 @@ def compare_export():
         win = (i == 0)
         if win:
             tag = ' <span class="sch">&larr; best</span>'
-        elif r["instate"]:
+        elif r["is_public"] and r["instate"]:
             tag = ' <span class="sch">in-state</span>'
-        else:
+        elif r["is_public"]:
             tag = ' <span class="sch">OOS</span>'
+        else:
+            tag = ''   # private: residency is irrelevant, show no tag
         bg = "background:rgba(95,201,182,.16);" if win else ""
         rows += (f'<div class="rrow" style="{bg}border-radius:12px;padding:14px 14px;font-size:38px;font-weight:700;align-items:center">'
                  f'<span>{i+1}. {_esc(r["name"])}{tag}</span>'
                  f'<span class="rval" style="font-size:42px;font-weight:800;color:#5fc9b6">{r["low"]}&ndash;{r["high"]}%</span></div>')
-    ranked_txt = "; ".join(f"{i+1}. {r['name']} {r['low']}-{r['high']}% ({'in-state' if r['instate'] else 'out-of-state'})"
-                           for i, r in enumerate(results))
+    ranked_txt = "; ".join(
+        f"{i+1}. {r['name']} {r['low']}-{r['high']}%"
+        + (f" ({'in-state' if r['instate'] else 'out-of-state'})" if r['is_public'] else " (private — residency N/A)")
+        for i, r in enumerate(results))
     meta_plain = meta.replace("&middot;", "·")
     home_state = p.get("state") or "unknown"
     bullets = _content_bullets(
@@ -11741,7 +11747,7 @@ def content_request_batch():
         if not existing:
             conn.execute("INSERT INTO batch_requests (count) VALUES (?)", (n,))
             conn.commit()
-    return redirect(url_for("content_today", requested=1))
+    return redirect(url_for("content_today", requested=n))
 
 
 @app.route("/content/batch-pending")
@@ -11850,13 +11856,26 @@ def content_today():
     if not cards:
         cards.append('<div style="color:#7c8aa0;text-align:center;padding:40px 0">No carousels released yet. '
                      'The generator fills the queue; releases land here at 8 / 12 / 3 / 7:30.</div>')
-    banner = ('<div style="background:#13351f;border:1px solid #1f7a45;color:#bdf3d0;border-radius:12px;'
-              'padding:12px 14px;margin:0 0 16px;font-weight:600">⚡ Batch requested — rendering 4 fresh '
-              'carousels on the Mac now; the links get texted to you in a few minutes.</div>'
-              if request.args.get("requested") else '')
-    make_btn = (f'<form method="post" action="/content/request-batch" style="margin:0 0 18px">{csrf_input()}'
-                f'<button style="width:100%;background:#5fc9b6;color:#06121a;font-weight:800;border:0;'
-                f'padding:15px;border-radius:12px;font-size:16px;cursor:pointer">⚡ Make 4 fresh carousels now</button></form>')
+    try:
+        _rqn = max(1, min(8, int(request.args.get("requested") or 0)))
+    except ValueError:
+        _rqn = 0
+    _pl = "" if _rqn == 1 else "s"
+    banner = (f'<div style="background:#13351f;border:1px solid #1f7a45;color:#bdf3d0;border-radius:12px;'
+              f'padding:12px 14px;margin:0 0 16px;font-weight:600">⚡ Requested — rendering {_rqn} fresh '
+              f'carousel{_pl} on the Mac now; the link{_pl} get texted to you in a few minutes.</div>'
+              if _rqn else '')
+    make_btn = (
+        f'<div style="display:flex;gap:10px;margin:0 0 18px">'
+        f'<form method="post" action="/content/request-batch" style="flex:1">{csrf_input()}'
+        f'<input type="hidden" name="count" value="1">'
+        f'<button style="width:100%;background:#16202e;color:#e9eef5;font-weight:800;border:1px solid #2b3a4f;'
+        f'padding:15px;border-radius:12px;font-size:16px;cursor:pointer">⚡ Make 1</button></form>'
+        f'<form method="post" action="/content/request-batch" style="flex:2">{csrf_input()}'
+        f'<input type="hidden" name="count" value="4">'
+        f'<button style="width:100%;background:#5fc9b6;color:#06121a;font-weight:800;border:0;'
+        f'padding:15px;border-radius:12px;font-size:16px;cursor:pointer">⚡ Make 4 fresh carousels</button></form>'
+        f'</div>')
     body = (f'<div style="max-width:720px;margin:0 auto;padding:16px 12px 80px">'
             + f'<h1 style="margin:0 0 4px">📅 Today</h1>'
             + f'<div style="color:#7c8aa0;font-size:14px;margin:0 0 18px">{pending} queued · {posted} posted · long-press a slide to save to Photos</div>'
