@@ -7,7 +7,7 @@ accent color) and the slide-3 type. No rendering here.
 
 Env: ANTHROPIC_KEY required.
 """
-import os, sys, json, random
+import os, sys, json, random, re
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import app
 import anthropic
@@ -107,7 +107,7 @@ Return ONLY strict JSON:
 {{"profile": {{"uw_gpa": float, "weighted_gpa": float, "sat": int|null, "act": int|null,
 "sat_math": int|null, "sat_ebrw": int|null, "major": str, "state": str, "school_type": "public"|"private",
 "aps": str, "ecs": str, "leadership": str, "awards": str}},
-"title": {{"lines": ["LINE 1", "LINE 2", ...], "accent_words": ["{short}", ...], "slide3": "chances"|"grade"}}}}"""
+"title": {{"lines": ["LINE 1", "LINE 2", ...], "accent_words": ["{short}", ...], "slide3": "chances"|"grade"|"glowup"}}}}"""
     msg = _claude().messages.create(model="claude-haiku-4-5-20251001", max_tokens=1300,
                                     temperature=1.0, messages=[{"role": "user", "content": prompt}])
     txt = msg.content[0].text.strip()
@@ -155,8 +155,12 @@ def generate(slug=None, uid=181, want_slide3=None):
     # Lock to the requested reveal type when the factory asked for one (the hook
     # was written in that family); else trust the model's pick.
     slide3 = want_slide3 if want_slide3 in _TITLE_FAMILIES else t.get("slide3", "chances")
+    # Enforce the "no number/percentage in the title" rule the prompt asks for —
+    # the reveal (odds %, grade) lives on a later slide; a leaked number both
+    # spoils the guessing-game and is an LLM hallucination, not the real value.
+    lines = [ln for ln in t["lines"] if not re.search(r"\d", ln)] or t["lines"]
     return {"slug": slug, "name": sch.get("name"), "short": short, "profile": profile,
-            "lines": t["lines"], "accent_words": t.get("accent_words", [short]),
+            "lines": lines, "accent_words": t.get("accent_words", [short]),
             "slide3": slide3}
 
 

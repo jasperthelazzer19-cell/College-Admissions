@@ -62,7 +62,23 @@ def mark_accents(lines, accent_words):
 # ── all slides rendered FREE via headless Chrome (no image API) ────────────
 # NOTE: do NOT add --user-data-dir — with --headless=new it writes the PNG but
 # hangs on exit. Renders run sequentially, so the default profile is fine.
-def _shot(out_path, url):
+def _shot(out_path, url, verify=True):
+    # Guard against screenshotting an error/redirect page (e.g. an export whose
+    # profile is missing 302-redirects to the editor, or an h2h "student not set"
+    # notice) and silently posting it. Fetch first: if it redirected to /profile
+    # or the body lacks a render card, fail so the carousel is skipped/retried.
+    # Grading is cached, so this fetch just warms the cache the screenshot reuses.
+    if verify:
+        try:
+            resp = urllib.request.urlopen(url, timeout=60)
+            final = resp.geturl()
+            html = resp.read().decode("utf-8", "ignore")
+        except Exception as e:
+            raise RuntimeError(f"render fetch failed ({e}): {url}")
+        if final.rstrip("/").endswith("/profile"):
+            raise RuntimeError(f"export redirected to profile editor (missing data): {url}")
+        if 'id="card"' not in html and 'id="tcard"' not in html:
+            raise RuntimeError(f"render page missing a card (likely an error/notice page): {url}")
     subprocess.run([CHROME, "--headless=new", "--disable-gpu", "--hide-scrollbars",
                     "--force-device-scale-factor=2", "--window-size=1024,1536",
                     "--virtual-time-budget=6000", "--timeout=12000",
@@ -137,7 +153,29 @@ def push(payload):
 
 
 import threading  # noqa: E402
+import fcntl, contextlib  # noqa: E402
 _server = None
+
+_LOCKFILE = os.path.join(HERE, ".render.lock")
+
+
+@contextlib.contextmanager
+def render_lock():
+    """Cross-process exclusive lock. The scheduled slot job and the text/button
+    listener both render against ONE local server (port 5077) and the SAME shared
+    user 181/38 profile rows — running concurrently would (a) collide on the port
+    and (b) let one carousel's profile slide pair with another's odds slide. Hold
+    this around the whole generate→render session so the two jobs serialize."""
+    f = open(_LOCKFILE, "w")
+    try:
+        fcntl.flock(f, fcntl.LOCK_EX)
+        yield
+    finally:
+        try:
+            fcntl.flock(f, fcntl.LOCK_UN)
+        except Exception:
+            pass
+        f.close()
 
 
 def start_local_server():
@@ -317,6 +355,13 @@ def make_one(dry=False, slug=None, slide3=None, ctype=None):
     return make_single(dry, slug, slide3)
 
 
+def _as_esc(s):
+    """Escape a string for embedding inside an AppleScript double-quoted literal.
+    School names like St. John's / Saint Mary's contain quotes that would
+    otherwise break the osascript and drop the text silently."""
+    return str(s).replace("\\", "\\\\").replace('"', '\\"')
+
+
 def text_carousels(items):
     """iMessage the creator one intro + a tappable link per carousel (file
     attachments are broken via AppleScript on macOS; links send fine).
@@ -326,10 +371,10 @@ def text_carousels(items):
         print("PHONE not set or nothing to text — skipping"); return False
     intro = (f"\U0001F3AC {len(items)} new Candor carousel option(s) — tap each, "
              f"long-press the slides to save:")
-    sends = [f' send "{intro}" to b']
+    sends = [f' send "{_as_esc(intro)}" to b']
     for cid, school in items:
         link = f"{TARGET_URL}/content/c/{cid}?key={urllib.parse.quote(CRON_KEY)}"
-        sends.append(f' send "{school}: {link}" to b')
+        sends.append(f' send "{_as_esc(f"{school}: {link}")}" to b')
     script = ('tell application "Messages"\n set svc to 1st service whose service type = iMessage\n'
               f' set b to buddy "{num}" of svc\n' + "\n".join(sends) + "\nend tell")
     try:
@@ -348,6 +393,11 @@ def main():
         if not v:
             print(f"{k} not set — refusing to run."); sys.exit(1)
     os.environ.setdefault("GRADER_FAST", "1")   # cheap Haiku grading for autopilot only
+    with render_lock():   # serialize with the text/button listener (shared port + DB)
+        _run_session(dry, n_force, slot_count)
+
+
+def _run_session(dry, n_force, slot_count):
     start_local_server()
     try:
         if not wait_local_app():

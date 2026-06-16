@@ -79,7 +79,7 @@ def text_back(msg):
     if not PHONE:
         return
     script = ('tell application "Messages"\n set svc to 1st service whose service type = iMessage\n'
-              f' set b to buddy "{PHONE}" of svc\n send "{msg}" to b\nend tell')
+              f' set b to buddy "{PHONE}" of svc\n send "{factory._as_esc(msg)}" to b\nend tell')
     subprocess.run(["osascript", "-e", script], capture_output=True, timeout=30)
 
 
@@ -134,6 +134,11 @@ def main():
         _save_rowid(max_rowid); return       # nothing actionable; advance cursor
 
     os.environ.setdefault("GRADER_FAST", "1")
+    with factory.render_lock():   # serialize with the scheduled slot job (shared port + DB)
+        _render_session(batch, web_n, specifics, max_rowid)
+
+
+def _render_session(batch, web_n, specifics, max_rowid):
     factory.start_local_server()
     try:
         if not factory.wait_local_app():
