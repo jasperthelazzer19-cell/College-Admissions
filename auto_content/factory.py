@@ -188,9 +188,13 @@ def _finish(payload, dry, label):
 
 def make_single(dry=False, slug=None, slide3=None):
     slug = slug if slug in SCHOOLS else random.choice(SCHOOLS)
-    g = gen_profile.generate(slug)          # profile saved to 181 + title copy
-    if slide3 in ("chances", "grade", "glowup"):
-        g["slide3"] = slide3                # honor an explicit request (text-to-make)
+    # Pick the reveal type up front (unless text-to-make requested one) and steer
+    # the hook to match — chances stays the staple, grade + glow-up get real
+    # airtime so the feed cycles every format instead of defaulting to chances.
+    if slide3 not in ("chances", "grade", "glowup"):
+        slide3 = random.choices(["chances", "grade", "glowup"], weights=[5, 3, 2])[0]
+    g = gen_profile.generate(slug, want_slide3=slide3)   # profile -> 181 + matching hook
+    g["slide3"] = slide3
     odds, grade, low, high, gnum = odds_grade_text(slug, g["profile"],
                                                    want_grade=(g["slide3"] == "grade"))
     short, accent = app._school_brand(slug, g["name"])

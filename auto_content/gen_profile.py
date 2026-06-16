@@ -22,25 +22,61 @@ def _claude():
 SCHOOLS = sorted(set(app.INST_LOGOS) & set(app.COLLEGES_BY_SLUG))
 
 
-# Proven @candor title patterns — given to the model as INSPIRATION. It is told
-# to vary the wording and invent fresh angles, not just copy these.
-_TITLE_EXAMPLES = """WOULD YOU | ADMIT | THIS STUDENT | TO {S}?   (accent: ADMIT, {S}; slide3: chances)
-GUESS THIS | STUDENT'S ODDS | OF GETTING | INTO {S}   (accent: {S}; slide3: chances)
-CANDOR TOLD ME | IF THIS | {S} | APPLICANT | COULD GET IN   (accent: {S}; slide3: chances)
-CANDOR | GRADED THIS | {S} | APPLICANT'S | PROFILE   (accent: {S}; slide3: grade)
-CANDOR | GRADED THIS | {S} | APPLICANT'S | PROFILE   (accent: {S}; slide3: grade)
-CAN YOU | BEAT THIS | {S} | APPLICANT?   (accent: BEAT THIS, {S}; slide3: grade)
-WHAT'S THIS | {S} | APPLICANT'S | BIGGEST | WEAKNESS?   (accent: {S}, WEAKNESS; slide3: grade)
-I THOUGHT | THIS STUDENT | WOULD GET | INTO {S}...   (accent: {S}; slide3: chances)
-CAN AI | PREDICT | {S} | ADMISSIONS?   (accent: AI, {S}; slide3: grade)
-WHAT WOULD IT TAKE | TO GET THIS | STUDENT INTO | {S}?   (accent: {S}; slide3: glowup)"""
+# Proven @candor title patterns, grouped by the reveal slide they set up. Given
+# to the model as INSPIRATION for the chosen reveal type — it varies wording and
+# invents fresh angles in the same family, not just copies. Keeping a healthy
+# spread per type (and letting the factory pick the type) is what keeps the feed
+# trying every format instead of defaulting to "chances".
+_TITLE_FAMILIES = {
+    "chances": [
+        "WOULD YOU | ADMIT | THIS STUDENT | TO {S}?   (accent: ADMIT, {S})",
+        "GUESS THIS | STUDENT'S ODDS | OF GETTING | INTO {S}   (accent: {S})",
+        "CANDOR TOLD ME | IF THIS | {S} | APPLICANT | COULD GET IN   (accent: {S})",
+        "I THOUGHT | THIS STUDENT | WOULD GET | INTO {S}...   (accent: {S})",
+        "DID THIS | APPLICANT | GET INTO | {S}?   (accent: {S})",
+        "BE HONEST — | DOES THIS KID | GET INTO | {S}?   (accent: HONEST, {S})",
+        "REJECTED OR | ACCEPTED | AT {S}?   (accent: REJECTED, {S})",
+    ],
+    "grade": [
+        "CANDOR | GRADED THIS | {S} | APPLICANT'S | PROFILE   (accent: {S})",
+        "CAN YOU | BEAT THIS | {S} | APPLICANT?   (accent: BEAT THIS, {S})",
+        "WHAT'S THIS | {S} | APPLICANT'S | BIGGEST | WEAKNESS?   (accent: {S}, WEAKNESS)",
+        "CAN AI | PREDICT | {S} | ADMISSIONS?   (accent: AI, {S})",
+        "RATE THIS | {S} | APPLICANT | OUT OF 100   (accent: {S})",
+        "GREEN FLAG OR | RED FLAG | FOR {S}?   (accent: RED FLAG, {S})",
+        "HOW STRONG | IS THIS | {S} | APPLICANT, | REALLY?   (accent: {S})",
+    ],
+    "glowup": [
+        "WHAT WOULD IT TAKE | TO GET THIS | STUDENT INTO | {S}?   (accent: {S})",
+        "HOW DOES THIS | APPLICANT | GET INTO | {S}?   (accent: {S})",
+        "FIXING THIS | APPLICANT'S | SHOT AT | {S}   (accent: {S})",
+        "WHAT THIS KID | NEEDS TO ADD | TO CRACK | {S}   (accent: {S})",
+        "THE GLOW-UP | THIS APPLICANT | NEEDS FOR | {S}   (accent: GLOW-UP, {S})",
+    ],
+}
+# Flat list for backward-compat / when no reveal type is requested. Fold the
+# slide3 tag into each pattern's "(accent: ...)" note → "(accent: ...; slide3: t)".
+_TITLE_EXAMPLES = "\n".join(
+    (f"{ex.rstrip()[:-1]}; slide3: {t})" if ex.rstrip().endswith(")") else f"{ex}   (slide3: {t})")
+    for t, exs in _TITLE_FAMILIES.items() for ex in exs)
 
 
-def _gen_profile_and_title(slug):
+def _gen_profile_and_title(slug, want_slide3=None):
     sch = app.COLLEGES_BY_SLUG[slug]
     name = sch.get("name")
     short, _ = app._school_brand(slug, name)
     accept = sch.get("accept") or 0.15
+    # When the factory asks for a specific reveal type, show ONLY that family's
+    # patterns and lock slide3 — so the hook always matches the slide we'll show
+    # (no more "grade" reveal under a "chances" hook), and every format gets used.
+    if want_slide3 in _TITLE_FAMILIES:
+        examples = "\n".join(_TITLE_FAMILIES[want_slide3]).replace("{S}", short)
+        slide3_instr = (f'slide3 type: ALWAYS use "{want_slide3}" — write the hook in that family only '
+                        f'(the patterns below are all {want_slide3} hooks).')
+    else:
+        examples = _TITLE_EXAMPLES.replace("{S}", short)
+        slide3_instr = ('slide3 type: "grade" for grading/score/profile hooks, "glowup" for '
+                        '"what would it take / how to get in / glow up" hooks, else "chances".')
     prompt = f"""You write content for a college-admissions TikTok (@candor). Produce TWO things for
 {name} (acceptance ~{round(accept*100)}%): a realistic applicant profile, and a punchy title hook.
 
@@ -61,12 +97,11 @@ families: "would you admit", "guess the odds", "candor told me if", "can you bea
 "I thought they'd get in", "can AI predict", "candor graded this profile", "what would it take to get in"
 (glow-up). NEVER put a specific number or percentage in the title (you do NOT know the real odds/grade;
 those are revealed on a later slide). No "%", no made-up scores.
-slide3 type: "grade" for grading/score/profile hooks, "glowup" for "what would it take / how to get in /
-glow up" hooks, else "chances".
+{slide3_instr}
 The school short name is "{short}". Pick which words get the school's accent color (always the school
-name; optionally one emphasis word). Choose slide3 type: "grade" if about grading/score/profile, else "chances".
+name; optionally one emphasis word).
 Patterns (| separates lines):
-{_TITLE_EXAMPLES.replace("{S}", short)}
+{examples}
 
 Return ONLY strict JSON:
 {{"profile": {{"uw_gpa": float, "weighted_gpa": float, "sat": int|null, "act": int|null,
@@ -98,10 +133,10 @@ def _ensure_user(uid):
         conn.commit()
 
 
-def generate(slug=None, uid=181):
+def generate(slug=None, uid=181, want_slide3=None):
     slug = slug if slug in app.COLLEGES_BY_SLUG else random.choice(SCHOOLS)
     sch = app.COLLEGES_BY_SLUG[slug]
-    d = _gen_profile_and_title(slug)
+    d = _gen_profile_and_title(slug, want_slide3=want_slide3)
     profile = d["profile"]
     for f in ("ecs", "leadership", "awards"):
         profile[f] = _normalize_list_field(profile.get(f))
@@ -117,9 +152,12 @@ def generate(slug=None, uid=181):
             _t.sleep(1.5)
     short, _ = app._school_brand(slug, sch.get("name"))
     t = d["title"]
+    # Lock to the requested reveal type when the factory asked for one (the hook
+    # was written in that family); else trust the model's pick.
+    slide3 = want_slide3 if want_slide3 in _TITLE_FAMILIES else t.get("slide3", "chances")
     return {"slug": slug, "name": sch.get("name"), "short": short, "profile": profile,
             "lines": t["lines"], "accent_words": t.get("accent_words", [short]),
-            "slide3": t.get("slide3", "chances")}
+            "slide3": slide3}
 
 
 if __name__ == "__main__":
