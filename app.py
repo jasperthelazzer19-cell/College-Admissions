@@ -3771,7 +3771,11 @@ def _fallback_bullets(profile, school, fit, components, tier):
     # students shouldn't be told about the SAT range), and guard test-blind
     # schools whose ranges are None.
     _sat, _act = profile.get("sat"), profile.get("act")
-    if _act and not _sat and school.get("act_25") is not None:
+    # Test-blind (UC) schools keep a stored range for display but ignore scores —
+    # never cite the range as a strength/weakness in the fallback bullets either.
+    if is_test_blind(school):
+        test_range_str = ""
+    elif _act and not _sat and school.get("act_25") is not None:
         test_range_str = f"ACT {school['act_25']}–{school['act_75']}"
     elif school.get("sat_25") is not None:
         test_range_str = f"SAT {school['sat_25']}–{school['sat_75']}"
@@ -7505,7 +7509,7 @@ TAILORED_ADVICE_TTL_DAYS = 7
 # Bump this whenever the tailored-advice prompt changes — anything cached
 # before this timestamp is treated as stale and regenerated. Saves us from
 # manually clearing the table when we fix prompt bugs.
-TAILORED_ADVICE_MIN_VALID_AT = "2026-05-07T08:45:00"
+TAILORED_ADVICE_MIN_VALID_AT = "2026-06-15T23:00:00"
 
 # Saved-chances rows computed before this timestamp are treated as stale
 # and recomputed on next view. Bumped when the odds model changes (e.g.
@@ -7552,6 +7556,7 @@ def get_tailored_advice(user_id, school, profile, force=False):
     # Generate fresh
     fit_acad, components = compute_fit(profile, school)
     low, high = estimate_odds(school, fit_acad, profile)
+    tier = assign_tier(school, fit_acad, profile)
     m = school_match(profile, school)
     note = get_school_strategy(school)
     test_str = f"SAT {profile['sat']}" if profile.get("sat") else (f"ACT {profile['act']}" if profile.get("act") else "no test score submitted")
@@ -7570,8 +7575,15 @@ def get_tailored_advice(user_id, school, profile, force=False):
     # (and get it wrong — we've seen it write "ACT 33 below 31-34 range").
     sat = profile.get("sat")
     act = profile.get("act")
+    # Test-blind (UC system) schools keep a stored SAT/ACT range for DISPLAY but
+    # legally don't consider scores. Gate the comparison so a submitted score is
+    # never written up as a strength/weakness here (same fix as generate_bullets).
+    test_blind = is_test_blind(school)
     test_compare = ""
-    if sat:
+    if test_blind:
+        test_compare = (f"{school['name']} is TEST-BLIND: SAT/ACT scores are NOT considered in "
+                        "admissions. Do NOT treat the test as a strength, weakness, or factor of any kind.")
+    elif sat:
         s25, s75 = school.get("sat_25"), school.get("sat_75")
         if s25 and s75:
             if sat >= s75:
@@ -7645,8 +7657,7 @@ def get_tailored_advice(user_id, school, profile, force=False):
 TARGET SCHOOL: {school['name']} ({city_state(school)}, {region_of(school)})
 - Acceptance rate: {round(school['accept']*100,1)}%
 - GPA mid-50%: {school['gpa_lo']}-{school['gpa_hi']}
-- SAT mid-50%: {school['sat_25']}-{school['sat_75']}
-- ACT mid-50%: {school['act_25']}-{school['act_75']}
+{("- Test policy: TEST-BLIND — SAT/ACT scores are NOT considered in admissions." if test_blind else f"- SAT mid-50%: {school['sat_25']}-{school['sat_75']}" + chr(10) + f"- ACT mid-50%: {school['act_25']}-{school['act_75']}")}
 - Size: {school.get('size','?'):,} undergrads · S/F {sf_ratio(school)}:1 · ${school.get('tuition',0):,}/yr sticker
 - Setting: {setting_of(school)} · Climate: {climate_of(school)} · Greek: {greek_strength(school)} · Sports: {sports_strength(school)}
 - Description: {school.get('desc','')}
@@ -7681,6 +7692,9 @@ CRITICAL ACCURACY RULES — DO NOT VIOLATE:
 - If the student's stats are clearly below the typical admit range, say so directly. "Your test score is below the 25th percentile (which means most admits scored higher than you)" — not euphemisms like "compensable" or "marginal".
 - If the student lists a portfolio/research/audition and the VERIFIED FACTS show this school weights it heavily, the bullet about the application MUST acknowledge how their portfolio compares (strong evidence vs unclear quality).
 - Never claim a hook the student doesn't have. They are first_gen={bool(profile.get('first_gen'))}, athlete={bool(profile.get('athlete'))}, and have legacy_generations={legacy_generations_at(profile, school)} at THIS school. Don't reference hooks they don't have.
+{('- This school is TEST-BLIND: do NOT mention, cite, or frame the SAT/ACT score as a strength, weakness, or improvement target of any kind. Do NOT suggest retaking or raising a test score. Scores are legally not considered here.' if test_blind else '')}
+{('' if school.get('type') == 'public' else '- This is a PRIVATE school: do NOT mention in-state/out-of-state, residency, or home state as a factor — residency is irrelevant at private universities.')}
+{('' if _tracks_demonstrated_interest(school, tier) else "- This school does NOT track demonstrated interest: do NOT advise visiting, emailing, attending info sessions, or 'showing interest' as a way to improve odds — it has no effect here.")}
 
 5. If the student's intended major requires a portfolio/audition (per the VERIFIED FACTS above), the bullet about the application MUST mention that requirement and the work needed to satisfy it. Never claim a portfolio isn't required when the verified facts say it is.
 
