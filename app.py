@@ -11712,18 +11712,23 @@ def _hook_html(hook, accent, outline=None):
     return "".join(f'<span style="color:{accent}{stroke}">{t}</span>' if a else t for t, a in parts)
 
 
-def _title_frame(line_html, logo_html, maxH=1040):
+def _title_frame(line_html, logo_html, maxH=1040, logoH=360, cardH=1402, maxFont=0):
     """Shared @candor title-slide frame used by BOTH the single-school hook and
     the compare title, so they look identical: each line scaled to span the full
-    width (justified-block look), a fixed 360px logo band at the bottom, and a
-    vertical-fill pass that spreads the lines to fill the frame when the content
-    is short (otherwise a few long lines would float in the middle, the way the
-    compare slide used to look next to the denser single titles)."""
-    return (f'<div id="tcard" style="height:1402px;display:flex;flex-direction:column;'
+    width (justified-block look), with the school logo(s) in a band at the bottom.
+
+    maxFont caps any single line's size: short lines (a 3-4 letter school name)
+    would otherwise blow up to fill the width and make the whole stack so tall it
+    gets globally shrunk (= small text + margins). Capping keeps headers full-width
+    and short school names big-but-bounded, so the text fills the frame like the
+    reference slides. cardH/logoH let the compare use a bigger text area + bigger
+    logos without changing the single-title look."""
+    capjs = f'if({maxFont}>0&&fs>{maxFont})fs={maxFont};' if maxFont else ''
+    return (f'<div id="tcard" style="height:{cardH}px;display:flex;flex-direction:column;'
             f"font-family:'AntonEmb','Anton',sans-serif;font-weight:400;letter-spacing:-2px;color:#111;text-transform:uppercase\">"
             f'<div id="tbox" style="display:flex;flex-direction:column;justify-content:center;flex:1;'
             f'text-align:center;gap:0px;min-height:0">{line_html}</div>'
-            f'<div style="flex:0 0 360px;display:flex;align-items:center;justify-content:center">{logo_html}</div>'
+            f'<div style="flex:0 0 {logoH}px;display:flex;align-items:center;justify-content:center">{logo_html}</div>'
             f'</div>'
             f'<script>(function(){{function fit(){{'
             f'var box=document.getElementById("tbox");if(!box)return;var cw=box.clientWidth;'
@@ -11731,17 +11736,13 @@ def _title_frame(line_html, logo_html, maxH=1040):
             f'box.style.justifyContent="center";'
             f'ls.forEach(function(l){{l.style.fontSize="120px";'
             f'var w=l.querySelector(".tin").getBoundingClientRect().width;'
-            f'if(w>0){{l.style.fontSize=Math.floor(120*cw/w)+"px";}}}});'
-            # Keep the original big, full-width look (fonts span the width). Only
-            # shrink if the stack truly overflows the box, leaving a small margin so
-            # the top line's ascenders don't clip — the line-gap (now 0) was what
-            # pushed it over before. Loop since shrinking reflows line heights.
+            f'if(w>0){{var fs=Math.floor(120*cw/w);{capjs}l.style.fontSize=fs+"px";}}}});'
+            # Only shrink if the (capped) stack still overflows; -18 keeps the top
+            # line's ascenders off the edge. No grow — the per-line cap already sets
+            # the big size; growing would just re-stretch short lines and overflow.
             f'for(var p=0;p<4;p++){{var avail=box.clientHeight-18;'
             f'if(box.scrollHeight<=avail)break;var k=avail/box.scrollHeight;'
             f'ls.forEach(function(l){{l.style.fontSize=Math.floor(parseFloat(l.style.fontSize)*k)+"px";}});}}'
-            # vertical fill: if the justified lines don't reach the frame, spread
-            # them top-to-bottom so the slide fills like the dense single titles.
-            f'if(box.scrollHeight < box.clientHeight - 12){{box.style.justifyContent="space-between";}}'
             f'}}'
             f'if(document.fonts&&document.fonts.ready){{document.fonts.ready.then(fit);}}else{{fit();}}'
             f'setTimeout(fit,250);setTimeout(fit,700);}})();</script>')
@@ -11756,7 +11757,7 @@ def _title_card_body(slug, sch, hook, nologo=False):
     short, color = _school_brand(slug, sch.get("name"))
     outline = SCHOOL_TEXT_OUTLINE.get(slug)
     logo_url = None if nologo else (INST_LOGOS.get(slug) or SCHOOL_LOGOS.get(slug))
-    logo_html = (f'<img src="{logo_url}" style="max-height:250px;max-width:74%;object-fit:contain;display:block;margin:0 auto">'
+    logo_html = (f'<img src="{logo_url}" style="max-height:310px;max-width:78%;object-fit:contain;display:block;margin:0 auto">'
                  if logo_url else '')
     lines = [ln for ln in hook.upper().split("\n") if ln.strip()]
     line_html = "".join(
@@ -11789,13 +11790,15 @@ def _compare_title_body(slugs):
                       f'<span class="tin" style="display:inline-block;white-space:nowrap">'
                       f'<span style="color:{color}">{short}</span><span style="color:#111">{suffix}</span>'
                       f'</span></div>')
-    # Bigger logos than before (match the single-title logo presence in the
-    # 360px band so the compare doesn't look sparse at the bottom).
-    logos = "".join(f'<img src="{l}" style="max-height:215px;max-width:30%;object-fit:contain">'
+    # Big logos, filling the band (match the reference compare slides).
+    logos = "".join(f'<img src="{l}" style="max-height:290px;max-width:31%;object-fit:contain">'
                     for (_s, _c, l) in schools if l)
-    logo_row = (f'<div style="display:flex;align-items:center;justify-content:center;gap:30px;'
+    logo_row = (f'<div style="display:flex;align-items:center;justify-content:center;gap:26px;'
                 f'width:100%">{logos}</div>')
-    return _title_frame(line_html, logo_row)
+    # Bigger text area (cardH) + big logo band, and cap per-line size so the short
+    # school names (UNC/UCLA) stay big-but-bounded and the stack fills the frame
+    # instead of being globally shrunk. Matches the reference compare slides.
+    return _title_frame(line_html, logo_row, logoH=320, cardH=1470, maxFont=300)
 
 
 @app.route("/title-compare/export")
@@ -11809,7 +11812,7 @@ def title_compare_export():
     if len(slugs) < 2:
         abort(404)
     return Response(_profile_export_page(_compare_title_body(slugs), dl_name="compare-title",
-                                         pad="50px 44px 50px",
+                                         pad="38px 36px 28px",
                                          clean=request.args.get("clean") == "1"), mimetype="text/html")
 
 
