@@ -2963,8 +2963,19 @@ def _residency_adjust_accept(school, a, profile):
         if d.get("out_of_state_rate") and overall:
             a = min(a * d["out_of_state_rate"] / overall, d["out_of_state_rate"])
         elif overall < 0.50:
-            a *= 0.55
+            # No explicit OOS rate: scale the haircut by selectivity instead of a
+            # flat 0.55 — very selective publics are much harsher OOS than the
+            # mid-accept ones, where a flat 45% cut was too punishing.
+            a *= 0.55 if overall < 0.20 else (0.70 if overall < 0.35 else 0.85)
     return max(0.005, min(1.0, a))
+
+
+def _cal_ceiling(a):
+    """Middle-ground ceiling for the per-school calibration dial. The old flat
+    0.42 was too generous at sub-10% schools (NYU @7.7% could show 43%); a tight
+    ~2.2x base was the other extreme. This is the middle: ~3.2x the base accept
+    rate, bounded to [0.20, 0.38]."""
+    return max(0.20, min(0.38, a * 3.2))
 
 
 def assign_tier(school, fit, profile=None):
@@ -3549,8 +3560,11 @@ def estimate_odds(school, fit, profile):
     if profile.get("is_international"):
         a = a * 0.65
     else:
-        # Adjust headline rate up for the domestic pool
-        a = min(1.0, a / max(0.5, 1 - intl_pct * 0.65))
+        # Adjust headline rate up for the domestic pool, but CAP the boost at
+        # +8% — the raw 1/(1-intl%*.65) gave ~+24% at MIT, a large unsourced lift
+        # that stacked with the calibration dials at high-intl schools.
+        boost = 1.0 / max(0.5, 1 - intl_pct * 0.65)
+        a = min(1.0, a * min(boost, 1.08))
     # Less-generous, MORE-responsive fit curve. Two calibration goals (2026-06-04):
     #   (1) trim ~10% off the level (a counselor flagged odds as a little inflated),
     #       done via the base term 0.20 -> 0.10 — a small uniform haircut, NOT a tier
@@ -3609,15 +3623,16 @@ def estimate_odds(school, fit, profile):
     # between the cap blends smoothly — so EC strength varies the ceiling.
     exc = ec_exceptional_strength(profile)
     _cal = _SCHOOL_CALIBRATION.get(school.get("slug"))
-    if _cal and exc < 0.5:
+    # Per-school calibration dial, computed as a FLOOR (it only ever lifts). It
+    # used to early-return for exc<0.5 with its own 0.42 ceiling, which (a) let
+    # sub-10% schools show ~43% (#3) and (b) created a discontinuity where a
+    # profile crossing exc=0.5 jumped to the other code path and could DROP (#4).
+    # Now: cap it with the middle-ground _cal_ceiling and max() it against the
+    # standard/exceptional center below, so it's monotonic and applies at all exc.
+    cal_center = None
+    if _cal:
         w = max(0.0, min(1.0, (fit - 46.0) / 20.0))
-        center = center * (1.0 + (_cal - 1.0) * w)
-        center = min(center, 0.42)
-        center = _target_honesty_haircut(center)
-        low = max(1, int(round((center - max(0.05, center * 0.30) / 2) * 100)))
-        high = min(95, int(round((center + max(0.05, center * 0.30) / 2) * 100)))
-        if high <= low: high = low + 3
-        return low, high
+        cal_center = min(center * (1.0 + (_cal - 1.0) * w), _cal_ceiling(a))
     # Blend between the standard cap and the exceptional cap by `exc` (0-1).
     # Standard caps assume a typical strong applicant; the exceptional caps
     # (USAMO golds, recruited D1 athletes, ISEF top, etc.) get raised because
@@ -3642,6 +3657,10 @@ def estimate_odds(school, fit, profile):
     else:
         c_std, c_exc = min(_base, 0.85), min(_base * 1.3, 0.93)
     center = c_std + (c_exc - c_std) * exc
+    # Calibration dial floors the center (only lifts) — max() instead of a
+    # separate early-return path makes crossing exc=0.5 smooth (#4).
+    if cal_center is not None:
+        center = max(center, cal_center)
     center = _target_honesty_haircut(center)
     # Per-school safety floor: at high-accept schools (gated to accept >= the
     # SAFETY_FLOOR_GATE so it CANNOT touch reaches/targets), a qualified applicant
