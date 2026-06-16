@@ -3459,9 +3459,15 @@ _SCHOOL_CALIBRATION = {
     # (above) already shaves ~10% on top of these.
     "usc": 1.40,
     "nyu": 1.45,
-    "umich": 0.86,
     "bu": 1.15,
     "northeastern": 1.50,
+    # Cooling dials (<1): cool the GENERIC-strong applicant, spare the high-fit
+    # spike applicant (the cool releases as fit rises). Added 2026-06-16 — these
+    # two selective holistic publics sat at their OOS base rate for a stats-only
+    # applicant while peers (UNC/UCB/UCLA) were cooled to ~half. Michigan's old
+    # 0.86 was a no-op (the dial mechanism ignored cooling until this session).
+    "umich": 0.46,   # typical-strong OOS ~15-20% -> ~10-14%; top applicant unchanged
+    "uva": 0.44,     # typical-strong OOS ~11-15% -> ~7-10%;  top applicant unchanged
 }
 
 
@@ -3629,10 +3635,10 @@ def estimate_odds(school, fit, profile):
     # profile crossing exc=0.5 jumped to the other code path and could DROP (#4).
     # Now: cap it with the middle-ground _cal_ceiling and max() it against the
     # standard/exceptional center below, so it's monotonic and applies at all exc.
-    cal_center = None
-    if _cal:
-        w = max(0.0, min(1.0, (fit - 46.0) / 20.0))
-        cal_center = min(center * (1.0 + (_cal - 1.0) * w), _cal_ceiling(a))
+    cal_w = max(0.0, min(1.0, (fit - 46.0) / 20.0)) if _cal else 0.0
+    cal_lift = None
+    if _cal and _cal >= 1.0:
+        cal_lift = min(center * (1.0 + (_cal - 1.0) * cal_w), _cal_ceiling(a))
     # Blend between the standard cap and the exceptional cap by `exc` (0-1).
     # Standard caps assume a typical strong applicant; the exceptional caps
     # (USAMO golds, recruited D1 athletes, ISEF top, etc.) get raised because
@@ -3657,10 +3663,18 @@ def estimate_odds(school, fit, profile):
     else:
         c_std, c_exc = min(_base, 0.85), min(_base * 1.3, 0.93)
     center = c_std + (c_exc - c_std) * exc
-    # Calibration dial floors the center (only lifts) — max() instead of a
-    # separate early-return path makes crossing exc=0.5 smooth (#4).
-    if cal_center is not None:
-        center = max(center, cal_center)
+    # Calibration dial: cal>1 LIFTS (floor via max, so crossing exc=0.5 is smooth,
+    # #4); cal<1 COOLS (scale the center down — the old max()-only logic ignored
+    # cooling dials entirely, making Michigan's 0.86 a silent no-op).
+    if cal_lift is not None:
+        center = max(center, cal_lift)
+    elif _cal and _cal < 1.0:
+        # Cool the GENERIC-strong applicant but spare the genuinely strong one.
+        # The cool is FULL at low/mid fit and RELEASES as fit rises (cal_w->1), so
+        # a stats-only / no-spike profile comes down while a high-fit stats+spike
+        # profile keeps its odds — widening the gap between them at these
+        # over-generous holistic schools instead of dragging everyone down.
+        center *= (_cal + (1.0 - _cal) * cal_w)
     center = _target_honesty_haircut(center)
     # Per-school safety floor: at high-accept schools (gated to accept >= the
     # SAFETY_FLOOR_GATE so it CANNOT touch reaches/targets), a qualified applicant
