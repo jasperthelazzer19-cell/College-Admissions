@@ -3030,6 +3030,28 @@ def _tracks_demonstrated_interest(school, tier):
     return tier in (2, 3) and school.get("type") != "public"
 
 
+def _school_narrative_guardrails(school, profile=None, tier=None):
+    """Reusable hard rules for ANY LLM prompt that advises a student on a
+    specific school. Prevents the model confabulating residency/test-blind/DI
+    facts (the 'UVA favors Virginia applicants' for an NC student class of bug).
+    Returns '' or a newline-joined block of CRITICAL RULES."""
+    rules = []
+    if is_test_blind(school):
+        rules.append("- This school is TEST-BLIND: SAT/ACT scores are NOT considered. Never cite, praise, "
+                     "or suggest raising/submitting a test score here.")
+    st = ((profile or {}).get("state") or "").strip()
+    if school.get("type") == "public":
+        if st and st.lower() != (school.get("state") or "").lower():
+            rules.append(f"- The student lives in {st} and is OUT-OF-STATE at this PUBLIC university: "
+                         "out-of-state residency LOWERS odds here — never frame their home state or residency as an advantage.")
+    else:
+        rules.append("- This is a PRIVATE school: in-state/out-of-state/residency is irrelevant — do not mention it.")
+    if tier is not None and not _tracks_demonstrated_interest(school, tier):
+        rules.append("- This school does NOT track demonstrated interest: do not advise visiting, emailing, or "
+                     "'showing interest' as a way to improve odds.")
+    return "\n".join(rules)
+
+
 def _di_multiplier(level, school_tier):
     """Demonstrated interest only matters at schools that explicitly weight
     it. Most tier-1 schools (Ivies, MIT) say they don't track it; tier 2-3
@@ -7279,7 +7301,7 @@ Output a Quick Facts factsheet about this school with these EXACT bullet labels 
 - **Financial aid:** <% need met or other notable aid policy>
 - **Notable campus features:** <1-2 unique buildings/traditions/quirks>
 
-If you don't know a specific fact, write "Not publicly verified" — never guess. No preamble, no closing."""}],
+If you don't know a specific fact, write "Not publicly verified" — never guess. This matters MOST for **Famous alumni**, **Endowment**, **Religious affiliation**, and **Founded** year: only state a name/number/affiliation you are highly confident is correct for THIS exact school (don't confuse it with a similarly-named one) — otherwise write "Not publicly verified". A wrong alumnus or a fabricated religious affiliation is worse than omitting it. No preamble, no closing."""}],
             )
             body = resp.content[0].text.strip()
         except Exception as e:
@@ -8507,18 +8529,24 @@ def _build_system_prompt(kind, profile, school=None):
     )
     profile_block = "\nThe student's saved profile:\n" + _profile_summary(profile)
     if kind == "school" and school:
+        _tb = is_test_blind(school)
+        test_line = ("Test policy: TEST-BLIND — SAT/ACT scores are NOT considered. "
+                     if _tb else
+                     f"SAT mid-50%: {school['sat_25']}-{school['sat_75']}. ACT mid-50%: {school['act_25']}-{school['act_75']}. ")
         school_block = (
             f"\n\nThe student is asking specifically about {school['name']} ({school['state']}). "
             f"Acceptance rate: {round(school['accept']*100,1)}%. "
             f"Typical admit GPA: {school['gpa_lo']}-{school['gpa_hi']}. "
-            f"SAT mid-50%: {school['sat_25']}-{school['sat_75']}. "
-            f"ACT mid-50%: {school['act_25']}-{school['act_75']}. "
+            f"{test_line}"
             f"Type: {school['type']}. Tier (1=most selective): {school['tier']}. "
             f"Description: {school['desc']}"
         )
         note = get_school_strategy(school)
         school_block += f"\n\nWhat {school['name']} weights most: {note['values']}"
         school_block += f"\nSupplemental essay strategy: {note['supplemental_strategy']}"
+        guards = _school_narrative_guardrails(school, profile, school.get("tier"))
+        if guards:
+            school_block += f"\n\nCRITICAL RULES — do NOT violate:\n{guards}"
         base += "\n\nWhen advice would differ for this school vs others, be explicit about why. Ground every recommendation in the school's actual profile above."
         return base + profile_block + school_block
     return base + profile_block
@@ -11470,9 +11498,11 @@ def headtohead_export(slug):
     aw = (A["lo"] + A["hi"]) >= (B["lo"] + B["hi"])
     def _ss(s):
         return f'{s.get("gpa")} GPA, {(str(s.get("sat"))+" SAT") if s.get("sat") else "test-blind"}, {s.get("major") or "—"}, odds {s["lo"]}-{s["hi"]}%'
+    _g = _school_narrative_guardrails(merged, None, merged.get("tier"))
     bullets = _content_bullets(
         "You analyze a head-to-head between two college applicants.",
-        f'At {merged["name"]}: Student A — {_ss(A)}. Student B — {_ss(B)}. Give 4 bullets: (1) who is more likely to get in and the single biggest reason, (2) where Student A is clearly stronger, (3) where Student B is clearly stronger, (4) the one factor that ultimately decides it (or could flip it) at this specific school.',
+        f'At {merged["name"]}: Student A — {_ss(A)}. Student B — {_ss(B)}. Give 4 bullets: (1) who is more likely to get in and the single biggest reason, (2) where Student A is clearly stronger, (3) where Student B is clearly stronger, (4) the one factor that ultimately decides it (or could flip it) at this specific school.'
+        + (f'\nCRITICAL RULES:\n{_g}' if _g else ''),
         n=4)
     blurb_html = _bullets_html(bullets)
     card = f'''<div id="card" class="full compare">
@@ -11996,7 +12026,11 @@ def profile_slide_export(slug):
     acad = []
     if p.get("uw_gpa") is not None: acad.append(numln(p["uw_gpa"], "UW GPA"))
     if p.get("weighted_gpa") is not None: acad.append(numln(p["weighted_gpa"], "W GPA"))
-    if p.get("sat"):
+    # Test-blind schools (UCs) don't consider scores — don't feature a test stat
+    # on the profile slide for them (it implies the score matters here).
+    if is_test_blind(slug):
+        pass
+    elif p.get("sat"):
         sm, se = p.get("sat_math"), p.get("sat_ebrw")
         sub = f" ({sm} Math, {se} RW)" if sm and se else ""
         acad.append(numln(p["sat"], f"SAT{sub}"))
@@ -13308,7 +13342,7 @@ def grade_user_list(uid):
     if rd_only:
         sugs.append("You're applying RD-only — you're leaving Early Action / Early Decision lifts on the table. EA is non-binding so there's no downside.")
     if n < 6:
-        sugs.append(f"List is small ({n} schools). Most strong applicants apply to 8-12. Adding a couple more well-fit schools improves your overall admit probability.")
+        sugs.append(f"List is small ({n} school{'s' if n != 1 else ''}). Most strong applicants apply to 8-12. Adding a couple more well-fit schools improves your overall admit probability.")
     elif n > 15:
         sugs.append(f"List is large ({n} schools). 8-12 is typical; over 15 spreads your essay/supplement effort thin.")
     if not items:
@@ -13634,6 +13668,9 @@ def plans_add_explain(slug):
            f"intended major {profile.get('major') or 'undecided'}.\n"
            f"For this student at {c['name']}: fit {fit}/100, tier {tier}, odds {lo}-{hi}%.\n"
            f"Schools already on their list: {', '.join(saved_names) or 'none'}.")
+    _g = _school_narrative_guardrails(c, profile, c.get("tier"))
+    if _g:
+        usr += f"\nCRITICAL RULES:\n{_g}"
     txt = _claude("claude-haiku-4-5-20251001", sys, usr, max_tokens=340)
     if not txt:
         txt = (f"{c['name']} is a {tier.lower()} for your profile "
@@ -13704,6 +13741,8 @@ def _test_range(c):
     """Compact admitted-student test ranges for a college, for the strategist
     prompt. Surfaces the school's real SAT and ACT middle-50% so the model
     never has to guess medians or convert between the two tests."""
+    if is_test_blind(c):
+        return "TEST-BLIND (SAT/ACT not considered)"
     parts = []
     if c.get("sat_25") and c.get("sat_75"):
         parts.append(f"SAT {c['sat_25']}-{c['sat_75']}")
@@ -13767,6 +13806,8 @@ def _score_vs_school(profile, c):
     prompt. Format: 'ACT 33 ABOVE the 75th percentile of 29-32'. Returns
     one entry per test the student reports that the school has a range
     for. The LLM is told to use ONLY this label, never recompute."""
+    if is_test_blind(c):
+        return "TEST-BLIND — scores not considered; do NOT weigh the test or recommend a retake here"
     parts = []
     sat = profile.get("sat")
     if sat:
@@ -13856,10 +13897,19 @@ def generate_strategy(profile, items):
         round_rates_field = f"per-round: {rr}" if rr else "per-round: not available"
         pr = it.get("preference_rank")
         pref_field = f"student-preference: #{pr}" if pr else "student-preference: unranked"
+        _st = (profile.get("state") or "").strip()
+        if c.get("type") != "public":
+            resid_field = "residency: private (N/A)"
+        elif not _st:
+            resid_field = "residency: unknown"
+        elif _st.lower() == (c.get("state") or "").lower():
+            resid_field = "residency: IN-STATE"
+        else:
+            resid_field = f"residency: OUT-OF-STATE (student lives in {_st})"
         list_lines.append(
             f"{c['slug']}|{c['name']}|{round(c['accept']*100,1)}% overall admit|"
             f"{_test_range(c)}|score-vs-school: {_score_vs_school(profile, c)}|"
-            f"{round_rates_field}|{odds}|{rnd}|{pref_field}"
+            f"{round_rates_field}|{odds}|{rnd}|{pref_field}|{resid_field}"
         )
     if not list_lines:
         return None
@@ -13906,6 +13956,14 @@ def generate_strategy(profile, items):
         "duplicate of another, better-positioned school on the list. NEVER "
         "Cut more than ~25% of the reach pile, and NEVER Cut a school the "
         "student ranked in their top 5 unless it's literally impossible.\n\n"
+        "RESIDENCY — read carefully:\n"
+        "- Each school line ends with a `residency:` tag. In-state status only "
+        "helps at PUBLIC universities the student is IN-STATE for. For a school "
+        "tagged OUT-OF-STATE, residency is a HEADWIND (lower OOS admit rates) — "
+        "never pitch an out-of-state public as an 'in-state ED play' or a "
+        "residency advantage. For private schools residency is irrelevant; do "
+        "not mention it. A school tagged TEST-BLIND ignores scores entirely — "
+        "do not justify Keep/Anchor/ED off its test fit or suggest a retake.\n\n"
         "TEST SCORES — read carefully:\n"
         "- Every school line includes a pre-computed `score-vs-school:` "
         "label like `ACT 33 ABOVE the 75th percentile of 29-32` or "
