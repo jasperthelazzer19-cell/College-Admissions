@@ -36,7 +36,9 @@ from candor_styles import *  # CSS + HTML/SVG template strings — see candor_st
 
 try:
     import anthropic
-    _claude_client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_KEY", "")) if os.environ.get("ANTHROPIC_KEY") else None
+    # timeout so a stuck Anthropic response can't tie up a sync Flask worker for
+    # the SDK default (~10 min) — the one live user-facing path that calls Claude.
+    _claude_client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_KEY", ""), timeout=30.0) if os.environ.get("ANTHROPIC_KEY") else None
 except ImportError:
     _claude_client = None
 
@@ -113,6 +115,14 @@ _STATE_ABBR = {
     "DC":"District of Columbia",
 }
 _STATE_NAMES = {v.lower(): v for v in _STATE_ABBR.values()}
+
+def _is_safe_path(p):
+    """True only for a safe LOCAL redirect target. Blocks protocol-relative
+    (//evil.com) and backslash (/\\evil.com) open-redirects and CRLF injection —
+    plain startswith('/') is not enough (browsers treat //host as absolute)."""
+    return bool(p) and p.startswith("/") and not p.startswith("//") \
+        and not p.startswith("/\\") and "\n" not in p and "\r" not in p
+
 
 def _normalize_state(s):
     """Canonicalize a user-entered state to the full name used in school data.
@@ -1232,12 +1242,15 @@ def _profile_version_hash(profile):
     odds. Used as a cache key — when relevant fields change, the cache
     invalidates automatically."""
     import hashlib
-    # Only the fields that actually move chances per round
-    keys = ['gpa','gpa_scale','uw_gpa','weighted_gpa',
+    # Only the fields that actually move chances per round. NOTE: these MUST be
+    # the real profile column names — earlier this listed gpa/rigor/intended_major/
+    # extracurriculars/legacy_schools/household_income, none of which exist, so the
+    # hash was constant and the personalized-round cache never invalidated on edits.
+    keys = ['uw_gpa','weighted_gpa',
             'gpa_freshman','gpa_sophomore','gpa_junior','gpa_senior',
-            'sat','act','rigor','first_gen',
-            'state','household_income','intended_major','is_exceptional',
-            'extracurriculars','awards','legacy_schools']
+            'sat','act','self_rigor','first_gen','athlete','is_international',
+            'state','major','is_exceptional','ec_rating',
+            'ecs','leadership','awards','legacy','portfolio']
     payload = json.dumps({k: profile.get(k) for k in keys}, sort_keys=True, default=str)
     return f"{ROUND_PROMPT_VERSION}:{hashlib.sha1(payload.encode()).hexdigest()[:12]}"
 
@@ -6262,7 +6275,7 @@ def signup_html():
     from urllib.parse import quote as _q
     hook = _auth_hook_html()
     nxt = (request.args.get("next") or "").strip()
-    safe_path = nxt if nxt.startswith("/") and "\n" not in nxt and "\r" not in nxt else ""
+    safe_path = nxt if _is_safe_path(nxt) else ""
     if safe_path == "/upgrade":
         headline = "Save your spot before checkout."
         sub = "One last step — create your account so we can attach your Premium plan to it."
@@ -6298,7 +6311,7 @@ def login_html():
     from urllib.parse import quote as _q
     hook = _auth_hook_html()
     nxt = (request.args.get("next") or "").strip()
-    safe_path = nxt if nxt.startswith("/") and "\n" not in nxt and "\r" not in nxt else ""
+    safe_path = nxt if _is_safe_path(nxt) else ""
     nxt_hidden = f'<input type="hidden" name="next" value="{_esc(safe_path, quote=True)}">' if safe_path else ""
     nxt_qs = f"?next={_q(safe_path, safe='/')}" if safe_path else ""
     return _page(f"""
@@ -10612,7 +10625,7 @@ def _rate_limit(*args, **kwargs):
 def signup_page():
     if current_user(): return redirect(url_for("profile_page"))
     nxt = request.args.get("next") or request.form.get("next")
-    if nxt and nxt.startswith("/"):
+    if _is_safe_path(nxt):
         session["next_url"] = nxt
     if request.method == "POST":
         email = (request.form.get("email") or "").strip().lower()
@@ -10641,7 +10654,7 @@ def signup_page():
 def login_page():
     if current_user(): return redirect(url_for("profile_page"))
     nxt = request.args.get("next") or request.form.get("next")
-    if nxt and nxt.startswith("/"):
+    if _is_safe_path(nxt):
         session["next_url"] = nxt
     if request.method == "POST":
         email = (request.form.get("email") or "").strip().lower()
@@ -11494,7 +11507,7 @@ def glowup_export(slug):
   </div>
   <div class="foot"><span class="lock">&#128274;</span>candoradmit.com</div>
 </div>'''
-    page = _tiktok_page(card, "glowup", _esc(merged["name"]))
+    page = _tiktok_page(card, "glowup", _esc(merged["name"]), clean=request.args.get("clean") == "1")
     return Response(page, mimetype="text/html")
 
 

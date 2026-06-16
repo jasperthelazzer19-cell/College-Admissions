@@ -99,7 +99,10 @@ def render_slides(slug, slide3, lines):
     s3routes = {"grade": "/grade/export", "glowup": f"/glowup/{slug}/export",
                 "chances": f"/chances/{slug}/export"}
     s3path = s3routes.get(slide3, s3routes["chances"])
-    s3 = _shot(f"{tmp}/s3.png", f"{LOCAL_URL}{s3path}?rkey={CRON_KEY}&clean=1")
+    # verify=False on the slide-3 LLM routes (chances/grade/glowup) — slide 2
+    # already confirmed the profile exists, and verifying would re-fire the
+    # (uncached) bullets LLM a second time, doubling cost on the staple format.
+    s3 = _shot(f"{tmp}/s3.png", f"{LOCAL_URL}{s3path}?rkey={CRON_KEY}&clean=1", verify=False)
     return s1, s2, s3
 
 
@@ -277,7 +280,7 @@ def make_compare(dry=False):
     tmp = "/tmp/cren_factory"; os.makedirs(tmp, exist_ok=True)
     s1 = _shot(f"{tmp}/c1.png", f"{LOCAL_URL}/title-compare/export?rkey={CRON_KEY}&clean=1&slugs={','.join(comp)}")
     s2 = _shot(f"{tmp}/c2.png", f"{LOCAL_URL}/profile-neutral/export?rkey={CRON_KEY}&clean=1")
-    s3 = _shot(f"{tmp}/c3.png", f"{LOCAL_URL}/compare/export?rkey={CRON_KEY}&clean=1&slugs={','.join(comp)}")
+    s3 = _shot(f"{tmp}/c3.png", f"{LOCAL_URL}/compare/export?rkey={CRON_KEY}&clean=1&slugs={','.join(comp)}", verify=False)
     shorts = ", ".join(app._school_brand(s, app.COLLEGES_BY_SLUG[s].get('name'))[0] for s in comp)
     payload = dict(school_slug=slug, school_name=f"Compare: {shorts}", accent=accent,
                    title_text=f"THIS STUDENT APPLIED TO {shorts}", title_formula="compare",
@@ -298,7 +301,7 @@ def make_h2h(dry=False):
     s1 = _title_png(slug, lines, [short])
     s2 = _shot(f"{tmp}/h2.png", f"{LOCAL_URL}/profile/{slug}/export?rkey={CRON_KEY}&clean=1&uid=181&label=STUDENT%20A")
     s3 = _shot(f"{tmp}/h3.png", f"{LOCAL_URL}/profile/{slug}/export?rkey={CRON_KEY}&clean=1&uid=38&label=STUDENT%20B")
-    s4 = _shot(f"{tmp}/h4.png", f"{LOCAL_URL}/headtohead/{slug}/export?rkey={CRON_KEY}&clean=1")
+    s4 = _shot(f"{tmp}/h4.png", f"{LOCAL_URL}/headtohead/{slug}/export?rkey={CRON_KEY}&clean=1", verify=False)
     payload = dict(school_slug=slug, school_name=f"H2H: {gA['name']}", accent=accent,
                    title_text=" ".join(lines), title_formula="h2h", slide3_type="h2h",
                    profile_json=json.dumps(gA["profile"]), odds_text="", grade_text="",
