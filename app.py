@@ -12040,18 +12040,20 @@ def content_today():
     cards = []
     for r in released:
         imgs = "".join(
-            f'<div style="flex:1;min-width:150px"><img src="{r[k]}" alt="slide {i}" '
+            f'<div style="flex:1;min-width:150px"><img class="cslide" src="{r[k]}" alt="slide {i}" '
             f'style="width:100%;border-radius:12px;border:1px solid #1d2a3d;-webkit-touch-callout:default">'
-            f'<div style="text-align:center;font-size:12px;color:#7c8aa0;margin-top:4px">Slide {i} · long-press to save</div></div>'
+            f'<div style="text-align:center;font-size:12px;color:#7c8aa0;margin-top:4px">Slide {i}</div></div>'
             for i, k in enumerate([k for k in ("img1", "img2", "img3", "img4") if r[k]], 1))
         meta = f'{r["school_name"] or r["school_slug"] or ""} · {r["slide3_type"] or ""}'
         odds = r["odds_text"] or r["grade_text"] or ""
         cards.append(
-            f'<div style="background:#0c1521;border:1px solid #1d2a3d;border-radius:16px;padding:16px;margin:0 0 18px">'
+            f'<div class="qcard" style="background:#0c1521;border:1px solid #1d2a3d;border-radius:16px;padding:16px;margin:0 0 18px">'
             f'<div style="font-weight:800;font-size:17px;margin:0 0 2px">{r["title_text"] or meta}</div>'
             f'<div style="color:#7c8aa0;font-size:13px;margin:0 0 12px">{meta} · {odds} · slot {r["slot"] or "—"}</div>'
             f'<div style="display:flex;gap:10px;flex-wrap:wrap">{imgs}</div>'
-            f'<div style="display:flex;gap:10px;margin-top:14px">'
+            f'<button type="button" onclick="saveCard(this)" style="width:100%;background:#2f6df0;color:#fff;'
+            f'font-weight:800;border:0;padding:13px;border-radius:10px;margin-top:14px;cursor:pointer">⬇️ Save all slides</button>'
+            f'<div style="display:flex;gap:10px;margin-top:10px">'
             f'<form method="post" action="/content/queue/{r["id"]}/posted" style="flex:1">{csrf_input()}'
             f'<button style="width:100%;background:#5fc9b6;color:#06121a;font-weight:800;border:0;padding:12px;border-radius:10px">✓ Posted</button></form>'
             f'<form method="post" action="/content/queue/{r["id"]}/skipped" style="flex:1">{csrf_input()}'
@@ -12080,11 +12082,23 @@ def content_today():
         f'<button style="width:100%;background:#5fc9b6;color:#06121a;font-weight:800;border:0;'
         f'padding:15px;border-radius:12px;font-size:16px;cursor:pointer">⚡ Make 4 fresh carousels</button></form>'
         f'</div>')
+    save_script = (
+        '<script>'
+        'async function saveCard(btn){var card=btn.closest(".qcard");if(!card)return;'
+        ' var t=btn.textContent;btn.disabled=true;btn.textContent="Preparing…";'
+        ' try{var els=[].slice.call(card.querySelectorAll(".cslide")),fs=[];'
+        '  for(var i=0;i<els.length;i++){var r=await fetch(els[i].src);var bl=await r.blob();'
+        '   fs.push(new File([bl],"candor-slide-"+(i+1)+".png",{type:"image/png"}));}'
+        '  if(navigator.canShare&&navigator.canShare({files:fs})){await navigator.share({files:fs,title:"Candor carousel"});}'
+        '  else{fs.forEach(function(f){var a=document.createElement("a");a.href=URL.createObjectURL(f);'
+        '   a.download=f.name;document.body.appendChild(a);a.click();a.remove();});}'
+        ' }catch(e){}btn.disabled=false;btn.textContent=t;}'
+        '</script>')
     body = (f'<div style="max-width:720px;margin:0 auto;padding:16px 12px 80px">'
             + f'<h1 style="margin:0 0 4px">📅 Today</h1>'
-            + f'<div style="color:#7c8aa0;font-size:14px;margin:0 0 18px">{pending} queued · {posted} posted · long-press a slide to save to Photos</div>'
+            + f'<div style="color:#7c8aa0;font-size:14px;margin:0 0 18px">{pending} queued · {posted} posted · tap “Save all slides” to save a carousel to Photos</div>'
             + banner + make_btn
-            + "".join(cards) + '</div>')
+            + "".join(cards) + '</div>' + save_script)
     return _page(body, title="Content · Today")
 
 
