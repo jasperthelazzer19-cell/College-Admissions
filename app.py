@@ -81,6 +81,13 @@ CANCEL_EMAIL = os.environ.get("CANCEL_EMAIL", "jasperthelazzer19@gmail.com")
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
 EMAIL_FROM = os.environ.get("EMAIL_FROM", "Candor <reminders@candoradmit.com>")
 CRON_KEY = os.environ.get("CRON_KEY", "") or os.environ.get("ADMIN_KEY", "")
+# TikTok Display API (content feedback loop). One app/key/secret; each of the
+# creator's accounts authorizes once (OAuth) -> a 365-day refresh token we keep
+# and auto-refresh. Dormant until TIKTOK_CLIENT_KEY/SECRET are set, so nothing
+# breaks before the app is registered. Redirect URI must match the app config.
+TIKTOK_CLIENT_KEY = os.environ.get("TIKTOK_CLIENT_KEY", "")
+TIKTOK_CLIENT_SECRET = os.environ.get("TIKTOK_CLIENT_SECRET", "")
+TIKTOK_REDIRECT_URI = os.environ.get("TIKTOK_REDIRECT_URI", "https://candoradmit.com/tiktok/callback")
 ARTICLE_TTL_HOURS = 12   # how long to cache per-college articles
 SCORECARD_TTL_DAYS = 30  # refresh federal stats monthly
 FREE_TRIAL_MESSAGES = 3
@@ -4505,6 +4512,43 @@ def init_db():
             conn.execute("ALTER TABLE batch_requests ADD COLUMN slugs TEXT")
         except sqlite3.OperationalError:
             pass
+        # ── TikTok feedback loop ──────────────────────────────────────────
+        # One row per authorized account (the OAuth refresh token is what we keep;
+        # access tokens are short-lived and refreshed from it). open_id is TikTok's
+        # stable per-user id for our app.
+        conn.execute("""CREATE TABLE IF NOT EXISTS tiktok_accounts (
+            open_id TEXT PRIMARY KEY,
+            label TEXT,                               -- display name / handle
+            access_token TEXT,
+            refresh_token TEXT,
+            access_expires_at TEXT,                   -- when access_token dies (~24h)
+            refresh_expires_at TEXT,                  -- when refresh_token dies (~365d)
+            scope TEXT,
+            connected_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            last_pull_at TEXT
+        )""")
+        # One row per pulled video, with engagement stats. carousel_id links it back
+        # to the content_queue carousel once attributed (NULL until matched).
+        conn.execute("""CREATE TABLE IF NOT EXISTS tiktok_posts (
+            video_id TEXT PRIMARY KEY,
+            open_id TEXT NOT NULL,                     -- which account
+            create_time INTEGER,                      -- unix ts of the post
+            share_url TEXT,
+            description TEXT,
+            view_count INTEGER, like_count INTEGER,
+            comment_count INTEGER, share_count INTEGER,
+            carousel_id INTEGER,                      -- attributed content_queue.id (nullable)
+            first_seen_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            fetched_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )""")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_ttposts_acct ON tiktok_posts(open_id, create_time)")
+        # Record which account a carousel was posted to (set from the Posted button)
+        # so we can attribute TikTok stats back to the carousel's school/format/hook.
+        for col in ("posted_account TEXT", "tiktok_video_id TEXT"):
+            try:
+                conn.execute(f"ALTER TABLE content_queue ADD COLUMN {col}")
+            except sqlite3.OperationalError:
+                pass
         # Bounded retention prune (runs on boot; Railway restarts regularly). All
         # tables exist by here. Keeps the DB from growing forever — content_queue
         # rows hold base64 PNGs and bloat fastest, so purge posted/skipped at 14d.
@@ -16783,6 +16827,244 @@ def healthz():
 # ─── BOOT ─────────────────────────────────────────────────
 init_db()
 
+# ─── TIKTOK FEEDBACK LOOP (Display API) ───────────────────────────────────
+TIKTOK_AUTH_URL = "https://www.tiktok.com/v2/auth/authorize/"
+TIKTOK_TOKEN_URL = "https://open.tiktokapis.com/v2/oauth/token/"
+TIKTOK_USERINFO_URL = "https://open.tiktokapis.com/v2/user/info/"
+TIKTOK_VIDEO_LIST_URL = "https://open.tiktokapis.com/v2/video/list/"
+TIKTOK_SCOPES = "user.info.basic,video.list"
+_TT_VIDEO_FIELDS = "id,create_time,share_url,video_description,view_count,like_count,comment_count,share_count"
+
+
+def _tiktok_configured():
+    return bool(TIKTOK_CLIENT_KEY and TIKTOK_CLIENT_SECRET)
+
+
+@app.route("/tiktok<token>.txt")
+def tiktok_site_verification(token):
+    """TikTok URL-prefix domain verification. The portal hands you a file named
+    tiktok<token>.txt whose body is 'tiktok-developers-site-verification=<token>';
+    serving it here proves we own candoradmit.com (no DNS access needed)."""
+    return Response(f"tiktok-developers-site-verification={token}", mimetype="text/plain")
+
+
+def _legal_page(title, body_html):
+    return _page(f'<div style="max-width:720px;margin:0 auto;padding:32px 18px 80px;line-height:1.6">'
+                 f'<h1 style="margin:0 0 14px">{title}</h1>{body_html}</div>', title=f"{title} · Candor")
+
+
+@app.route("/privacy")
+def privacy_page():
+    return _legal_page("Privacy Policy",
+        "<p>Candor (candoradmit.com) helps students estimate college-admissions odds and "
+        "creates short-form content about admissions.</p>"
+        "<p><b>TikTok data.</b> If the site owner connects their own TikTok account(s) via "
+        "TikTok Login, Candor reads only that account's <i>own</i> public video metadata and "
+        "engagement counts (views, likes, comments, shares) through TikTok's Display API, to "
+        "measure which of the owner's posts perform best. We do not access other users' data, "
+        "private data, messages, or post on anyone's behalf.</p>"
+        "<p><b>Storage & retention.</b> Access tokens and the pulled stats are stored privately "
+        "on our server and used only for this analytics purpose. The owner can disconnect an "
+        "account at any time, which deletes its stored tokens.</p>"
+        "<p><b>Contact.</b> jasperthelazzer19@gmail.com</p>")
+
+
+@app.route("/terms")
+def terms_page():
+    return _legal_page("Terms of Service",
+        "<p>Candor (candoradmit.com) is provided as-is for informational purposes. Admissions "
+        "odds are estimates, not guarantees. By using the site you agree not to misuse it or "
+        "attempt to access data you don't own.</p>"
+        "<p>The TikTok integration is used solely by the site owner to read their own accounts' "
+        "post performance. Contact: jasperthelazzer19@gmail.com</p>")
+
+
+@app.route("/tiktok/connect")
+@login_required
+def tiktok_connect():
+    if not _is_creator() or not _tiktok_configured():
+        abort(404)
+    from urllib.parse import urlencode
+    state = secrets.token_urlsafe(24)
+    session["tt_state"] = state
+    q = urlencode({"client_key": TIKTOK_CLIENT_KEY, "scope": TIKTOK_SCOPES,
+                   "response_type": "code", "redirect_uri": TIKTOK_REDIRECT_URI, "state": state})
+    return redirect(f"{TIKTOK_AUTH_URL}?{q}")
+
+
+def _tiktok_fetch_label(access_token):
+    try:
+        r = requests.get(TIKTOK_USERINFO_URL, params={"fields": "open_id,display_name,username"},
+                         headers={"Authorization": f"Bearer {access_token}"}, timeout=15)
+        u = (r.json().get("data") or {}).get("user") or {}
+        return u.get("username") or u.get("display_name")
+    except Exception:
+        return None
+
+
+@app.route("/tiktok/callback")
+def tiktok_callback():
+    """TikTok redirects here after the account authorizes. Exchange code -> tokens,
+    store the account, and pull its videos once."""
+    if request.args.get("error"):
+        return _legal_page("TikTok", f"<p>Authorization failed: "
+                           f"{request.args.get('error_description') or request.args.get('error')}</p>"
+                           f"<p><a href='/tiktok/connect'>Try again</a></p>")
+    code, state = request.args.get("code"), request.args.get("state")
+    if not code or not state or state != session.get("tt_state"):
+        return _legal_page("TikTok", "<p>Session expired or bad state. <a href='/tiktok/connect'>Try again</a></p>")
+    session.pop("tt_state", None)
+    try:
+        tok = requests.post(TIKTOK_TOKEN_URL, data={
+            "client_key": TIKTOK_CLIENT_KEY, "client_secret": TIKTOK_CLIENT_SECRET,
+            "code": code, "grant_type": "authorization_code", "redirect_uri": TIKTOK_REDIRECT_URI},
+            headers={"Content-Type": "application/x-www-form-urlencoded"}, timeout=20).json()
+    except Exception as e:
+        return _legal_page("TikTok", f"<p>Token exchange error: {e}</p>")
+    if not tok.get("access_token"):
+        return _legal_page("TikTok", f"<p>No token returned: {tok.get('error_description') or tok}</p>")
+    import datetime as _dt
+    open_id = tok.get("open_id")
+    label = _tiktok_fetch_label(tok["access_token"]) or open_id
+    now = _dt.datetime.utcnow()
+    ax = (now + _dt.timedelta(seconds=int(tok.get("expires_in", 86400)))).isoformat()
+    rf = (now + _dt.timedelta(seconds=int(tok.get("refresh_expires_in", 31536000)))).isoformat()
+    with db() as conn:
+        conn.execute("""INSERT INTO tiktok_accounts (open_id,label,access_token,refresh_token,
+            access_expires_at,refresh_expires_at,scope,connected_at) VALUES (?,?,?,?,?,?,?,CURRENT_TIMESTAMP)
+            ON CONFLICT(open_id) DO UPDATE SET label=excluded.label,access_token=excluded.access_token,
+            refresh_token=excluded.refresh_token,access_expires_at=excluded.access_expires_at,
+            refresh_expires_at=excluded.refresh_expires_at,scope=excluded.scope""",
+            (open_id, label, tok["access_token"], tok.get("refresh_token"), ax, rf, tok.get("scope")))
+        conn.commit()
+    try:
+        _tiktok_pull_account(open_id)
+    except Exception as e:
+        print("tiktok initial pull:", e)
+    return redirect(url_for("tiktok_home"))
+
+
+def _tiktok_access_token(acct):
+    """Valid access token for an account, refreshing from the refresh_token if expired."""
+    import datetime as _dt
+    if acct["access_expires_at"]:
+        try:
+            if _dt.datetime.fromisoformat(acct["access_expires_at"]) > _dt.datetime.utcnow() + _dt.timedelta(minutes=2):
+                return acct["access_token"]
+        except Exception:
+            pass
+    tok = requests.post(TIKTOK_TOKEN_URL, data={
+        "client_key": TIKTOK_CLIENT_KEY, "client_secret": TIKTOK_CLIENT_SECRET,
+        "grant_type": "refresh_token", "refresh_token": acct["refresh_token"]},
+        headers={"Content-Type": "application/x-www-form-urlencoded"}, timeout=20).json()
+    if not tok.get("access_token"):
+        raise RuntimeError(f"refresh failed: {tok.get('error_description') or tok}")
+    now = _dt.datetime.utcnow()
+    ax = (now + _dt.timedelta(seconds=int(tok.get("expires_in", 86400)))).isoformat()
+    rf = (now + _dt.timedelta(seconds=int(tok.get("refresh_expires_in", 31536000)))).isoformat()
+    with db() as conn:
+        conn.execute("UPDATE tiktok_accounts SET access_token=?,refresh_token=?,access_expires_at=?,refresh_expires_at=? WHERE open_id=?",
+                     (tok["access_token"], tok.get("refresh_token", acct["refresh_token"]), ax, rf, acct["open_id"]))
+        conn.commit()
+    return tok["access_token"]
+
+
+def _tiktok_pull_account(open_id):
+    with db() as conn:
+        acct = conn.execute("SELECT * FROM tiktok_accounts WHERE open_id=?", (open_id,)).fetchone()
+    if not acct:
+        return 0
+    token = _tiktok_access_token(acct)
+    cursor, got = None, 0
+    for _ in range(5):                       # up to ~100 most-recent videos
+        body = {"max_count": 20}
+        if cursor:
+            body["cursor"] = cursor
+        d = requests.post(TIKTOK_VIDEO_LIST_URL, params={"fields": _TT_VIDEO_FIELDS},
+                          headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+                          json=body, timeout=25).json().get("data", {})
+        vids = d.get("videos") or []
+        if not vids:
+            break
+        with db() as conn:
+            for v in vids:
+                conn.execute("""INSERT INTO tiktok_posts (video_id,open_id,create_time,share_url,description,
+                    view_count,like_count,comment_count,share_count,fetched_at)
+                    VALUES (?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)
+                    ON CONFLICT(video_id) DO UPDATE SET view_count=excluded.view_count,like_count=excluded.like_count,
+                    comment_count=excluded.comment_count,share_count=excluded.share_count,fetched_at=CURRENT_TIMESTAMP""",
+                    (v.get("id"), open_id, v.get("create_time"), v.get("share_url"), v.get("video_description"),
+                     v.get("view_count"), v.get("like_count"), v.get("comment_count"), v.get("share_count")))
+                got += 1
+            conn.commit()
+        cursor = d.get("cursor")
+        if not d.get("has_more"):
+            break
+    with db() as conn:
+        conn.execute("UPDATE tiktok_accounts SET last_pull_at=CURRENT_TIMESTAMP WHERE open_id=?", (open_id,))
+        conn.commit()
+    return got
+
+
+def _tiktok_pull_all():
+    with db() as conn:
+        ids = [r["open_id"] for r in conn.execute("SELECT open_id FROM tiktok_accounts").fetchall()]
+    total = 0
+    for oid in ids:
+        try:
+            total += _tiktok_pull_account(oid)
+        except Exception as e:
+            print(f"tiktok pull {oid}:", e)
+    return total
+
+
+@app.route("/tiktok/pull")
+@login_required
+def tiktok_pull_now():
+    if not _is_creator():
+        abort(404)
+    _tiktok_pull_all()
+    return redirect(url_for("tiktok_home"))
+
+
+@app.route("/cron/tiktok-pull")
+def cron_tiktok_pull():
+    if not _key_eq(request.args.get("key"), CRON_KEY):
+        abort(403)
+    return jsonify(pulled=_tiktok_pull_all())
+
+
+@app.route("/tiktok")
+@login_required
+def tiktok_home():
+    if not _is_creator():
+        abort(404)
+    if not _tiktok_configured():
+        return _legal_page("TikTok", "<p>Not configured yet (missing client key/secret).</p>")
+    with db() as conn:
+        accts = conn.execute("SELECT * FROM tiktok_accounts ORDER BY connected_at").fetchall()
+        agg = {r["open_id"]: r for r in conn.execute(
+            "SELECT open_id, COUNT(*) n, COALESCE(SUM(view_count),0) sv FROM tiktok_posts GROUP BY open_id").fetchall()}
+    cards = ""
+    for a in accts:
+        g = agg.get(a["open_id"])
+        n = g["n"] if g else 0
+        sv = g["sv"] if g else 0
+        cards += (f'<div style="background:#0c1521;border:1px solid #1d2a3d;border-radius:12px;padding:14px;margin:0 0 10px">'
+                  f'<b>{a["label"] or a["open_id"]}</b><br>'
+                  f'<span style="color:#7c8aa0;font-size:13px">{n} posts tracked · {sv:,} total views · '
+                  f'last pull {a["last_pull_at"] or "never"}</span></div>')
+    btn = ('display:inline-block;font-weight:800;padding:13px 20px;border-radius:11px;text-decoration:none;margin:12px 8px 0 0')
+    body = (f'<div style="max-width:640px;margin:0 auto;padding:24px 16px 80px">'
+            f'<h1 style="margin:0 0 4px">📊 TikTok feedback</h1>'
+            f'<div style="color:#7c8aa0;font-size:14px;margin:0 0 18px">{len(accts)} account(s) connected</div>'
+            f'{cards or "<p style=color:#7c8aa0>No accounts connected yet.</p>"}'
+            f'<a href="/tiktok/connect" style="{btn};background:#5fc9b6;color:#06121a">+ Connect an account</a>'
+            f'<a href="/tiktok/pull" style="{btn};background:#16202e;color:#e9eef5;border:1px solid #2b3a4f">↻ Pull stats now</a>'
+            f'</div>')
+    return _page(body, title="TikTok · Candor")
+
+
 # ─── IN-CONTAINER RENDER WORKER ───────────────────────────────────────────
 # When RENDER_WORKER=1 (Railway, where a headless Chromium ships in the image),
 # a background thread renders the phone "Make" button batches server-side — so
@@ -16843,11 +17125,21 @@ def _render_worker_loop():
     os.environ.setdefault("CHROME_EXTRA_FLAGS", "--no-sandbox --disable-dev-shm-usage --disable-gpu")
     os.environ["GRADER_FAST"] = "1"                 # cheap Haiku grading for autopilot
     print(f" * render worker: live (chrome={chrome}, port={port})", flush=True)
+    next_tt = _t.time() + 90            # first TikTok pull shortly after boot
     while True:
         try:
             _render_consume_one(factory)
         except Exception as e:
             print(" * render worker error:", e, flush=True)
+        # Auto-pull TikTok stats every 12h (no separate cron needed). Tokens
+        # refresh themselves, so this just keeps the feedback data fresh.
+        if _tiktok_configured() and _t.time() >= next_tt:
+            try:
+                got = _tiktok_pull_all()
+                print(f" * tiktok auto-pull: {got} videos updated", flush=True)
+            except Exception as e:
+                print(" * tiktok auto-pull error:", e, flush=True)
+            next_tt = _t.time() + 43200
         _t.sleep(20)
 
 
