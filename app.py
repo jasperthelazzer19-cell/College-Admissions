@@ -11732,7 +11732,11 @@ def _title_frame(line_html, logo_html, maxH=1040):
             f'ls.forEach(function(l){{l.style.fontSize="120px";'
             f'var w=l.querySelector(".tin").getBoundingClientRect().width;'
             f'if(w>0){{l.style.fontSize=Math.floor(120*cw/w)+"px";}}}});'
-            f'var maxH={maxH};if(box.scrollHeight>maxH){{var k=maxH/box.scrollHeight;'
+            # Cap to the ACTUAL available height minus a real margin (not a hardcoded
+            # 1040 that left ~0px slack and clipped the top line's ascenders). Loop a
+            # couple times since shrinking fonts can reflow line heights.
+            f'for(var p=0;p<4;p++){{var avail=Math.min({maxH}, box.clientHeight-44);'
+            f'if(box.scrollHeight<=avail)break;var k=avail/box.scrollHeight;'
             f'ls.forEach(function(l){{l.style.fontSize=Math.floor(parseFloat(l.style.fontSize)*k)+"px";}});}}'
             # vertical fill: if the justified lines don't reach the frame, spread
             # them top-to-bottom so the slide fills like the dense single titles.
