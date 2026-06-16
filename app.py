@@ -11770,10 +11770,10 @@ def _title_card_body(slug, sch, hook, nologo=False):
         f'<div class="tline" style="line-height:.92;font-size:120px;-webkit-text-stroke:.6px currentColor">'
         f'<span class="tin" style="display:inline-block;white-space:nowrap">{_hook_html(ln, color, outline)}</span></div>'
         for ln in lines)
-    # Singles fill BIG: higher per-line cap (school names go larger, eating the side
-    # white) + a bigger text area, and the th()-based fill spreads any line count to
-    # fill the frame. (Compare keeps its own tighter cap — short school names there.)
-    return _title_frame(line_html, logo_html, logoH=300, cardH=1490, maxFont=380)
+    # Singles fill BIG: higher per-line cap (school names go larger) + the th()-based
+    # fill spreads any line count to fill the frame. cardH+pad sum to the full 1536
+    # card. (Compare keeps its own tighter cap — short school names there.)
+    return _title_frame(line_html, logo_html, logoH=300, cardH=1436, maxFont=380)
 
 
 def _compare_title_body(slugs):
@@ -11839,7 +11839,7 @@ def title_export():
     if not sch or not hook:
         abort(404)
     body = _title_card_body(slug, sch, hook, nologo=request.args.get("nologo") == "1")
-    return Response(_profile_export_page(body, dl_name=f"{slug}-title", pad="40px 30px 36px",
+    return Response(_profile_export_page(body, dl_name=f"{slug}-title", pad="52px 58px 48px",
                                          clean=request.args.get("clean") == "1"),
                     mimetype="text/html")
 
