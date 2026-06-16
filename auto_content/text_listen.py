@@ -86,10 +86,10 @@ def text_back(msg):
 def _is_batch_trigger(text):
     """True if the text asks for a full batch (not a specific school)."""
     t = (text or "").lower().strip()
-    if any(c.isalpha() for c in t) is False:   # e.g. just "4"
-        return t in ("4", "16")
+    if any(c.isalpha() for c in t) is False:   # e.g. just "5"
+        return t in ("4", "5", "16", "20")
     keys = ("trigger", "make a batch", "batch", "run it", "run the", "fire the",
-            "do a batch", "make 4", "make four", "fresh batch", "give me a batch")
+            "do a batch", "make 4", "make four", "make 5", "make five", "fresh batch", "give me a batch")
     return any(k in t for k in keys)
 
 

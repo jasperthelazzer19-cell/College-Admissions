@@ -12193,7 +12193,7 @@ def content_today():
     _ss = ('width:100%;padding:10px;border-radius:9px;background:#0a1320;color:#e9eef5;'
            'border:1px solid #2b3a4f;margin:0 0 8px;font-size:14px')
     sel1 = f'<select name="slugs" style="{_ss}">{_opts}</select>'
-    sel4 = "".join(f'<select name="slugs" style="{_ss}">{_opts}</select>' for _ in range(4))
+    sel4 = "".join(f'<select name="slugs" style="{_ss}">{_opts}</select>' for _ in range(5))
     make_btn = (
         '<div style="display:flex;gap:12px;margin:0 0 18px;flex-wrap:wrap">'
         f'<form method="post" action="/content/request-batch" style="flex:1;min-width:210px;background:#0c1521;'
@@ -12205,11 +12205,11 @@ def content_today():
         f'padding:13px;border-radius:11px;font-size:15px;cursor:pointer">⚡ Make 1</button></form>'
         f'<form method="post" action="/content/request-batch" style="flex:2;min-width:240px;background:#0c1521;'
         f'border:1px solid #1d2a3d;border-radius:14px;padding:14px">{csrf_input()}'
-        f'<input type="hidden" name="count" value="4">'
-        f'<div style="font-weight:800;font-size:12px;color:#7c8aa0;margin:0 0 8px;letter-spacing:.4px">PICK UP TO 4 (BLANKS = AUTO)</div>'
+        f'<input type="hidden" name="count" value="5">'
+        f'<div style="font-weight:800;font-size:12px;color:#7c8aa0;margin:0 0 8px;letter-spacing:.4px">PICK UP TO 5 (BLANKS = AUTO)</div>'
         f'{sel4}'
         f'<button style="width:100%;background:#5fc9b6;color:#06121a;font-weight:800;border:0;'
-        f'padding:13px;border-radius:11px;font-size:15px;cursor:pointer">⚡ Make 4 fresh carousels</button></form>'
+        f'padding:13px;border-radius:11px;font-size:15px;cursor:pointer">⚡ Make 5 fresh carousels</button></form>'
         '</div>')
     save_script = (
         '<script>'
