@@ -76,7 +76,56 @@ _TITLE_EXAMPLES = "\n".join(
     for t, exs in _TITLE_FAMILIES.items() for ex in exs)
 
 
-def _gen_profile_and_title(slug, want_slide3=None):
+# Local corpus of ~1,100 REAL r/collegeresults applicant posts (full self-text).
+# We seed each generated profile from a random real one so the feed reflects
+# actual applicants — every strength level + archetype — instead of the model's
+# samey invented superstar. We ignore which schools they applied to/got into;
+# only their real stats + activities matter (the carousel's school is chosen
+# separately). This also keeps odds honest, since the profiles aren't inflated.
+_REAL_POSTS_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                                "reddit_results_raw.json")
+_REAL_POSTS = None
+
+
+def _load_real_posts():
+    global _REAL_POSTS
+    if _REAL_POSTS is None:
+        try:
+            data = json.load(open(_REAL_POSTS_PATH))
+            _REAL_POSTS = [p for p in data
+                           if len((p.get("self") or "")) > 400
+                           and any(k in ((p.get("self", "") + p.get("title", "")).lower())
+                                   for k in ("gpa", "sat", "act"))]
+        except Exception as e:
+            print("real-posts load:", e); _REAL_POSTS = []
+    return _REAL_POSTS
+
+
+def _pick_seed_post():
+    posts = _load_real_posts()
+    if not posts:
+        return None
+    p = random.choice(posts)
+    body = (p.get("self") or "").strip()
+    return body[:2000]
+
+
+def _seed_block(post):
+    if not post:
+        return ""
+    return (
+        "\n\nSEED — here is a REAL r/collegeresults applicant's own write-up. Build the "
+        "profile from THEIR actual stats and activities:\n\"\"\"\n" + post + "\n\"\"\"\n"
+        "- Use their REAL GPA, test scores, AP count/rigor, intended major, state, and their "
+        "ACTUAL extracurriculars/awards. Keep the numbers and EC strength FAITHFUL — do not "
+        "inflate them into a superstar, and don't water a strong one down.\n"
+        "- IGNORE which colleges they applied to or got into — that's irrelevant here.\n"
+        "- Reformat into the schema: 7-9 of their real ECs (short, punchy), their real awards, "
+        "their real stats. If a field isn't stated, infer something plausible and consistent "
+        "with the rest of their profile. The result should read like THIS real applicant.")
+
+
+def _gen_profile_and_title(slug, want_slide3=None, seed=None):
     sch = app.COLLEGES_BY_SLUG[slug]
     name = sch.get("name")
     short, _ = app._school_brand(slug, name)
@@ -120,7 +169,7 @@ The school short name is "{short}". Pick which words get the school's accent col
 name; optionally one emphasis word).
 Patterns (| separates lines):
 {examples}
-
+{_seed_block(seed)}
 Return ONLY strict JSON:
 {{"profile": {{"uw_gpa": float, "weighted_gpa": float, "sat": int|null, "act": int|null,
 "sat_math": int|null, "sat_ebrw": int|null, "major": str, "state": str, "school_type": "public"|"private",
@@ -154,7 +203,8 @@ def _ensure_user(uid):
 def generate(slug=None, uid=181, want_slide3=None):
     slug = slug if slug in app.COLLEGES_BY_SLUG else random.choice(SCHOOLS)
     sch = app.COLLEGES_BY_SLUG[slug]
-    d = _gen_profile_and_title(slug, want_slide3=want_slide3)
+    seed = _pick_seed_post()                # a random REAL applicant write-up (or None)
+    d = _gen_profile_and_title(slug, want_slide3=want_slide3, seed=seed)
     profile = d["profile"]
     for f in ("ecs", "leadership", "awards"):
         profile[f] = _normalize_list_field(profile.get(f))

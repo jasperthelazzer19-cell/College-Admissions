@@ -5392,8 +5392,11 @@ def extract_structured_profiles(college_slug, force=False):
                     pass
     # Anonymous gate: don't burn Anthropic budget generating on demand
     # for unauthenticated visitors — cache miss + no logged-in user
-    # likely means a scraper hitting cold schools.
-    if not current_user():
+    # likely means a scraper hitting cold schools. The autopilot (no session)
+    # IS allowed — it seeds varied carousel profiles from these real results.
+    # env checks FIRST so the autopilot (which runs outside any request context)
+    # never calls current_user() — that would raise "outside request context".
+    if os.environ.get("CLAUDE_CLI") != "1" and os.environ.get("GRADER_FAST") != "1" and not current_user():
         return []
     posts = fetch_reddit_profiles(college_slug, force=False)
     if not posts: return []
