@@ -11737,16 +11737,18 @@ def _title_frame(line_html, logo_html, maxH=1040, logoH=360, cardH=1402, maxFont
             f'ls.forEach(function(l){{l.style.fontSize="120px";'
             f'var w=l.querySelector(".tin").getBoundingClientRect().width;'
             f'if(w>0){{var fs=Math.floor(120*cw/w);{capjs}l.style.fontSize=fs+"px";}}}});'
-            # Only shrink if the (capped) stack still overflows; -18 keeps the top
-            # line's ascenders off the edge. No grow — the per-line cap already sets
-            # the big size; growing would just re-stretch short lines and overflow.
-            f'for(var p=0;p<4;p++){{var avail=box.clientHeight-18;'
-            f'if(box.scrollHeight<=avail)break;var k=avail/box.scrollHeight;'
+            # Measure the REAL text height = sum of the line heights. (scrollHeight is
+            # unreliable here: a centered flex column that fits reports
+            # scrollHeight==clientHeight, so it can neither detect overflow nor slack.)
+            f'function th(){{var s=0;ls.forEach(function(l){{s+=l.offsetHeight;}});return s;}}'
+            # Shrink only if the (capped) stack actually overflows the box.
+            f'var avail=box.clientHeight-22;'
+            f'for(var p=0;p<5;p++){{var t=th();if(t<=avail)break;var k=avail/t;'
             f'ls.forEach(function(l){{l.style.fontSize=Math.floor(parseFloat(l.style.fontSize)*k)+"px";}});}}'
-            # Vertical fill: if the lines leave real slack (e.g. a 4-line single
-            # title), spread them top-to-bottom so the text fills the frame instead
-            # of floating centered. No-op for the dense compare (fills already).
-            f'if(box.scrollHeight < box.clientHeight - 40){{box.style.justifyContent="space-between";}}'
+            # Vertical fill: if the lines leave real slack (any line count — a 3-line
+            # h2h, a 4-line single), spread them top-to-bottom so the text FILLS the
+            # frame instead of floating centered. No-op when it already fills (compare).
+            f'if(th() < box.clientHeight - 36){{box.style.justifyContent="space-between";}}'
             f'}}'
             f'if(document.fonts&&document.fonts.ready){{document.fonts.ready.then(fit);}}else{{fit();}}'
             f'setTimeout(fit,250);setTimeout(fit,700);}})();</script>')
@@ -11768,10 +11770,10 @@ def _title_card_body(slug, sch, hook, nologo=False):
         f'<div class="tline" style="line-height:.92;font-size:120px;-webkit-text-stroke:.6px currentColor">'
         f'<span class="tin" style="display:inline-block;white-space:nowrap">{_hook_html(ln, color, outline)}</span></div>'
         for ln in lines)
-    # Same treatment as the compare title: cap per-line size so short lines (CANDOR,
-    # STANFORD, PROFILE) don't blow up and force a global shrink, and use a bigger
-    # text area so the hook fills the frame instead of floating small with margins.
-    return _title_frame(line_html, logo_html, logoH=330, cardH=1460, maxFont=300)
+    # Singles fill BIG: higher per-line cap (school names go larger, eating the side
+    # white) + a bigger text area, and the th()-based fill spreads any line count to
+    # fill the frame. (Compare keeps its own tighter cap — short school names there.)
+    return _title_frame(line_html, logo_html, logoH=300, cardH=1490, maxFont=380)
 
 
 def _compare_title_body(slugs):
