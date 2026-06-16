@@ -11768,7 +11768,10 @@ def _title_card_body(slug, sch, hook, nologo=False):
         f'<div class="tline" style="line-height:.92;font-size:120px;-webkit-text-stroke:.6px currentColor">'
         f'<span class="tin" style="display:inline-block;white-space:nowrap">{_hook_html(ln, color, outline)}</span></div>'
         for ln in lines)
-    return _title_frame(line_html, logo_html)
+    # Same treatment as the compare title: cap per-line size so short lines (CANDOR,
+    # STANFORD, PROFILE) don't blow up and force a global shrink, and use a bigger
+    # text area so the hook fills the frame instead of floating small with margins.
+    return _title_frame(line_html, logo_html, logoH=330, cardH=1460, maxFont=300)
 
 
 def _compare_title_body(slugs):
