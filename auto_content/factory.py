@@ -342,6 +342,17 @@ def _bump_h2h():
 # ── school selection: weight by real user demand + cap repeats per day ─────
 SCHOOL_DAILY_CAP = int(os.environ.get("SCHOOL_DAILY_CAP", "2"))  # max same-school per day (single/grade/glowup/h2h; compare excluded)
 SCHOOL_WEIGHT_BASELINE = 2          # so low/no-demand schools still get some airtime
+ICONIC_FLOOR = 45                   # iconic/household-name schools get AT LEAST this
+# selection weight regardless of calc volume — so BC (4 calcs), Notre Dame (7),
+# Georgetown etc. still post regularly, since they pop on TikTok by name alone.
+# (Only renderable slugs — must exist in INST_LOGOS/COLLEGES or it's a no-op.)
+ICONIC_SCHOOLS = {
+    "harvard","yale","princeton","columbia","upenn","brown","dartmouth","cornell",
+    "stanford","mit","caltech","duke","northwestern","uchicago","jhu","vanderbilt",
+    "rice","washu","emory","notre-dame","georgetown","bc","tufts","nyu","usc","cmu","bu",
+    "ucla","ucb","umich","uva","unc","gatech","ut-austin","ucsd","wisc","uf",
+    "williams","amherst","swarthmore",
+}
 _POST_STATE = os.path.join(HERE, ".post_state.json")
 _demand_cache = None
 
@@ -389,7 +400,10 @@ def _pick_school(respect_cap=True):
     if not pool:
         return None
     dem = _demand()
-    weights = [dem.get(s, 0) + SCHOOL_WEIGHT_BASELINE for s in pool]
+    # demand+baseline, but iconic schools never fall below ICONIC_FLOOR so they
+    # stay in regular rotation even with very few real calcs.
+    weights = [max(dem.get(s, 0) + SCHOOL_WEIGHT_BASELINE,
+                   ICONIC_FLOOR if s in ICONIC_SCHOOLS else 0) for s in pool]
     return random.choices(pool, weights=weights)[0]
 
 
