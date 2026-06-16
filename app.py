@@ -95,6 +95,41 @@ COLLEGES_BY_SLUG = {c["slug"]: c for c in COLLEGES}
 COLLEGE_NAMES = sorted([c["name"] for c in COLLEGES])
 STATES = sorted(set(c["state"] for c in COLLEGES))
 
+# Residency matching compares the profile's state to a school's state by exact
+# (lowercased) string. School states are FULL names, so a profile saved as "NC"
+# or "N.C." would read as out-of-state at every NC school — flipping odds. Map
+# abbreviations -> full names and normalize on save so the match holds.
+_STATE_ABBR = {
+    "AL":"Alabama","AK":"Alaska","AZ":"Arizona","AR":"Arkansas","CA":"California",
+    "CO":"Colorado","CT":"Connecticut","DE":"Delaware","FL":"Florida","GA":"Georgia",
+    "HI":"Hawaii","ID":"Idaho","IL":"Illinois","IN":"Indiana","IA":"Iowa","KS":"Kansas",
+    "KY":"Kentucky","LA":"Louisiana","ME":"Maine","MD":"Maryland","MA":"Massachusetts",
+    "MI":"Michigan","MN":"Minnesota","MS":"Mississippi","MO":"Missouri","MT":"Montana",
+    "NE":"Nebraska","NV":"Nevada","NH":"New Hampshire","NJ":"New Jersey","NM":"New Mexico",
+    "NY":"New York","NC":"North Carolina","ND":"North Dakota","OH":"Ohio","OK":"Oklahoma",
+    "OR":"Oregon","PA":"Pennsylvania","RI":"Rhode Island","SC":"South Carolina",
+    "SD":"South Dakota","TN":"Tennessee","TX":"Texas","UT":"Utah","VT":"Vermont",
+    "VA":"Virginia","WA":"Washington","WV":"West Virginia","WI":"Wisconsin","WY":"Wyoming",
+    "DC":"District of Columbia",
+}
+_STATE_NAMES = {v.lower(): v for v in _STATE_ABBR.values()}
+
+def _normalize_state(s):
+    """Canonicalize a user-entered state to the full name used in school data.
+    Accepts 'NC', 'N.C.', 'north carolina', etc. Leaves unrecognized input as-is
+    (trimmed) so we never silently drop a value we don't understand."""
+    if not s:
+        return ""
+    s = s.strip()
+    if not s:
+        return ""
+    key = s.upper().replace(".", "").replace(" ", "")
+    if len(key) <= 3 and key in _STATE_ABBR:
+        return _STATE_ABBR[key]
+    if s.lower() in _STATE_NAMES:
+        return _STATE_NAMES[s.lower()]
+    return s
+
 # City for each college. Done as a lookup table rather than inline so the
 # 155-row COLLEGES list doesn't get any longer than it already is.
 
@@ -2641,9 +2676,12 @@ def _normalize_score(sat, act):
     # range — systematically under-rating every ACT applicant at test-using
     # schools (a 33 read as 1460 instead of 1500). Corrected to the published
     # concordance.
-    act_to_sat = {36:1590,35:1560,34:1530,33:1500,32:1470,31:1430,30:1400,29:1360,28:1320,27:1290,26:1260,25:1220,24:1180,23:1140,22:1110,21:1070,20:1030,19:990,18:960}
+    act_to_sat = {36:1590,35:1560,34:1530,33:1500,32:1470,31:1430,30:1400,29:1360,28:1320,27:1290,26:1260,25:1220,24:1180,23:1140,22:1110,21:1070,20:1030,19:990,18:960,
+                  17:920,16:880,15:840,14:800,13:760,12:710,11:670,10:630}
     if sat: return int(sat)
-    if act: return act_to_sat.get(int(act), 1000)
+    if act:
+        a = max(1, min(36, int(act)))          # clamp typos/out-of-range into 1-36
+        return act_to_sat.get(a, 590)          # ACT <10 → ~590 floor, NOT a mid-range 1000
     return None
 
 
@@ -2718,11 +2756,18 @@ def effective_gpa(profile, school):
         den = sum(weights[y] for y, g in years)
         gpa = num / den if den else (base or 0.0)
 
-    # Trend detection — only if we have at least 3 sequential years
-    seq = [g for y, g in [("fr",fr),("so",so),("ju",ju),("sr",sr)] if g is not None]
-    if len(seq) >= 3:
-        # Strictly improving by at least 0.15 per year on average → upward
-        diffs = [seq[i+1] - seq[i] for i in range(len(seq)-1)]
+    # Trend detection — only over a run of CONSECUTIVE present years, so a gap
+    # year (e.g. fr + ju + sr with sophomore missing) isn't read as a smooth
+    # fr->ju "year-over-year" jump. Find the longest no-gap run and require >=3.
+    run, best = [], []
+    for _, g in [("fr",fr),("so",so),("ju",ju),("sr",sr)]:
+        if g is not None:
+            run.append(g)
+            if len(run) > len(best): best = run[:]
+        else:
+            run = []
+    if len(best) >= 3:
+        diffs = [best[i+1] - best[i] for i in range(len(best)-1)]
         avg_diff = sum(diffs) / len(diffs)
         if avg_diff >= 0.15 and all(d >= -0.05 for d in diffs):
             gpa += 0.05  # upward-trend bonus
@@ -2899,6 +2944,29 @@ def compute_fit(profile, school):
     return max(0, min(100, round(score, 1))), components
 
 
+def _residency_adjust_accept(school, a, profile):
+    """Scale an accept-rate anchor `a` by the applicant's residency at a PUBLIC
+    school (in-state lifts, OOS lowers), capped at the university's residency
+    rate so a single major can't beat the whole-university residency rate.
+    No-op for privates or when the student's state is unknown. Shared by
+    estimate_odds AND assign_tier so the tier label and the odds always agree."""
+    user_state = (profile.get("state") or "").strip() if profile else ""
+    if not (school.get("type") == "public" and user_state):
+        return a
+    is_oos = user_state.lower() != (school.get("state") or "").lower()
+    overall = school.get("accept") or a
+    d = ADMISSIONS_DETAIL.get(school.get("slug"), {})
+    if not is_oos:
+        if d.get("in_state_rate") and overall:
+            a = min(a * d["in_state_rate"] / overall, d["in_state_rate"])
+    else:
+        if d.get("out_of_state_rate") and overall:
+            a = min(a * d["out_of_state_rate"] / overall, d["out_of_state_rate"])
+        elif overall < 0.50:
+            a *= 0.55
+    return max(0.005, min(1.0, a))
+
+
 def assign_tier(school, fit, profile=None):
     a = school["accept"]
     # If user has a major that matches a sub-school at this university,
@@ -2910,6 +2978,9 @@ def assign_tier(school, fit, profile=None):
         sub = sub_school_for_major(school.get("slug"), profile.get("major") or "")
         if sub and sub.get("accept"):
             a = sub["accept"]
+        # Same residency adjustment estimate_odds uses, so an in-state flagship
+        # isn't labeled "Dream" while its in-state odds say otherwise.
+        a = _residency_adjust_accept(school, a, profile)
     if a < 0.10: return "Dream" if fit < 70 else "Reach"
     if a < 0.20: return "Reach" if fit < 65 else "Target"
     if a < 0.40: return "Reach" if fit < 50 else ("Target" if fit < 75 else "Safety")
@@ -3443,18 +3514,9 @@ def estimate_odds(school, fit, profile):
     user_state = (profile.get("state") or "").strip()
     is_public = school.get("type") == "public"
     is_oos = bool(user_state) and user_state.lower() != (school.get("state") or "").lower()
-    if is_public and user_state:
-        overall = school.get("accept") or a
-        d = ADMISSIONS_DETAIL.get(school.get("slug"), {})
-        if not is_oos:
-            if d.get("in_state_rate") and overall:
-                a *= d["in_state_rate"] / overall
-        else:
-            if d.get("out_of_state_rate") and overall:
-                a *= d["out_of_state_rate"] / overall
-            elif overall < 0.50:
-                a *= 0.55
-        a = max(0.005, min(1.0, a))
+    # Residency adjustment (capped at the university residency rate). Shared with
+    # assign_tier via _residency_adjust_accept so the tier and odds always agree.
+    a = _residency_adjust_accept(school, a, profile)
     # International / domestic pool adjustment. The published acceptance rate
     # is overall (intl + domestic combined). At schools with a large intl
     # admit pool, domestic applicants are competing for fewer effective
@@ -3492,9 +3554,12 @@ def estimate_odds(school, fit, profile):
     elif legacy_gens == 2: hook_mult *= 1.20
     elif legacy_gens == 1: hook_mult *= 1.15
     if profile.get("first_gen"): hook_mult *= 1.10
-    # Demonstrated interest (only applies at tier 2-3 schools that track it)
+    # Demonstrated interest — only at schools that actually track it (private
+    # tier 2-3). Public flagships/UCs and tier-1 elites do NOT, so gate on the
+    # same rule the card + narrative use (was boosting public tier-2/3 schools).
     di_level = profile.get("_di_level") or "none"
-    hook_mult *= _di_multiplier(di_level, school.get("tier", 5))
+    if _tracks_demonstrated_interest(school, school.get("tier", 5)):
+        hook_mult *= _di_multiplier(di_level, school.get("tier", 5))
     # Portfolio bonus — only at schools where portfolio is the actual gatekeeper.
     # Modest 1.15x lift; the user still has to be otherwise qualified, but a
     # portfolio at Roski/Tisch/RISD/etc. is meaningfully a hook.
@@ -8922,7 +8987,7 @@ def _read_profile_form(form):
         "act_reading": f("act_reading", int),
         "act_science": f("act_science", int),
         "major": f("major") or "",
-        "state": f("state") or "",
+        "state": _normalize_state(f("state")),
         "school_type": f("school_type") or "public",
         "ecs": f("ecs") or "",
         "leadership": f("leadership") or "",
@@ -10625,7 +10690,7 @@ def _parse_profile_text(text):
         "act_math": _num(d.get("act_math"), int), "act_english": _num(d.get("act_english"), int),
         "act_reading": _num(d.get("act_reading"), int), "act_science": _num(d.get("act_science"), int),
         "major": (d.get("major") or "").strip(),
-        "state": (d.get("state") or "").strip(),
+        "state": _normalize_state(d.get("state")),
         "school_type": (d.get("school_type") or "").strip(),
         "ecs": (d.get("ecs") or "").strip(),
         "leadership": (d.get("leadership") or "").strip(),
