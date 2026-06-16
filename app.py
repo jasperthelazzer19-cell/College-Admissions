@@ -11976,13 +11976,35 @@ def content_view_one(cid):
     sub = r["odds_text"] or r["grade_text"] or ""
     _keys = [k for k in ("img1", "img2", "img3", "img4") if r[k]]
     imgs = "".join(
-        f'<img src="{r[k]}" alt="slide {i}" style="width:100%;max-width:500px;border-radius:14px;'
+        f'<img class="cslide" data-slide="{i}" src="{r[k]}" alt="slide {i}" style="width:100%;max-width:500px;border-radius:14px;'
         f'margin:0 0 16px;-webkit-touch-callout:default;display:block;margin-left:auto;margin-right:auto">'
         for i, k in enumerate(_keys, 1))
+    save_btn = (
+        '<button id="saveall" style="width:100%;max-width:500px;background:#5fc9b6;color:#06121a;'
+        'font-weight:800;border:0;padding:15px;border-radius:12px;font-size:16px;cursor:pointer;'
+        'margin:0 auto 8px;display:block">⬇️ Save all slides</button>'
+        '<div id="savehint" style="color:#7c8aa0;font-size:13px;margin:0 0 18px">'
+        'opens the share sheet → tap <b>Save Images</b> (or long-press a slide)</div>')
+    script = (
+        '<script>'
+        'document.getElementById("saveall").addEventListener("click",async function(){'
+        ' var b=this,t=b.textContent;b.disabled=true;b.textContent="Preparing…";'
+        ' try{'
+        '  var els=[].slice.call(document.querySelectorAll(".cslide")),fs=[];'
+        '  for(var i=0;i<els.length;i++){var r=await fetch(els[i].src);var bl=await r.blob();'
+        '   fs.push(new File([bl],"candor-slide-"+(i+1)+".png",{type:"image/png"}));}'
+        '  if(navigator.canShare&&navigator.canShare({files:fs})){'
+        '   await navigator.share({files:fs,title:"Candor carousel"});'
+        '  }else{fs.forEach(function(f){var a=document.createElement("a");'
+        '   a.href=URL.createObjectURL(f);a.download=f.name;document.body.appendChild(a);a.click();a.remove();});}'
+        ' }catch(e){}'
+        ' b.disabled=false;b.textContent=t;'
+        '});'
+        '</script>')
     body = (f'<div style="max-width:540px;margin:0 auto;padding:18px 14px 60px;text-align:center">'
             f'<div style="font-weight:800;font-size:19px;margin:0 0 2px">{r["title_text"] or r["school_name"]}</div>'
-            f'<div style="color:#7c8aa0;font-size:14px;margin:0 0 18px">{r["school_name"]} · {sub}<br>'
-            f'<b>Long-press each image → Save to Photos</b></div>{imgs}</div>')
+            f'<div style="color:#7c8aa0;font-size:14px;margin:0 0 14px">{r["school_name"]} · {sub}</div>'
+            f'{save_btn}{imgs}</div>{script}')
     return _page(body, title="Carousel · Candor")
 
 
