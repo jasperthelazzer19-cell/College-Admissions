@@ -11996,6 +11996,67 @@ def content_batch_claim():
     return jsonify(ok=True)
 
 
+# Static CTA card (the "Want your own odds?" slide) appended as the LAST slide of
+# every carousel — it's identical every time, so it's a static asset.
+_CTA_SLIDE_URL = "/static/cta_slide.png"
+
+
+def _carousel_hashtags(r):
+    """5 TikTok hashtags for a carousel — school-specific first two, then evergreen
+    college tags, matching the creator's flow: #rice #riceuniversity
+    #collegeadmissions #collegeapps #fyp. Compare/h2h use the anchor school."""
+    import re as _re
+    slug = r["school_slug"] or ""
+    sch = COLLEGES_BY_SLUG.get(slug) or {}
+    name = sch.get("name") or ""
+
+    def clean(s):
+        return "#" + _re.sub(r"[^a-z0-9]", "", (s or "").lower())
+    tags = []
+    if slug:
+        short = _school_brand(slug, name)[0]
+        t1 = clean(short)
+        # full-name tag (#riceuniversity / #bostonuniversity). If the data name is
+        # basically just the short name, append "university" so we still get a
+        # distinct full-name tag like the reference (#rice -> #riceuniversity).
+        base = _re.split(r"[-–—,]| at | – ", name)[0].strip()   # drop campus qualifier
+        nm = clean(base)
+        t2 = nm if (nm and nm != t1 and len(nm) > len(t1)) else clean(short + "university")
+        for t in (t1, t2):
+            if len(t) > 1 and t not in tags:
+                tags.append(t)
+    for t in ("#collegeadmissions", "#collegeapps", "#fyp", "#dreamschool", "#collegetok"):
+        if len(tags) >= 5:
+            break
+        if t not in tags:
+            tags.append(t)
+    return tags[:5]
+
+
+def _hashtag_block(r):
+    """Hashtag row + one-tap copy button under a carousel (TikTok caption helper)."""
+    from html import escape as _esc
+    text = " ".join(_carousel_hashtags(r))
+    return (
+        f'<div style="display:flex;align-items:center;gap:8px;max-width:500px;margin:2px auto 16px;'
+        f'background:#0c1521;border:1px solid #1d2a3d;border-radius:12px;padding:11px 12px">'
+        f'<div style="flex:1;text-align:left;color:#9fb2c8;font-size:14px;line-height:1.45;word-break:break-word">{_esc(text)}</div>'
+        f'<button type="button" data-copy="{_esc(text)}" onclick="copyHashtags(this)" '
+        f'style="flex:0 0 auto;background:#16202e;color:#e9eef5;border:1px solid #2b3a4f;border-radius:9px;'
+        f'padding:9px 13px;font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap">📋 Copy</button></div>')
+
+
+_HASHTAG_JS = (
+    '<script>'
+    'function copyHashtags(b){var t=b.getAttribute("data-copy");'
+    'function done(){var o=b.textContent;b.textContent="✓ Copied";setTimeout(function(){b.textContent=o;},1400);}'
+    'function fb(x){var a=document.createElement("textarea");a.value=x;a.style.position="fixed";a.style.opacity="0";'
+    'document.body.appendChild(a);a.focus();a.select();try{document.execCommand("copy");}catch(e){}a.remove();}'
+    'if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(done,function(){fb(t);done();});}'
+    'else{fb(t);done();}}'
+    '</script>')
+
+
 @app.route("/content/c/<int:cid>")
 def content_view_one(cid):
     """Single-carousel viewer for the texted link — token-gated (?key=CRON_KEY) so
@@ -12014,6 +12075,11 @@ def content_view_one(cid):
         f'<img class="cslide" data-slide="{i}" src="{r[k]}" alt="slide {i}" style="width:100%;max-width:500px;border-radius:14px;'
         f'margin:0 0 16px;-webkit-touch-callout:default;display:block;margin-left:auto;margin-right:auto">'
         for i, k in enumerate(_keys, 1))
+    # CTA is the LAST slide of every carousel (and part of "Save all slides").
+    _cta_i = len(_keys) + 1
+    imgs += (f'<img class="cslide" data-slide="{_cta_i}" src="{_CTA_SLIDE_URL}" alt="slide {_cta_i}" '
+             f'style="width:100%;max-width:500px;border-radius:14px;margin:0 0 16px;-webkit-touch-callout:default;'
+             f'display:block;margin-left:auto;margin-right:auto">')
     save_btn = (
         '<button id="saveall" style="width:100%;max-width:500px;background:#5fc9b6;color:#06121a;'
         'font-weight:800;border:0;padding:15px;border-radius:12px;font-size:16px;cursor:pointer;'
@@ -12039,7 +12105,7 @@ def content_view_one(cid):
     body = (f'<div style="max-width:540px;margin:0 auto;padding:18px 14px 60px;text-align:center">'
             f'<div style="font-weight:800;font-size:19px;margin:0 0 2px">{r["title_text"] or r["school_name"]}</div>'
             f'<div style="color:#7c8aa0;font-size:14px;margin:0 0 14px">{r["school_name"]} · {sub}</div>'
-            f'{save_btn}{imgs}</div>{script}')
+            f'{save_btn}{imgs}{_hashtag_block(r)}</div>{script}{_HASHTAG_JS}')
     return _page(body, title="Carousel · Candor")
 
 
@@ -12074,11 +12140,16 @@ def content_today():
         posted = conn.execute("SELECT COUNT(*) c FROM content_queue WHERE status='posted'").fetchone()["c"]
     cards = []
     for r in released:
+        _ck = [k for k in ("img1", "img2", "img3", "img4") if r[k]]
         imgs = "".join(
             f'<div style="flex:1;min-width:150px"><img class="cslide" src="{r[k]}" alt="slide {i}" '
             f'style="width:100%;border-radius:12px;border:1px solid #1d2a3d;-webkit-touch-callout:default">'
             f'<div style="text-align:center;font-size:12px;color:#7c8aa0;margin-top:4px">Slide {i}</div></div>'
-            for i, k in enumerate([k for k in ("img1", "img2", "img3", "img4") if r[k]], 1))
+            for i, k in enumerate(_ck, 1))
+        # CTA appended as the LAST slide (part of "Save all slides").
+        imgs += (f'<div style="flex:1;min-width:150px"><img class="cslide" src="{_CTA_SLIDE_URL}" alt="CTA slide" '
+                 f'style="width:100%;border-radius:12px;border:1px solid #1d2a3d;-webkit-touch-callout:default">'
+                 f'<div style="text-align:center;font-size:12px;color:#7c8aa0;margin-top:4px">Slide {len(_ck)+1} · CTA</div></div>')
         meta = f'{r["school_name"] or r["school_slug"] or ""} · {r["slide3_type"] or ""}'
         odds = r["odds_text"] or r["grade_text"] or ""
         cards.append(
@@ -12087,7 +12158,8 @@ def content_today():
             f'<div style="color:#7c8aa0;font-size:13px;margin:0 0 12px">{meta} · {odds} · slot {r["slot"] or "—"}</div>'
             f'<div style="display:flex;gap:10px;flex-wrap:wrap">{imgs}</div>'
             f'<button type="button" onclick="saveCard(this)" style="width:100%;background:#2f6df0;color:#fff;'
-            f'font-weight:800;border:0;padding:13px;border-radius:10px;margin-top:14px;cursor:pointer">⬇️ Save all slides</button>'
+            f'font-weight:800;border:0;padding:13px;border-radius:10px;margin:14px 0 12px;cursor:pointer">⬇️ Save all slides</button>'
+            f'{_hashtag_block(r)}'
             f'<div style="display:flex;gap:10px;margin-top:10px">'
             f'<form method="post" action="/content/queue/{r["id"]}/posted" style="flex:1">{csrf_input()}'
             f'<button style="width:100%;background:#5fc9b6;color:#06121a;font-weight:800;border:0;padding:12px;border-radius:10px">✓ Posted</button></form>'
@@ -12150,7 +12222,7 @@ def content_today():
             + f'<h1 style="margin:0 0 4px">📅 Today</h1>'
             + f'<div style="color:#7c8aa0;font-size:14px;margin:0 0 18px">{pending} queued · {posted} posted · tap “Save all slides” to save a carousel to Photos</div>'
             + banner + make_btn
-            + "".join(cards) + '</div>' + save_script)
+            + "".join(cards) + '</div>' + save_script + _HASHTAG_JS)
     return _page(body, title="Content · Today")
 
 
