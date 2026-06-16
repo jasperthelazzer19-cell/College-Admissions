@@ -166,21 +166,38 @@ _LOCKFILE = os.path.join(HERE, ".render.lock")
 
 
 @contextlib.contextmanager
-def render_lock():
+def render_lock(timeout=900):
     """Cross-process exclusive lock. The scheduled slot job and the text/button
     listener both render against ONE local server (port 5077) and the SAME shared
     user 181/38 profile rows — running concurrently would (a) collide on the port
     and (b) let one carousel's profile slide pair with another's odds slide. Hold
-    this around the whole generate→render session so the two jobs serialize."""
+    this around the whole generate→render session so the two jobs serialize.
+
+    Acquire NON-BLOCKING + retry instead of a blocking LOCK_EX: on macOS a blocking
+    flock can spuriously raise EDEADLK ("Resource deadlock avoided") when the other
+    job already holds it, which would crash the run instead of just waiting (this is
+    what killed the 11:55 one-shot). Polling LOCK_NB waits cleanly up to `timeout`."""
     f = open(_LOCKFILE, "w")
+    acquired = False
+    deadline = time.time() + timeout
+    while True:
+        try:
+            fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            acquired = True
+            break
+        except OSError:
+            if time.time() > deadline:
+                f.close()
+                raise RuntimeError("render_lock: timed out waiting for the other render job")
+            time.sleep(2)
     try:
-        fcntl.flock(f, fcntl.LOCK_EX)
         yield
     finally:
-        try:
-            fcntl.flock(f, fcntl.LOCK_UN)
-        except Exception:
-            pass
+        if acquired:
+            try:
+                fcntl.flock(f, fcntl.LOCK_UN)
+            except Exception:
+                pass
         f.close()
 
 
