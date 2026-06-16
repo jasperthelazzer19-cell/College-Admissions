@@ -6664,7 +6664,7 @@ def chances_html(slug):
   {narrative_html}
 </div>
 {_render_counterfactual_card(profile, COLLEGES_BY_SLUG.get(r['slug']), r['odds_low'], r['odds_high'])}
-{_render_di_card(r['slug'], r['school'], profile.get('_di_level','none'))}
+{(_render_di_card(r['slug'], r['school'], profile.get('_di_level','none')) if _tracks_demonstrated_interest(COLLEGES_BY_SLUG.get(r['slug']) or {}, (COLLEGES_BY_SLUG.get(r['slug']) or {}).get('tier', 5)) else '')}
 <details class="card" style="margin-top:18px">
   <summary style="cursor:pointer;font-weight:600">What does "{r['confidence']} confidence" mean?</summary>
   <p class="muted" style="font-size:.88em;margin-top:10px">Confidence is how reliable the prediction itself is — <b>not</b> your chances of getting in. It reflects how much usable signal your profile has.</p>
@@ -7738,7 +7738,7 @@ No preamble, no closing line."""
         bullets.append(f"On essays: {note['supplemental_strategy']}")
         bullets.append(f"On values: {school['name']} weights {note['values'].split('.')[0]}.")
         if school["state"] != profile.get("state") and school["type"] == "public":
-            bullets.append(f"Out-of-state public: tuition ${school.get('tuition',0):,} is the OOS rate. Check whether your stats qualify for merit aid before applying.")
+            bullets.append(f"Out-of-state public: your stored figure (${school.get('tuition',0):,}) is the IN-STATE rate — out-of-state runs roughly 2.5–3x that, so budget accordingly and check the school's site for the OOS number and any merit aid.")
         body = "\n".join(f"- {b}" for b in bullets[:8])
     with db() as conn:
         conn.execute("""INSERT INTO tailored_advice (user_id, college_slug, body, generated_at, profile_hash)
@@ -11346,9 +11346,15 @@ def glowup_export(slug):
     meta = " &middot; ".join(bits)
     ladder_txt = "; ".join(f"{lb}: {lo}-{hi}%" for lb, lo, hi in ladder)
     stats_plain = f'{p.get("uw_gpa")} GPA, {(str(p.get("sat"))+" SAT") if p.get("sat") else "test-blind"}, {p.get("major") or "undecided major"}'
+    _tb = is_test_blind(merged)
+    _b2 = ("that this school is TEST-BLIND — SAT/ACT scores are not considered at all, so don't waste effort on them"
+           if _tb else "why a higher SAT barely helps here")
     bullets = _content_bullets(
         "You give specific, actionable college-admissions advice.",
-        f'Student ({stats_plain}) applying to {merged["name"]} (acceptance {round(merged["accept"]*100,1)}%). Odds ladder: {ladder_txt}. Give 4 short advice bullets: (1) the single highest-leverage move + a concrete hook example, (2) why a higher SAT barely helps here, (3) why GPA alone won\'t cut it, (4) a blunt reality check. Keep each to a few words.',
+        f'Student ({stats_plain}) applying to {merged["name"]} (acceptance {round(merged["accept"]*100,1)}%). '
+        f'{"NOTE: this school is test-blind — never suggest raising or submitting a test score. " if _tb else ""}'
+        f'Odds ladder: {ladder_txt}. Give 4 short advice bullets: (1) the single highest-leverage move + a concrete '
+        f'hook example, (2) {_b2}, (3) why GPA alone won\'t cut it, (4) a blunt reality check. Keep each to a few words.',
         n=4)
     blurb_html = _bullets_html(bullets)
     card = f'''<div id="card" class="full compare">
@@ -15335,8 +15341,10 @@ def pricing_alias():
 
 
 # ─── DEADLINE TRACKER (Premium) ───
-_UC_SLUGS = {"ucla","ucb","uc-berkeley","ucsd","ucsb","ucd","uc-davis","uci",
-             "uc-irvine","ucr","ucsc","ucm","uc-merced"}
+# Must match the canonical slugs in candor_data (ucdavis/ucmerced/ucb/uci) — the
+# old hyphenated forms (ucd/uc-davis/ucm) matched nothing, so UC Davis/Merced/
+# Berkeley/Irvine silently fell through to generic ED/RD dates.
+_UC_SLUGS = {"ucla","ucb","ucsd","ucsb","ucdavis","uci","ucr","ucsc","ucmerced"}
 
 def _cycle_years():
     """(Nov year, Jan year) for the UPCOMING application cycle, derived from
