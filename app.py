@@ -11719,11 +11719,11 @@ def _title_frame(line_html, logo_html, maxH=1040):
     vertical-fill pass that spreads the lines to fill the frame when the content
     is short (otherwise a few long lines would float in the middle, the way the
     compare slide used to look next to the denser single titles)."""
-    return (f'<div id="tcard" style="height:1436px;display:flex;flex-direction:column;'
+    return (f'<div id="tcard" style="height:1402px;display:flex;flex-direction:column;'
             f"font-family:'AntonEmb','Anton',sans-serif;font-weight:400;letter-spacing:-2px;color:#111;text-transform:uppercase\">"
             f'<div id="tbox" style="display:flex;flex-direction:column;justify-content:center;flex:1;'
-            f'text-align:center;gap:8px;min-height:0">{line_html}</div>'
-            f'<div style="flex:0 0 300px;display:flex;align-items:center;justify-content:center">{logo_html}</div>'
+            f'text-align:center;gap:0px;min-height:0">{line_html}</div>'
+            f'<div style="flex:0 0 360px;display:flex;align-items:center;justify-content:center">{logo_html}</div>'
             f'</div>'
             f'<script>(function(){{function fit(){{'
             f'var box=document.getElementById("tbox");if(!box)return;var cw=box.clientWidth;'
@@ -11732,12 +11732,11 @@ def _title_frame(line_html, logo_html, maxH=1040):
             f'ls.forEach(function(l){{l.style.fontSize="120px";'
             f'var w=l.querySelector(".tin").getBoundingClientRect().width;'
             f'if(w>0){{l.style.fontSize=Math.floor(120*cw/w)+"px";}}}});'
-            # Only shrink if the full-width lines actually overflow the available
-            # height (now larger: bigger tbox + smaller logo band) minus a small
-            # margin so the top line's ascenders don't clip. Looped since shrinking
-            # reflows line heights. We do NOT shrink just to hit a hardcoded cap —
-            # that made the text small/narrow; full-width is the look we want.
-            f'for(var p=0;p<4;p++){{var avail=box.clientHeight-36;'
+            # Keep the original big, full-width look (fonts span the width). Only
+            # shrink if the stack truly overflows the box, leaving a small margin so
+            # the top line's ascenders don't clip — the line-gap (now 0) was what
+            # pushed it over before. Loop since shrinking reflows line heights.
+            f'for(var p=0;p<4;p++){{var avail=box.clientHeight-18;'
             f'if(box.scrollHeight<=avail)break;var k=avail/box.scrollHeight;'
             f'ls.forEach(function(l){{l.style.fontSize=Math.floor(parseFloat(l.style.fontSize)*k)+"px";}});}}'
             # vertical fill: if the justified lines don't reach the frame, spread
