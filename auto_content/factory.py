@@ -352,6 +352,8 @@ ICONIC_SCHOOLS = {
     "rice","washu","emory","notre-dame","georgetown","bc","tufts","nyu","usc","cmu","bu",
     "ucla","ucb","umich","uva","unc","gatech","ut-austin","ucsd","wisc","uf",
     "williams","amherst","swarthmore",
+    # added 2026-06-16 (recommended batch 1)
+    "northeastern","miami","wake-forest","tulane","villanova",
 }
 _POST_STATE = os.path.join(HERE, ".post_state.json")
 _demand_cache = None
