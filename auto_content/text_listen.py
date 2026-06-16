@@ -98,9 +98,10 @@ def _link(cid):
 
 
 def _web_batch():
-    """Check the website '⚡ Make 4 now' button (/content/today). Returns the
-    requested count if a batch is pending, else None — and claims it immediately
-    so a slow render doesn't double-fire on the next poll."""
+    """Check the website '⚡ Make' buttons (/content/today). Returns (count, slugs)
+    if a batch is pending — slugs is the creator's chosen schools (may be fewer
+    than count; the rest auto-pick) — else None. Claims it immediately so a slow
+    render doesn't double-fire on the next poll."""
     q = factory.urllib.parse.quote(factory.CRON_KEY)
     try:
         with urllib.request.urlopen(f"{factory.TARGET_URL}/content/batch-pending?key={q}", timeout=15) as r:
@@ -116,14 +117,18 @@ def _web_batch():
     except Exception as e:
         print("web batch claim:", e)
     try:
-        return max(1, min(8, int(d.get("count", 4))))
+        n = max(1, min(8, int(d.get("count", 4))))
     except (TypeError, ValueError):
-        return 4
+        n = 4
+    slugs = [s for s in (d.get("slugs") or "").split(",") if s.strip()]
+    return n, slugs
 
 
 def main():
     msgs = new_messages()
-    web_n = _web_batch()
+    web = _web_batch()
+    web_n = web[0] if web else None
+    web_slugs = web[1] if web else []
     if not msgs and not web_n:
         return
     max_rowid = max((rid for rid, _ in msgs), default=_last_rowid())
@@ -135,10 +140,10 @@ def main():
 
     os.environ.setdefault("GRADER_FAST", "1")
     with factory.render_lock():   # serialize with the scheduled slot job (shared port + DB)
-        _render_session(batch, web_n, specifics, max_rowid)
+        _render_session(batch, web_n, web_slugs, specifics, max_rowid)
 
 
-def _render_session(batch, web_n, specifics, max_rowid):
+def _render_session(batch, web_n, web_slugs, specifics, max_rowid):
     factory.start_local_server()
     try:
         if not factory.wait_local_app():
@@ -148,9 +153,10 @@ def _render_session(batch, web_n, specifics, max_rowid):
             text_back(f"On it — making a fresh batch of {n} \U0001F3AC give me a few min...")
             made = []
             for i in range(n):
+                chosen = web_slugs[i] if i < len(web_slugs) else None  # creator-picked school or auto
                 for attempt in range(3):
                     try:
-                        cid, name = factory.make_one()
+                        cid, name = factory.make_one(slug=chosen)
                         if cid:
                             made.append((cid, name)); break
                     except Exception as e:

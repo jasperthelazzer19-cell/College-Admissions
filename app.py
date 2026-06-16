@@ -4498,8 +4498,13 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             requested_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
             count INTEGER NOT NULL DEFAULT 4,
-            claimed_at TEXT
+            claimed_at TEXT,
+            slugs TEXT
         )""")
+        try:   # slugs = optional comma-sep schools the creator chose for this batch
+            conn.execute("ALTER TABLE batch_requests ADD COLUMN slugs TEXT")
+        except sqlite3.OperationalError:
+            pass
         # Bounded retention prune (runs on boot; Railway restarts regularly). All
         # tables exist by here. Keeps the DB from growing forever — content_queue
         # rows hold base64 PNGs and bloat fastest, so purge posted/skipped at 14d.
@@ -11937,11 +11942,14 @@ def content_request_batch():
     except (TypeError, ValueError):
         n = 4
     n = max(1, min(8, n))
+    # optional chosen schools (validated against real slugs); blank entries = auto
+    chosen = [s for s in request.form.getlist("slugs") if s in COLLEGES_BY_SLUG][:n]
+    slugs_csv = ",".join(chosen) if chosen else None
     with db() as conn:
         # Coalesce: if a request is already waiting unclaimed, don't stack more.
         existing = conn.execute("SELECT id FROM batch_requests WHERE claimed_at IS NULL LIMIT 1").fetchone()
         if not existing:
-            conn.execute("INSERT INTO batch_requests (count) VALUES (?)", (n,))
+            conn.execute("INSERT INTO batch_requests (count, slugs) VALUES (?, ?)", (n, slugs_csv))
             conn.commit()
     return redirect(url_for("content_today", requested=n))
 
@@ -11952,10 +11960,10 @@ def content_batch_pending():
     if not _autopilot_authed():
         return ("unauthorized", 401)
     with db() as conn:
-        r = conn.execute("SELECT id, count FROM batch_requests WHERE claimed_at IS NULL ORDER BY id ASC LIMIT 1").fetchone()
+        r = conn.execute("SELECT id, count, slugs FROM batch_requests WHERE claimed_at IS NULL ORDER BY id ASC LIMIT 1").fetchone()
     if not r:
         return jsonify(pending=False)
-    return jsonify(pending=True, id=r["id"], count=r["count"])
+    return jsonify(pending=True, id=r["id"], count=r["count"], slugs=r["slugs"] or "")
 
 
 @app.route("/content/batch-claim", methods=["POST"])
@@ -12085,17 +12093,34 @@ def content_today():
               f'padding:12px 14px;margin:0 0 16px;font-weight:600">⚡ Requested — rendering {_rqn} fresh '
               f'carousel{_pl} on the Mac now; the link{_pl} get texted to you in a few minutes.</div>'
               if _rqn else '')
+    # school dropdowns (only renderable schools — those with a logo) so the
+    # creator can pick which school(s) Make 1 / Make 4 generate; blank = auto.
+    from html import escape as _esc
+    _ren = sorted(((s, COLLEGES_BY_SLUG.get(s, {}).get("name", s)) for s in INST_LOGOS),
+                  key=lambda x: x[1].lower())
+    _opts = '<option value="">⚡ auto — pick for me</option>' + "".join(
+        f'<option value="{s}">{_esc(nm)}</option>' for s, nm in _ren)
+    _ss = ('width:100%;padding:10px;border-radius:9px;background:#0a1320;color:#e9eef5;'
+           'border:1px solid #2b3a4f;margin:0 0 8px;font-size:14px')
+    sel1 = f'<select name="slugs" style="{_ss}">{_opts}</select>'
+    sel4 = "".join(f'<select name="slugs" style="{_ss}">{_opts}</select>' for _ in range(4))
     make_btn = (
-        f'<div style="display:flex;gap:10px;margin:0 0 18px">'
-        f'<form method="post" action="/content/request-batch" style="flex:1">{csrf_input()}'
+        '<div style="display:flex;gap:12px;margin:0 0 18px;flex-wrap:wrap">'
+        f'<form method="post" action="/content/request-batch" style="flex:1;min-width:210px;background:#0c1521;'
+        f'border:1px solid #1d2a3d;border-radius:14px;padding:14px">{csrf_input()}'
         f'<input type="hidden" name="count" value="1">'
+        f'<div style="font-weight:800;font-size:12px;color:#7c8aa0;margin:0 0 8px;letter-spacing:.4px">PICK A SCHOOL (OR AUTO)</div>'
+        f'{sel1}'
         f'<button style="width:100%;background:#16202e;color:#e9eef5;font-weight:800;border:1px solid #2b3a4f;'
-        f'padding:15px;border-radius:12px;font-size:16px;cursor:pointer">⚡ Make 1</button></form>'
-        f'<form method="post" action="/content/request-batch" style="flex:2">{csrf_input()}'
+        f'padding:13px;border-radius:11px;font-size:15px;cursor:pointer">⚡ Make 1</button></form>'
+        f'<form method="post" action="/content/request-batch" style="flex:2;min-width:240px;background:#0c1521;'
+        f'border:1px solid #1d2a3d;border-radius:14px;padding:14px">{csrf_input()}'
         f'<input type="hidden" name="count" value="4">'
+        f'<div style="font-weight:800;font-size:12px;color:#7c8aa0;margin:0 0 8px;letter-spacing:.4px">PICK UP TO 4 (BLANKS = AUTO)</div>'
+        f'{sel4}'
         f'<button style="width:100%;background:#5fc9b6;color:#06121a;font-weight:800;border:0;'
-        f'padding:15px;border-radius:12px;font-size:16px;cursor:pointer">⚡ Make 4 fresh carousels</button></form>'
-        f'</div>')
+        f'padding:13px;border-radius:11px;font-size:15px;cursor:pointer">⚡ Make 4 fresh carousels</button></form>'
+        '</div>')
     save_script = (
         '<script>'
         'async function saveCard(btn){var card=btn.closest(".qcard");if(!card)return;'
