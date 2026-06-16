@@ -11932,9 +11932,10 @@ def cron_content_release():
 @login_required
 def content_request_batch():
     """Creator taps '⚡ Make 4 now' on /content/today. We just drop a request
-    row; the Mac daemon polls /content/batch-pending, renders the batch, and
-    texts the links back (rendering needs the local headless Chrome + DB, so it
-    can't run here)."""
+    row; it gets rendered by whichever renderer claims it first — the in-container
+    render worker here on Railway (RENDER_WORKER=1, so the button works with the
+    Mac asleep) or the Mac daemon polling /content/batch-pending (which also texts
+    the links back). Atomic claim on batch_requests keeps it from double-rendering."""
     if not _is_creator():
         abort(404)
     try:
