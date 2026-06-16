@@ -3743,6 +3743,7 @@ CRITICAL RULES:
 - If the student submitted ACT, only reference the ACT range — never compare ACT to SAT.
 {('- This school is TEST-BLIND: do NOT mention, cite, or frame the SAT/ACT score as a strength, weakness, or factor of any kind. Scores are legally not considered in admissions here.' if test_blind else '')}
 {('' if school.get('type') == 'public' else '- This is a PRIVATE school: do NOT mention in-state/out-of-state, residency, or home state as a factor — residency is irrelevant at private universities.')}
+{('- The student is OUT-OF-STATE at this PUBLIC university (lives in ' + (profile.get('state') or '?') + ', not ' + (school.get('state') or '?') + '): out-of-state residency is a HEADWIND here (public OOS admit rates are LOWER), never an advantage — do NOT claim their home state or residency helps their odds.' if (school.get('type') == 'public' and (profile.get('state') or '').strip() and (profile.get('state') or '').strip().lower() != (school.get('state') or '').lower()) else '')}
 {('' if _tracks_demonstrated_interest(school, tier) else "- This school does NOT track demonstrated interest: do NOT mention visiting, interest, demonstrated interest, or 'showing interest' as a factor or suggestion.")}
 
 Output exactly three lines. Each is ONE tight sentence (~25 words max) — specific to THIS applicant and THIS school. Lead with the concrete number/award; no preamble, no filler, no hedging. Shorter is better as long as it still lands.
@@ -7705,6 +7706,7 @@ CRITICAL ACCURACY RULES — DO NOT VIOLATE:
 - Never claim a hook the student doesn't have. They are first_gen={bool(profile.get('first_gen'))}, athlete={bool(profile.get('athlete'))}, and have legacy_generations={legacy_generations_at(profile, school)} at THIS school. Don't reference hooks they don't have.
 {('- This school is TEST-BLIND: do NOT mention, cite, or frame the SAT/ACT score as a strength, weakness, or improvement target of any kind. Do NOT suggest retaking or raising a test score. Scores are legally not considered here.' if test_blind else '')}
 {('' if school.get('type') == 'public' else '- This is a PRIVATE school: do NOT mention in-state/out-of-state, residency, or home state as a factor — residency is irrelevant at private universities.')}
+{('- The student is OUT-OF-STATE at this PUBLIC university (lives in ' + (profile.get('state') or '?') + ', not ' + (school.get('state') or '?') + '): out-of-state residency is a HEADWIND here (public OOS admit rates are LOWER), never an advantage — do NOT claim their home state or residency helps their odds.' if (school.get('type') == 'public' and (profile.get('state') or '').strip() and (profile.get('state') or '').strip().lower() != (school.get('state') or '').lower()) else '')}
 {('' if _tracks_demonstrated_interest(school, tier) else "- This school does NOT track demonstrated interest: do NOT advise visiting, emailing, attending info sessions, or 'showing interest' as a way to improve odds — it has no effect here.")}
 
 5. If the student's intended major requires a portfolio/audition (per the VERIFIED FACTS above), the bullet about the application MUST mention that requirement and the work needed to satisfy it. Never claim a portfolio isn't required when the verified facts say it is.
@@ -11142,9 +11144,19 @@ def compare_export():
     ranked_txt = "; ".join(f"{i+1}. {r['name']} {r['low']}-{r['high']}% ({'in-state' if r['instate'] else 'out-of-state'})"
                            for i, r in enumerate(results))
     meta_plain = meta.replace("&middot;", "·")
+    home_state = p.get("state") or "unknown"
     bullets = _content_bullets(
-        "You explain a college-odds ranking.",
-        f"Student: {meta_plain}. Candor odds, ranked: {ranked_txt}. Give 4 bullets: (1) why the top school is the most likely admit (specific: residency, selectivity, fit), (2) what separates the middle of the pack from the bottom, (3) the biggest factor swinging these odds for this student, (4) the most surprising or debatable result in the ranking.",
+        "You explain a college-odds ranking for a TikTok slide.",
+        f"Student home state: {home_state}. Profile: {meta_plain}.\n"
+        f"Candor odds, ranked (residency status at each school in parens): {ranked_txt}.\n"
+        f"RESIDENCY RULE — obey exactly: a public university's in-state advantage applies ONLY to residents of "
+        f"that university's OWN state. This student lives in {home_state}. For any school marked out-of-state, "
+        f"residency is a HEADWIND (public OOS admit rates are LOWER), never a boost — NEVER say the student "
+        f"benefits from that state's in-state preference. Private universities are residency-blind: don't mention "
+        f"residency for them at all.\n"
+        f"Give 4 bullets: (1) why the top school is the most likely admit (selectivity, fit, and residency ONLY if "
+        f"it's actually in-state), (2) what separates the middle of the pack from the bottom, (3) the biggest factor "
+        f"swinging these odds for this student, (4) the most surprising or debatable result in the ranking.",
         n=4)
     blurb_html = _bullets_html(bullets)
     card = f'''<div id="card" class="full compare">
