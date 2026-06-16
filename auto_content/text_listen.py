@@ -157,6 +157,9 @@ def _render_session(batch, web_n, specifics, max_rowid):
                         print(f"batch {i} attempt {attempt}: {e}")
             if made:
                 factory.text_carousels(made)
+            else:
+                # never go silent on a button/text batch — surface the failure
+                text_back("Hmm, that batch didn't generate — try again in a minute?")
         for rid, r in specifics:
             try:
                 text_back(f"Got it — making your {app.COLLEGES_BY_SLUG[r['slug']].get('name')} "
