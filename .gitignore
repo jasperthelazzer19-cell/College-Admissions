@@ -18,3 +18,6 @@ static/logos_inst_correct_backup/
 static/logos_inst_orig_backup/
 venv/
 auto_content/.h2h_state.json
+auto_content/.post_state.json
+auto_content/.h2h_state.json
+auto_content/.render.lock

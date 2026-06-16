@@ -163,6 +163,15 @@ def _render_session(batch, web_n, web_slugs, specifics, max_rowid):
                         print(f"batch {i} attempt {attempt}: {e}")
             if made:
                 factory.text_carousels(made)
+                # The phone "Make 4" button (a multi-carousel batch) stands in for
+                # one scheduled slot — drop a marker so the next slot skips itself.
+                # "Make 1" (n==1) does NOT skip anything.
+                if web_n and web_n > 1:
+                    try:
+                        open(os.path.expanduser("~/.candor_skip_next_slot"), "w").close()
+                        print(f"set skip-next-slot marker (web batch n={web_n})")
+                    except Exception as e:
+                        print("skip marker write failed:", e)
             else:
                 # never go silent on a button/text batch — surface the failure
                 text_back("Hmm, that batch didn't generate — try again in a minute?")

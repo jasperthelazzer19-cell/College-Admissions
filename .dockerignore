@@ -1,0 +1,17 @@
+.git
+__pycache__
+*.pyc
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+.venv
+.env
+.candor_autopilot.env
+auto_content/.render.lock
+auto_content/.post_state.json
+auto_content/.h2h_state.json
+auto_content/.text_state.json
+auto_content/.text_state
+node_modules
+*.log

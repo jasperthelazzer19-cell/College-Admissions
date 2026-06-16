@@ -16693,9 +16693,80 @@ def healthz():
 # ─── BOOT ─────────────────────────────────────────────────
 init_db()
 
+# ─── IN-CONTAINER RENDER WORKER ───────────────────────────────────────────
+# When RENDER_WORKER=1 (Railway, where a headless Chromium ships in the image),
+# a background thread renders the phone "Make" button batches server-side — so
+# the buttons work even when the creator's Mac is asleep/off. It claims each
+# batch_request atomically, so if the Mac IS awake and grabs one first, this
+# never double-renders it (whoever claims first wins). Scheduled slots still run
+# on the Mac; this only consumes the on-demand button queue.
+def _render_consume_one(factory):
+    with db() as conn:
+        row = conn.execute("SELECT id, count, slugs FROM batch_requests "
+                           "WHERE claimed_at IS NULL ORDER BY id ASC LIMIT 1").fetchone()
+        if not row:
+            return
+        cur = conn.execute("UPDATE batch_requests SET claimed_at=CURRENT_TIMESTAMP "
+                           "WHERE id=? AND claimed_at IS NULL", (row["id"],))
+        conn.commit()
+        if cur.rowcount == 0:
+            return                     # the Mac (or another worker) claimed it first
+    try:
+        n = max(1, min(8, int(row["count"] or 4)))
+    except (TypeError, ValueError):
+        n = 4
+    slugs = [s for s in (row["slugs"] or "").split(",") if s.strip()]
+    made = 0
+    for i in range(n):
+        chosen = slugs[i] if i < len(slugs) else None    # creator-picked school or auto
+        for attempt in range(2):
+            try:
+                cid, _ = factory.make_one(slug=chosen)
+                if cid:
+                    made += 1
+                break
+            except Exception as e:
+                print(f" * render worker make {i} attempt {attempt}: {e}", flush=True)
+    print(f" * render worker: batch {row['id']} -> {made}/{n} carousels queued", flush=True)
+
+
+def _render_worker_loop():
+    import time as _t, sys as _sys, shutil as _sh
+    _t.sleep(10)                       # let the HTTP server bind first
+    # factory/gen_profile do `import app`; running as __main__ that name is unbound,
+    # so point it at THIS already-loaded module (no second app instance/server).
+    _sys.modules.setdefault("app", _sys.modules["__main__"])
+    try:
+        from auto_content import factory
+    except Exception as e:
+        print(" * render worker: import failed:", e, flush=True); return
+    port = int(os.environ.get("PORT", 5050))
+    factory.LOCAL_PORT = port
+    factory.LOCAL_URL = f"http://127.0.0.1:{port}"
+    factory.TARGET_URL = factory.LOCAL_URL          # push to our own queue
+    factory.CRON_KEY = CRON_KEY                     # == ADMIN_KEY on Railway
+    chrome = (os.environ.get("CHROME") or _sh.which("chromium")
+              or _sh.which("chromium-browser") or _sh.which("google-chrome"))
+    if not chrome:
+        print(" * render worker: no chromium on PATH — worker idle", flush=True); return
+    factory.CHROME = chrome
+    os.environ.setdefault("CHROME_EXTRA_FLAGS", "--no-sandbox --disable-dev-shm-usage --disable-gpu")
+    os.environ["GRADER_FAST"] = "1"                 # cheap Haiku grading for autopilot
+    print(f" * render worker: live (chrome={chrome}, port={port})", flush=True)
+    while True:
+        try:
+            _render_consume_one(factory)
+        except Exception as e:
+            print(" * render worker error:", e, flush=True)
+        _t.sleep(20)
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5050))
     print(f" * Candor — running on http://127.0.0.1:{port}", flush=True)
     print(f" * DB: {DB_PATH}", flush=True)
     print(f" * Claude: {'on' if _claude_client else 'off (templates)'} · NewsAPI: {'on' if NEWSAPI_KEY else 'off'}", flush=True)
-    app.run(host="0.0.0.0", port=port, debug=os.environ.get("DEBUG") == "1")
+    if os.environ.get("RENDER_WORKER") == "1":
+        import threading as _th
+        _th.Thread(target=_render_worker_loop, daemon=True).start()
+    app.run(host="0.0.0.0", port=port, threaded=True, debug=os.environ.get("DEBUG") == "1")

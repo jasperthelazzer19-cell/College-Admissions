@@ -79,11 +79,14 @@ def _shot(out_path, url, verify=True):
             raise RuntimeError(f"export redirected to profile editor (missing data): {url}")
         if 'id="card"' not in html and 'id="tcard"' not in html:
             raise RuntimeError(f"render page missing a card (likely an error/notice page): {url}")
+    # Extra flags for containerized Chromium (root needs --no-sandbox, small
+    # /dev/shm needs --disable-dev-shm-usage). No-op on the Mac (unset).
+    extra = os.environ.get("CHROME_EXTRA_FLAGS", "").split()
     subprocess.run([CHROME, "--headless=new", "--disable-gpu", "--hide-scrollbars",
                     "--force-device-scale-factor=2", "--window-size=1024,1536",
-                    "--virtual-time-budget=6000", "--timeout=12000",
+                    "--virtual-time-budget=6000", "--timeout=12000", *extra,
                     f"--screenshot={out_path}", url],
-                   check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=90)
+                   check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=120)
     with open(out_path, "rb") as f:
         return "data:image/png;base64," + base64.b64encode(f.read()).decode()
 
@@ -489,6 +492,14 @@ def _run_session(dry, n_force, slot_count):
         if not wait_local_app():
             print("local render server did not start"); sys.exit(2)
         if "--slot" in sys.argv:
+            # If the creator hit the phone "Make 4" button since the last slot, that
+            # full manual batch stands in for one scheduled batch — skip this slot
+            # once (consume the marker). The "Make 1" button does NOT set this.
+            skip_marker = os.path.expanduser("~/.candor_skip_next_slot")
+            if not dry and os.path.exists(skip_marker):
+                os.remove(skip_marker)
+                print("slot skipped: consumed manual Make-4 batch marker")
+                return
             # one slot: make SLOT_COUNT fresh carousels (options) and text all links.
             # retry each up to 3x — transient SQLite contention clears on retry.
             made = []
