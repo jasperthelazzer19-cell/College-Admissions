@@ -11597,6 +11597,36 @@ def _hook_html(hook, accent, outline=None):
     return "".join(f'<span style="color:{accent}{stroke}">{t}</span>' if a else t for t, a in parts)
 
 
+def _title_frame(line_html, logo_html, maxH=1040):
+    """Shared @candor title-slide frame used by BOTH the single-school hook and
+    the compare title, so they look identical: each line scaled to span the full
+    width (justified-block look), a fixed 360px logo band at the bottom, and a
+    vertical-fill pass that spreads the lines to fill the frame when the content
+    is short (otherwise a few long lines would float in the middle, the way the
+    compare slide used to look next to the denser single titles)."""
+    return (f'<div id="tcard" style="height:1402px;display:flex;flex-direction:column;'
+            f"font-family:'AntonEmb','Anton',sans-serif;font-weight:400;letter-spacing:-2px;color:#111;text-transform:uppercase\">"
+            f'<div id="tbox" style="display:flex;flex-direction:column;justify-content:center;flex:1;'
+            f'text-align:center;gap:8px;min-height:0">{line_html}</div>'
+            f'<div style="flex:0 0 360px;display:flex;align-items:center;justify-content:center">{logo_html}</div>'
+            f'</div>'
+            f'<script>(function(){{function fit(){{'
+            f'var box=document.getElementById("tbox");if(!box)return;var cw=box.clientWidth;'
+            f'var ls=[].slice.call(box.querySelectorAll(".tline"));'
+            f'box.style.justifyContent="center";'
+            f'ls.forEach(function(l){{l.style.fontSize="120px";'
+            f'var w=l.querySelector(".tin").getBoundingClientRect().width;'
+            f'if(w>0){{l.style.fontSize=Math.floor(120*cw/w)+"px";}}}});'
+            f'var maxH={maxH};if(box.scrollHeight>maxH){{var k=maxH/box.scrollHeight;'
+            f'ls.forEach(function(l){{l.style.fontSize=Math.floor(parseFloat(l.style.fontSize)*k)+"px";}});}}'
+            # vertical fill: if the justified lines don't reach the frame, spread
+            # them top-to-bottom so the slide fills like the dense single titles.
+            f'if(box.scrollHeight < box.clientHeight - 12){{box.style.justifyContent="space-between";}}'
+            f'}}'
+            f'if(document.fonts&&document.fonts.ready){{document.fonts.ready.then(fit);}}else{{fit();}}'
+            f'setTimeout(fit,250);setTimeout(fit,700);}})();</script>')
+
+
 def _title_card_body(slug, sch, hook, nologo=False):
     """Slide-1 hook card in the exact @candor style: the hook is broken into
     short lines (separated by newlines) and EACH line is scaled independently to
@@ -11610,27 +11640,10 @@ def _title_card_body(slug, sch, hook, nologo=False):
                  if logo_url else '')
     lines = [ln for ln in hook.upper().split("\n") if ln.strip()]
     line_html = "".join(
-        f'<div class="tline" style="line-height:.95;font-size:120px">'
+        f'<div class="tline" style="line-height:.92;font-size:120px;-webkit-text-stroke:.6px currentColor">'
         f'<span class="tin" style="display:inline-block;white-space:nowrap">{_hook_html(ln, color, outline)}</span></div>'
         for ln in lines)
-    # fixed 360px bottom band with the logo centered in it -> the logo can never
-    # reach the card edge (so it never clips), and text fills the space above.
-    return (f'<div id="tcard" style="height:1402px;display:flex;flex-direction:column;'
-            f"font-family:'AntonEmb','Anton',sans-serif;font-weight:400;letter-spacing:-2px;color:#111;text-transform:uppercase\">"
-            f'<div id="tbox" style="display:flex;flex-direction:column;justify-content:center;flex:1;'
-            f'text-align:center;gap:8px;min-height:0">{line_html}</div>'
-            f'<div style="flex:0 0 360px;display:flex;align-items:center;justify-content:center">{logo_html}</div>'
-            f'</div>'
-            f'<script>(function(){{function fit(){{'
-            f'var box=document.getElementById("tbox");if(!box)return;var cw=box.clientWidth;'
-            f'var ls=[].slice.call(box.querySelectorAll(".tline"));'
-            f'ls.forEach(function(l){{l.style.fontSize="120px";'
-            f'var w=l.querySelector(".tin").getBoundingClientRect().width;'
-            f'if(w>0){{l.style.fontSize=Math.floor(120*cw/w)+"px";}}}});'
-            f'var maxH=1020;if(box.scrollHeight>maxH){{var k=maxH/box.scrollHeight;'
-            f'ls.forEach(function(l){{l.style.fontSize=Math.floor(parseFloat(l.style.fontSize)*k)+"px";}});}}}}'
-            f'if(document.fonts&&document.fonts.ready){{document.fonts.ready.then(fit);}}else{{fit();}}'
-            f'setTimeout(fit,250);setTimeout(fit,700);}})();</script>')
+    return _title_frame(line_html, logo_html)
 
 
 def _compare_title_body(slugs):
@@ -11647,35 +11660,22 @@ def _compare_title_body(slugs):
     n = len(schools)
     rows = ['THIS STUDENT', 'APPLIED TO']
     line_html = "".join(
-        f'<div class="tline" style="line-height:.95;font-size:120px">'
+        f'<div class="tline" style="line-height:.92;font-size:120px;-webkit-text-stroke:.6px currentColor">'
         f'<span class="tin" style="display:inline-block;white-space:nowrap;color:#111">{r}</span></div>'
         for r in rows)
     for i, (short, color, _logo) in enumerate(schools):
         suffix = "," if i < n - 2 else (" &" if i == n - 2 else "...")
-        line_html += (f'<div class="tline" style="line-height:.95;font-size:120px">'
+        line_html += (f'<div class="tline" style="line-height:.92;font-size:120px;-webkit-text-stroke:.6px currentColor">'
                       f'<span class="tin" style="display:inline-block;white-space:nowrap">'
                       f'<span style="color:{color}">{short}</span><span style="color:#111">{suffix}</span>'
                       f'</span></div>')
-    logos = "".join(f'<img src="{l}" style="max-height:150px;max-width:30%;object-fit:contain">'
+    # Bigger logos than before (match the single-title logo presence in the
+    # 360px band so the compare doesn't look sparse at the bottom).
+    logos = "".join(f'<img src="{l}" style="max-height:215px;max-width:30%;object-fit:contain">'
                     for (_s, _c, l) in schools if l)
-    logo_row = (f'<div style="display:flex;align-items:flex-end;justify-content:center;gap:26px;'
+    logo_row = (f'<div style="display:flex;align-items:center;justify-content:center;gap:30px;'
                 f'width:100%">{logos}</div>')
-    return (f'<div id="tcard" style="height:1402px;display:flex;flex-direction:column;'
-            f"font-family:'AntonEmb','Anton',sans-serif;font-weight:400;letter-spacing:-2px;color:#111;text-transform:uppercase\">"
-            f'<div id="tbox" style="display:flex;flex-direction:column;justify-content:center;flex:1;'
-            f'text-align:center;gap:8px;min-height:0">{line_html}</div>'
-            f'<div style="flex:0 0 250px;display:flex;align-items:center;justify-content:center">{logo_row}</div>'
-            f'</div>'
-            f'<script>(function(){{function fit(){{'
-            f'var box=document.getElementById("tbox");if(!box)return;var cw=box.clientWidth;'
-            f'var ls=[].slice.call(box.querySelectorAll(".tline"));'
-            f'ls.forEach(function(l){{l.style.fontSize="120px";'
-            f'var w=l.querySelector(".tin").getBoundingClientRect().width;'
-            f'if(w>0){{l.style.fontSize=Math.floor(120*cw/w)+"px";}}}});'
-            f'var maxH=1000;if(box.scrollHeight>maxH){{var k=maxH/box.scrollHeight;'
-            f'ls.forEach(function(l){{l.style.fontSize=Math.floor(parseFloat(l.style.fontSize)*k)+"px";}});}}}}'
-            f'if(document.fonts&&document.fonts.ready){{document.fonts.ready.then(fit);}}else{{fit();}}'
-            f'setTimeout(fit,250);setTimeout(fit,700);}})();</script>')
+    return _title_frame(line_html, logo_row)
 
 
 @app.route("/title-compare/export")
@@ -11689,6 +11689,7 @@ def title_compare_export():
     if len(slugs) < 2:
         abort(404)
     return Response(_profile_export_page(_compare_title_body(slugs), dl_name="compare-title",
+                                         pad="50px 44px 50px",
                                          clean=request.args.get("clean") == "1"), mimetype="text/html")
 
 
@@ -11706,7 +11707,7 @@ def title_export():
     if not sch or not hook:
         abort(404)
     body = _title_card_body(slug, sch, hook, nologo=request.args.get("nologo") == "1")
-    return Response(_profile_export_page(body, dl_name=f"{slug}-title", pad="74px 70px 60px",
+    return Response(_profile_export_page(body, dl_name=f"{slug}-title", pad="50px 44px 50px",
                                          clean=request.args.get("clean") == "1"),
                     mimetype="text/html")
 
