@@ -929,6 +929,9 @@ ROUND_LABELS = {
 
 TEST_BLIND_SCHOOLS = {
     "ucb", "ucla", "ucsd", "uci", "ucsb", "ucsc", "ucdavis", "ucr", "ucmerced",
+    # UW (Seattle): permanently dropped the test requirement and reviewers do NOT
+    # see submitted scores (admit.washington.edu) — functionally test-blind.
+    "uw",
 }
 
 PORTFOLIO_GATEKEEPER_SCHOOLS = {
