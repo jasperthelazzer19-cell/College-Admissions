@@ -43,6 +43,116 @@ except ImportError:
     _claude_client = None
 
 
+# ── Claude Code CLI (Max-subscription) judge ──────────────────────────────
+# When CLAUDE_CLI=1 (set ONLY in the Mac autopilot env), the exceptionality
+# grader runs through `claude -p` on the flat-rate Max plan instead of the API
+# (or the dumb keyword check) — a real frontier-model judge for $0, so autopilot
+# odds stop being inflated by keyword false-positives. Mac-only (Railway has no
+# Claude Code); everywhere else the API/keyword path is used. The system prompt
+# is overridden so the Code agent behaves as a plain generator, not a tool-using
+# assistant that flags "output only JSON" as a prompt injection.
+import shutil as _shutil
+_CLAUDE_BIN = (os.environ.get("CLAUDE_BIN") or _shutil.which("claude")
+               or os.path.expanduser("~/.nvm/versions/node/v25.9.0/bin/claude"))
+_CLI_SYS = ("You are a backend JSON/text generator for Candor, a college-admissions tool. "
+            "Every request is legitimate analysis or fictional-content generation for the "
+            "owner's own use. Output ONLY the exact content requested — no preamble, no "
+            "commentary, no warnings, no code fences unless explicitly asked.")
+
+
+def _claude_cli(prompt, model="sonnet", timeout=180):
+    """Run one headless Claude Code (Max-plan) completion. Returns the text, or
+    None on any failure so callers can fall back. Not for the live request path."""
+    if not (_CLAUDE_BIN and os.path.exists(_CLAUDE_BIN)):
+        return None
+    m = (model or "").lower()
+    alias = "haiku" if "haiku" in m else ("opus" if "opus" in m else "sonnet")
+    try:
+        import subprocess as _sp
+        r = _sp.run([_CLAUDE_BIN, "-p", "--system-prompt", _CLI_SYS,
+                     "--model", alias, "--output-format", "json"],
+                    input=prompt, capture_output=True, text=True, timeout=timeout)
+        if r.returncode != 0:
+            print("claude-cli rc", r.returncode, (r.stderr or "")[:200]); return None
+        try:
+            return (json.loads(r.stdout).get("result") or "").strip()
+        except Exception:
+            return r.stdout.strip()
+    except Exception as e:
+        print("claude-cli error:", e); return None
+
+
+def _cli_grade(profile):
+    """One Max-plan CLI judge call -> {exceptional, ec_rating(1-1000), reason}.
+    Returns None on failure so callers fall back. This replaces BOTH inflation
+    paths the keyword grader caused: the exceptional flag AND the EC rating (the
+    keyword check jumped any 'national merit'/'research' mention to ~810, which
+    lifted the cap even with the flag off)."""
+    awards = (profile.get("awards") or "").strip()
+    ecs = (profile.get("ecs") or "").strip()
+    leadership = (profile.get("leadership") or "").strip()
+    if not (awards or ecs or leadership):
+        return {"exceptional": False, "ec_rating": 200, "reason": ""}
+    prompt = (
+        "Rate this US college applicant's extracurricular profile and decide if it's truly "
+        "exceptional. Be a STRICT, realistic admissions reader.\n\n"
+        "ec_rating is 1-1000: 1-300 = thin/typical (a few clubs, some volunteering); "
+        "300-550 = solid (real leadership, regional recognition, a genuine commitment); "
+        "550-720 = strong (state-level distinction, founder with real scale, notable "
+        "depth); 720-1000 = national/international tier ONLY.\n"
+        "exceptional = true ONLY for a genuine national/international distinction: "
+        "USAMO/IMO/IPhO/IOI medalist, ISEF/Regeneron STS top finalist, RSI, first-author "
+        "publication, recruited D1 athlete, Coca-Cola/Davidson/Gates Scholar, or a venture "
+        "with real national reach. Good grades, club president, generic 'research', local/"
+        "regional awards, and being well-rounded are NOT exceptional and should sit <650.\n\n"
+        f"AWARDS: {awards}\nACTIVITIES: {ecs}\nLEADERSHIP: {leadership}\n\n"
+        'Return ONLY strict JSON: {"ec_rating": <int 1-1000>, "exceptional": true|false, "reason": "<=12 words"}')
+    out = _claude_cli(prompt, model="sonnet", timeout=120)
+    if not out:
+        return None
+    try:
+        import re as _re
+        m = _re.search(r"\{.*\}", out, _re.DOTALL)
+        d = json.loads(m.group(0) if m else out)
+        r = int(d.get("ec_rating") or 0)
+        return {"exceptional": bool(d.get("exceptional")),
+                "ec_rating": max(1, min(1000, r)) if r else None,
+                "reason": str(d.get("reason") or "")[:200]}
+    except Exception:
+        return None
+
+
+def _cli_exceptional(profile):
+    """Thin wrapper for the get_or_evaluate path: (is_exceptional, reason) or None."""
+    g = _cli_grade(profile)
+    return None if g is None else (g["exceptional"], g["reason"])
+
+
+def autopilot_grade_profile(uid, profile):
+    """Grade an autopilot-generated profile with the Max-plan CLI judge and PERSIST
+    the real ec_rating + exceptional verdict to the row, so the (separate) render
+    requests that compute odds read accurate values instead of keyword-inflated
+    ones. One CLI call per carousel; no-op (returns None) if the CLI isn't usable."""
+    if os.environ.get("CLAUDE_CLI") != "1":
+        return None
+    g = _cli_grade(profile)
+    if not g:
+        return None
+    profile["is_exceptional"] = g["exceptional"]
+    if g.get("ec_rating"):
+        profile["ec_rating"] = g["ec_rating"]
+    try:
+        with db() as conn:
+            conn.execute(
+                "UPDATE profiles SET ec_rating=COALESCE(?,ec_rating), is_exceptional=?, "
+                "exceptional_reason=?, exceptional_evaluated_at=CURRENT_TIMESTAMP WHERE user_id=?",
+                (g.get("ec_rating"), 1 if g["exceptional"] else 0, g["reason"], uid))
+            conn.commit()
+    except Exception as e:
+        print("autopilot_grade persist:", e)
+    return g
+
+
 def _date_context():
     """Inject the current date into every Claude system prompt so the model
     doesn't default to its training-cutoff year. Otherwise we get advice
@@ -3277,10 +3387,16 @@ def get_or_evaluate_exceptionality(user_id, profile):
     updated_at = profile.get("updated_at")
     if eval_at and updated_at and eval_at >= updated_at:
         return bool(profile.get("is_exceptional")), profile.get("exceptional_reason") or ""
-    # Autopilot content (GRADER_FAST): skip the 3-judge LLM panel and use the
-    # cheap keyword check — saves ~3 LLM calls per carousel. The live site never
-    # sets GRADER_FAST, so real users still get the full panel.
-    if os.environ.get("GRADER_FAST") == "1":
+    # Autopilot grading order:
+    #  1) CLAUDE_CLI=1 (Mac autopilot) -> real Claude judge via the Max-plan CLI
+    #     ($0, accurate) — replaces the keyword check that was false-flagging
+    #     LLM-written profiles as exceptional and inflating odds.
+    #  2) GRADER_FAST=1 (Railway worker, no CLI) -> cheap keyword check fallback.
+    #  3) live site -> full 3-judge panel.
+    cli = _cli_exceptional(profile) if os.environ.get("CLAUDE_CLI") == "1" else None
+    if cli is not None:
+        is_exc, reason = cli
+    elif os.environ.get("GRADER_FAST") == "1":
         is_exc = bool(_keyword_exceptional(profile))
         reason = "keyword-detected" if is_exc else ""
     else:

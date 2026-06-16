@@ -168,6 +168,13 @@ def generate(slug=None, uid=181, want_slide3=None):
             if _attempt == 3:
                 raise
             _t.sleep(1.5)
+    # Grade with the Max-plan CLI judge (CLAUDE_CLI=1) and persist a realistic
+    # ec_rating + exceptional verdict, so odds aren't inflated by the keyword
+    # grader. No-op when the CLI isn't available (Railway / live site).
+    try:
+        app.autopilot_grade_profile(uid, profile)
+    except Exception as _e:
+        print("autopilot grade skipped:", _e)
     short, _ = app._school_brand(slug, sch.get("name"))
     t = d["title"]
     # Lock to the requested reveal type when the factory asked for one (the hook
