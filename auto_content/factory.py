@@ -253,7 +253,9 @@ def make_single(dry=False, slug=None, slide3=None):
     # the hook to match — chances stays the staple, grade + glow-up get real
     # airtime so the feed cycles every format instead of defaulting to chances.
     if slide3 not in ("chances", "grade", "glowup"):
-        slide3 = random.choices(["chances", "grade", "glowup"], weights=[5, 3, 2])[0]
+        w = _blend({"chances": 5, "grade": 3, "glowup": 2}, _tt_perf())
+        keys = list(w)
+        slide3 = random.choices(keys, weights=[w[k] for k in keys])[0]
     g = gen_profile.generate(slug, want_slide3=slide3)   # profile -> 181 + matching hook
     g["slide3"] = slide3
     odds, grade, low, high, gnum = odds_grade_text(slug, g["profile"],
@@ -359,6 +361,49 @@ def _bump_h2h():
         pass
 
 
+# ── TikTok performance feedback ────────────────────────────────────────────
+# Blend the static format weights with how each format ACTUALLY performs on
+# TikTok (avg views over carousels we attributed to a real post). Conservative:
+# a format needs at least TT_PERF_MIN_N attributed posts before it sways its own
+# weight, the adjustment is scaled by TT_PERF_ALPHA, and every weight is clamped
+# to [lo,hi]× its base so one viral fluke can't starve the rotation. Set
+# TT_FEEDBACK=0 to turn the whole thing off and fall back to the static weights.
+TT_PERF_MIN_N = int(os.environ.get("TT_PERF_MIN_N", "3"))
+TT_PERF_ALPHA = float(os.environ.get("TT_PERF_ALPHA", "0.6"))
+
+
+def _tt_perf():
+    """{slide3_type: (n, avg_views)} from attributed posts, or {} when disabled
+    or unavailable (caller falls back to static weights)."""
+    if os.environ.get("TT_FEEDBACK") == "0":
+        return {}
+    try:
+        return app.tiktok_slide_type_avg_views() or {}
+    except Exception:
+        return {}
+
+
+def _blend(base, perf, lo=0.4, hi=2.0):
+    """base: {key: weight}. perf: {key: (n, avg_views)}. Returns a new weight
+    dict nudged toward higher-performing keys. Keys with <TT_PERF_MIN_N samples
+    keep their base weight. No-op (returns base) unless at least two keys have
+    enough data to compare."""
+    good = {k: v for k, (n, v) in perf.items() if k in base and n >= TT_PERF_MIN_N}
+    if len(good) < 2:
+        return dict(base)
+    mean = sum(good.values()) / len(good)
+    if mean <= 0:
+        return dict(base)
+    out = {}
+    for k, w in base.items():
+        if k in good:
+            mult = max(lo, min(hi, 1 + TT_PERF_ALPHA * (good[k] / mean - 1)))
+            out[k] = w * mult
+        else:
+            out[k] = w
+    return out
+
+
 # ── school selection: weight by real user demand + cap repeats per day ─────
 SCHOOL_DAILY_CAP = int(os.environ.get("SCHOOL_DAILY_CAP", "2"))  # max same-school per day (single/grade/glowup/h2h; compare excluded)
 SCHOOL_WEIGHT_BASELINE = 2          # so low/no-demand schools still get some airtime
@@ -441,7 +486,19 @@ def make_one(dry=False, slug=None, slide3=None, ctype=None):
         if slug:
             ctype = "single"
         else:
-            ctype = random.choices(["single", "compare", "h2h"], weights=[6, 3, 3])[0]
+            # ctype perf: "single" pools chances/grade/glowup; compare/h2h map 1:1.
+            perf = _tt_perf()
+            single = [(n, v) for st, (n, v) in perf.items() if st in ("chances", "grade", "glowup")]
+            cperf = {}
+            if single:
+                tot = sum(n for n, _ in single)
+                cperf["single"] = (tot, sum(n * v for n, v in single) / max(1, tot))
+            for st in ("compare", "h2h"):
+                if st in perf:
+                    cperf[st] = perf[st]
+            w = _blend({"single": 6, "compare": 3, "h2h": 3}, cperf)
+            keys = list(w)
+            ctype = random.choices(keys, weights=[w[k] for k in keys])[0]
             if ctype == "h2h" and _h2h_today() >= H2H_DAILY_CAP:
                 ctype = random.choice(["single", "compare"])
     if ctype == "compare":

@@ -12328,8 +12328,15 @@ def content_queue_action(cid, action):
     if action not in ("posted", "skipped"):
         abort(400)
     col = "posted_at" if action == "posted" else "released_at"
+    # When posting, record which connected TikTok account it went to (if the
+    # creator picked one) so the puller can attribute the video's stats back.
+    acct = (request.form.get("account") or "").strip() if action == "posted" else ""
     with db() as conn:
-        conn.execute(f"UPDATE content_queue SET status=?, {col}=CURRENT_TIMESTAMP WHERE id=?", (action, cid))
+        if acct:
+            conn.execute(f"UPDATE content_queue SET status=?, {col}=CURRENT_TIMESTAMP, posted_account=? WHERE id=?",
+                         (action, acct, cid))
+        else:
+            conn.execute(f"UPDATE content_queue SET status=?, {col}=CURRENT_TIMESTAMP WHERE id=?", (action, cid))
         conn.commit()
     return redirect(url_for("content_today"))
 
@@ -12348,6 +12355,18 @@ def content_today():
             "ORDER BY CASE status WHEN 'released' THEN 0 ELSE 1 END, id DESC").fetchall()
         pending = conn.execute("SELECT COUNT(*) c FROM content_queue WHERE status='pending'").fetchone()["c"]
         posted = conn.execute("SELECT COUNT(*) c FROM content_queue WHERE status='posted'").fetchone()["c"]
+        tt_accts = conn.execute("SELECT open_id, label FROM tiktok_accounts ORDER BY connected_at").fetchall()
+    # Optional account picker on the Posted button — lets the puller attribute
+    # each post's stats back to a format/school. Omitted entirely until at least
+    # one TikTok account is connected, so the button stays one-tap before then.
+    _acct_select = ""
+    if tt_accts:
+        from html import escape as _ae
+        _opts = '<option value="">which account?</option>' + "".join(
+            f'<option value="{_ae(a["open_id"])}">{_ae(a["label"] or a["open_id"])}</option>' for a in tt_accts)
+        _acct_select = ('<select name="account" style="width:100%;padding:8px;border-radius:8px;'
+                        'background:#0a1320;color:#e9eef5;border:1px solid #2b3a4f;font-size:12px;margin:0 0 6px">'
+                        f'{_opts}</select>')
     cards = []
     for r in released:
         _ck = [k for k in ("img1", "img2", "img3", "img4") if r[k]]
@@ -12371,7 +12390,7 @@ def content_today():
             f'font-weight:800;border:0;padding:13px;border-radius:10px;margin:14px 0 12px;cursor:pointer">⬇️ Save all slides</button>'
             f'{_hashtag_block(r)}'
             f'<div style="display:flex;gap:10px;margin-top:10px">'
-            f'<form method="post" action="/content/queue/{r["id"]}/posted" style="flex:1">{csrf_input()}'
+            f'<form method="post" action="/content/queue/{r["id"]}/posted" style="flex:1">{csrf_input()}{_acct_select}'
             f'<button style="width:100%;background:#5fc9b6;color:#06121a;font-weight:800;border:0;padding:12px;border-radius:10px">✓ Posted</button></form>'
             f'<form method="post" action="/content/queue/{r["id"]}/skipped" style="flex:1">{csrf_input()}'
             f'<button style="width:100%;background:#16202e;color:#e9eef5;font-weight:700;border:1px solid #1d2a3d;padding:12px;border-radius:10px">Skip</button></form>'
@@ -17176,7 +17195,85 @@ def _tiktok_pull_all():
             total += _tiktok_pull_account(oid)
         except Exception as e:
             print(f"tiktok pull {oid}:", e)
+    try:
+        n = _tiktok_attribute()
+        if n:
+            print(f" * tiktok attribute: linked {n} post(s) to carousels", flush=True)
+    except Exception as e:
+        print("tiktok attribute:", e)
     return total
+
+
+def _tiktok_attribute():
+    """Link posted carousels to the TikTok video they became, so engagement can
+    be rolled up by format/school. Matching signal: same account (when the
+    creator picked one on the Posted button) + closest create_time to when the
+    carousel was marked posted, inside a generous window. Each video attaches to
+    at most one carousel (carousel_id is set, excluding it from later matches),
+    and we walk carousels oldest-posted-first so earlier posts claim first.
+    Returns the number of new links made."""
+    linked = 0
+    with db() as conn:
+        pending = conn.execute(
+            "SELECT id, posted_account, CAST(strftime('%s', posted_at) AS INTEGER) pt "
+            "FROM content_queue WHERE status='posted' AND posted_at IS NOT NULL "
+            "AND tiktok_video_id IS NULL ORDER BY posted_at ASC").fetchall()
+        for c in pending:
+            pt = c["pt"]
+            if pt is None:
+                continue
+            acct = c["posted_account"]
+            # create_time within [pt-6h, pt+36h]; -6h tolerates marking Posted
+            # slightly after the upload. Closest in time wins; if an account was
+            # chosen, restrict to it. Skip videos already attributed.
+            v = conn.execute(
+                "SELECT video_id, open_id FROM tiktok_posts "
+                "WHERE carousel_id IS NULL AND create_time IS NOT NULL "
+                "AND create_time >= ?-21600 AND create_time <= ?+129600 "
+                "AND (? IS NULL OR open_id = ?) "
+                "ORDER BY ABS(create_time - ?) ASC LIMIT 1",
+                (pt, pt, acct, acct, pt)).fetchone()
+            if not v:
+                continue
+            conn.execute("UPDATE content_queue SET tiktok_video_id=?, posted_account=COALESCE(posted_account,?) WHERE id=?",
+                         (v["video_id"], v["open_id"], c["id"]))
+            conn.execute("UPDATE tiktok_posts SET carousel_id=? WHERE video_id=?", (c["id"], v["video_id"]))
+            linked += 1
+        conn.commit()
+    return linked
+
+
+def tiktok_slide_type_avg_views():
+    """{slide3_type: (n, avg_views)} over carousels attributed to a real TikTok
+    post. The factory blends this into its format-selection weights so the feed
+    drifts toward whatever actually gets views. Empty dict if no attributed data
+    or on any error (caller falls back to the static default weights)."""
+    out = {}
+    try:
+        with db() as conn:
+            rows = conn.execute(
+                "SELECT c.slide3_type st, COUNT(*) n, AVG(p.view_count) av "
+                "FROM content_queue c JOIN tiktok_posts p ON p.carousel_id = c.id "
+                "WHERE c.slide3_type IS NOT NULL AND p.view_count IS NOT NULL "
+                "GROUP BY c.slide3_type").fetchall()
+        out = {r["st"]: (r["n"], float(r["av"] or 0)) for r in rows}
+    except Exception as e:
+        print("tiktok perf:", e)
+    return out
+
+
+def _tiktok_perf_rows(group_sql, label_sql):
+    """Helper for the dashboard: avg/total engagement grouped by an expression."""
+    try:
+        with db() as conn:
+            return conn.execute(
+                f"SELECT {label_sql} k, COUNT(*) n, AVG(p.view_count) av, "
+                f"SUM(p.view_count) sv, AVG(p.like_count) al "
+                f"FROM content_queue c JOIN tiktok_posts p ON p.carousel_id = c.id "
+                f"WHERE p.view_count IS NOT NULL GROUP BY {group_sql} "
+                f"ORDER BY av DESC").fetchall()
+    except Exception:
+        return []
 
 
 @app.route("/tiktok/pull")
@@ -17215,6 +17312,37 @@ def tiktok_home():
                   f'<b>{a["label"] or a["open_id"]}</b><br>'
                   f'<span style="color:#7c8aa0;font-size:13px">{n} posts tracked · {sv:,} total views · '
                   f'last pull {a["last_pull_at"] or "never"}</span></div>')
+    # ── What's working: engagement rolled up by format / school, over the
+    # carousels we could attribute to a real post. Drives the generator's
+    # format weighting too, so this is also a window into that feedback.
+    def _perf_block(title, rows, namer):
+        if not rows:
+            return ""
+        items = ""
+        for r in rows:
+            label = namer(r["k"]) if r["k"] else "—"
+            items += (f'<div style="display:flex;justify-content:space-between;gap:10px;padding:7px 0;'
+                      f'border-top:1px solid #16202e;font-size:13px">'
+                      f'<span style="color:#e9eef5">{label}</span>'
+                      f'<span style="color:#7c8aa0">{int(r["av"] or 0):,} avg views · '
+                      f'{int(r["al"] or 0):,} avg likes · {r["n"]} post(s)</span></div>')
+        return (f'<div style="background:#0c1521;border:1px solid #1d2a3d;border-radius:12px;'
+                f'padding:14px;margin:0 0 12px"><div style="font-weight:800;margin:0 0 4px">{title}</div>{items}</div>')
+
+    _fmt_names = {"chances": "Chances", "grade": "Grade", "glowup": "Glow-up",
+                  "compare": "Compare", "h2h": "Head-to-head"}
+    by_fmt = _tiktok_perf_rows("c.slide3_type", "c.slide3_type")
+    by_school = _tiktok_perf_rows("c.school_slug", "COALESCE(c.school_name, c.school_slug)")
+    n_attr = sum(r["n"] for r in by_fmt)
+    perf_html = ""
+    if n_attr:
+        perf_html = (f'<h2 style="margin:22px 0 10px;font-size:18px">📈 What\'s working '
+                     f'<span style="color:#7c8aa0;font-size:13px;font-weight:400">· {n_attr} attributed post(s)</span></h2>'
+                     + _perf_block("By format", by_fmt, lambda k: _fmt_names.get(k, k))
+                     + _perf_block("By school", by_school[:12], lambda k: k))
+    else:
+        perf_html = ('<p style="color:#7c8aa0;font-size:13px;margin:18px 0 0">No posts attributed yet — '
+                     'mark carousels <b>✓ Posted</b> (pick the account) and stats roll up here after the next pull.</p>')
     btn = ('display:inline-block;font-weight:800;padding:13px 20px;border-radius:11px;text-decoration:none;margin:12px 8px 0 0')
     body = (f'<div style="max-width:640px;margin:0 auto;padding:24px 16px 80px">'
             f'<h1 style="margin:0 0 4px">📊 TikTok feedback</h1>'
@@ -17222,6 +17350,7 @@ def tiktok_home():
             f'{cards or "<p style=color:#7c8aa0>No accounts connected yet.</p>"}'
             f'<a href="/tiktok/connect" style="{btn};background:#5fc9b6;color:#06121a">+ Connect an account</a>'
             f'<a href="/tiktok/pull" style="{btn};background:#16202e;color:#e9eef5;border:1px solid #2b3a4f">↻ Pull stats now</a>'
+            f'{perf_html}'
             f'</div>')
     return _page(body, title="TikTok · Candor")
 
