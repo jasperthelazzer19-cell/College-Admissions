@@ -36,6 +36,12 @@ _TITLE_FAMILIES = {
         "DID THIS | APPLICANT | GET INTO | {S}?   (accent: {S})",
         "BE HONEST — | DOES THIS KID | GET INTO | {S}?   (accent: HONEST, {S})",
         "REJECTED OR | ACCEPTED | AT {S}?   (accent: REJECTED, {S})",
+        # brand-forward "Candor ___" hooks (no number — reveal is a later slide)
+        "CANDOR GAVE | THIS {S} | APPLICANT A...   (accent: {S})",
+        "CANDOR SAYS | THIS {S} | APPLICANT...   (accent: {S})",
+        "I ASKED CANDOR | IF THIS KID | GETS INTO | {S}   (accent: CANDOR, {S})",
+        "CANDOR RAN | THE ODDS ON | THIS {S} | APPLICANT   (accent: {S})",
+        "CANDOR PREDICTED | THIS {S} | DECISION   (accent: {S})",
     ],
     "grade": [
         "CANDOR | GRADED THIS | {S} | APPLICANT'S | PROFILE   (accent: {S})",
@@ -45,6 +51,11 @@ _TITLE_FAMILIES = {
         "RATE THIS | {S} | APPLICANT | OUT OF 100   (accent: {S})",
         "GREEN FLAG OR | RED FLAG | FOR {S}?   (accent: RED FLAG, {S})",
         "HOW STRONG | IS THIS | {S} | APPLICANT, | REALLY?   (accent: {S})",
+        # brand-forward "Candor ___" hooks
+        "CANDOR | SCORED THIS | {S} | APPLICANT   (accent: {S})",
+        "CANDOR | RATED THIS | {S} | PROFILE   (accent: {S})",
+        "CANDOR | BROKE DOWN | THIS {S} | PROFILE   (accent: {S})",
+        "WATCH CANDOR | GRADE THIS | {S} | APPLICANT   (accent: CANDOR, {S})",
     ],
     "glowup": [
         "WHAT WOULD IT TAKE | TO GET THIS | STUDENT INTO | {S}?   (accent: {S})",
@@ -52,6 +63,10 @@ _TITLE_FAMILIES = {
         "FIXING THIS | APPLICANT'S | SHOT AT | {S}   (accent: {S})",
         "WHAT THIS KID | NEEDS TO ADD | TO CRACK | {S}   (accent: {S})",
         "THE GLOW-UP | THIS APPLICANT | NEEDS FOR | {S}   (accent: GLOW-UP, {S})",
+        # brand-forward "Candor ___" hooks
+        "CANDOR'S PLAN | TO GET THIS KID | INTO {S}   (accent: {S})",
+        "CANDOR SHOWS | HOW TO CRACK | {S}   (accent: {S})",
+        "HOW CANDOR | WOULD FIX | THIS {S} | APPLICATION   (accent: {S})",
     ],
 }
 # Flat list for backward-compat / when no reveal type is requested. Fold the
@@ -94,8 +109,11 @@ applicant's odds, or react to a grade/verdict on the applicant. Vary the WORDING
 use (you may lightly remix phrasing), but DO NOT write a narrative sentence describing the student's
 achievements (e.g. NOT "SHE STARTED A WATER MONITORING NETWORK"). It must read like one of these
 families: "would you admit", "guess the odds", "candor told me if", "can you beat", "biggest weakness",
-"I thought they'd get in", "can AI predict", "candor graded this profile", "what would it take to get in"
-(glow-up). NEVER put a specific number or percentage in the title (you do NOT know the real odds/grade;
+"I thought they'd get in", "can AI predict", "what would it take to get in" (glow-up), OR a brand-forward
+"CANDOR ___ this applicant" line — e.g. CANDOR GAVE / CANDOR SAID / CANDOR GRADED / CANDOR SCORED /
+CANDOR RATED / CANDOR PREDICTED / CANDOR RAN THE ODDS / I ASKED CANDOR. LEAN INTO leading the hook with
+"CANDOR" often (it promotes the brand) — but still vary so the feed isn't every single one identical.
+NEVER put a specific number or percentage in the title (you do NOT know the real odds/grade;
 those are revealed on a later slide). No "%", no made-up scores.
 {slide3_instr}
 The school short name is "{short}". Pick which words get the school's accent color (always the school
