@@ -11878,6 +11878,20 @@ def content_queue_status():
                    skipped=counts.get("skipped", 0))
 
 
+@app.route("/content/school-demand")
+def content_school_demand():
+    """Per-school real calc volume (last 90 days) so the autopilot can weight
+    which schools to post by actual user demand instead of uniform random.
+    Auth: key=CRON_KEY."""
+    if not _autopilot_authed():
+        return ("unauthorized", 401)
+    with db() as conn:
+        rows = conn.execute(
+            "SELECT college_slug, COUNT(*) n FROM calc_runs "
+            "WHERE ts >= datetime('now','-90 days') GROUP BY college_slug").fetchall()
+    return jsonify({r["college_slug"]: r["n"] for r in rows})
+
+
 @app.route("/cron/content-release", methods=["GET", "POST"])
 @_csrf_exempt
 def cron_content_release():

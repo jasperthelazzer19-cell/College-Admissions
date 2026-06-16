@@ -228,7 +228,7 @@ def _finish(payload, dry, label):
 
 
 def make_single(dry=False, slug=None, slide3=None):
-    slug = slug if slug in SCHOOLS else random.choice(SCHOOLS)
+    slug = slug if slug in SCHOOLS else (_pick_school(respect_cap=False) or random.choice(SCHOOLS))
     # Pick the reveal type up front (unless text-to-make requested one) and steer
     # the hook to match — chances stays the staple, grade + glow-up get real
     # airtime so the feed cycles every format instead of defaulting to chances.
@@ -272,7 +272,7 @@ def make_compare(dry=False):
     Slide 1 = 'THIS STUDENT APPLIED TO A, B & C...' with each school in its own
     color + all logos; slide 3 = the ranking. The 3 schools are kept in the same
     acceptance-rate band so the comparison is apples-to-apples."""
-    slug = random.choice(SCHOOLS)
+    slug = _pick_school(respect_cap=False) or random.choice(SCHOOLS)  # weighted anchor; compare is exempt from the daily cap
     comp = [slug] + _band_of(slug)          # 3 schools, similar selectivity
     g = gen_profile.generate(slug)          # profile -> 181
     odds, _, _, _, _ = odds_grade_text(slug, g["profile"], want_grade=False)
@@ -289,10 +289,10 @@ def make_compare(dry=False):
     return _finish(payload, dry, f"COMPARE {shorts}")
 
 
-def make_h2h(dry=False):
+def make_h2h(dry=False, slug=None):
     """Head-to-head: 4 slides — title, Student A profile, Student B profile, and
     the A-vs-B result for one school. Generates TWO profiles (181=A, 38=B)."""
-    slug = random.choice(SCHOOLS)
+    slug = slug if slug in SCHOOLS else (_pick_school(respect_cap=False) or random.choice(SCHOOLS))
     gA = gen_profile.generate(slug, uid=181)   # student A
     gen_profile.generate(slug, uid=38)         # student B
     short, accent = app._school_brand(slug, gA["name"])
@@ -339,10 +339,66 @@ def _bump_h2h():
         pass
 
 
+# ── school selection: weight by real user demand + cap repeats per day ─────
+SCHOOL_DAILY_CAP = int(os.environ.get("SCHOOL_DAILY_CAP", "2"))  # max same-school per day (single/grade/glowup/h2h; compare excluded)
+SCHOOL_WEIGHT_BASELINE = 2          # so low/no-demand schools still get some airtime
+_POST_STATE = os.path.join(HERE, ".post_state.json")
+_demand_cache = None
+
+
+def _demand():
+    """Per-school calc volume from the live site (cached per process) so we post
+    schools roughly in proportion to what users actually look up. {} -> uniform."""
+    global _demand_cache
+    if _demand_cache is None:
+        try:
+            _demand_cache = _get_json(f"{TARGET_URL}/content/school-demand?key={urllib.parse.quote(CRON_KEY)}") or {}
+        except Exception as e:
+            print("demand fetch failed (uniform fallback):", e)
+            _demand_cache = {}
+    return _demand_cache
+
+
+def _post_state():
+    import datetime
+    today = datetime.date.today().isoformat()
+    try:
+        d = json.load(open(_POST_STATE))
+    except Exception:
+        d = {}
+    if d.get("date") != today:
+        d = {"date": today, "counts": {}}
+    return d
+
+
+def _bump_school(slug):
+    d = _post_state()
+    d["counts"][slug] = d["counts"].get(slug, 0) + 1
+    try:
+        json.dump(d, open(_POST_STATE, "w"))
+    except Exception:
+        pass
+
+
+def _pick_school(respect_cap=True):
+    """Weighted pick: P(school) ∝ real demand + baseline. With respect_cap, any
+    school already at SCHOOL_DAILY_CAP today is excluded. Returns None if every
+    school is capped."""
+    counts = _post_state().get("counts", {})
+    pool = [s for s in SCHOOLS if not respect_cap or counts.get(s, 0) < SCHOOL_DAILY_CAP]
+    if not pool:
+        return None
+    dem = _demand()
+    weights = [dem.get(s, 0) + SCHOOL_WEIGHT_BASELINE for s in pool]
+    return random.choices(pool, weights=weights)[0]
+
+
 def make_one(dry=False, slug=None, slide3=None, ctype=None):
-    """Dispatcher. Explicit slug (text-to-make) -> single. Otherwise rotate types
-    so the feed cycles through every Candor format, capping head-to-head at
-    H2H_DAILY_CAP/day (they cost ~2-4x a normal carousel)."""
+    """Dispatcher. Explicit slug (text-to-make) -> single, uncapped. Otherwise
+    rotate formats; for the per-school formats (single/h2h) pick the school
+    weighted by real demand and never post the same school more than
+    SCHOOL_DAILY_CAP times/day (compare is excluded from that cap)."""
+    explicit = bool(slug)
     if ctype is None:
         if slug:
             ctype = "single"
@@ -352,10 +408,19 @@ def make_one(dry=False, slug=None, slide3=None, ctype=None):
                 ctype = random.choice(["single", "compare"])
     if ctype == "compare":
         return make_compare(dry)
+    # single / h2h target ONE school — weight by demand, respect the daily cap
+    if not explicit:
+        slug = _pick_school(respect_cap=True)
+        if slug is None:           # everything hit the cap today -> do a compare
+            return make_compare(dry)
     if ctype == "h2h":
         _bump_h2h()
-        return make_h2h(dry)
-    return make_single(dry, slug, slide3)
+        res = make_h2h(dry, slug=slug)
+    else:
+        res = make_single(dry, slug, slide3)
+    if not explicit and res and res[0]:   # count successful auto-posts toward the cap
+        _bump_school(slug)
+    return res
 
 
 def _as_esc(s):
