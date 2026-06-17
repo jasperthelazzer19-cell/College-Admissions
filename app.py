@@ -12537,9 +12537,9 @@ def content_today():
             f'font-weight:800;border:0;padding:13px;border-radius:10px;margin:14px 0 12px;cursor:pointer">⬇️ Save all slides</button>'
             f'{_hashtag_block(r)}'
             f'<div style="display:flex;gap:10px;margin-top:10px">'
-            f'<form method="post" action="/content/queue/{r["id"]}/posted" style="flex:1">{csrf_input()}{_acct_select(r["assigned_account"])}'
+            f'<form method="post" action="/content/queue/{r["id"]}/posted" style="flex:1" onsubmit="return cardAct(this)">{csrf_input()}{_acct_select(r["assigned_account"])}'
             f'<button style="width:100%;background:#5fc9b6;color:#06121a;font-weight:800;border:0;padding:12px;border-radius:10px">✓ Posted</button></form>'
-            f'<form method="post" action="/content/queue/{r["id"]}/skipped" style="flex:1">{csrf_input()}'
+            f'<form method="post" action="/content/queue/{r["id"]}/skipped" style="flex:1" onsubmit="return cardAct(this)">{csrf_input()}'
             f'<button style="width:100%;background:#16202e;color:#e9eef5;font-weight:700;border:1px solid #1d2a3d;padding:12px;border-radius:10px">Skip</button></form>'
             f'</div></div>')
     if not cards:
@@ -12594,6 +12594,13 @@ def content_today():
         '  else{fs.forEach(function(f){var a=document.createElement("a");a.href=URL.createObjectURL(f);'
         '   a.download=f.name;document.body.appendChild(a);a.click();a.remove();});}'
         ' }catch(e){}btn.disabled=false;btn.textContent=t;}'
+        # Posted/Skip: mark it server-side via fetch and remove ONLY that card in
+        # place — no full reload, so the next queued carousel doesn\'t jump up and
+        # look like a new one was generated.
+        'function cardAct(form){var card=form.closest(".qcard");'
+        ' fetch(form.action,{method:"POST",body:new FormData(form)}).catch(function(){});'
+        ' if(card){card.style.transition="opacity .15s";card.style.opacity="0";'
+        '  setTimeout(function(){card.remove();},150);} return false;}'
         '</script>')
     body = (f'<div style="max-width:720px;margin:0 auto;padding:16px 12px 80px">'
             + f'<h1 style="margin:0 0 4px">📅 Today</h1>'
