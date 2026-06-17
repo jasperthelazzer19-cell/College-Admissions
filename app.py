@@ -11967,10 +11967,15 @@ def _title_frame(line_html, logo_html, maxH=1040, logoH=360, cardH=1402, maxFont
             f'if(slack>0){{var textExtra=Math.min(slack*0.42, tightH*(1.16/0.92-1));'
             f'var lh=Math.min(1.16, 0.92*(tightH+textExtra)/tightH);'
             f'ls.forEach(function(l){{l.style.lineHeight=lh.toFixed(3);}});}}'
-            # ...and the rest to a bigger logo, capped at logoMax.
+            # ...and the rest to a bigger logo, capped at logoMax AND at the source
+            # image's own resolution (render is 2x, so displaying taller than ~0.62x
+            # the source's native height upscales it = blur). This keeps hi-res logos
+            # big & crisp and stops low-res ones from being stretched blurry.
             f'var room=ch-box.offsetHeight-{gap}-12;'
             f'var lhpx=Math.max(150,Math.min({lc},room));'
-            f'imgs.forEach(function(im){{im.style.maxHeight=lhpx+"px";}});'
+            f'imgs.forEach(function(im){{var cap=lhpx;'
+            f'if(im.naturalHeight){{var src=Math.round(im.naturalHeight*0.62);if(src<cap)cap=src;}}'
+            f'im.style.maxHeight=Math.max(150,cap)+"px";}});'
             f'}}'
             f'if(document.fonts&&document.fonts.ready){{document.fonts.ready.then(fit);}}else{{fit();}}'
             f'setTimeout(fit,250);setTimeout(fit,700);}})();</script>')
