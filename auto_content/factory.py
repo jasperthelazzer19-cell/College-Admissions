@@ -28,7 +28,7 @@ CRON_KEY      = os.environ.get("CRON_KEY", "")
 ANTHROPIC_KEY = os.environ.get("ANTHROPIC_KEY", "")
 OPENAI_KEY    = os.environ.get("OPENAI_KEY", "")
 TARGET_URL    = os.environ.get("TARGET_URL", "https://admit.up.railway.app").rstrip("/")
-BUFFER_TARGET = int(os.environ.get("BUFFER_TARGET", "12"))
+BUFFER_TARGET = int(os.environ.get("BUFFER_TARGET", "15"))
 LOCAL_PORT    = int(os.environ.get("LOCAL_PORT", "5077"))
 LOCAL_URL     = f"http://127.0.0.1:{LOCAL_PORT}"
 CHROME        = os.environ.get("CHROME", "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
@@ -592,6 +592,23 @@ def text_carousels(items):
         print("  text failed:", e); return False
 
 
+def text_reminder(made, pending):
+    """iMessage a plain 'slides are ready' nudge (no links) after topping up the
+    queue — the creator opens /content/today to post from the buffer."""
+    num = os.environ.get("PHONE", "")
+    if not num:
+        print("PHONE not set — skipping reminder"); return False
+    msg = f"✅ {made} fresh Candor slides are done — {pending} ready to post in the queue."
+    script = ('tell application "Messages"\n set svc to 1st service whose service type = iMessage\n'
+              f' set b to buddy "{num}" of svc\n send "{_as_esc(msg)}" to b\nend tell')
+    try:
+        subprocess.run(["osascript", "-e", script], check=True, capture_output=True, timeout=45)
+        print(f"  texted reminder -> {num}")
+        return True
+    except Exception as e:
+        print("  reminder text failed:", e); return False
+
+
 def main():
     dry = "--dry" in sys.argv
     n_force = int(sys.argv[sys.argv.index("--n") + 1]) if "--n" in sys.argv else None
@@ -649,6 +666,10 @@ def _run_session(dry, n_force, slot_count):
             except Exception as e:
                 print(f"  carousel {i} failed: {e}")
         print(f"done: {ok}/{need}")
+        # Nudge the creator that fresh slides are queued (no links — they post
+        # from /content/today). Only when we actually topped up.
+        if ok > 0 and not dry:
+            text_reminder(ok, buffer_pending())
     finally:
         stop_local_server()
 

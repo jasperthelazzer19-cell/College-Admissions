@@ -12307,15 +12307,24 @@ def content_request_batch():
         except (TypeError, ValueError):
             n = 4
     n = max(1, min(8, n))
-    # optional chosen schools (validated against real slugs); blank entries = auto
+    # Serve from the queue: release N already-made carousels from the pending
+    # buffer the Mac keeps topped up. Instant, costs nothing, and works with the
+    # Mac off (Railway just flips DB rows). Only if the buffer can't cover the
+    # request do we fall back to generating the remainder (emergency).
     chosen = [s for s in request.form.getlist("slugs") if s in COLLEGES_BY_SLUG][:n]
-    slugs_csv = ",".join(chosen) if chosen else None
     with db() as conn:
-        # Coalesce: if a request is already waiting unclaimed, don't stack more.
-        existing = conn.execute("SELECT id FROM batch_requests WHERE claimed_at IS NULL LIMIT 1").fetchone()
-        if not existing:
-            conn.execute("INSERT INTO batch_requests (count, slugs) VALUES (?, ?)", (n, slugs_csv))
-            conn.commit()
+        rows = conn.execute("SELECT id FROM content_queue WHERE status='pending' "
+                            "ORDER BY id ASC LIMIT ?", (n,)).fetchall()
+        for r in rows:
+            conn.execute("UPDATE content_queue SET status='released', slot='make', "
+                         "released_at=CURRENT_TIMESTAMP WHERE id=?", (r["id"],))
+        short = n - len(rows)
+        if short > 0:
+            existing = conn.execute("SELECT id FROM batch_requests WHERE claimed_at IS NULL LIMIT 1").fetchone()
+            if not existing:
+                slugs_csv = ",".join(chosen[len(rows):]) if chosen else None
+                conn.execute("INSERT INTO batch_requests (count, slugs) VALUES (?, ?)", (short, slugs_csv))
+        conn.commit()
     return redirect(url_for("content_today", requested=n))
 
 
