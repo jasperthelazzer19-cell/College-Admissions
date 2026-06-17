@@ -91,13 +91,15 @@ def _shot(out_path, url, verify=True):
         return "data:image/png;base64," + base64.b64encode(f.read()).decode()
 
 
-def render_slides(slug, slide3, lines):
+def render_slides(slug, slide3, lines, stats_cover=False):
     """All 3 slides as PNG data URLs, rendered FREE via headless Chrome against the
     local Candor app. Slide 1 = HTML title (per-line fill + HD cached logo),
-    slides 2 & 3 = the Candor profile + chances/grade exports."""
+    slides 2 & 3 = the Candor profile + chances/grade exports. stats_cover renders
+    slide 1 as the 'Can I get into X?' + stats-on-cover layout instead."""
     tmp = "/tmp/cren_factory"; os.makedirs(tmp, exist_ok=True)
     hook = urllib.parse.quote("\n".join(lines))
-    s1 = _shot(f"{tmp}/s1.png", f"{LOCAL_URL}/title/export?rkey={CRON_KEY}&clean=1&slug={slug}&hook={hook}")
+    _stats = "&stats=1" if stats_cover else ""
+    s1 = _shot(f"{tmp}/s1.png", f"{LOCAL_URL}/title/export?rkey={CRON_KEY}&clean=1&slug={slug}&hook={hook}{_stats}")
     s2 = _shot(f"{tmp}/s2.png", f"{LOCAL_URL}/profile/{slug}/export?rkey={CRON_KEY}&clean=1")
     s3routes = {"grade": "/grade/export", "glowup": f"/glowup/{slug}/export",
                 "chances": f"/chances/{slug}/export"}
@@ -270,17 +272,24 @@ def make_single(dry=False, slug=None, slide3=None):
                                                    want_grade=(g["slide3"] == "grade"))
     short, accent = app._school_brand(slug, g["name"])
     lines, accent_words = g["lines"], g["accent_words"]
-    title_formula = "llm"
-    # Result-forward variant (~30%): put the REAL verdict on the cover instead of a
-    # teaser — "CANDOR GAVE THIS DUKE APPLICANT A... 4-7% CHANCE" / "...70/100".
-    # Matches the number-on-cover style used across the live accounts.
-    if g["slide3"] in ("chances", "grade") and random.random() < float(os.environ.get("RESULT_FORWARD_RATE", "0.3")):
+    title_formula = "llm"; stats_cover = False
+    # Pick the cover style (mutually exclusive): stats cover, result-forward, or the
+    # LLM teaser hook. Both alt covers only apply to a chances/grade reveal.
+    roll = random.random()
+    sc_rate = float(os.environ.get("STATS_COVER_RATE", "0.25"))
+    rf_rate = float(os.environ.get("RESULT_FORWARD_RATE", "0.3"))
+    if g["slide3"] == "chances" and roll < sc_rate:
+        # "CAN I GET INTO X?" with the applicant's stats listed on slide 1.
+        lines, accent_words = ["CAN I GET", f"INTO {short}?"], [short, f"{short}?"]
+        title_formula = "stats"; stats_cover = True
+    elif g["slide3"] in ("chances", "grade") and roll < sc_rate + rf_rate:
+        # result-forward: real verdict on the cover ("...4-7% CHANCE" / "70/100").
         nt = numeric_title(short, g["slide3"], low, high, gnum)
         if nt:
             lines, accent_words = nt
             title_formula = "numeric"
     marked = mark_accents(lines, accent_words)
-    s1, s2, s3 = render_slides(slug, g["slide3"], marked)
+    s1, s2, s3 = render_slides(slug, g["slide3"], marked, stats_cover=stats_cover)
     hook = " ".join(lines)
     payload = dict(school_slug=slug, school_name=g["name"], accent=accent, title_text=hook,
                    title_formula=title_formula, slide3_type=g["slide3"], profile_json=json.dumps(g["profile"]),

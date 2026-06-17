@@ -12052,12 +12052,62 @@ def title_compare_export():
                                          clean=request.args.get("clean") == "1"), mimetype="text/html")
 
 
+def _compact_stats(p, slug):
+    """Short stat lines for the 'Can I get into X?' stats cover — GPA, test, APs,
+    major, residency, then a couple of the punchiest awards/ECs."""
+    out = []
+    if p.get("uw_gpa") is not None:
+        out.append(f'{p["uw_gpa"]} GPA')
+    if not is_test_blind(slug):
+        if p.get("sat"):
+            out.append(f'{p["sat"]} SAT')
+        elif p.get("act"):
+            out.append(f'{p["act"]} ACT')
+    aps = [a for a in (p.get("aps") or "").split(",") if a.strip()]
+    if aps:
+        out.append(f'{len(aps)} APs')
+    if (p.get("major") or "").strip():
+        out.append(f'{p["major"].strip()} major')
+    st = (p.get("state") or "").strip()
+    if st:
+        out.append(f'{st} resident')
+    aws = [x.strip() for x in (p.get("awards") or "").split("\n") if x.strip()]
+    ecs = [x.strip() for x in ((p.get("ecs") or "") + "\n" + (p.get("leadership") or "")).split("\n") if x.strip()]
+    out += aws[:1] + ecs[:4]
+    return out[:9]
+
+
+def _title_stats_body(slug, sch, hook, p):
+    """Stats cover ('CAN I GET INTO X?' + the applicant's stats listed) — the
+    most-used live format. Hook on top, a compact STATS list, school logo."""
+    from html import escape as _esc
+    short, color = _school_brand(slug, sch.get("name"))
+    outline = SCHOOL_TEXT_OUTLINE.get(slug)
+    lines = [ln for ln in hook.upper().split("\n") if ln.strip()]
+    hook_html = "".join(
+        f'<div style="font-family:\'AntonEmb\',\'Anton\',sans-serif;font-weight:400;font-size:120px;'
+        f'line-height:.94;letter-spacing:-1px;color:#111;text-transform:uppercase">{_hook_html(ln, color, outline)}</div>'
+        for ln in lines)
+    li_css = "font-size:34px;line-height:1.5;margin:0;font-weight:800"
+    stat_html = "".join(f'<li style="{li_css}">{_esc(s)}</li>' for s in _compact_stats(p, slug))
+    head_css = ("font-family:'AntonEmb','Anton',sans-serif;font-weight:400;letter-spacing:.5px;"
+                "font-size:52px;margin:34px 0 16px;color:#111")
+    logo_url = INST_LOGOS.get(slug) or SCHOOL_LOGOS.get(slug)
+    logo_html = (f'<img src="{logo_url}" style="height:150px;object-fit:contain;margin:34px auto 0;display:block">'
+                 if logo_url else '')
+    return (f'<div style="margin:0 0 8px">{hook_html}</div>'
+            f'<div style="{head_css}">STATS</div>'
+            f'<ul style="list-style:disc;margin:0;padding-left:34px;color:#111">{stat_html}</ul>'
+            f'{logo_html}')
+
+
 @app.route("/title/export")
 @login_required
 def title_export():
     """Slide-1 hook card. /title/export?slug=<slug>&hook=<text> (use *word* to
     color a word in the school's accent). New-Roads only. This is the piece that
-    used to be made by hand in ChatGPT/Canva."""
+    used to be made by hand in ChatGPT/Canva. stats=1 renders the 'Can I get into
+    X?' + stats-on-cover variant (reads the saved profile, uid 181 / 38)."""
     if not (_is_creator() or _has_render_key()):
         abort(404)
     slug = request.args.get("slug", "")
@@ -12065,6 +12115,13 @@ def title_export():
     sch = COLLEGES_BY_SLUG.get(slug)
     if not sch or not hook:
         abort(404)
+    if request.args.get("stats") == "1":
+        p = get_profile(38 if request.args.get("uid") == "38" else 181)
+        if p:
+            return Response(_profile_export_page(_title_stats_body(slug, sch, hook, p),
+                                                 dl_name=f"{slug}-title-stats",
+                                                 clean=request.args.get("clean") == "1"),
+                            mimetype="text/html")
     body = _title_card_body(slug, sch, hook, nologo=request.args.get("nologo") == "1")
     return Response(_profile_export_page(body, dl_name=f"{slug}-title", pad="52px 58px 48px",
                                          clean=request.args.get("clean") == "1"),
