@@ -3897,14 +3897,27 @@ def confidence_level(profile, components):
 
 # ─── CLAUDE-POWERED REASONING (with template fallback) ───
 def _claude(model, system, user, max_tokens=400, temperature=1.0):
-    if not _claude_client: return None
     # GRADER_FAST=1 (set only by the TikTok autopilot render process) downgrades
     # Sonnet -> Haiku to keep content generation cheap. The live site never sets
     # it, so real users always get the full Sonnet-quality grader.
     if model and "sonnet" in model and os.environ.get("GRADER_FAST") == "1":
         model = "claude-haiku-4-5-20251001"
+    # USE_MAX_CLI=1 (Mac autopilot only) routes generation through Claude Code on
+    # the flat-rate Max plan instead of the metered API — free content gen. On ANY
+    # CLI failure it falls through to the API below, so a hiccup degrades to the
+    # key rather than breaking generation. Railway never sets this (no Claude Code),
+    # so the live site + the cloud emergency-render path always use the API.
+    if os.environ.get("USE_MAX_CLI") == "1":
+        out = _claude_cli(f"{system}\n\n{user}" if system else user, model=model)
+        if out:
+            return out
+    if not _claude_client: return None
     try:
-        msg = _claude_client.messages.create(model=model, max_tokens=max_tokens, temperature=temperature, system=system, messages=[{"role":"user","content":user}])
+        kw = {"model": model, "max_tokens": max_tokens, "temperature": temperature,
+              "messages": [{"role": "user", "content": user}]}
+        if system:                       # omit when None — the API rejects system=null
+            kw["system"] = system
+        msg = _claude_client.messages.create(**kw)
         return msg.content[0].text
     except Exception as e:
         print(f"Claude error: {e}")

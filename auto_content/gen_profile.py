@@ -232,9 +232,13 @@ Return ONLY strict JSON:
 "sat_math": int|null, "sat_ebrw": int|null, "major": str, "state": str, "school_type": "public"|"private",
 "aps": str, "ecs": str, "leadership": str, "awards": str}},
 "title": {{"lines": ["LINE 1", "LINE 2", ...], "accent_words": ["{short}", ...], "slide3": "chances"|"grade"|"glowup"}}}}"""
-    msg = _claude().messages.create(model="claude-haiku-4-5-20251001", max_tokens=1300,
-                                    temperature=1.0, messages=[{"role": "user", "content": prompt}])
-    txt = msg.content[0].text.strip()
+    # Route through app._claude so the profile+hook generation inherits the
+    # USE_MAX_CLI (free Max-plan) path + automatic API fallback, same as the
+    # reveal-slide bullets.
+    txt = app._claude("claude-haiku-4-5-20251001", None, prompt, max_tokens=1300, temperature=1.0)
+    if not txt:
+        raise RuntimeError("gen_profile: no LLM output")
+    txt = txt.strip()
     if txt.startswith("```"):
         txt = txt.split("```")[1].lstrip("json").strip()
     return json.loads(txt)
