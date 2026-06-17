@@ -22,6 +22,7 @@ import os
 import re
 import json
 import time
+import random
 import secrets
 import sqlite3
 import hashlib
@@ -12085,13 +12086,62 @@ def _content_account_roster(conn):
     return roster[:max(1, CONTENT_ACCOUNT_SLOTS)]
 
 
-def _assign_content_account(conn):
-    """Round-robin the next carousel onto an account, so the queue is evenly
-    spread across all slots. Returns the slot's display label (a @username or a
-    number). Rotation = total carousels so far mod slot count."""
+def _account_format_perf(conn, slide3_type):
+    """{open_id: (n, avg_engagement_score)} for attributed posts of THIS format,
+    per account — so we can route a format to the account that does best with it.
+    Empty if no format given / no data."""
+    if not slide3_type:
+        return {}
+    try:
+        rows = conn.execute(
+            f"SELECT p.open_id k, COUNT(*) n, AVG({_TT_SCORE_SQL}) s "
+            f"FROM content_queue c JOIN tiktok_posts p ON p.carousel_id = c.id "
+            f"WHERE c.slide3_type = ? AND p.view_count IS NOT NULL GROUP BY p.open_id",
+            (slide3_type,)).fetchall()
+        return {r["k"]: (r["n"], float(r["s"] or 0)) for r in rows}
+    except Exception:
+        return {}
+
+
+# How hard performance is allowed to tilt the account assignment, and the min
+# attributed posts an (account,format) pair needs before it tilts at all. Kept
+# gentle so fairness (even spread) stays dominant and no account goes stale.
+ASSIGN_PERF_MIN_N = int(os.environ.get("ASSIGN_PERF_MIN_N", "2"))
+ASSIGN_PERF_ALPHA = float(os.environ.get("ASSIGN_PERF_ALPHA", "0.6"))
+
+
+def _assign_content_account(conn, school_slug=None, slide3_type=None):
+    """Pick the account for the next carousel. Base is FAIRNESS — accounts used
+    least across the recent queue are favored, so the spread stays even and no
+    account goes stale. On top of that, the account that performs best with this
+    carousel's FORMAT gets a gentle, clamped boost (only once it has enough
+    attributed posts). Weighted-random, so it still explores. Returns the slot's
+    display label (a @username or a number)."""
     roster = _content_account_roster(conn)
-    n = conn.execute("SELECT COUNT(*) c FROM content_queue").fetchone()["c"]
-    return roster[n % len(roster)]["label"]
+    labels = [a["label"] for a in roster]
+    oid_by_label = {a["label"]: a["open_id"] for a in roster}
+
+    # Fairness base: 1/(1+recent assignments) over the last 50 carousels.
+    recent = {r["a"]: r["c"] for r in conn.execute(
+        "SELECT a, COUNT(*) c FROM (SELECT assigned_account a FROM content_queue "
+        "WHERE assigned_account IS NOT NULL ORDER BY id DESC LIMIT 50) GROUP BY a").fetchall()}
+    base = {lab: 1.0 / (1 + recent.get(lab, 0)) for lab in labels}
+
+    # Performance tilt: this format's engagement score per account, clamped.
+    fperf = _account_format_perf(conn, slide3_type)
+    perf = {lab: fperf[oid] for lab in labels
+            if (oid := oid_by_label.get(lab)) and oid in fperf}
+    good = {lab: v for lab, (n, v) in perf.items() if n >= ASSIGN_PERF_MIN_N}
+    weights = dict(base)
+    if len(good) >= 2:
+        mean = sum(good.values()) / len(good)
+        if mean > 0:
+            for lab in labels:
+                if lab in good:
+                    mult = max(0.5, min(1.8, 1 + ASSIGN_PERF_ALPHA * (good[lab] / mean - 1)))
+                    weights[lab] = base[lab] * mult
+
+    return random.choices(labels, weights=[weights[l] for l in labels])[0]
 
 
 @app.route("/content/queue/push", methods=["POST"])
@@ -12107,7 +12157,7 @@ def content_queue_push():
     if not (d.get("img1") and d.get("img2") and d.get("img3")):
         return ("need img1, img2, img3", 400)
     with db() as conn:
-        assigned = _assign_content_account(conn)
+        assigned = _assign_content_account(conn, d.get("school_slug"), d.get("slide3_type"))
         cur = conn.execute(
             """INSERT INTO content_queue
                (school_slug, school_name, accent, title_text, title_formula, slide3_type,
