@@ -4702,7 +4702,9 @@ def init_db():
         conn.execute("CREATE INDEX IF NOT EXISTS idx_ttposts_acct ON tiktok_posts(open_id, create_time)")
         # Record which account a carousel was posted to (set from the Posted button)
         # so we can attribute TikTok stats back to the carousel's school/format/hook.
-        for col in ("posted_account TEXT", "tiktok_video_id TEXT"):
+        # assigned_account: which account this carousel should be posted to, set
+        # round-robin at push time so the queue is pre-distributed across all 5.
+        for col in ("posted_account TEXT", "tiktok_video_id TEXT", "assigned_account TEXT"):
             try:
                 conn.execute(f"ALTER TABLE content_queue ADD COLUMN {col}")
             except sqlite3.OperationalError:
@@ -12063,6 +12065,35 @@ def _autopilot_authed():
     return _key_eq(k, CRON_KEY)
 
 
+# How many accounts the content is spread across. The first slots are the
+# connected accounts (shown by username); the rest are numbered placeholders
+# ("1","2","3") for accounts not yet linked — fill them in by connecting more.
+CONTENT_ACCOUNT_SLOTS = int(os.environ.get("CONTENT_ACCOUNT_SLOTS", "5"))
+
+
+def _content_account_roster(conn):
+    """Ordered list of {label, open_id} for the post rotation: connected accounts
+    first (by connection order, shown by their @username), padded to
+    CONTENT_ACCOUNT_SLOTS with numbered placeholders ('1','2',…) for accounts the
+    creator hasn't linked yet."""
+    accts = conn.execute("SELECT open_id, label FROM tiktok_accounts ORDER BY connected_at").fetchall()
+    roster = [{"label": (a["label"] or a["open_id"]), "open_id": a["open_id"]} for a in accts]
+    i = 1
+    while len(roster) < CONTENT_ACCOUNT_SLOTS:
+        roster.append({"label": str(i), "open_id": None})
+        i += 1
+    return roster[:max(1, CONTENT_ACCOUNT_SLOTS)]
+
+
+def _assign_content_account(conn):
+    """Round-robin the next carousel onto an account, so the queue is evenly
+    spread across all slots. Returns the slot's display label (a @username or a
+    number). Rotation = total carousels so far mod slot count."""
+    roster = _content_account_roster(conn)
+    n = conn.execute("SELECT COUNT(*) c FROM content_queue").fetchone()["c"]
+    return roster[n % len(roster)]["label"]
+
+
 @app.route("/content/queue/push", methods=["POST"])
 @_csrf_exempt
 def content_queue_push():
@@ -12076,19 +12107,21 @@ def content_queue_push():
     if not (d.get("img1") and d.get("img2") and d.get("img3")):
         return ("need img1, img2, img3", 400)
     with db() as conn:
+        assigned = _assign_content_account(conn)
         cur = conn.execute(
             """INSERT INTO content_queue
                (school_slug, school_name, accent, title_text, title_formula, slide3_type,
-                profile_json, odds_text, grade_text, img1, img2, img3, img4, meta)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                profile_json, odds_text, grade_text, img1, img2, img3, img4, meta, assigned_account)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (d.get("school_slug"), d.get("school_name"), d.get("accent"),
              d.get("title_text"), d.get("title_formula"), d.get("slide3_type"),
              d.get("profile_json"), d.get("odds_text"), d.get("grade_text"),
              d.get("img1"), d.get("img2"), d.get("img3"), d.get("img4"),
-             json.dumps(d.get("meta")) if d.get("meta") is not None else None))
+             json.dumps(d.get("meta")) if d.get("meta") is not None else None,
+             assigned))
         conn.commit()
         pending = conn.execute("SELECT COUNT(*) c FROM content_queue WHERE status='pending'").fetchone()["c"]
-    return jsonify(ok=True, id=cur.lastrowid, pending=pending)
+    return jsonify(ok=True, id=cur.lastrowid, pending=pending, assigned_account=assigned)
 
 
 @app.route("/content/queue/status")
@@ -12356,17 +12389,34 @@ def content_today():
         pending = conn.execute("SELECT COUNT(*) c FROM content_queue WHERE status='pending'").fetchone()["c"]
         posted = conn.execute("SELECT COUNT(*) c FROM content_queue WHERE status='posted'").fetchone()["c"]
         tt_accts = conn.execute("SELECT open_id, label FROM tiktok_accounts ORDER BY connected_at").fetchall()
-    # Optional account picker on the Posted button — lets the puller attribute
-    # each post's stats back to a format/school. Omitted entirely until at least
-    # one TikTok account is connected, so the button stays one-tap before then.
-    _acct_select = ""
-    if tt_accts:
-        from html import escape as _ae
-        _opts = '<option value="">which account?</option>' + "".join(
-            f'<option value="{_ae(a["open_id"])}">{_ae(a["label"] or a["open_id"])}</option>' for a in tt_accts)
-        _acct_select = ('<select name="account" style="width:100%;padding:8px;border-radius:8px;'
-                        'background:#0a1320;color:#e9eef5;border:1px solid #2b3a4f;font-size:12px;margin:0 0 6px">'
-                        f'{_opts}</select>')
+    # Account picker on the Posted button, pre-selected to the carousel's assigned
+    # account so attribution is one-tap. Omitted until at least one account is
+    # connected. `assigned` is the display label stored at push time.
+    from html import escape as _ae
+    _acct_labels = {(a["label"] or a["open_id"]) for a in tt_accts}
+
+    def _acct_select(assigned):
+        if not tt_accts:
+            return ""
+        opts = '<option value="">which account?</option>'
+        for a in tt_accts:
+            lab = a["label"] or a["open_id"]
+            sel = " selected" if lab and lab == assigned else ""
+            opts += f'<option value="{_ae(a["open_id"])}"{sel}>{_ae(lab)}</option>'
+        return ('<select name="account" style="width:100%;padding:8px;border-radius:8px;'
+                'background:#0a1320;color:#e9eef5;border:1px solid #2b3a4f;font-size:12px;margin:0 0 6px">'
+                f'{opts}</select>')
+
+    def _assigned_badge(assigned):
+        if not assigned:
+            return ""
+        linked = assigned in _acct_labels
+        # numbered placeholder vs a real @username
+        shown = assigned if (linked or assigned.startswith("@")) else f"account {assigned}"
+        bg, fg, note = (("#13351f", "#bdf3d0", "") if linked
+                        else ("#2a2030", "#e8c9ff", " · link soon"))
+        return (f'<div style="display:inline-block;background:{bg};color:{fg};border-radius:8px;'
+                f'padding:5px 10px;font-weight:700;font-size:13px;margin:0 0 10px">📲 Post to: {_ae(shown)}{note}</div>')
     cards = []
     for r in released:
         _ck = [k for k in ("img1", "img2", "img3", "img4") if r[k]]
@@ -12384,13 +12434,14 @@ def content_today():
         cards.append(
             f'<div class="qcard" style="background:#0c1521;border:1px solid #1d2a3d;border-radius:16px;padding:16px;margin:0 0 18px">'
             f'<div style="font-weight:800;font-size:17px;margin:0 0 2px">{r["title_text"] or meta}</div>'
-            f'<div style="color:#7c8aa0;font-size:13px;margin:0 0 12px">{meta} · {odds} · slot {r["slot"] or "—"}</div>'
+            f'<div style="color:#7c8aa0;font-size:13px;margin:0 0 10px">{meta} · {odds} · slot {r["slot"] or "—"}</div>'
+            f'{_assigned_badge(r["assigned_account"])}'
             f'<div style="display:flex;gap:10px;flex-wrap:wrap">{imgs}</div>'
             f'<button type="button" onclick="saveCard(this)" style="width:100%;background:#2f6df0;color:#fff;'
             f'font-weight:800;border:0;padding:13px;border-radius:10px;margin:14px 0 12px;cursor:pointer">⬇️ Save all slides</button>'
             f'{_hashtag_block(r)}'
             f'<div style="display:flex;gap:10px;margin-top:10px">'
-            f'<form method="post" action="/content/queue/{r["id"]}/posted" style="flex:1">{csrf_input()}{_acct_select}'
+            f'<form method="post" action="/content/queue/{r["id"]}/posted" style="flex:1">{csrf_input()}{_acct_select(r["assigned_account"])}'
             f'<button style="width:100%;background:#5fc9b6;color:#06121a;font-weight:800;border:0;padding:12px;border-radius:10px">✓ Posted</button></form>'
             f'<form method="post" action="/content/queue/{r["id"]}/skipped" style="flex:1">{csrf_input()}'
             f'<button style="width:100%;background:#16202e;color:#e9eef5;font-weight:700;border:1px solid #1d2a3d;padding:12px;border-radius:10px">Skip</button></form>'

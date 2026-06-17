@@ -238,13 +238,21 @@ def _title_png(slug, lines, accent_words, nologo=False):
                  f"{LOCAL_URL}/title/export?rkey={CRON_KEY}&clean=1&slug={slug}&hook={hook}{extra}")
 
 
+# cid -> assigned account label, filled at push time so the texted links can
+# tell the creator which account to post each carousel to (same-process batch).
+_assigned_account = {}
+
+
 def _finish(payload, dry, label):
     if dry:
         print(f"  [dry] {label}")
         return None, payload["school_name"]
     res = push(payload)
-    print(f"  pushed #{res.get('id')} {label} | pending={res.get('pending')}")
-    return (res.get("id") if res.get("ok") else None), payload["school_name"]
+    cid = res.get("id") if res.get("ok") else None
+    if cid:
+        _assigned_account[cid] = res.get("assigned_account")
+    print(f"  pushed #{res.get('id')} {label} | -> {res.get('assigned_account')} | pending={res.get('pending')}")
+    return cid, payload["school_name"]
 
 
 def make_single(dry=False, slug=None, slide3=None):
@@ -544,7 +552,11 @@ def text_carousels(items):
     sends = [f' send "{_as_esc(intro)}" to b']
     for cid, school in items:
         link = f"{TARGET_URL}/content/c/{cid}?key={urllib.parse.quote(CRON_KEY)}"
-        sends.append(f' send "{_as_esc(f"{school}: {link}")}" to b')
+        acct = _assigned_account.get(cid)
+        # show "@user" as-is, a bare number as "acct N"
+        who = (f" → {acct}" if (acct and (acct.startswith('@') or not acct.isdigit()))
+               else (f" → acct {acct}" if acct else ""))
+        sends.append(f' send "{_as_esc(f"{school}{who}: {link}")}" to b')
     script = ('tell application "Messages"\n set svc to 1st service whose service type = iMessage\n'
               f' set b to buddy "{num}" of svc\n' + "\n".join(sends) + "\nend tell")
     try:
