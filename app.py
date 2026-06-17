@@ -17382,14 +17382,27 @@ def tiktok_home():
             "FROM tiktok_posts GROUP BY open_id) m ON t.open_id=m.open_id AND t.create_time=m.mc").fetchall()}
 
     def _posted_when(ts):
-        """unix create_time -> 'Jun 15, 2026 · 3 days ago'."""
+        """unix create_time -> 'Jun 15, 2026 at 3:43 PM PDT · 3 days ago', shown in
+        the creator's timezone (CREATOR_TZ, default Pacific) since create_time is
+        stored UTC. The exact clock time is the field that matters most here."""
         if not ts:
             return "—"
         try:
-            dt = datetime.utcfromtimestamp(int(ts))
-            days = (datetime.utcnow() - dt).days
-            rel = "today" if days <= 0 else ("1 day ago" if days == 1 else f"{days} days ago")
-            return f"{dt.strftime('%b %-d, %Y')} · {rel}"
+            ts = int(ts)
+            tzlabel = "UTC"
+            try:
+                from zoneinfo import ZoneInfo
+                tz = ZoneInfo(os.environ.get("CREATOR_TZ", "America/Los_Angeles"))
+                dt = datetime.fromtimestamp(ts, tz)
+                now = datetime.now(tz)
+                tzlabel = dt.tzname() or "PT"
+            except Exception:
+                dt = datetime.utcfromtimestamp(ts)
+                now = datetime.utcnow()
+            days = (now.date() - dt.date()).days
+            rel = ("today" if days == 0 else "yesterday" if days == 1
+                   else f"{days} days ago" if days > 0 else f"in {-days} days")
+            return f"{dt.strftime('%b %-d, %Y')} at {dt.strftime('%-I:%M %p')} {tzlabel} · {rel}"
         except Exception:
             return "—"
 
