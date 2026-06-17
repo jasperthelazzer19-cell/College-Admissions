@@ -17507,7 +17507,7 @@ def _render_consume_one(factory):
         chosen = slugs[i] if i < len(slugs) else None    # creator-picked school or auto
         for attempt in range(2):
             try:
-                cid, _ = factory.make_one(slug=chosen)
+                cid, _ = factory.make_one(slug=chosen, count_toward_cap=False)
                 if cid:
                     made += 1
                 break

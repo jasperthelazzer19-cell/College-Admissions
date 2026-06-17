@@ -156,22 +156,31 @@ def _render_session(batch, web_n, web_slugs, specifics, max_rowid):
                 chosen = web_slugs[i] if i < len(web_slugs) else None  # creator-picked school or auto
                 for attempt in range(3):
                     try:
-                        cid, name = factory.make_one(slug=chosen)
+                        cid, name = factory.make_one(slug=chosen, count_toward_cap=False)
                         if cid:
                             made.append((cid, name)); break
                     except Exception as e:
                         print(f"batch {i} attempt {attempt}: {e}")
             if made:
                 factory.text_carousels(made)
-                # The phone "Make 4" button (a multi-carousel batch) stands in for
-                # one scheduled slot — drop a marker so the next slot skips itself.
-                # "Make 1" (n==1) does NOT skip anything.
-                if web_n and web_n > 1:
+                # The phone "Make N" button (a multi-carousel batch) stands in for
+                # one scheduled slot — drop a marker so the next slot skips itself,
+                # to avoid double-posting. BUT only during the active posting day
+                # (08:00–19:30 local): a batch made overnight (after the last 7:30
+                # slot or before the 8am slot) should NOT cancel the next scheduled
+                # slot — there's nothing to double up with, and skipping would just
+                # lose the morning's content. "Make 1" (n==1) never skips.
+                import datetime as _dt
+                _now = _dt.datetime.now().time()
+                _active_day = _dt.time(8, 0) <= _now < _dt.time(19, 30)
+                if web_n and web_n > 1 and _active_day:
                     try:
                         open(os.path.expanduser("~/.candor_skip_next_slot"), "w").close()
                         print(f"set skip-next-slot marker (web batch n={web_n})")
                     except Exception as e:
                         print("skip marker write failed:", e)
+                elif web_n and web_n > 1:
+                    print(f"overnight batch (n={web_n}) — NOT skipping next slot; the next scheduled slot still fires")
             else:
                 # never go silent on a button/text batch — surface the failure
                 text_back("Hmm, that batch didn't generate — try again in a minute?")

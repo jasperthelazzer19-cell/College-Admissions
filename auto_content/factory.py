@@ -491,11 +491,16 @@ def _pick_school(respect_cap=True):
     return random.choices(keys, weights=[weighted[k] for k in keys])[0]
 
 
-def make_one(dry=False, slug=None, slide3=None, ctype=None):
+def make_one(dry=False, slug=None, slide3=None, ctype=None, count_toward_cap=True):
     """Dispatcher. Explicit slug (text-to-make) -> single, uncapped. Otherwise
     rotate formats; for the per-school formats (single/h2h) pick the school
     weighted by real demand and never post the same school more than
-    SCHOOL_DAILY_CAP times/day (compare is excluded from that cap)."""
+    SCHOOL_DAILY_CAP times/day (compare is excluded from that cap).
+
+    count_toward_cap=False decouples this carousel from the SCHEDULED daily cap:
+    it neither respects nor increments the per-day counts. Used by the on-demand
+    'Make N' button so a manual batch (e.g. late at night) never eats into — or
+    gets suppressed by — the scheduled 8/12/3/7:30 slots."""
     explicit = bool(slug)
     if ctype is None:
         if slug:
@@ -514,21 +519,23 @@ def make_one(dry=False, slug=None, slide3=None, ctype=None):
             w = _blend({"single": 6, "compare": 3, "h2h": 3}, cperf)
             keys = list(w)
             ctype = random.choices(keys, weights=[w[k] for k in keys])[0]
-            if ctype == "h2h" and _h2h_today() >= H2H_DAILY_CAP:
+            if ctype == "h2h" and count_toward_cap and _h2h_today() >= H2H_DAILY_CAP:
                 ctype = random.choice(["single", "compare"])
     if ctype == "compare":
         return make_compare(dry)
     # single / h2h target ONE school — weight by demand, respect the daily cap
+    # (scheduled posts only; manual batches pass count_toward_cap=False)
     if not explicit:
-        slug = _pick_school(respect_cap=True)
+        slug = _pick_school(respect_cap=count_toward_cap)
         if slug is None:           # everything hit the cap today -> do a compare
             return make_compare(dry)
     if ctype == "h2h":
-        _bump_h2h()
+        if count_toward_cap:
+            _bump_h2h()
         res = make_h2h(dry, slug=slug)
     else:
         res = make_single(dry, slug, slide3)
-    if not explicit and res and res[0]:   # count successful auto-posts toward the cap
+    if not explicit and res and res[0] and count_toward_cap:   # count scheduled auto-posts toward the cap
         _bump_school(slug)
     return res
 
