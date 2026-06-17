@@ -17303,15 +17303,53 @@ def tiktok_home():
         accts = conn.execute("SELECT * FROM tiktok_accounts ORDER BY connected_at").fetchall()
         agg = {r["open_id"]: r for r in conn.execute(
             "SELECT open_id, COUNT(*) n, COALESCE(SUM(view_count),0) sv FROM tiktok_posts GROUP BY open_id").fetchall()}
+        # latest post per account (most recent create_time) — the card shows its stats
+        latest = {r["open_id"]: r for r in conn.execute(
+            "SELECT t.* FROM tiktok_posts t JOIN (SELECT open_id, MAX(create_time) mc "
+            "FROM tiktok_posts GROUP BY open_id) m ON t.open_id=m.open_id AND t.create_time=m.mc").fetchall()}
+
+    def _posted_when(ts):
+        """unix create_time -> 'Jun 15, 2026 · 3 days ago'."""
+        if not ts:
+            return "—"
+        try:
+            dt = datetime.utcfromtimestamp(int(ts))
+            days = (datetime.utcnow() - dt).days
+            rel = "today" if days <= 0 else ("1 day ago" if days == 1 else f"{days} days ago")
+            return f"{dt.strftime('%b %-d, %Y')} · {rel}"
+        except Exception:
+            return "—"
+
     cards = ""
     for a in accts:
         g = agg.get(a["open_id"])
         n = g["n"] if g else 0
         sv = g["sv"] if g else 0
+        lp = latest.get(a["open_id"])
+        latest_html = '<div style="color:#7c8aa0;font-size:13px;margin-top:8px">No posts pulled yet.</div>'
+        if lp:
+            desc = (lp["description"] or "").strip().replace("<", "&lt;")
+            desc = (desc[:90] + "…") if len(desc) > 90 else desc
+            url = lp["share_url"] or "#"
+            def _m(v):  # 12,300 -> 12.3K
+                v = v or 0
+                return f"{v/1000:.1f}K".replace(".0K", "K") if v >= 1000 else str(v)
+            latest_html = (
+                f'<div style="margin-top:10px;padding-top:10px;border-top:1px solid #16202e">'
+                f'<div style="color:#9fb0c3;font-size:12px;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">Latest post</div>'
+                f'<div style="font-size:13px;color:#c8d2df;margin-bottom:6px">{desc or "(no caption)"}</div>'
+                f'<div style="display:flex;gap:14px;flex-wrap:wrap;font-size:14px;font-weight:700;color:#e9eef5">'
+                f'<span title="views">👁 {_m(lp["view_count"])}</span>'
+                f'<span title="likes">❤️ {_m(lp["like_count"])}</span>'
+                f'<span title="comments">💬 {_m(lp["comment_count"])}</span>'
+                f'<span title="shares">↗ {_m(lp["share_count"])}</span></div>'
+                f'<div style="color:#7c8aa0;font-size:12px;margin-top:6px">Posted {_posted_when(lp["create_time"])} · '
+                f'<a href="{url}" target="_blank" style="color:#5fc9b6">open ↗</a></div></div>')
         cards += (f'<div style="background:#0c1521;border:1px solid #1d2a3d;border-radius:12px;padding:14px;margin:0 0 10px">'
                   f'<b>{a["label"] or a["open_id"]}</b><br>'
                   f'<span style="color:#7c8aa0;font-size:13px">{n} posts tracked · {sv:,} total views · '
-                  f'last pull {a["last_pull_at"] or "never"}</span></div>')
+                  f'last pull {a["last_pull_at"] or "never"}</span>'
+                  f'{latest_html}</div>')
     # ── What's working: engagement rolled up by format / school, over the
     # carousels we could attribute to a real post. Drives the generator's
     # format weighting too, so this is also a window into that feedback.
