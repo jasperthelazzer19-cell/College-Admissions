@@ -104,10 +104,12 @@ def render_slides(slug, slide3, lines, stats_cover=False):
     s3routes = {"grade": "/grade/export", "glowup": f"/glowup/{slug}/export",
                 "chances": f"/chances/{slug}/export"}
     s3path = s3routes.get(slide3, s3routes["chances"])
-    # verify=False on the slide-3 LLM routes (chances/grade/glowup) — slide 2
-    # already confirmed the profile exists, and verifying would re-fire the
-    # (uncached) bullets LLM a second time, doubling cost on the staple format.
-    s3 = _shot(f"{tmp}/s3.png", f"{LOCAL_URL}{s3path}?rkey={CRON_KEY}&clean=1", verify=False)
+    # verify=True warm-fetches the reveal route FIRST (60s timeout), which runs the
+    # bullets LLM once and memoizes it (app._bullet_memo). The screenshot then hits
+    # the cached route and renders instantly — fixes the black slide-3 that happened
+    # when a slow (Max-CLI) bullets gen outlasted the screenshot's 12s timeout.
+    # Generation is free now, so the old "don't double-fire the LLM" reason is moot.
+    s3 = _shot(f"{tmp}/s3.png", f"{LOCAL_URL}{s3path}?rkey={CRON_KEY}&clean=1", verify=True)
     return s1, s2, s3
 
 
