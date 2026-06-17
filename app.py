@@ -12221,8 +12221,29 @@ def _assign_content_account(conn, school_slug=None, slide3_type=None):
                 roster = live
         except Exception as e:
             print("autopause:", e)
-    n = conn.execute("SELECT COUNT(*) c FROM content_queue").fetchone()["c"]
-    return roster[n % len(roster)]["label"]
+    labels = [r["label"] for r in roster]
+    # Balance: lifetime carousels per account (so we hand the next one to whoever's
+    # most "due" — this is the even round-robin).
+    counts = {lab: 0 for lab in labels}
+    for row in conn.execute("SELECT assigned_account, COUNT(*) c FROM content_queue "
+                            "WHERE assigned_account IS NOT NULL GROUP BY assigned_account"):
+        if row["assigned_account"] in counts:
+            counts[row["assigned_account"]] = row["c"]
+    # No-repeat: an account shouldn't get a school it posted in its last 5 (compare
+    # carousels are exempt — and don't count toward any account's recent schools).
+    eligible = labels
+    if school_slug and slide3_type != "compare":
+        def _recent(lab):
+            rows = conn.execute(
+                "SELECT school_slug FROM content_queue WHERE assigned_account=? "
+                "AND IFNULL(slide3_type,'')!='compare' ORDER BY id DESC LIMIT 5", (lab,)).fetchall()
+            return {r["school_slug"] for r in rows}
+        elig = [lab for lab in labels if school_slug not in _recent(lab)]
+        if elig:                         # fall back to all if every account has it recently
+            eligible = elig
+    # Least-loaded eligible account; roster order breaks ties (counts update per
+    # push, so a batch still spreads one to each account).
+    return min(eligible, key=lambda lab: (counts.get(lab, 0), labels.index(lab)))
 
 
 @app.route("/content/queue/push", methods=["POST"])
