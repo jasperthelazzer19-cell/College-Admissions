@@ -62,15 +62,15 @@ def mark_accents(lines, accent_words):
 # ── all slides rendered FREE via headless Chrome (no image API) ────────────
 # NOTE: do NOT add --user-data-dir — with --headless=new it writes the PNG but
 # hangs on exit. Renders run sequentially, so the default profile is fine.
-def _shot(out_path, url, verify=True):
+def _shot(out_path, url, verify=True, static=False):
     # Guard against screenshotting an error/redirect page (e.g. an export whose
     # profile is missing 302-redirects to the editor, or an h2h "student not set"
     # notice) and silently posting it. Fetch first: if it redirected to /profile
     # or the body lacks a render card, fail so the carousel is skipped/retried.
-    # Grading is cached, so this fetch just warms the cache the screenshot reuses.
-    if verify:
+    html = None
+    if verify or static:
         try:
-            resp = urllib.request.urlopen(url, timeout=60)
+            resp = urllib.request.urlopen(url, timeout=90)
             final = resp.geturl()
             html = resp.read().decode("utf-8", "ignore")
         except Exception as e:
@@ -79,13 +79,28 @@ def _shot(out_path, url, verify=True):
             raise RuntimeError(f"export redirected to profile editor (missing data): {url}")
         if 'id="card"' not in html and 'id="tcard"' not in html:
             raise RuntimeError(f"render page missing a card (likely an error/notice page): {url}")
+    target = url
+    if static and html:
+        # Screenshot the ALREADY-RENDERED HTML (file://) instead of re-hitting the
+        # route — the reveal routes run slow LLM work (bullets + counterfactual
+        # grades) per request, and on the Max-CLI path that outlasts the capture
+        # timeout, producing a BLACK slide. The fetch above ran the route once; we
+        # now capture that exact HTML statically (no LLM during the screenshot).
+        # Rewrite root-relative asset URLs (logos at /static/...) to absolute so
+        # file:// loads them from the local server.
+        html = (html.replace('="/static', f'="{LOCAL_URL}/static')
+                    .replace("='/static", f"='{LOCAL_URL}/static"))
+        tmpf = out_path + ".html"
+        with open(tmpf, "w", encoding="utf-8") as f:
+            f.write(html)
+        target = "file://" + tmpf
     # Extra flags for containerized Chromium (root needs --no-sandbox, small
     # /dev/shm needs --disable-dev-shm-usage). No-op on the Mac (unset).
     extra = os.environ.get("CHROME_EXTRA_FLAGS", "").split()
     subprocess.run([CHROME, "--headless=new", "--disable-gpu", "--hide-scrollbars",
                     "--force-device-scale-factor=2", "--window-size=1024,1536",
                     "--virtual-time-budget=6000", "--timeout=12000", *extra,
-                    f"--screenshot={out_path}", url],
+                    f"--screenshot={out_path}", target],
                    check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=120)
     with open(out_path, "rb") as f:
         return "data:image/png;base64," + base64.b64encode(f.read()).decode()
@@ -109,7 +124,7 @@ def render_slides(slug, slide3, lines, stats_cover=False):
     # the cached route and renders instantly — fixes the black slide-3 that happened
     # when a slow (Max-CLI) bullets gen outlasted the screenshot's 12s timeout.
     # Generation is free now, so the old "don't double-fire the LLM" reason is moot.
-    s3 = _shot(f"{tmp}/s3.png", f"{LOCAL_URL}{s3path}?rkey={CRON_KEY}&clean=1", verify=True)
+    s3 = _shot(f"{tmp}/s3.png", f"{LOCAL_URL}{s3path}?rkey={CRON_KEY}&clean=1", static=True)
     return s1, s2, s3
 
 
