@@ -12109,8 +12109,21 @@ def _assign_content_account(conn, school_slug=None, slide3_type=None):
     """Round-robin the next carousel across the account roster, so a batch of N
     spreads one carousel to each account — a batch of 5 covers all 5 exactly, and
     consecutive batches keep cycling evenly. Deterministic (rotation = total
-    carousels so far mod roster size). Returns the slot's display label."""
+    carousels so far mod roster size). Returns the slot's display label.
+
+    Auto-pause: any account flagged 'likely' by the shadowban detector is dropped
+    from the rotation (stop feeding a suppressed account) until it recovers — unless
+    that would leave nobody, or TT_AUTOPAUSE=0. It resumes automatically once the
+    detector clears it."""
     roster = _content_account_roster(conn)
+    if os.environ.get("TT_AUTOPAUSE") != "0":
+        try:
+            flagged = {oid for oid, h in tiktok_account_health().items() if h.get("status") == "likely"}
+            live = [r for r in roster if r["open_id"] not in flagged]
+            if live:
+                roster = live
+        except Exception as e:
+            print("autopause:", e)
     n = conn.execute("SELECT COUNT(*) c FROM content_queue").fetchone()["c"]
     return roster[n % len(roster)]["label"]
 
@@ -12214,10 +12227,14 @@ def content_request_batch():
     the links back). Atomic claim on batch_requests keeps it from double-rendering."""
     if not _is_creator():
         abort(404)
-    try:
-        n = int(request.form.get("count", 4))
-    except (TypeError, ValueError):
-        n = 4
+    raw = request.form.get("count", "4")
+    if raw == "auto":                       # "one per active account" — drops to 4 if one's paused
+        n = _active_account_count()
+    else:
+        try:
+            n = int(raw)
+        except (TypeError, ValueError):
+            n = 4
     n = max(1, min(8, n))
     # optional chosen schools (validated against real slugs); blank entries = auto
     chosen = [s for s in request.form.getlist("slugs") if s in COLLEGES_BY_SLUG][:n]
@@ -12490,6 +12507,7 @@ def content_today():
            'border:1px solid #2b3a4f;margin:0 0 8px;font-size:14px')
     sel1 = f'<select name="slugs" style="{_ss}">{_opts}</select>'
     sel4 = "".join(f'<select name="slugs" style="{_ss}">{_opts}</select>' for _ in range(5))
+    _active_n = _active_account_count()
     make_btn = (
         '<div style="display:flex;gap:12px;margin:0 0 18px;flex-wrap:wrap">'
         f'<form method="post" action="/content/request-batch" style="flex:1;min-width:210px;background:#0c1521;'
@@ -12501,11 +12519,11 @@ def content_today():
         f'padding:13px;border-radius:11px;font-size:15px;cursor:pointer">⚡ Make 1</button></form>'
         f'<form method="post" action="/content/request-batch" style="flex:2;min-width:240px;background:#0c1521;'
         f'border:1px solid #1d2a3d;border-radius:14px;padding:14px">{csrf_input()}'
-        f'<input type="hidden" name="count" value="5">'
-        f'<div style="font-weight:800;font-size:12px;color:#7c8aa0;margin:0 0 8px;letter-spacing:.4px">PICK UP TO 5 (BLANKS = AUTO)</div>'
+        f'<input type="hidden" name="count" value="auto">'
+        f'<div style="font-weight:800;font-size:12px;color:#7c8aa0;margin:0 0 8px;letter-spacing:.4px">ONE PER ACCOUNT (BLANKS = AUTO)</div>'
         f'{sel4}'
         f'<button style="width:100%;background:#5fc9b6;color:#06121a;font-weight:800;border:0;'
-        f'padding:13px;border-radius:11px;font-size:15px;cursor:pointer">⚡ Make 5 fresh carousels</button></form>'
+        f'padding:13px;border-radius:11px;font-size:15px;cursor:pointer">⚡ Make a set — one per account ({_active_n})</button></form>'
         '</div>')
     save_script = (
         '<script>'
@@ -17376,8 +17394,12 @@ def _tiktok_perf_rows(group_sql, label_sql):
 # flag when the recent ones crater vs the account's own baseline. Heuristic, never
 # definitive (TikTok doesn't expose suppression directly).
 _TT_MATURE_SECS = 3 * 86400
-_TT_SB_MIN_MATURE = 8          # need this many mature videos to judge
+_TT_SB_MIN_MATURE = 8          # need this many mature videos for the baseline check
 _TT_SB_RECENT_N = 4            # "recent" = last N mature videos
+# Jasper's rule of thumb: ~5 recent posts stuck under 50 views = shadowbanned,
+# pause that account a day or two. A hard floor on top of the relative check.
+_TT_LOW_VIEWS = int(os.environ.get("TT_LOW_VIEWS", "50"))
+_TT_LOW_COUNT = int(os.environ.get("TT_LOW_COUNT", "5"))
 
 
 def tiktok_account_health():
@@ -17398,8 +17420,17 @@ def tiktok_account_health():
                     "ORDER BY create_time DESC", (a["open_id"],)).fetchall()
                 mature = [r for r in rows if (now - r["t"]) >= _TT_MATURE_SECS]
                 base = {"label": a["label"] or a["open_id"]}
+                # HARD FLOOR FIRST: count recent posts (>=1 day old, so they had the
+                # initial push) stuck under the low-view threshold. 5+ -> pause it.
+                low_recent = sum(1 for r in rows[:8]
+                                 if (now - r["t"]) >= 86400 and (r["v"] or 0) < _TT_LOW_VIEWS)
+                if low_recent >= _TT_LOW_COUNT:
+                    base.update(status="likely", low_recent=low_recent,
+                                note=f"🛑 {low_recent} recent posts under {_TT_LOW_VIEWS} views — pause this account 1–2 days")
+                    out[a["open_id"]] = base; continue
                 if len(mature) < _TT_SB_MIN_MATURE:
-                    base.update(status="insufficient", note=f"{len(mature)} mature post(s) — need {_TT_SB_MIN_MATURE}+")
+                    base.update(status="insufficient",
+                                note=f"{len(mature)} mature post(s) — need {_TT_SB_MIN_MATURE}+ (or {_TT_LOW_COUNT} under {_TT_LOW_VIEWS} views to flag)")
                     out[a["open_id"]] = base; continue
                 recent = mature[:_TT_SB_RECENT_N]
                 older = mature[_TT_SB_RECENT_N:]
@@ -17426,6 +17457,20 @@ def tiktok_account_health():
     except Exception as e:
         print("tiktok health:", e)
     return out
+
+
+def _active_account_count():
+    """Connected accounts NOT currently flagged 'likely' shadowbanned (min 1). The
+    per-account batch uses this, so one flagged account drops a batch from 5 -> 4.
+    Falls back to CONTENT_ACCOUNT_SLOTS when nothing's connected yet."""
+    try:
+        health = tiktok_account_health()
+        if not health:
+            return CONTENT_ACCOUNT_SLOTS
+        flagged = sum(1 for h in health.values() if h.get("status") == "likely")
+        return max(1, len(health) - flagged)
+    except Exception:
+        return CONTENT_ACCOUNT_SLOTS
 
 
 @app.route("/tiktok/pull")
@@ -17557,11 +17602,15 @@ def tiktok_home():
     for a in accts:
         h = health.get(a["open_id"]) or {"status": "insufficient", "note": ""}
         bg, fg, lab = _hstyle.get(h["status"], _hstyle["insufficient"])
-        if h["status"] in ("healthy", "watch", "possible", "likely"):
+        if h.get("note"):
+            detail = h["note"]
+        elif "recent" in h:
             detail = (f'recent ~{h["recent"]:,} vs baseline ~{h["baseline"]:,} views '
                       f'({int(h["ratio"]*100)}% · {h["n"]} mature)')
         else:
-            detail = h.get("note", "")
+            detail = ""
+        if h["status"] == "likely" and os.environ.get("TT_AUTOPAUSE") != "0":
+            detail += '  ·  ⏸ <b>auto-paused</b> (not generating until it recovers)'
         hrows += (f'<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;'
                   f'background:{bg};border-radius:10px;padding:9px 12px;margin:0 0 7px;font-size:13px">'
                   f'<span style="color:#e9eef5;font-weight:700">{a["label"] or a["open_id"]}</span>'
