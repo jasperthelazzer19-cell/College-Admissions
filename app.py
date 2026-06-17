@@ -11978,7 +11978,7 @@ def _title_card_body(slug, sch, hook, nologo=False):
     short, color = _school_brand(slug, sch.get("name"))
     outline = SCHOOL_TEXT_OUTLINE.get(slug)
     logo_url = None if nologo else (INST_LOGOS.get(slug) or SCHOOL_LOGOS.get(slug))
-    logo_html = (f'<img src="{logo_url}" style="max-height:100%;max-width:80%;object-fit:contain;display:block;margin:0 auto">'
+    logo_html = (f'<img src="{logo_url}" style="max-height:100%;max-width:92%;object-fit:contain;display:block;margin:0 auto">'
                  if logo_url else '')
     lines = [ln for ln in hook.upper().split("\n") if ln.strip()]
     line_html = "".join(
@@ -11988,7 +11988,7 @@ def _title_card_body(slug, sch, hook, nologo=False):
     # Singles fill BIG: words scale to full width (cap keeps a short line from
     # dominating), lines packed tight, and any leftover room grows the logo (up to
     # logoMax) instead of opening gaps. cardH+pad sum to the full card.
-    return _title_frame(line_html, logo_html, logoH=300, cardH=1436, maxFont=420, logoMax=560)
+    return _title_frame(line_html, logo_html, logoH=300, cardH=1436, maxFont=420, logoMax=720)
 
 
 def _compare_title_body(slugs):
@@ -12015,14 +12015,14 @@ def _compare_title_body(slugs):
                       f'<span style="color:{color}">{short}</span><span style="color:#111">{suffix}</span>'
                       f'</span></div>')
     # Big logos, filling the band (match the reference compare slides).
-    logos = "".join(f'<img src="{l}" style="max-height:100%;max-width:31%;object-fit:contain">'
+    logos = "".join(f'<img src="{l}" style="max-height:100%;max-width:35%;object-fit:contain">'
                     for (_s, _c, l) in schools if l)
     logo_row = (f'<div style="display:flex;align-items:center;justify-content:center;gap:26px;'
                 f'width:100%;height:100%">{logos}</div>')
     # Bigger text area (cardH) + big logo band, and cap per-line size so the short
     # school names (UNC/UCLA) stay big-but-bounded and the stack fills the frame
     # instead of being globally shrunk. Matches the reference compare slides.
-    return _title_frame(line_html, logo_row, logoH=320, cardH=1470, maxFont=300)
+    return _title_frame(line_html, logo_row, logoH=320, cardH=1470, maxFont=300, logoMax=640)
 
 
 @app.route("/title-compare/export")
