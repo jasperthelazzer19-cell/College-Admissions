@@ -11934,36 +11934,25 @@ def _title_frame(line_html, logo_html, maxH=1040, logoH=360, cardH=1402, maxFont
     can't blow up the whole stack and force a global shrink. cardH/logoH/logoMax
     let the compare use a bigger text area + logos without changing the single look."""
     capjs = f'if({maxFont}>0&&fs>{maxFont})fs={maxFont};' if maxFont else ''
-    lm = logoMax or (logoH + 240)
-    return (f'<div id="tcard" style="height:{cardH}px;display:flex;flex-direction:column;justify-content:center;'
+    return (f'<div id="tcard" style="height:{cardH}px;display:flex;flex-direction:column;'
             f"font-family:'AntonEmb','Anton',sans-serif;font-weight:400;letter-spacing:-2px;color:#111;text-transform:uppercase\">"
-            f'<div id="tbox" style="display:flex;flex-direction:column;justify-content:center;flex:1 1 auto;'
+            f'<div id="tbox" style="display:flex;flex-direction:column;justify-content:center;flex:1;'
             f'text-align:center;gap:0px;min-height:0">{line_html}</div>'
-            f'<div id="tlogo" style="flex:0 0 {logoH}px;display:flex;align-items:center;justify-content:center;overflow:hidden">{logo_html}</div>'
+            f'<div style="flex:0 0 {logoH}px;display:flex;align-items:center;justify-content:center">{logo_html}</div>'
             f'</div>'
             f'<script>(function(){{function fit(){{'
-            f'var box=document.getElementById("tbox"),logo=document.getElementById("tlogo");if(!box)return;'
-            # reset to the measurement layout (idempotent across repeated fit() calls)
-            f'box.style.flex="1 1 auto";logo.style.flex="0 0 {logoH}px";'
-            f'var cw=box.clientWidth;'
+            f'var box=document.getElementById("tbox");if(!box)return;var cw=box.clientWidth;'
             f'var ls=[].slice.call(box.querySelectorAll(".tline"));'
+            f'box.style.justifyContent="center";'
             f'ls.forEach(function(l){{l.style.fontSize="120px";'
             f'var w=l.querySelector(".tin").getBoundingClientRect().width;'
             f'if(w>0){{var fs=Math.floor(120*cw/w);{capjs}l.style.fontSize=fs+"px";}}}});'
-            # Real text height = sum of line heights (scrollHeight is unreliable in a
-            # centered flex column).
             f'function th(){{var s=0;ls.forEach(function(l){{s+=l.offsetHeight;}});return s;}}'
-            # Shrink only if the (capped) stack actually overflows the text area.
             f'var avail=box.clientHeight-22;'
             f'for(var p=0;p<5;p++){{var t=th();if(t<=avail)break;var k=avail/t;'
             f'ls.forEach(function(l){{l.style.fontSize=Math.floor(parseFloat(l.style.fontSize)*k)+"px";}});}}'
-            # Leftover room -> bigger logo (NOT gaps): pin the text band to its real
-            # height and grow the logo band by the freed slack, capped at logoMax. The
-            # text+logo block is centered by the card, so any residual is outer margin.
-            f'var textH=Math.min(th()+10, box.clientHeight);'
-            f'var slack=Math.max(0, box.clientHeight-textH);'
-            f'var grown=Math.min({lm}, {logoH}+slack);'
-            f'box.style.flex="0 0 "+textH+"px";logo.style.flex="0 0 "+grown+"px";'
+            # Lines stay centered & packed tight — NO space-between. Any leftover room
+            # is balanced margin around the block, never gaps between the lines.
             f'}}'
             f'if(document.fonts&&document.fonts.ready){{document.fonts.ready.then(fit);}}else{{fit();}}'
             f'setTimeout(fit,250);setTimeout(fit,700);}})();</script>')
@@ -11978,7 +11967,7 @@ def _title_card_body(slug, sch, hook, nologo=False):
     short, color = _school_brand(slug, sch.get("name"))
     outline = SCHOOL_TEXT_OUTLINE.get(slug)
     logo_url = None if nologo else (INST_LOGOS.get(slug) or SCHOOL_LOGOS.get(slug))
-    logo_html = (f'<img src="{logo_url}" style="max-height:100%;max-width:92%;object-fit:contain;display:block;margin:0 auto">'
+    logo_html = (f'<img src="{logo_url}" style="max-height:400px;max-width:90%;object-fit:contain;display:block;margin:0 auto">'
                  if logo_url else '')
     lines = [ln for ln in hook.upper().split("\n") if ln.strip()]
     line_html = "".join(
@@ -11988,7 +11977,7 @@ def _title_card_body(slug, sch, hook, nologo=False):
     # Singles fill BIG: words scale to full width (cap keeps a short line from
     # dominating), lines packed tight, and any leftover room grows the logo (up to
     # logoMax) instead of opening gaps. cardH+pad sum to the full card.
-    return _title_frame(line_html, logo_html, logoH=300, cardH=1436, maxFont=420, logoMax=720)
+    return _title_frame(line_html, logo_html, logoH=440, cardH=1436, maxFont=380)
 
 
 def _compare_title_body(slugs):
@@ -12015,14 +12004,14 @@ def _compare_title_body(slugs):
                       f'<span style="color:{color}">{short}</span><span style="color:#111">{suffix}</span>'
                       f'</span></div>')
     # Big logos, filling the band (match the reference compare slides).
-    logos = "".join(f'<img src="{l}" style="max-height:100%;max-width:35%;object-fit:contain">'
+    logos = "".join(f'<img src="{l}" style="max-height:340px;max-width:33%;object-fit:contain">'
                     for (_s, _c, l) in schools if l)
     logo_row = (f'<div style="display:flex;align-items:center;justify-content:center;gap:26px;'
-                f'width:100%;height:100%">{logos}</div>')
+                f'width:100%">{logos}</div>')
     # Bigger text area (cardH) + big logo band, and cap per-line size so the short
     # school names (UNC/UCLA) stay big-but-bounded and the stack fills the frame
     # instead of being globally shrunk. Matches the reference compare slides.
-    return _title_frame(line_html, logo_row, logoH=320, cardH=1470, maxFont=300, logoMax=640)
+    return _title_frame(line_html, logo_row, logoH=380, cardH=1470, maxFont=300)
 
 
 @app.route("/title-compare/export")
