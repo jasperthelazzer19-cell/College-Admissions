@@ -11920,43 +11920,50 @@ def _hook_html(hook, accent, outline=None):
     return "".join(f'<span style="color:{accent}{stroke}">{t}</span>' if a else t for t, a in parts)
 
 
-def _title_frame(line_html, logo_html, maxH=1040, logoH=360, cardH=1402, maxFont=0):
+def _title_frame(line_html, logo_html, maxH=1040, logoH=360, cardH=1402, maxFont=0, logoMax=0):
     """Shared @candor title-slide frame used by BOTH the single-school hook and
     the compare title, so they look identical: each line scaled to span the full
     width (justified-block look), with the school logo(s) in a band at the bottom.
 
-    maxFont caps any single line's size: short lines (a 3-4 letter school name)
-    would otherwise blow up to fill the width and make the whole stack so tall it
-    gets globally shrunk (= small text + margins). Capping keeps headers full-width
-    and short school names big-but-bounded, so the text fills the frame like the
-    reference slides. cardH/logoH let the compare use a bigger text area + bigger
-    logos without changing the single-title look."""
+    Lines are ALWAYS packed tight (line-height .92) and centered — never spread
+    apart. Any leftover vertical room is poured into a BIGGER LOGO (grown up to
+    logoMax) and, beyond that, balanced outer margin via the centered card. So
+    'extra space' shows up as larger words/logo, never as blank gaps between lines.
+
+    maxFont caps any single line's size so a short line (a 3-4 letter school name)
+    can't blow up the whole stack and force a global shrink. cardH/logoH/logoMax
+    let the compare use a bigger text area + logos without changing the single look."""
     capjs = f'if({maxFont}>0&&fs>{maxFont})fs={maxFont};' if maxFont else ''
-    return (f'<div id="tcard" style="height:{cardH}px;display:flex;flex-direction:column;'
+    lm = logoMax or (logoH + 240)
+    return (f'<div id="tcard" style="height:{cardH}px;display:flex;flex-direction:column;justify-content:center;'
             f"font-family:'AntonEmb','Anton',sans-serif;font-weight:400;letter-spacing:-2px;color:#111;text-transform:uppercase\">"
-            f'<div id="tbox" style="display:flex;flex-direction:column;justify-content:center;flex:1;'
+            f'<div id="tbox" style="display:flex;flex-direction:column;justify-content:center;flex:1 1 auto;'
             f'text-align:center;gap:0px;min-height:0">{line_html}</div>'
-            f'<div style="flex:0 0 {logoH}px;display:flex;align-items:center;justify-content:center">{logo_html}</div>'
+            f'<div id="tlogo" style="flex:0 0 {logoH}px;display:flex;align-items:center;justify-content:center;overflow:hidden">{logo_html}</div>'
             f'</div>'
             f'<script>(function(){{function fit(){{'
-            f'var box=document.getElementById("tbox");if(!box)return;var cw=box.clientWidth;'
+            f'var box=document.getElementById("tbox"),logo=document.getElementById("tlogo");if(!box)return;'
+            # reset to the measurement layout (idempotent across repeated fit() calls)
+            f'box.style.flex="1 1 auto";logo.style.flex="0 0 {logoH}px";'
+            f'var cw=box.clientWidth;'
             f'var ls=[].slice.call(box.querySelectorAll(".tline"));'
-            f'box.style.justifyContent="center";'
             f'ls.forEach(function(l){{l.style.fontSize="120px";'
             f'var w=l.querySelector(".tin").getBoundingClientRect().width;'
             f'if(w>0){{var fs=Math.floor(120*cw/w);{capjs}l.style.fontSize=fs+"px";}}}});'
-            # Measure the REAL text height = sum of the line heights. (scrollHeight is
-            # unreliable here: a centered flex column that fits reports
-            # scrollHeight==clientHeight, so it can neither detect overflow nor slack.)
+            # Real text height = sum of line heights (scrollHeight is unreliable in a
+            # centered flex column).
             f'function th(){{var s=0;ls.forEach(function(l){{s+=l.offsetHeight;}});return s;}}'
-            # Shrink only if the (capped) stack actually overflows the box.
+            # Shrink only if the (capped) stack actually overflows the text area.
             f'var avail=box.clientHeight-22;'
             f'for(var p=0;p<5;p++){{var t=th();if(t<=avail)break;var k=avail/t;'
             f'ls.forEach(function(l){{l.style.fontSize=Math.floor(parseFloat(l.style.fontSize)*k)+"px";}});}}'
-            # Vertical fill: if the lines leave real slack (any line count — a 3-line
-            # h2h, a 4-line single), spread them top-to-bottom so the text FILLS the
-            # frame instead of floating centered. No-op when it already fills (compare).
-            f'if(th() < box.clientHeight - 36){{box.style.justifyContent="space-between";}}'
+            # Leftover room -> bigger logo (NOT gaps): pin the text band to its real
+            # height and grow the logo band by the freed slack, capped at logoMax. The
+            # text+logo block is centered by the card, so any residual is outer margin.
+            f'var textH=Math.min(th()+10, box.clientHeight);'
+            f'var slack=Math.max(0, box.clientHeight-textH);'
+            f'var grown=Math.min({lm}, {logoH}+slack);'
+            f'box.style.flex="0 0 "+textH+"px";logo.style.flex="0 0 "+grown+"px";'
             f'}}'
             f'if(document.fonts&&document.fonts.ready){{document.fonts.ready.then(fit);}}else{{fit();}}'
             f'setTimeout(fit,250);setTimeout(fit,700);}})();</script>')
@@ -11971,17 +11978,17 @@ def _title_card_body(slug, sch, hook, nologo=False):
     short, color = _school_brand(slug, sch.get("name"))
     outline = SCHOOL_TEXT_OUTLINE.get(slug)
     logo_url = None if nologo else (INST_LOGOS.get(slug) or SCHOOL_LOGOS.get(slug))
-    logo_html = (f'<img src="{logo_url}" style="max-height:310px;max-width:78%;object-fit:contain;display:block;margin:0 auto">'
+    logo_html = (f'<img src="{logo_url}" style="max-height:100%;max-width:80%;object-fit:contain;display:block;margin:0 auto">'
                  if logo_url else '')
     lines = [ln for ln in hook.upper().split("\n") if ln.strip()]
     line_html = "".join(
         f'<div class="tline" style="line-height:.92;font-size:120px;-webkit-text-stroke:.6px currentColor">'
         f'<span class="tin" style="display:inline-block;white-space:nowrap">{_hook_html(ln, color, outline)}</span></div>'
         for ln in lines)
-    # Singles fill BIG: higher per-line cap (school names go larger) + the th()-based
-    # fill spreads any line count to fill the frame. cardH+pad sum to the full 1536
-    # card. (Compare keeps its own tighter cap — short school names there.)
-    return _title_frame(line_html, logo_html, logoH=300, cardH=1436, maxFont=380)
+    # Singles fill BIG: words scale to full width (cap keeps a short line from
+    # dominating), lines packed tight, and any leftover room grows the logo (up to
+    # logoMax) instead of opening gaps. cardH+pad sum to the full card.
+    return _title_frame(line_html, logo_html, logoH=300, cardH=1436, maxFont=420, logoMax=560)
 
 
 def _compare_title_body(slugs):
@@ -12008,10 +12015,10 @@ def _compare_title_body(slugs):
                       f'<span style="color:{color}">{short}</span><span style="color:#111">{suffix}</span>'
                       f'</span></div>')
     # Big logos, filling the band (match the reference compare slides).
-    logos = "".join(f'<img src="{l}" style="max-height:290px;max-width:31%;object-fit:contain">'
+    logos = "".join(f'<img src="{l}" style="max-height:100%;max-width:31%;object-fit:contain">'
                     for (_s, _c, l) in schools if l)
     logo_row = (f'<div style="display:flex;align-items:center;justify-content:center;gap:26px;'
-                f'width:100%">{logos}</div>')
+                f'width:100%;height:100%">{logos}</div>')
     # Bigger text area (cardH) + big logo band, and cap per-line size so the short
     # school names (UNC/UCLA) stay big-but-bounded and the stack fills the frame
     # instead of being globally shrunk. Matches the reference compare slides.
