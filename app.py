@@ -17498,17 +17498,22 @@ def tiktok_account_health():
                     "ORDER BY create_time DESC", (a["open_id"],)).fetchall()
                 mature = [r for r in rows if (now - r["t"]) >= _TT_MATURE_SECS]
                 base = {"label": a["label"] or a["open_id"]}
-                # HARD FLOOR FIRST: recent posts that are >=12h old (had the initial
-                # push) and stuck under the low-view threshold. Re-checked every pull,
-                # so a video that recovers by 24-48h drops out; ones still low at 48h
-                # are "confirmed". 5+ low -> pause the account.
-                recent8 = rows[:8]
-                low = [r for r in recent8 if (now - r["t"]) >= _TT_MATURE_SECS and (r["v"] or 0) < _TT_LOW_VIEWS]
-                confirmed = [r for r in low if (now - r["t"]) >= _TT_CONFIRM_SECS]
-                if len(low) >= _TT_LOW_COUNT:
-                    cf = f", {len(confirmed)} confirmed 48h+" if confirmed else ""
-                    base.update(status="likely", low_recent=len(low),
-                                note=f"🛑 {len(low)} recent posts under {_TT_LOW_VIEWS} views (12h+{cf}) — pause this account 1–2 days")
+                # HARD FLOOR FIRST: a STREAK of consecutive recent posts (>=12h old,
+                # newest first) all under the low-view threshold — 5 IN A ROW, not 5
+                # scattered. The streak breaks the moment a post performs, so a single
+                # hit resets it. Posts still low at 48h are "confirmed". Re-checked
+                # every pull. 5-in-a-row -> pause the account.
+                streak = 0
+                for r in mature:                      # mature is newest-first (rows DESC)
+                    if (r["v"] or 0) < _TT_LOW_VIEWS:
+                        streak += 1
+                    else:
+                        break
+                if streak >= _TT_LOW_COUNT:
+                    confirmed = sum(1 for r in mature[:streak] if (now - r["t"]) >= _TT_CONFIRM_SECS)
+                    cf = f", {confirmed} confirmed 48h+" if confirmed else ""
+                    base.update(status="likely", low_recent=streak,
+                                note=f"🛑 {streak} posts in a row under {_TT_LOW_VIEWS} views (12h+{cf}) — pause this account 1–2 days")
                     out[a["open_id"]] = base; continue
                 if len(mature) < _TT_SB_MIN_MATURE:
                     base.update(status="insufficient",
