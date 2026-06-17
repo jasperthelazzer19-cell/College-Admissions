@@ -17465,12 +17465,13 @@ def _tiktok_perf_rows(group_sql, label_sql):
         return []
 
 
-# Shadowban heuristic: a TikTok shadowban shows up as a sharp, sustained collapse
-# in reach. Tricky part — newer videos naturally have fewer total views (less time
-# to accumulate), so we ONLY compare MATURE videos (>=3 days old, ~final views) and
-# flag when the recent ones crater vs the account's own baseline. Heuristic, never
-# definitive (TikTok doesn't expose suppression directly).
-_TT_MATURE_SECS = 3 * 86400
+# Shadowban heuristic: a TikTok shadowban shows up as a sharp, sustained reach
+# collapse. TikTok's initial FYP push happens within hours, so a video stuck low
+# after ~12h is already a signal — we EVALUATE from 12h (not 3 days), re-check it
+# every 12h pull, and consider the verdict firm by ~48h (a video still flat 2 days
+# in isn't coming back). Heuristic, never definitive (TikTok hides suppression).
+_TT_MATURE_SECS = 12 * 3600     # evaluate a video once it's had ~12h to get pushed
+_TT_CONFIRM_SECS = 48 * 3600    # a low video this old is confirmed, not just slow
 _TT_SB_MIN_MATURE = 8          # need this many mature videos for the baseline check
 _TT_SB_RECENT_N = 4            # "recent" = last N mature videos
 # Jasper's rule of thumb: ~5 recent posts stuck under 50 views = shadowbanned,
@@ -17497,13 +17498,17 @@ def tiktok_account_health():
                     "ORDER BY create_time DESC", (a["open_id"],)).fetchall()
                 mature = [r for r in rows if (now - r["t"]) >= _TT_MATURE_SECS]
                 base = {"label": a["label"] or a["open_id"]}
-                # HARD FLOOR FIRST: count recent posts (>=1 day old, so they had the
-                # initial push) stuck under the low-view threshold. 5+ -> pause it.
-                low_recent = sum(1 for r in rows[:8]
-                                 if (now - r["t"]) >= 86400 and (r["v"] or 0) < _TT_LOW_VIEWS)
-                if low_recent >= _TT_LOW_COUNT:
-                    base.update(status="likely", low_recent=low_recent,
-                                note=f"🛑 {low_recent} recent posts under {_TT_LOW_VIEWS} views — pause this account 1–2 days")
+                # HARD FLOOR FIRST: recent posts that are >=12h old (had the initial
+                # push) and stuck under the low-view threshold. Re-checked every pull,
+                # so a video that recovers by 24-48h drops out; ones still low at 48h
+                # are "confirmed". 5+ low -> pause the account.
+                recent8 = rows[:8]
+                low = [r for r in recent8 if (now - r["t"]) >= _TT_MATURE_SECS and (r["v"] or 0) < _TT_LOW_VIEWS]
+                confirmed = [r for r in low if (now - r["t"]) >= _TT_CONFIRM_SECS]
+                if len(low) >= _TT_LOW_COUNT:
+                    cf = f", {len(confirmed)} confirmed 48h+" if confirmed else ""
+                    base.update(status="likely", low_recent=len(low),
+                                note=f"🛑 {len(low)} recent posts under {_TT_LOW_VIEWS} views (12h+{cf}) — pause this account 1–2 days")
                     out[a["open_id"]] = base; continue
                 if len(mature) < _TT_SB_MIN_MATURE:
                     base.update(status="insufficient",
@@ -17695,7 +17700,7 @@ def tiktok_home():
                   f'<div style="color:#7c8aa0;font-size:11.5px;margin:-4px 0 9px 4px">{detail}</div>')
     health_html = (f'<h2 style="margin:24px 0 8px;font-size:18px">🩺 Shadowban check</h2>'
                    f'<div style="color:#7c8aa0;font-size:12px;margin:0 0 10px">Flags a sustained reach collapse vs '
-                   f'the account\'s own baseline (mature posts only, so video age doesn\'t skew it). A heuristic, '
+                   f'the account\'s own baseline (each post evaluated from ~12h, re-checked every pull, firm by ~48h). A heuristic, '
                    f'not a verdict — TikTok doesn\'t report suppression directly.</div>{hrows}')
     btn = ('display:inline-block;font-weight:800;padding:13px 20px;border-radius:11px;text-decoration:none;margin:12px 8px 0 0')
     body = (f'<div style="max-width:640px;margin:0 auto;padding:24px 16px 80px">'
