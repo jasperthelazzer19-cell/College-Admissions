@@ -270,11 +270,20 @@ def make_single(dry=False, slug=None, slide3=None):
                                                    want_grade=(g["slide3"] == "grade"))
     short, accent = app._school_brand(slug, g["name"])
     lines, accent_words = g["lines"], g["accent_words"]
+    title_formula = "llm"
+    # Result-forward variant (~30%): put the REAL verdict on the cover instead of a
+    # teaser — "CANDOR GAVE THIS DUKE APPLICANT A... 4-7% CHANCE" / "...70/100".
+    # Matches the number-on-cover style used across the live accounts.
+    if g["slide3"] in ("chances", "grade") and random.random() < float(os.environ.get("RESULT_FORWARD_RATE", "0.3")):
+        nt = numeric_title(short, g["slide3"], low, high, gnum)
+        if nt:
+            lines, accent_words = nt
+            title_formula = "numeric"
     marked = mark_accents(lines, accent_words)
     s1, s2, s3 = render_slides(slug, g["slide3"], marked)
     hook = " ".join(lines)
     payload = dict(school_slug=slug, school_name=g["name"], accent=accent, title_text=hook,
-                   title_formula="llm", slide3_type=g["slide3"], profile_json=json.dumps(g["profile"]),
+                   title_formula=title_formula, slide3_type=g["slide3"], profile_json=json.dumps(g["profile"]),
                    odds_text=odds, grade_text=grade, img1=s1, img2=s2, img3=s3,
                    meta={"lines": lines, "accent_words": accent_words})
     return _finish(payload, dry, f"{slug} | {hook[:40]} | {g['slide3']} | {odds} {grade}")

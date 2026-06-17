@@ -36,12 +36,30 @@ _TITLE_FAMILIES = {
         "DID THIS | APPLICANT | GET INTO | {S}?   (accent: {S})",
         "BE HONEST — | DOES THIS KID | GET INTO | {S}?   (accent: HONEST, {S})",
         "REJECTED OR | ACCEPTED | AT {S}?   (accent: REJECTED, {S})",
+        "ACCEPTED OR | REJECTED | AT {S}?   (accent: ACCEPTED, {S})",
+        "CAN I | GET INTO | {S}?   (accent: {S})",
+        "THIS STUDENT THINKS | THEY'RE GETTING | INTO {S} — | ARE THEY RIGHT?   (accent: {S}, RIGHT)",
         # brand-forward "Candor ___" hooks (no number — reveal is a later slide)
         "CANDOR GAVE | THIS {S} | APPLICANT A...   (accent: {S})",
         "CANDOR SAYS | THIS {S} | APPLICANT...   (accent: {S})",
         "I ASKED CANDOR | IF THIS KID | GETS INTO | {S}   (accent: CANDOR, {S})",
         "CANDOR RAN | THE ODDS ON | THIS {S} | APPLICANT   (accent: {S})",
         "CANDOR PREDICTED | THIS {S} | DECISION   (accent: {S})",
+        # more guessing-game / verdict framings
+        "IN OR OUT | AT {S}?   (accent: IN, {S})",
+        "DOES THIS | APPLICANT | CRACK {S}?   (accent: CRACK, {S})",
+        "WOULD {S} | TAKE THIS | APPLICANT?   (accent: {S})",
+        "IS THIS | A {S} | ADMIT?   (accent: {S})",
+        "WHAT ARE | THE ODDS | THIS KID | GETS INTO | {S}?   (accent: {S})",
+        "HOW LIKELY | IS THIS KID | TO GET INTO | {S}?   (accent: {S})",
+        "PREDICT THIS | APPLICANT'S | {S} | DECISION   (accent: {S})",
+        "{S}: | YES OR NO | FOR THIS | APPLICANT?   (accent: {S}, YES)",
+        "IS THIS | ENOUGH | TO GET INTO | {S}?   (accent: {S})",
+        # underdog / overconfidence / spicy angles
+        "EVERYONE SAYS | THIS KID CAN'T | GET INTO | {S}   (accent: CAN'T, {S})",
+        "THIS KID SWEARS | THEY'RE GETTING | INTO {S}   (accent: {S})",
+        "NO WAY | THIS APPLICANT | GETS INTO | {S}... | RIGHT?   (accent: {S})",
+        "THEY THINK | THEY'RE A LOCK | FOR {S}   (accent: LOCK, {S})",
     ],
     "grade": [
         "CANDOR | GRADED THIS | {S} | APPLICANT'S | PROFILE   (accent: {S})",
@@ -56,6 +74,15 @@ _TITLE_FAMILIES = {
         "CANDOR | RATED THIS | {S} | PROFILE   (accent: {S})",
         "CANDOR | BROKE DOWN | THIS {S} | PROFILE   (accent: {S})",
         "WATCH CANDOR | GRADE THIS | {S} | APPLICANT   (accent: CANDOR, {S})",
+        # more rate / roast / hot-take framings
+        "GRADE THIS | {S} | APPLICANT | /100   (accent: {S})",
+        "HOW COOKED | IS THIS | {S} | APPLICANT?   (accent: COOKED, {S})",
+        "IS THIS | A STRONG | {S} | APPLICANT?   (accent: STRONG, {S})",
+        "HOW MID | IS THIS | {S} | APPLICANT?   (accent: MID, {S})",
+        "ROAST THIS | {S} | APPLICATION   (accent: ROAST, {S})",
+        "ARE YOU | STRONGER THAN | THIS {S} | APPLICANT?   (accent: {S})",
+        "WHAT WOULD YOU | RATE THIS | {S} | APPLICANT?   (accent: {S})",
+        "WHAT'S THE | ONE THING | HOLDING THIS | {S} | APPLICANT BACK?   (accent: {S})",
     ],
     "glowup": [
         "WHAT WOULD IT TAKE | TO GET THIS | STUDENT INTO | {S}?   (accent: {S})",
@@ -67,6 +94,13 @@ _TITLE_FAMILIES = {
         "CANDOR'S PLAN | TO GET THIS KID | INTO {S}   (accent: {S})",
         "CANDOR SHOWS | HOW TO CRACK | {S}   (accent: {S})",
         "HOW CANDOR | WOULD FIX | THIS {S} | APPLICATION   (accent: {S})",
+        # more "what's missing / how to get in" framings
+        "WHAT'S MISSING | FROM THIS | {S} | APPLICATION?   (accent: {S})",
+        "ONE SPIKE AWAY | FROM {S}?   (accent: {S})",
+        "HOW TO TURN | THIS INTO A | {S} | ADMIT   (accent: {S})",
+        "WHAT THIS KID | SHOULD'VE DONE | FOR {S}   (accent: {S})",
+        "FROM REJECT | TO {S} ADMIT — | WHAT CHANGES?   (accent: {S})",
+        "WHAT WOULD | GET THIS KID | OVER THE LINE | AT {S}?   (accent: {S})",
     ],
 }
 # Flat list for backward-compat / when no reveal type is requested. Fold the
@@ -183,6 +217,10 @@ CANDOR RATED / CANDOR PREDICTED / CANDOR RAN THE ODDS / I ASKED CANDOR. LEAN INT
 "CANDOR" often (it promotes the brand) — but still vary so the feed isn't every single one identical.
 NEVER put a specific number or percentage in the title (you do NOT know the real odds/grade;
 those are revealed on a later slide). No "%", no made-up scores.
+VARIETY: about a third of the time, instead of the generic "THIS STUDENT/APPLICANT", name the
+applicant by their SPIKE for a sharper hook — e.g. "THIS PUBLISHED RESEARCHER", "THIS RECRUITED
+ATHLETE", "THIS CS APPLICANT", "THIS NONPROFIT FOUNDER", "THIS 1590 APPLICANT". Keep it short
+and true to the profile you wrote; still keep the guessing-game/verdict framing.
 {slide3_instr}
 The school short name is "{short}". Pick which words get the school's accent color (always the school
 name; optionally one emphasis word).
