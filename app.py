@@ -5629,6 +5629,7 @@ NAV_CONTENT = ('<div class="nav"><a class="brand" href="/content/chances">' + CA
     '<a href="/content/glowup">📈 Glow-up</a>'
     '<a href="/content/headtohead">🆚 H2H</a>'
     '<a href="/h2hprofiles/export">👥 A/B</a>'
+    '<a href="/tiktok">📡 Monitor</a>'
     '<span class="sp"></span>'
     '<a href="/colleges?full=1" style="font-size:.82em;opacity:.65">full site</a> '
     '<a href="/logout">Logout</a></div>')
