@@ -101,12 +101,31 @@ def _load_real_posts():
     return _REAL_POSTS
 
 
+# Cycle through every real applicant once before repeating any: persist the set
+# of seed indices already used, draw only from the unused, and reset once the
+# whole corpus (~1,000) has been used.
+_SEED_STATE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".seed_state.json")
+
+
 def _pick_seed_post():
     posts = _load_real_posts()
     if not posts:
         return None
-    p = random.choice(posts)
-    body = (p.get("self") or "").strip()
+    try:
+        used = set(json.load(open(_SEED_STATE)).get("used", []))
+    except Exception:
+        used = set()
+    avail = [i for i in range(len(posts)) if i not in used]
+    if not avail:                      # cycled through the whole corpus -> start over
+        used, avail = set(), list(range(len(posts)))
+        print(f"seed corpus exhausted ({len(posts)}) — resetting", flush=True)
+    i = random.choice(avail)
+    used.add(i)
+    try:
+        json.dump({"used": sorted(used), "total": len(posts)}, open(_SEED_STATE, "w"))
+    except Exception as e:
+        print("seed-state save:", e)
+    body = (posts[i].get("self") or "").strip()
     return body[:2000]
 
 

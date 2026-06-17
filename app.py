@@ -12105,75 +12105,14 @@ def _content_account_roster(conn):
     return roster[:max(1, CONTENT_ACCOUNT_SLOTS)]
 
 
-def _account_perf(conn, col, val):
-    """{open_id: (n, avg_engagement_score)} per account for attributed posts where
-    content_queue.<col> = val — so we can route a carousel to the account that
-    does best with that format or that school. Empty if no value / no data.
-    col is from a fixed allow-list, never user input."""
-    if not val or col not in ("slide3_type", "school_slug"):
-        return {}
-    try:
-        rows = conn.execute(
-            f"SELECT p.open_id k, COUNT(*) n, AVG({_TT_SCORE_SQL}) s "
-            f"FROM content_queue c JOIN tiktok_posts p ON p.carousel_id = c.id "
-            f"WHERE c.{col} = ? AND p.view_count IS NOT NULL GROUP BY p.open_id",
-            (val,)).fetchall()
-        return {r["k"]: (r["n"], float(r["s"] or 0)) for r in rows}
-    except Exception:
-        return {}
-
-
-# How hard performance tilts the account assignment, and the min attributed posts
-# a pair needs before it tilts at all. Kept gentle so fairness (even spread) stays
-# dominant. Format kicks in fast (data accrues per format quickly). School has a
-# much higher bar (ASSIGN_SCHOOL_MIN_N) so it stays DORMANT until there's genuine
-# per-school history — only then does "this account does best with Michigan" turn
-# on, instead of reacting to one early fluke.
-ASSIGN_PERF_MIN_N = int(os.environ.get("ASSIGN_PERF_MIN_N", "2"))
-ASSIGN_SCHOOL_MIN_N = int(os.environ.get("ASSIGN_SCHOOL_MIN_N", "5"))
-ASSIGN_PERF_ALPHA = float(os.environ.get("ASSIGN_PERF_ALPHA", "0.6"))
-
-
-def _perf_mults(perf, labels, oid_by_label, min_n, lo=0.5, hi=1.8):
-    """Turn a per-account perf dict {open_id:(n,score)} into {label: multiplier}.
-    A label only moves off 1.0 once its account has >=min_n posts AND at least two
-    accounts qualify (so there's something to compare); otherwise neutral."""
-    bylabel = {lab: perf[oid] for lab in labels
-               if (oid := oid_by_label.get(lab)) and oid in perf}
-    good = {lab: v for lab, (n, v) in bylabel.items() if n >= min_n}
-    mult = {lab: 1.0 for lab in labels}
-    if len(good) >= 2:
-        mean = sum(good.values()) / len(good)
-        if mean > 0:
-            for lab in good:
-                mult[lab] = max(lo, min(hi, 1 + ASSIGN_PERF_ALPHA * (good[lab] / mean - 1)))
-    return mult
-
-
 def _assign_content_account(conn, school_slug=None, slide3_type=None):
-    """Pick the account for the next carousel. Base is FAIRNESS — accounts used
-    least across the recent queue are favored, so the spread stays even and no
-    account goes stale. On top, two clamped performance tilts: the account that
-    does best with this carousel's FORMAT, and (once enough per-school history
-    exists) the one that does best with this SCHOOL. Weighted-random, so it keeps
-    exploring. Returns the slot's display label (a @username or a number)."""
+    """Round-robin the next carousel across the account roster, so a batch of N
+    spreads one carousel to each account — a batch of 5 covers all 5 exactly, and
+    consecutive batches keep cycling evenly. Deterministic (rotation = total
+    carousels so far mod roster size). Returns the slot's display label."""
     roster = _content_account_roster(conn)
-    labels = [a["label"] for a in roster]
-    oid_by_label = {a["label"]: a["open_id"] for a in roster}
-
-    # Fairness base: 1/(1+recent assignments) over the last 50 carousels.
-    recent = {r["a"]: r["c"] for r in conn.execute(
-        "SELECT a, COUNT(*) c FROM (SELECT assigned_account a FROM content_queue "
-        "WHERE assigned_account IS NOT NULL ORDER BY id DESC LIMIT 50) GROUP BY a").fetchall()}
-    base = {lab: 1.0 / (1 + recent.get(lab, 0)) for lab in labels}
-
-    # Format tilt (kicks in quickly) × School tilt (dormant until ASSIGN_SCHOOL_MIN_N
-    # posts/account for this school — i.e. only after real per-school history).
-    fmult = _perf_mults(_account_perf(conn, "slide3_type", slide3_type), labels, oid_by_label, ASSIGN_PERF_MIN_N)
-    smult = _perf_mults(_account_perf(conn, "school_slug", school_slug), labels, oid_by_label, ASSIGN_SCHOOL_MIN_N)
-    weights = {lab: base[lab] * max(0.4, min(2.2, fmult[lab] * smult[lab])) for lab in labels}
-
-    return random.choices(labels, weights=[weights[l] for l in labels])[0]
+    n = conn.execute("SELECT COUNT(*) c FROM content_queue").fetchone()["c"]
+    return roster[n % len(roster)]["label"]
 
 
 @app.route("/content/queue/push", methods=["POST"])
