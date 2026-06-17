@@ -372,13 +372,14 @@ TT_PERF_MIN_N = int(os.environ.get("TT_PERF_MIN_N", "3"))
 TT_PERF_ALPHA = float(os.environ.get("TT_PERF_ALPHA", "0.6"))
 
 
-def _tt_perf():
-    """{slide3_type: (n, avg_views)} from attributed posts, or {} when disabled
-    or unavailable (caller falls back to static weights)."""
+def _tt_perf(group="slide3_type"):
+    """{key: (n, avg_engagement_score)} from attributed posts, grouped by
+    slide3_type (format) or school_slug. {} when disabled or unavailable, so the
+    caller falls back to its static weights."""
     if os.environ.get("TT_FEEDBACK") == "0":
         return {}
     try:
-        return app.tiktok_slide_type_avg_views() or {}
+        return app.tiktok_perf_by(group) or {}
     except Exception:
         return {}
 
@@ -471,9 +472,15 @@ def _pick_school(respect_cap=True):
     dem = _demand()
     # demand+baseline, but iconic schools never fall below ICONIC_FLOOR so they
     # stay in regular rotation even with very few real calcs.
-    weights = [max(dem.get(s, 0) + SCHOOL_WEIGHT_BASELINE,
-                   ICONIC_FLOOR if s in ICONIC_SCHOOLS else 0) for s in pool]
-    return random.choices(pool, weights=weights)[0]
+    base = {s: max(dem.get(s, 0) + SCHOOL_WEIGHT_BASELINE,
+                   ICONIC_FLOOR if s in ICONIC_SCHOOLS else 0) for s in pool}
+    # Nudge toward schools whose carousels actually perform on TikTok. Only schools
+    # with >=TT_PERF_MIN_N attributed posts move; the rest keep their demand weight,
+    # and every weight stays clamped to [0.4,2.0]x base — so a viral school gets
+    # more airtime without ever starving the long tail (demand still drives the base).
+    weighted = _blend(base, _tt_perf("school_slug"))
+    keys = list(weighted)
+    return random.choices(keys, weights=[weighted[k] for k in keys])[0]
 
 
 def make_one(dry=False, slug=None, slide3=None, ctype=None):

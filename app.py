@@ -17243,23 +17243,45 @@ def _tiktok_attribute():
     return linked
 
 
-def tiktok_slide_type_avg_views():
-    """{slide3_type: (n, avg_views)} over carousels attributed to a real TikTok
-    post. The factory blends this into its format-selection weights so the feed
-    drifts toward whatever actually gets views. Empty dict if no attributed data
-    or on any error (caller falls back to the static default weights)."""
+# Engagement score = reach + virality signals. Shares move an account's growth
+# the most, then comments, then likes — weighted on top of raw views. The
+# factory optimizes the feed toward this score (not bare views), so a post that
+# made people share/comment counts for more than one that just got impressions.
+# Tunable via env without a redeploy.
+_TT_W_SHARE = float(os.environ.get("TT_W_SHARE", "50"))
+_TT_W_COMMENT = float(os.environ.get("TT_W_COMMENT", "25"))
+_TT_W_LIKE = float(os.environ.get("TT_W_LIKE", "5"))
+_TT_SCORE_SQL = ("(COALESCE(p.view_count,0) + %g*COALESCE(p.share_count,0) "
+                 "+ %g*COALESCE(p.comment_count,0) + %g*COALESCE(p.like_count,0))"
+                 % (_TT_W_SHARE, _TT_W_COMMENT, _TT_W_LIKE))
+
+
+def tiktok_perf_by(group_col):
+    """{key: (n, avg_engagement_score)} over carousels attributed to a real TikTok
+    post, grouped by a content_queue column (slide3_type, school_slug, …). The
+    factory blends this into its selection weights so the feed drifts toward what
+    actually performs. Empty dict if no attributed data or on error (callers fall
+    back to their static weights). group_col is from a fixed internal allow-list,
+    never user input."""
+    if group_col not in ("slide3_type", "school_slug"):
+        return {}
     out = {}
     try:
         with db() as conn:
             rows = conn.execute(
-                "SELECT c.slide3_type st, COUNT(*) n, AVG(p.view_count) av "
-                "FROM content_queue c JOIN tiktok_posts p ON p.carousel_id = c.id "
-                "WHERE c.slide3_type IS NOT NULL AND p.view_count IS NOT NULL "
-                "GROUP BY c.slide3_type").fetchall()
-        out = {r["st"]: (r["n"], float(r["av"] or 0)) for r in rows}
+                f"SELECT c.{group_col} k, COUNT(*) n, AVG({_TT_SCORE_SQL}) s "
+                f"FROM content_queue c JOIN tiktok_posts p ON p.carousel_id = c.id "
+                f"WHERE c.{group_col} IS NOT NULL AND p.view_count IS NOT NULL "
+                f"GROUP BY c.{group_col}").fetchall()
+        out = {r["k"]: (r["n"], float(r["s"] or 0)) for r in rows}
     except Exception as e:
         print("tiktok perf:", e)
     return out
+
+
+def tiktok_slide_type_avg_views():
+    """Back-compat wrapper — now returns the engagement score per slide3_type."""
+    return tiktok_perf_by("slide3_type")
 
 
 def _tiktok_perf_rows(group_sql, label_sql):
