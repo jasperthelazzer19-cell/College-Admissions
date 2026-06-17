@@ -12341,29 +12341,41 @@ _CTA_SLIDE_URL = "/static/cta_slide.png"
 
 
 def _carousel_hashtags(r):
-    """5 TikTok hashtags for a carousel — school-specific first two, then evergreen
-    college tags, matching the creator's flow: #rice #riceuniversity
-    #collegeadmissions #collegeapps #fyp. Compare/h2h use the anchor school."""
-    import re as _re
-    slug = r["school_slug"] or ""
-    sch = COLLEGES_BY_SLUG.get(slug) or {}
-    name = sch.get("name") or ""
+    """5 TikTok hashtags. Single/h2h: #rice #riceuniversity + evergreen. Compare:
+    one tag per school (#rice #penn #cornell) so all 3 schools are tagged, not just
+    the anchor — then evergreen to fill."""
+    import re as _re, json as _json
 
     def clean(s):
         return "#" + _re.sub(r"[^a-z0-9]", "", (s or "").lower())
+
+    try:
+        meta = _json.loads(r["meta"]) if r["meta"] else {}
+    except Exception:
+        meta = {}
+    comp = [s for s in (meta.get("compare") or []) if s in COLLEGES_BY_SLUG]
     tags = []
-    if slug:
-        short = _school_brand(slug, name)[0]
-        t1 = clean(short)
-        # full-name tag (#riceuniversity / #bostonuniversity). If the data name is
-        # basically just the short name, append "university" so we still get a
-        # distinct full-name tag like the reference (#rice -> #riceuniversity).
-        base = _re.split(r"[-–—,]| at | – ", name)[0].strip()   # drop campus qualifier
-        nm = clean(base)
-        t2 = nm if (nm and nm != t1 and len(nm) > len(t1)) else clean(short + "university")
-        for t in (t1, t2):
+    if comp:
+        # compare: tag every school in the comparison
+        for slug in comp:
+            short = _school_brand(slug, (COLLEGES_BY_SLUG.get(slug) or {}).get("name"))[0]
+            t = clean(short)
             if len(t) > 1 and t not in tags:
                 tags.append(t)
+    else:
+        slug = r["school_slug"] or ""
+        if slug:
+            name = (COLLEGES_BY_SLUG.get(slug) or {}).get("name") or ""
+            short = _school_brand(slug, name)[0]
+            t1 = clean(short)
+            # full-name tag (#riceuniversity / #bostonuniversity). If the data name
+            # is basically just the short name, append "university" for a distinct tag.
+            base = _re.split(r"[-–—,]| at | – ", name)[0].strip()
+            nm = clean(base)
+            t2 = nm if (nm and nm != t1 and len(nm) > len(t1)) else clean(short + "university")
+            for t in (t1, t2):
+                if len(t) > 1 and t not in tags:
+                    tags.append(t)
     for t in ("#collegeadmissions", "#collegeapps", "#fyp", "#dreamschool", "#collegetok"):
         if len(tags) >= 5:
             break
