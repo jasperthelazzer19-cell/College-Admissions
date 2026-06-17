@@ -17370,6 +17370,64 @@ def _tiktok_perf_rows(group_sql, label_sql):
         return []
 
 
+# Shadowban heuristic: a TikTok shadowban shows up as a sharp, sustained collapse
+# in reach. Tricky part — newer videos naturally have fewer total views (less time
+# to accumulate), so we ONLY compare MATURE videos (>=3 days old, ~final views) and
+# flag when the recent ones crater vs the account's own baseline. Heuristic, never
+# definitive (TikTok doesn't expose suppression directly).
+_TT_MATURE_SECS = 3 * 86400
+_TT_SB_MIN_MATURE = 8          # need this many mature videos to judge
+_TT_SB_RECENT_N = 4            # "recent" = last N mature videos
+
+
+def tiktok_account_health():
+    """Per-account shadowban check. Returns {open_id: {label,status,recent,baseline,
+    ratio,n,note}}. status in: healthy | watch | possible | likely | insufficient.
+    Also looks at like-rate to distinguish 'reach suppressed' (engagement steady,
+    views gone = shadowban-like) from 'content just slipped'."""
+    import statistics as _st
+    out = {}
+    now = int(time.time())
+    try:
+        with db() as conn:
+            accts = conn.execute("SELECT open_id, label FROM tiktok_accounts ORDER BY connected_at").fetchall()
+            for a in accts:
+                rows = conn.execute(
+                    "SELECT view_count v, like_count l, create_time t FROM tiktok_posts "
+                    "WHERE open_id=? AND view_count IS NOT NULL AND create_time IS NOT NULL "
+                    "ORDER BY create_time DESC", (a["open_id"],)).fetchall()
+                mature = [r for r in rows if (now - r["t"]) >= _TT_MATURE_SECS]
+                base = {"label": a["label"] or a["open_id"]}
+                if len(mature) < _TT_SB_MIN_MATURE:
+                    base.update(status="insufficient", note=f"{len(mature)} mature post(s) — need {_TT_SB_MIN_MATURE}+")
+                    out[a["open_id"]] = base; continue
+                recent = mature[:_TT_SB_RECENT_N]
+                older = mature[_TT_SB_RECENT_N:]
+                rv = _st.median([r["v"] or 0 for r in recent])
+                bv = _st.median([r["v"] or 0 for r in older])
+                ratio = (rv / bv) if bv > 0 else 1.0
+                # like-rate (engagement) recent vs older — steady engagement + collapsed
+                # views points more strongly to suppression than to weak content.
+                def lr(rs):
+                    vs = [(r["l"] or 0) / r["v"] for r in rs if r["v"]]
+                    return _st.median(vs) if vs else 0
+                eng_steady = lr(recent) >= 0.6 * (lr(older) or 1e-9)
+                if ratio < 0.15:
+                    status = "likely" if eng_steady else "possible"
+                elif ratio < 0.30:
+                    status = "possible" if eng_steady else "watch"
+                elif ratio < 0.55:
+                    status = "watch"
+                else:
+                    status = "healthy"
+                base.update(status=status, recent=int(rv), baseline=int(bv),
+                            ratio=round(ratio, 2), n=len(mature), eng_steady=eng_steady)
+                out[a["open_id"]] = base
+    except Exception as e:
+        print("tiktok health:", e)
+    return out
+
+
 @app.route("/tiktok/pull")
 @login_required
 def tiktok_pull_now():
@@ -17488,6 +17546,31 @@ def tiktok_home():
     else:
         perf_html = ('<p style="color:#7c8aa0;font-size:13px;margin:18px 0 0">No posts attributed yet — '
                      'mark carousels <b>✓ Posted</b> (pick the account) and stats roll up here after the next pull.</p>')
+    # ── Shadowban check: per-account reach-collapse heuristic over mature videos.
+    health = tiktok_account_health()
+    _hstyle = {"healthy": ("#13351f", "#bdf3d0", "✅ healthy"),
+               "watch": ("#33301a", "#f0e2a8", "👀 watch"),
+               "possible": ("#3a2410", "#f5c98a", "⚠️ possible shadowban"),
+               "likely": ("#3a1414", "#f3a5a5", "🚩 likely shadowbanned"),
+               "insufficient": ("#16202e", "#7c8aa0", "— not enough data")}
+    hrows = ""
+    for a in accts:
+        h = health.get(a["open_id"]) or {"status": "insufficient", "note": ""}
+        bg, fg, lab = _hstyle.get(h["status"], _hstyle["insufficient"])
+        if h["status"] in ("healthy", "watch", "possible", "likely"):
+            detail = (f'recent ~{h["recent"]:,} vs baseline ~{h["baseline"]:,} views '
+                      f'({int(h["ratio"]*100)}% · {h["n"]} mature)')
+        else:
+            detail = h.get("note", "")
+        hrows += (f'<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;'
+                  f'background:{bg};border-radius:10px;padding:9px 12px;margin:0 0 7px;font-size:13px">'
+                  f'<span style="color:#e9eef5;font-weight:700">{a["label"] or a["open_id"]}</span>'
+                  f'<span style="color:{fg};font-weight:700;white-space:nowrap">{lab}</span></div>'
+                  f'<div style="color:#7c8aa0;font-size:11.5px;margin:-4px 0 9px 4px">{detail}</div>')
+    health_html = (f'<h2 style="margin:24px 0 8px;font-size:18px">🩺 Shadowban check</h2>'
+                   f'<div style="color:#7c8aa0;font-size:12px;margin:0 0 10px">Flags a sustained reach collapse vs '
+                   f'the account\'s own baseline (mature posts only, so video age doesn\'t skew it). A heuristic, '
+                   f'not a verdict — TikTok doesn\'t report suppression directly.</div>{hrows}')
     btn = ('display:inline-block;font-weight:800;padding:13px 20px;border-radius:11px;text-decoration:none;margin:12px 8px 0 0')
     body = (f'<div style="max-width:640px;margin:0 auto;padding:24px 16px 80px">'
             f'<h1 style="margin:0 0 4px">📊 TikTok feedback</h1>'
@@ -17495,6 +17578,7 @@ def tiktok_home():
             f'{cards or "<p style=color:#7c8aa0>No accounts connected yet.</p>"}'
             f'<a href="/tiktok/connect" style="{btn};background:#5fc9b6;color:#06121a">+ Connect an account</a>'
             f'<a href="/tiktok/pull" style="{btn};background:#16202e;color:#e9eef5;border:1px solid #2b3a4f">↻ Pull stats now</a>'
+            f'{health_html if accts else ""}'
             f'{perf_html}'
             f'</div>')
     return _page(body, title="TikTok · Candor")
