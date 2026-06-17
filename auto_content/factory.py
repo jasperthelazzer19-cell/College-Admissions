@@ -18,7 +18,7 @@ Env:
   IMG_QUALITY     gpt-image-1 quality (default medium)
 Usage: python3 auto_content/factory.py [--n N] [--dry]
 """
-import os, sys, time, json, base64, random, subprocess, urllib.request, urllib.error, urllib.parse
+import os, sys, time, json, base64, random, subprocess, tempfile, urllib.request, urllib.error, urllib.parse
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -164,7 +164,10 @@ import threading  # noqa: E402
 import fcntl, contextlib  # noqa: E402
 _server = None
 
-_LOCKFILE = os.path.join(HERE, ".render.lock")
+# Keep the lock in /tmp, NOT the Desktop project dir — the Desktop folder's
+# cloud-sync/file-provider raised EDEADLK ("Resource deadlock avoided") on the
+# bare open(), crashing scheduled slots. /tmp is local, no sync, no TCC.
+_LOCKFILE = os.path.join(tempfile.gettempdir(), "candor_render.lock")
 
 
 @contextlib.contextmanager
@@ -179,17 +182,22 @@ def render_lock(timeout=900):
     flock can spuriously raise EDEADLK ("Resource deadlock avoided") when the other
     job already holds it, which would crash the run instead of just waiting (this is
     what killed the 11:55 one-shot). Polling LOCK_NB waits cleanly up to `timeout`."""
-    f = open(_LOCKFILE, "w")
+    f = None
     acquired = False
     deadline = time.time() + timeout
     while True:
         try:
+            if f is None:
+                f = open(_LOCKFILE, "w")          # open inside the retry too — it can EDEADLK
             fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
             acquired = True
             break
         except OSError:
+            if f is not None:
+                try: f.close()
+                except Exception: pass
+                f = None
             if time.time() > deadline:
-                f.close()
                 raise RuntimeError("render_lock: timed out waiting for the other render job")
             time.sleep(2)
     try:
