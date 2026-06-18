@@ -5632,7 +5632,8 @@ NAV_UPGRADE_BTN = (
 )
 
 
-NAV_CONTENT = ('<div class="nav"><a class="brand" href="/content/chances">' + CANDOR_LOGO_SVG + 'Candor · CONTENT</a>'
+NAV_CONTENT = ('<div class="nav"><a class="brand" href="/admin/stats">' + CANDOR_LOGO_SVG + 'Candor · CONTENT</a>'
+    '<a href="/tiktok">📡 Monitor</a>'
     '<a href="/content/today">📅 Today</a>'
     '<a href="/content/setprofile">✍️ Set</a>'
     '<a href="/content/profile">🪪 Profile</a>'
@@ -5642,7 +5643,6 @@ NAV_CONTENT = ('<div class="nav"><a class="brand" href="/content/chances">' + CA
     '<a href="/content/glowup">📈 Glow-up</a>'
     '<a href="/content/headtohead">🆚 H2H</a>'
     '<a href="/h2hprofiles/export">👥 A/B</a>'
-    '<a href="/tiktok">📡 Monitor</a>'
     '<span class="sp"></span>'
     '<a href="/colleges?full=1" style="font-size:.82em;opacity:.65">full site</a> '
     '<a href="/logout">Logout</a></div>')
@@ -9382,6 +9382,10 @@ def pref_set(profile, key):
 # ─── ROUTES ───────────────────────────────────────────────
 @app.route("/")
 def landing():
+    # New Roads content operator lands on the admin dashboard (users + stats),
+    # not the public marketing page. Everyone else sees the landing.
+    if _is_creator():
+        return redirect(url_for("admin_stats"))
     # Show the landing page to everyone, including logged-in users.
     # They can click any of the nav links to get to the product.
     # Pull live numbers so the social proof on the page is honest
@@ -17029,7 +17033,9 @@ def admin_returning():
 @app.route("/admin/stats")
 def admin_stats():
     """Live activity dashboard. Pulls from existing DB tables."""
-    if not _key_eq(request.args.get("key"), ADMIN_KEY):
+    # Admin key OR the New Roads creator's own session (so the content operator
+    # lands here without putting the key in the URL).
+    if not (_key_eq(request.args.get("key"), ADMIN_KEY) or _is_creator()):
         return ("<h1>401 Unauthorized</h1>", 401)
     # Use Pacific time for "today" counters since Railway runs in UTC
     # but the operator (jasper) is on the West Coast — without this offset
