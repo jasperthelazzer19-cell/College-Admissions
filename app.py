@@ -12575,11 +12575,17 @@ def content_today():
     if not _is_creator():
         abort(404)
     with db() as conn:
-        # show the WHOLE ready queue (pending + released) so visibility never
-        # depends on the release cron or the Mac being awake — released first.
-        released = conn.execute(
-            "SELECT * FROM content_queue WHERE status IN ('released','pending') "
-            "ORDER BY CASE status WHEN 'released' THEN 0 ELSE 1 END, id DESC").fetchall()
+        # The today page is the working QUEUE: all RELEASED carousels (explicitly
+        # queued to post) plus a small on-deck preview of the pending buffer — NOT
+        # the entire buffer (30 deep), which would flood the page. The rest stays
+        # in reserve and surfaces as you clear the queue.
+        preview_n = int(os.environ.get("CONTENT_TODAY_PREVIEW", "6"))
+        released = list(conn.execute(
+            "SELECT * FROM content_queue WHERE status='released' ORDER BY id DESC").fetchall())
+        if len(released) < preview_n:
+            released += list(conn.execute(
+                "SELECT * FROM content_queue WHERE status='pending' ORDER BY id DESC LIMIT ?",
+                (preview_n - len(released),)).fetchall())
         pending = conn.execute("SELECT COUNT(*) c FROM content_queue WHERE status='pending'").fetchone()["c"]
         posted = conn.execute("SELECT COUNT(*) c FROM content_queue WHERE status='posted'").fetchone()["c"]
         tt_accts = conn.execute("SELECT open_id, label FROM tiktok_accounts ORDER BY connected_at").fetchall()
@@ -12702,7 +12708,7 @@ def content_today():
         '</script>')
     body = (f'<div style="max-width:720px;margin:0 auto;padding:16px 12px 80px">'
             + f'<h1 style="margin:0 0 4px">📅 Today</h1>'
-            + f'<div style="color:#7c8aa0;font-size:14px;margin:0 0 18px">{pending} queued · {posted} posted · tap “Save all slides” to save a carousel to Photos</div>'
+            + f'<div style="color:#7c8aa0;font-size:14px;margin:0 0 18px">{len(cards)} in queue · {pending} in buffer · {posted} posted · tap “Save all slides” to save a carousel to Photos</div>'
             + banner + make_btn
             + "".join(cards) + '</div>' + save_script + _HASHTAG_JS)
     return _page(body, title="Content · Today")
