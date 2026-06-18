@@ -469,6 +469,16 @@ ICONIC_SCHOOLS = {
     # big publics that already had logos (instant-add)
     "uw","uiuc","umd","purdue","rutgers",
 }
+# MEGA = the household names that pop hardest on TikTok. They get a much higher
+# floor than plain iconic schools so they show up roughly 2-3x as often.
+MEGA_SCHOOLS = {
+    "harvard","stanford","mit","yale","princeton","columbia","upenn","brown",
+    "cornell","dartmouth","umich","nyu","usc","ucla","ucb","duke","northwestern","uchicago",
+}
+MEGA_FLOOR = int(os.environ.get("MEGA_FLOOR", "110"))   # vs ICONIC_FLOOR 45
+# Don't repeat a school within the last N picks (across ALL accounts) so the feed
+# stays varied. Applies to the headline/anchor school of every carousel.
+RECENT_NOREPEAT = int(os.environ.get("RECENT_NOREPEAT", "6"))
 _POST_STATE = os.path.join(HERE, ".post_state.json")
 _demand_cache = None
 
@@ -507,26 +517,52 @@ def _bump_school(slug):
         pass
 
 
-def _pick_school(respect_cap=True):
-    """Weighted pick: P(school) ∝ real demand + baseline. With respect_cap, any
-    school already at SCHOOL_DAILY_CAP today is excluded. Returns None if every
-    school is capped."""
-    counts = _post_state().get("counts", {})
-    pool = [s for s in SCHOOLS if not respect_cap or counts.get(s, 0) < SCHOOL_DAILY_CAP]
+def _push_recent(slug):
+    """Record the just-picked school so the next RECENT_NOREPEAT picks avoid it."""
+    d = _post_state()
+    rec = [s for s in d.get("recent", []) if s != slug]
+    rec.append(slug)
+    d["recent"] = rec[-(RECENT_NOREPEAT * 3):]
+    try:
+        json.dump(d, open(_POST_STATE, "w"))
+    except Exception:
+        pass
+
+
+def _floor(s):
+    if s in MEGA_SCHOOLS:
+        return MEGA_FLOOR
+    if s in ICONIC_SCHOOLS:
+        return ICONIC_FLOOR
+    return 0
+
+
+def _pick_school(respect_cap=True, avoid_recent=True):
+    """Weighted pick: P(school) ∝ real demand + baseline, with mega/iconic floors.
+    Excludes any school in the last RECENT_NOREPEAT picks (feed variety) and, with
+    respect_cap, any school already at SCHOOL_DAILY_CAP today. Records its pick."""
+    st = _post_state()
+    counts = st.get("counts", {})
+    recent = set(st.get("recent", [])[-RECENT_NOREPEAT:]) if avoid_recent else set()
+
+    def _pool(use_recent):
+        return [s for s in SCHOOLS
+                if (not respect_cap or counts.get(s, 0) < SCHOOL_DAILY_CAP)
+                and (s not in recent if use_recent else True)]
+    pool = _pool(True) or _pool(False)   # relax the no-repeat if it empties the pool
     if not pool:
         return None
     dem = _demand()
-    # demand+baseline, but iconic schools never fall below ICONIC_FLOOR so they
-    # stay in regular rotation even with very few real calcs.
-    base = {s: max(dem.get(s, 0) + SCHOOL_WEIGHT_BASELINE,
-                   ICONIC_FLOOR if s in ICONIC_SCHOOLS else 0) for s in pool}
-    # Nudge toward schools whose carousels actually perform on TikTok. Only schools
-    # with >=TT_PERF_MIN_N attributed posts move; the rest keep their demand weight,
-    # and every weight stays clamped to [0.4,2.0]x base — so a viral school gets
-    # more airtime without ever starving the long tail (demand still drives the base).
+    # demand+baseline, but mega/iconic schools never fall below their floor so the
+    # household names stay in heavy rotation regardless of raw calc volume.
+    base = {s: max(dem.get(s, 0) + SCHOOL_WEIGHT_BASELINE, _floor(s)) for s in pool}
+    # Nudge toward schools whose carousels actually perform on TikTok (clamped so a
+    # viral school gets more airtime without starving the long tail).
     weighted = _blend(base, _tt_perf("school_slug"))
     keys = list(weighted)
-    return random.choices(keys, weights=[weighted[k] for k in keys])[0]
+    pick = random.choices(keys, weights=[weighted[k] for k in keys])[0]
+    _push_recent(pick)
+    return pick
 
 
 def make_one(dry=False, slug=None, slide3=None, ctype=None, count_toward_cap=True):

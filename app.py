@@ -4723,6 +4723,12 @@ def init_db():
                 conn.execute(f"ALTER TABLE content_queue ADD COLUMN {col}")
             except sqlite3.OperationalError:
                 pass
+        # Manual shadowban override: pause an account by hand when the auto-detector
+        # can't see it (too few pulled posts). paused=1 drops it from the rotation.
+        try:
+            conn.execute("ALTER TABLE tiktok_accounts ADD COLUMN paused INTEGER DEFAULT 0")
+        except sqlite3.OperationalError:
+            pass
         # Bounded retention prune (runs on boot; Railway restarts regularly). All
         # tables exist by here. Keeps the DB from growing forever — content_queue
         # rows hold base64 PNGs and bloat fastest, so purge posted/skipped at 14d.
@@ -17572,8 +17578,14 @@ def tiktok_account_health():
     now = int(time.time())
     try:
         with db() as conn:
-            accts = conn.execute("SELECT open_id, label FROM tiktok_accounts ORDER BY connected_at").fetchall()
+            accts = conn.execute("SELECT open_id, label, COALESCE(paused,0) paused FROM tiktok_accounts ORDER BY connected_at").fetchall()
             for a in accts:
+                # Manual override: a hand-paused account reads as 'likely' so the
+                # autopause / active-count / display all drop it uniformly.
+                if a["paused"]:
+                    out[a["open_id"]] = {"label": a["label"] or a["open_id"], "status": "likely",
+                                         "note": "⏸️ manually paused (shadowban override)"}
+                    continue
                 rows = conn.execute(
                     "SELECT view_count v, like_count l, create_time t FROM tiktok_posts "
                     "WHERE open_id=? AND view_count IS NOT NULL AND create_time IS NOT NULL "
@@ -17612,9 +17624,15 @@ def tiktok_account_health():
                     vs = [(r["l"] or 0) / r["v"] for r in rs if r["v"]]
                     return _st.median(vs) if vs else 0
                 eng_steady = lr(recent) >= 0.6 * (lr(older) or 1e-9)
-                if ratio < 0.15:
+                # A severe, sustained reach collapse IS a shadowban regardless of the
+                # like-rate. (The old rule downgraded it to 'possible' when likes fell
+                # too — but on a real shadowban likes crater with the views, so it never
+                # auto-paused. ratio<0.12 = recent reach under 12% of baseline.)
+                if ratio < 0.12:
+                    status = "likely"
+                elif ratio < 0.20:
                     status = "likely" if eng_steady else "possible"
-                elif ratio < 0.30:
+                elif ratio < 0.35:
                     status = "possible" if eng_steady else "watch"
                 elif ratio < 0.55:
                     status = "watch"
