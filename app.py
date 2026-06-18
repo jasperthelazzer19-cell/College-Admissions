@@ -17899,6 +17899,55 @@ def _render_worker_loop():
         _t.sleep(20)
 
 
+def _release_due_batches():
+    """Server-side auto-release: at each posting slot (in CONTENT_TZ, default PT),
+    release one batch — one carousel per ACTIVE account — from the pending buffer
+    onto /content/today. Runs on Railway independent of the Mac. Idempotent per
+    (day, slot) via released_at, so it survives restarts and never double-releases."""
+    from datetime import datetime, timezone, timedelta
+    try:
+        from zoneinfo import ZoneInfo
+        now_local = datetime.now(ZoneInfo(os.environ.get("CONTENT_TZ", "America/Los_Angeles")))
+    except Exception:
+        now_local = datetime.now(timezone.utc) - timedelta(hours=7)   # PDT fallback
+    hhmm = now_local.strftime("%H:%M")
+    midnight = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
+    try:
+        midnight_utc = midnight.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    except Exception:
+        midnight_utc = midnight.strftime("%Y-%m-%d %H:%M:%S")
+    n = max(1, _active_account_count())          # batch size = active (non-paused) accounts
+    with db() as conn:
+        for slot in CONTENT_SLOTS:
+            if hhmm < slot:
+                continue                          # slot hasn't arrived yet today
+            already = conn.execute(
+                "SELECT COUNT(*) c FROM content_queue WHERE slot=? AND released_at >= ?",
+                (slot, midnight_utc)).fetchone()["c"]
+            if already:
+                continue                          # this slot already released today
+            rows = conn.execute(
+                "SELECT id FROM content_queue WHERE status='pending' ORDER BY id ASC LIMIT ?",
+                (n,)).fetchall()
+            for r in rows:
+                conn.execute("UPDATE content_queue SET status='released', slot=?, "
+                             "released_at=CURRENT_TIMESTAMP WHERE id=?", (slot, r["id"]))
+            conn.commit()
+            if rows:
+                print(f" * auto-released {len(rows)} for slot {slot} (local {hhmm})", flush=True)
+
+
+def _release_scheduler_loop():
+    import time as _t
+    _t.sleep(15)                                  # let the server bind first
+    while True:
+        try:
+            _release_due_batches()
+        except Exception as e:
+            print(" * release scheduler error:", e, flush=True)
+        _t.sleep(30)
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5050))
     print(f" * Candor — running on http://127.0.0.1:{port}", flush=True)
@@ -17907,4 +17956,5 @@ if __name__ == "__main__":
     if os.environ.get("RENDER_WORKER") == "1":
         import threading as _th
         _th.Thread(target=_render_worker_loop, daemon=True).start()
+        _th.Thread(target=_release_scheduler_loop, daemon=True).start()
     app.run(host="0.0.0.0", port=port, threaded=True, debug=os.environ.get("DEBUG") == "1")
