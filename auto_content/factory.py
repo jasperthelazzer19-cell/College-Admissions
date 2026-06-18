@@ -28,7 +28,7 @@ CRON_KEY      = os.environ.get("CRON_KEY", "")
 ANTHROPIC_KEY = os.environ.get("ANTHROPIC_KEY", "")
 OPENAI_KEY    = os.environ.get("OPENAI_KEY", "")
 TARGET_URL    = os.environ.get("TARGET_URL", "https://admit.up.railway.app").rstrip("/")
-BUFFER_TARGET = int(os.environ.get("BUFFER_TARGET", "15"))
+BUFFER_TARGET = int(os.environ.get("BUFFER_TARGET", "6"))   # one per account (6 accounts) — clean set, no flood
 LOCAL_PORT    = int(os.environ.get("LOCAL_PORT", "5077"))
 LOCAL_URL     = f"http://127.0.0.1:{LOCAL_PORT}"
 CHROME        = os.environ.get("CHROME", "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
@@ -298,9 +298,12 @@ def make_single(dry=False, slug=None, slide3=None):
     short, accent = app._school_brand(slug, g["name"])
     lines, accent_words = g["lines"], g["accent_words"]
     title_formula = "llm"
-    # Result-forward variant (~30%): put the REAL verdict on the cover instead of a
-    # teaser — "CANDOR GAVE THIS DUKE APPLICANT A... 4-7% CHANCE" / "...70/100".
-    if g["slide3"] in ("chances", "grade") and random.random() < float(os.environ.get("RESULT_FORWARD_RATE", "0.3")):
+    # Result-forward variant (~30%): put the REAL verdict on the cover — but ONLY
+    # for chances. Chances odds are deterministic (estimate_odds), so the cover
+    # number always matches the reveal slide. Grade is LLM-graded and recomputed
+    # at slide render, so a numeric grade on the cover could disagree with the
+    # slide (the "74/100 vs 85" bug). Grade carousels keep a teaser hook instead.
+    if g["slide3"] == "chances" and random.random() < float(os.environ.get("RESULT_FORWARD_RATE", "0.3")):
         nt = numeric_title(short, g["slide3"], low, high, gnum)
         if nt:
             lines, accent_words = nt

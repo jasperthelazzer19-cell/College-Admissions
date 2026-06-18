@@ -12226,11 +12226,14 @@ def _assign_content_account(conn, school_slug=None, slide3_type=None):
         except Exception as e:
             print("autopause:", e)
     labels = [r["label"] for r in roster]
-    # Balance: lifetime carousels per account (so we hand the next one to whoever's
-    # most "due" — this is the even round-robin).
+    # Balance by CURRENT PENDING per account (not lifetime). Lifetime balancing
+    # made a brand-new account hog every new carousel until it caught up to the
+    # others' totals (the "all 3 went to @candoradmit.com3" bug). Pending balance
+    # keeps the standing buffer evenly one-per-account regardless of when an
+    # account was added.
     counts = {lab: 0 for lab in labels}
     for row in conn.execute("SELECT assigned_account, COUNT(*) c FROM content_queue "
-                            "WHERE assigned_account IS NOT NULL GROUP BY assigned_account"):
+                            "WHERE status='pending' AND assigned_account IS NOT NULL GROUP BY assigned_account"):
         if row["assigned_account"] in counts:
             counts[row["assigned_account"]] = row["c"]
     # No-repeat: an account shouldn't get a school it posted in its last 5 (compare
