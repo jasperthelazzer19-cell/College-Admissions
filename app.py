@@ -12199,7 +12199,11 @@ def _content_account_roster(conn):
     while len(roster) < CONTENT_ACCOUNT_SLOTS:
         roster.append({"label": str(i), "open_id": None})
         i += 1
-    return roster[:max(1, CONTENT_ACCOUNT_SLOTS)]
+    # Never truncate below the number of CONNECTED accounts — otherwise a 6th
+    # connected account (when CONTENT_ACCOUNT_SLOTS=5) would be dropped from the
+    # rotation and never get carousels. Connected accounts always come first.
+    connected = sum(1 for r in roster if r["open_id"])
+    return roster[:max(1, CONTENT_ACCOUNT_SLOTS, connected)]
 
 
 def _assign_content_account(conn, school_slug=None, slide3_type=None):
