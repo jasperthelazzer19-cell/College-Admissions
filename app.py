@@ -12733,6 +12733,8 @@ def profile_slide_export(slug):
 
     # ACADEMICS
     acad = []
+    st = (p.get("state") or "").strip()
+    if st: acad.append(plainln(f"{st} Resident"))
     if p.get("uw_gpa") is not None: acad.append(numln(p["uw_gpa"], "UW GPA"))
     if p.get("weighted_gpa") is not None: acad.append(numln(p["weighted_gpa"], "W GPA"))
     # Test-blind schools (UCs) don't consider scores — don't feature a test stat
@@ -12750,12 +12752,10 @@ def profile_slide_export(slug):
     for aw in [x.strip() for x in (p.get("awards") or "").split("\n") if x.strip()]:
         acad.append(plainln(aw))
 
-    # EXTRACURRICULARS: residency + ecs + leadership-not-already-listed
+    # EXTRACURRICULARS: ecs + leadership (residency now shown under Academics above)
     ecs = [x.strip() for x in (p.get("ecs") or "").split("\n") if x.strip()]
     lead = [x.strip() for x in (p.get("leadership") or "").split("\n") if x.strip()]
     ec_lines = []
-    st = (p.get("state") or "").strip()
-    if st: ec_lines.append(f"{st} Resident")
     seen = set()
     for e in ecs + lead:
         k = e.lower()
@@ -12910,6 +12910,8 @@ def _profile_card_body(p, title, accent, footer_html):
     def plainln(t):
         return f'<li style="font-size:30px;line-height:1.5;margin:0;font-weight:800">{_h(t)}</li>'
     acad = []
+    st = (p.get("state") or "").strip()
+    if st: acad.append(plainln(f"{st} Resident"))
     if p.get("uw_gpa") is not None: acad.append(numln(p["uw_gpa"], "UW GPA"))
     if p.get("weighted_gpa") is not None: acad.append(numln(p["weighted_gpa"], "W GPA"))
     if p.get("sat"):
@@ -12925,8 +12927,6 @@ def _profile_card_body(p, title, accent, footer_html):
     ecs = [x.strip() for x in (p.get("ecs") or "").split("\n") if x.strip()]
     lead = [x.strip() for x in (p.get("leadership") or "").split("\n") if x.strip()]
     ec_lines, seen = [], set()
-    st = (p.get("state") or "").strip()
-    if st: ec_lines.append(f"{st} Resident")
     for e in ecs + lead:
         if e.lower() not in seen:
             seen.add(e.lower()); ec_lines.append(e)
