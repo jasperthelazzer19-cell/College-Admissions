@@ -17361,17 +17361,24 @@ def tiktok_callback():
         return _legal_page("TikTok", f"<p>No token returned: {tok.get('error_description') or tok}</p>")
     import datetime as _dt
     open_id = tok.get("open_id")
-    label = _tiktok_fetch_label(tok["access_token"]) or open_id
+    fetched = _tiktok_fetch_label(tok["access_token"])
+    label = fetched or open_id          # used only when this is a NEW account
     now = _dt.datetime.utcnow()
     ax = (now + _dt.timedelta(seconds=int(tok.get("expires_in", 86400)))).isoformat()
     rf = (now + _dt.timedelta(seconds=int(tok.get("refresh_expires_in", 31536000)))).isoformat()
     with db() as conn:
+        # On RECONNECT, keep the existing label (manual @handle) and only refresh it
+        # if TikTok actually returned a real username — never clobber it with the raw
+        # open_id, which sandbox userinfo returns when username is blank.
         conn.execute("""INSERT INTO tiktok_accounts (open_id,label,access_token,refresh_token,
             access_expires_at,refresh_expires_at,scope,connected_at) VALUES (?,?,?,?,?,?,?,CURRENT_TIMESTAMP)
-            ON CONFLICT(open_id) DO UPDATE SET label=excluded.label,access_token=excluded.access_token,
+            ON CONFLICT(open_id) DO UPDATE SET
+            label=CASE WHEN ? IS NOT NULL AND ? <> tiktok_accounts.open_id THEN ? ELSE tiktok_accounts.label END,
+            access_token=excluded.access_token,
             refresh_token=excluded.refresh_token,access_expires_at=excluded.access_expires_at,
             refresh_expires_at=excluded.refresh_expires_at,scope=excluded.scope""",
-            (open_id, label, tok["access_token"], tok.get("refresh_token"), ax, rf, tok.get("scope")))
+            (open_id, label, tok["access_token"], tok.get("refresh_token"), ax, rf, tok.get("scope"),
+             fetched, fetched, fetched))
         conn.commit()
     try:
         _tiktok_pull_account(open_id)
