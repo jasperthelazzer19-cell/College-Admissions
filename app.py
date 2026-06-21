@@ -12216,6 +12216,39 @@ def _content_account_roster(conn):
     return roster[:max(1, CONTENT_ACCOUNT_SLOTS, connected)]
 
 
+def _live_account_labels(conn):
+    """Account labels currently in rotation: the roster minus any flagged 'likely'
+    shadowbanned (unless that leaves nobody, or TT_AUTOPAUSE=0)."""
+    roster = _content_account_roster(conn)
+    if os.environ.get("TT_AUTOPAUSE") != "0":
+        try:
+            flagged = {oid for oid, h in tiktok_account_health().items() if h.get("status") == "likely"}
+            live = [r for r in roster if r["open_id"] not in flagged]
+            if live:
+                roster = live
+        except Exception as e:
+            print("autopause:", e)
+    return [r["label"] for r in roster]
+
+
+def _release_one_per_account(conn, slot, limit=None):
+    """Release ONE pending carousel per active account (its oldest pending), so a
+    released batch is one-per-account — never 2 for one account and 0 for another.
+    `limit` caps how many accounts get one this round. Returns released row ids."""
+    ids = []
+    for lab in _live_account_labels(conn):
+        if limit is not None and len(ids) >= limit:
+            break
+        row = conn.execute(
+            "SELECT id FROM content_queue WHERE status='pending' AND assigned_account=? "
+            "ORDER BY id ASC LIMIT 1", (lab,)).fetchone()
+        if row:
+            conn.execute("UPDATE content_queue SET status='released', slot=?, "
+                         "released_at=CURRENT_TIMESTAMP WHERE id=?", (slot, row["id"]))
+            ids.append(row["id"])
+    return ids
+
+
 def _assign_content_account(conn, school_slug=None, slide3_type=None):
     """Round-robin the next carousel across the account roster, so a batch of N
     spreads one carousel to each account — a batch of 5 covers all 5 exactly, and
@@ -12226,16 +12259,7 @@ def _assign_content_account(conn, school_slug=None, slide3_type=None):
     from the rotation (stop feeding a suppressed account) until it recovers — unless
     that would leave nobody, or TT_AUTOPAUSE=0. It resumes automatically once the
     detector clears it."""
-    roster = _content_account_roster(conn)
-    if os.environ.get("TT_AUTOPAUSE") != "0":
-        try:
-            flagged = {oid for oid, h in tiktok_account_health().items() if h.get("status") == "likely"}
-            live = [r for r in roster if r["open_id"] not in flagged]
-            if live:
-                roster = live
-        except Exception as e:
-            print("autopause:", e)
-    labels = [r["label"] for r in roster]
+    labels = _live_account_labels(conn)
     # Balance by CURRENT PENDING per account (not lifetime). Lifetime balancing
     # made a brand-new account hog every new carousel until it caught up to the
     # others' totals (the "all 3 went to @candoradmit.com3" bug). Pending balance
@@ -12377,11 +12401,7 @@ def content_request_batch():
     # request do we fall back to generating the remainder (emergency).
     chosen = [s for s in request.form.getlist("slugs") if s in COLLEGES_BY_SLUG][:n]
     with db() as conn:
-        rows = conn.execute("SELECT id FROM content_queue WHERE status='pending' "
-                            "ORDER BY id ASC LIMIT ?", (n,)).fetchall()
-        for r in rows:
-            conn.execute("UPDATE content_queue SET status='released', slot='make', "
-                         "released_at=CURRENT_TIMESTAMP WHERE id=?", (r["id"],))
+        rows = _release_one_per_account(conn, "make", limit=n)   # one per account, up to n
         short = n - len(rows)
         if short > 0:
             existing = conn.execute("SELECT id FROM batch_requests WHERE claimed_at IS NULL LIMIT 1").fetchone()
@@ -17923,7 +17943,6 @@ def _release_due_batches():
         midnight_utc = midnight.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
     except Exception:
         midnight_utc = midnight.strftime("%Y-%m-%d %H:%M:%S")
-    n = max(1, _active_account_count())          # batch size = active (non-paused) accounts
     with db() as conn:
         for slot in CONTENT_SLOTS:
             if hhmm < slot:
@@ -17933,15 +17952,10 @@ def _release_due_batches():
                 (slot, midnight_utc)).fetchone()["c"]
             if already:
                 continue                          # this slot already released today
-            rows = conn.execute(
-                "SELECT id FROM content_queue WHERE status='pending' ORDER BY id ASC LIMIT ?",
-                (n,)).fetchall()
-            for r in rows:
-                conn.execute("UPDATE content_queue SET status='released', slot=?, "
-                             "released_at=CURRENT_TIMESTAMP WHERE id=?", (slot, r["id"]))
+            ids = _release_one_per_account(conn, slot)   # one per active account
             conn.commit()
-            if rows:
-                print(f" * auto-released {len(rows)} for slot {slot} (local {hhmm})", flush=True)
+            if ids:
+                print(f" * auto-released {len(ids)} (one per account) for slot {slot} (local {hhmm})", flush=True)
 
 
 def _release_scheduler_loop():
