@@ -12178,6 +12178,47 @@ def title_export():
                     mimetype="text/html")
 
 
+def _bestfit_traits_body(header, traits, accent):
+    """The 'best-fit' trait slide: a header (e.g. 'THEY WANT:') over a list of
+    punchy lifestyle traits, each with an accent dot — same @candor Anton look as
+    the title slides. Vertically centered so it fills the 9:16 frame."""
+    from html import escape as _h
+    rows = "".join(
+        f'<div style="display:flex;align-items:flex-start;gap:26px;line-height:1.04;margin:0">'
+        f'<span style="color:{accent};font-size:42px;line-height:1.25;flex:0 0 auto">●</span>'
+        f'<span style="flex:1">{_h(t).upper()}</span></div>'
+        for t in traits if t and t.strip())
+    return (
+        f'<div style="min-height:1408px;display:flex;flex-direction:column;justify-content:center;'
+        f"font-family:'AntonEmb','Anton',sans-serif;font-weight:400;letter-spacing:-1.5px;"
+        f'color:#111;text-transform:uppercase">'
+        f'<div style="color:{accent};font-size:96px;line-height:.96;margin:0 0 64px;'
+        f'-webkit-text-stroke:.6px {accent}">{_h(header).upper()}</div>'
+        f'<div style="display:flex;flex-direction:column;gap:46px;font-size:66px">{rows}</div>'
+        f'</div>')
+
+
+@app.route("/bestfit/export")
+@login_required
+def bestfit_export():
+    """Trait slide for the 'Where should they go?' angle. The genuinely-new page:
+    /bestfit/export?slug=<bestfit>&header=<text>&traits=a|b|c . slug only sets the
+    accent color; header + traits are the copy (built by candor_fit/the factory)."""
+    if not (_is_creator() or _has_render_key()):
+        abort(404)
+    slug = request.args.get("slug", "")
+    header = request.args.get("header") or "THEY WANT:"
+    traits = [t for t in (request.args.get("traits", "").split("|")) if t.strip()]
+    if not traits:
+        abort(404)
+    sch = COLLEGES_BY_SLUG.get(slug) or {}
+    accent = request.args.get("accent") or _school_brand(slug, sch.get("name"))[1]
+    body = _bestfit_traits_body(header, traits, accent)
+    return Response(_profile_export_page(body, dl_name="bestfit", pad="70px 76px",
+                                         clean=request.args.get("clean") == "1"),
+                    mimetype="text/html")
+
+
 # ─── CONTENT AUTOPILOT ────────────────────────────────────────────────────
 # The Mac generator (Claude Code on Max = free) pre-renders carousels and POSTs
 # them to /content/queue/push. A scheduler hits /cron/content-release at each

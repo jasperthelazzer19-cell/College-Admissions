@@ -377,6 +377,65 @@ def make_h2h(dry=False, slug=None):
     return _finish(payload, dry, f"H2H {short}")
 
 
+def make_bestfit(dry=False, slug=None, variant=None):
+    """'Where should they go?' — the lifestyle/fit angle (not admit-odds).
+
+    variant 'fit'  (3 slides): hook → trait list → 'BEST FIT: <school>' + logo.
+    variant 'dream'(4 slides): 'DREAM SCHOOL: <reach>' + logo → trait list →
+            'BUT CANDOR THINKS THEIR BEST FIT IS...' → '<school>' + logo.
+    The best-fit school is picked first, then the traits are written to TRUE-
+    describe it, so the reveal feels earned + debate-worthy."""
+    import candor_fit
+    slug = slug if slug in SCHOOLS else (_pick_school(respect_cap=False) or random.choice(SCHOOLS))
+    sch = app.COLLEGES_BY_SLUG[slug]
+    short, accent = app._school_brand(slug, sch.get("name"))
+    traits = candor_fit.traits(slug, sch)
+    if variant not in ("fit", "dream"):
+        variant = random.choices(["fit", "dream"], weights=[1, 1])[0]
+    tmp = "/tmp/cren_factory"; os.makedirs(tmp, exist_ok=True)
+    tq = urllib.parse.quote("|".join(traits))
+    ac = urllib.parse.quote(accent)
+
+    if variant == "dream":
+        dream = candor_fit.dream_for(slug, sch, app.COLLEGES_BY_SLUG)
+        if not dream:
+            variant = "fit"                       # no clean contrast -> fall back
+    if variant == "dream":
+        dshort = app._school_brand(dream, app.COLLEGES_BY_SLUG[dream].get("name"))[0]
+        header = random.choice(candor_fit.HEADERS["dream"])
+        s1 = _title_png(dream, ["THIS STUDENT'S", "DREAM SCHOOL:", f"*{dshort}*"], [dshort])
+        s2 = _shot(f"{tmp}/bf2.png",
+                   f"{LOCAL_URL}/bestfit/export?rkey={CRON_KEY}&clean=1&slug={slug}&accent={ac}"
+                   f"&header={urllib.parse.quote(header)}&traits={tq}")
+        s3 = _title_png(slug, ["BUT CANDOR", "THINKS THEIR", "BEST FIT IS..."], [], nologo=True)
+        s4 = _title_png(slug, [f"*{short}*"], [short])
+        title = f"DREAM {dshort} vs BEST FIT {short}"
+        payload = dict(school_slug=slug, school_name=f"Best Fit: {short}", accent=accent,
+                       title_text=title, title_formula="bestfit", slide3_type="bestfit",
+                       profile_json="{}", odds_text="", grade_text="",
+                       img1=s1, img2=s2, img3=s3, img4=s4,
+                       meta={"bestfit": True, "variant": "dream", "dream": dream,
+                             "traits": traits})
+        return _finish(payload, dry, f"BESTFIT(dream) {dshort}->{short}")
+
+    header = random.choice(candor_fit.HEADERS["fit"])
+    hook_opts = [["THIS STUDENT", "DOESN'T CARE", "ABOUT RANKINGS"],
+                 ["WHERE SHOULD", "THIS STUDENT", "GO?"],
+                 ["FIND THIS", "STUDENT'S", "PERFECT", "SCHOOL"]]
+    s1 = _title_png(slug, random.choice(hook_opts), [], nologo=True)
+    s2 = _shot(f"{tmp}/bf2.png",
+               f"{LOCAL_URL}/bestfit/export?rkey={CRON_KEY}&clean=1&slug={slug}&accent={ac}"
+               f"&header={urllib.parse.quote(header)}&traits={tq}")
+    s3 = _title_png(slug, ["CANDOR'S", "BEST FIT:", f"*{short}*"], [short])
+    payload = dict(school_slug=slug, school_name=f"Best Fit: {short}", accent=accent,
+                   title_text=f"WHERE SHOULD THIS STUDENT GO? BEST FIT: {short}",
+                   title_formula="bestfit", slide3_type="bestfit",
+                   profile_json="{}", odds_text="", grade_text="",
+                   img1=s1, img2=s2, img3=s3, meta={"bestfit": True, "variant": "fit",
+                                                    "traits": traits})
+    return _finish(payload, dry, f"BESTFIT(fit) {short}")
+
+
 # ── daily head-to-head cap (they cost ~2-4x a normal carousel) ─────────────
 H2H_DAILY_CAP = int(os.environ.get("H2H_DAILY_CAP", "2"))
 _H2H_STATE = os.path.join(HERE, ".h2h_state.json")
@@ -587,16 +646,18 @@ def make_one(dry=False, slug=None, slide3=None, ctype=None, count_toward_cap=Tru
             if single:
                 tot = sum(n for n, _ in single)
                 cperf["single"] = (tot, sum(n * v for n, v in single) / max(1, tot))
-            for st in ("compare", "h2h"):
+            for st in ("compare", "h2h", "bestfit"):
                 if st in perf:
                     cperf[st] = perf[st]
-            w = _blend({"single": 6, "compare": 3, "h2h": 3}, cperf)
+            w = _blend({"single": 6, "compare": 3, "h2h": 3, "bestfit": 3}, cperf)
             keys = list(w)
             ctype = random.choices(keys, weights=[w[k] for k in keys])[0]
             if ctype == "h2h" and count_toward_cap and _h2h_today() >= H2H_DAILY_CAP:
-                ctype = random.choice(["single", "compare"])
+                ctype = random.choice(["single", "compare", "bestfit"])
     if ctype == "compare":
         return make_compare(dry)
+    if ctype == "bestfit":          # lifestyle/fit angle — picks its own school
+        return make_bestfit(dry)
     # single / h2h target ONE school — weight by demand, respect the daily cap
     # (scheduled posts only; manual batches pass count_toward_cap=False)
     if not explicit:
