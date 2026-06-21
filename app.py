@@ -17584,7 +17584,7 @@ def _tiktok_perf_rows(group_sql, label_sql):
 # Shadowban heuristic: a TikTok shadowban shows up as a sharp, sustained reach
 # collapse. TikTok's initial FYP push happens within hours, so a video stuck low
 # after ~12h is already a signal — we EVALUATE from 12h (not 3 days), re-check it
-# every 12h pull, and consider the verdict firm by ~48h (a video still flat 2 days
+# on every stats pull (hourly), and consider the verdict firm by ~48h (a video still flat 2 days
 # in isn't coming back). Heuristic, never definitive (TikTok hides suppression).
 _TT_MATURE_SECS = 12 * 3600     # evaluate a video once it's had ~12h to get pushed
 _TT_CONFIRM_SECS = 48 * 3600    # a low video this old is confirmed, not just slow
@@ -17652,6 +17652,15 @@ def tiktok_account_health():
                     vs = [(r["l"] or 0) / r["v"] for r in rs if r["v"]]
                     return _st.median(vs) if vs else 0
                 eng_steady = lr(recent) >= 0.6 * (lr(older) or 1e-9)
+                # CEILING GUARD (false-positive killer): a real shadowban throttles EVERY
+                # recent post — the whole window collapses. A spiky/bimodal account (some
+                # posts dud, some still hit the FYP) tanks the *median* but its best recent
+                # post proves reach is alive. The median-of-4 alone can't tell these apart,
+                # so it used to auto-pause accounts still landing 500+ view hits. If the
+                # strongest recent post is still reaching, it's per-video variance (FYP
+                # lottery / flagged audio), not an account ban — cap the verdict at 'watch'.
+                recent_max = max((r["v"] or 0) for r in recent)
+                reach_alive = recent_max >= max(_TT_LOW_VIEWS * 4, 0.45 * bv)
                 # A severe, sustained reach collapse IS a shadowban regardless of the
                 # like-rate. (The old rule downgraded it to 'possible' when likes fell
                 # too — but on a real shadowban likes crater with the views, so it never
@@ -17666,8 +17675,12 @@ def tiktok_account_health():
                     status = "watch"
                 else:
                     status = "healthy"
+                # Don't auto-pause an account that can still reach the FYP.
+                if reach_alive and status in ("likely", "possible"):
+                    status = "watch"
                 base.update(status=status, recent=int(rv), baseline=int(bv),
-                            ratio=round(ratio, 2), n=len(mature), eng_steady=eng_steady)
+                            ratio=round(ratio, 2), n=len(mature), eng_steady=eng_steady,
+                            recent_max=int(recent_max), reach_alive=reach_alive)
                 out[a["open_id"]] = base
     except Exception as e:
         print("tiktok health:", e)
@@ -17822,6 +17835,9 @@ def tiktok_home():
         elif "recent" in h:
             detail = (f'recent ~{h["recent"]:,} vs baseline ~{h["baseline"]:,} views '
                       f'({int(h["ratio"]*100)}% · {h["n"]} mature)')
+            if h.get("reach_alive") and h["status"] == "watch":
+                detail += (f' · best recent post ~{h.get("recent_max",0):,} still landing — '
+                           f'looks like per-video dips, not an account ban')
         else:
             detail = ""
         if h["status"] == "likely" and os.environ.get("TT_AUTOPAUSE") != "0":
@@ -17914,15 +17930,19 @@ def _render_worker_loop():
             _render_consume_one(factory)
         except Exception as e:
             print(" * render worker error:", e, flush=True)
-        # Auto-pull TikTok stats every 12h (no separate cron needed). Tokens
-        # refresh themselves, so this just keeps the feedback data fresh.
+        # Auto-pull TikTok stats hourly (no separate cron needed). Tokens refresh
+        # themselves, so this just keeps the feedback data fresh. Tunable via
+        # TT_PULL_SECS (default 3600 = 1h). NOTE: this is the data-refresh cadence,
+        # not the shadowban maturity window — a video still isn't *evaluated* until
+        # it's had ~12h to get its FYP push (_TT_MATURE_SECS), so pulling more often
+        # just gives fresher numbers, it doesn't make the detector trigger early.
         if _tiktok_configured() and _t.time() >= next_tt:
             try:
                 got = _tiktok_pull_all()
                 print(f" * tiktok auto-pull: {got} videos updated", flush=True)
             except Exception as e:
                 print(" * tiktok auto-pull error:", e, flush=True)
-            next_tt = _t.time() + 43200
+            next_tt = _t.time() + int(os.environ.get("TT_PULL_SECS", "3600"))
         _t.sleep(20)
 
 
