@@ -121,7 +121,7 @@ def _web_batch():
     except (TypeError, ValueError):
         n = 4
     slugs = [s for s in (d.get("slugs") or "").split(",") if s.strip()]
-    return n, slugs
+    return n, slugs, (d.get("kind") or "normal")
 
 
 def main():
@@ -129,6 +129,7 @@ def main():
     web = _web_batch()
     web_n = web[0] if web else None
     web_slugs = web[1] if web else []
+    web_kind = web[2] if web else "normal"
     if not msgs and not web_n:
         return
     max_rowid = max((rid for rid, _ in msgs), default=_last_rowid())
@@ -140,14 +141,36 @@ def main():
 
     os.environ.setdefault("GRADER_FAST", "1")
     with factory.render_lock():   # serialize with the scheduled slot job (shared port + DB)
-        _render_session(batch, web_n, web_slugs, specifics, max_rowid)
+        _render_session(batch, web_n, web_slugs, specifics, max_rowid, web_kind)
 
 
-def _render_session(batch, web_n, web_slugs, specifics, max_rowid):
+def _render_session(batch, web_n, web_slugs, specifics, max_rowid, web_kind="normal"):
     factory.start_local_server()
     try:
         if not factory.wait_local_app():
             print("render server didn't start"); return
+        if batch and web_kind == "bestfit":
+            # Best-fit test angle (kept OFF the main wheel): render via make_bestfit;
+            # slugs[0] holds the variant (fit/dream/mix). Never sets the skip-slot
+            # marker — it doesn't stand in for a scheduled wheel slot.
+            n = web_n or 6
+            variant = web_slugs[0] if web_slugs else "mix"
+            text_back(f"On it — making {n} best-fit carousels \U0001F3AF give me a few min...")
+            made = []
+            for i in range(n):
+                v = variant if variant in ("fit", "dream") else ("dream" if i % 2 else "fit")
+                for attempt in range(3):
+                    try:
+                        cid, name = factory.make_bestfit(variant=v)
+                        if cid:
+                            made.append((cid, name)); break
+                    except Exception as e:
+                        print(f"bestfit {i} attempt {attempt}: {e}")
+            if made:
+                factory.text_carousels(made)
+            else:
+                text_back("Hmm, that best-fit batch didn't generate — try again in a minute?")
+            batch = False        # handled; fall through to any text specifics
         if batch:
             n = web_n if web_n else int(os.environ.get("SLOT_COUNT", "4"))
             text_back(f"On it — making a fresh batch of {n} \U0001F3AC give me a few min...")

@@ -4684,6 +4684,10 @@ def init_db():
             conn.execute("ALTER TABLE batch_requests ADD COLUMN slugs TEXT")
         except sqlite3.OperationalError:
             pass
+        try:   # kind = 'normal' (the content wheel) or 'bestfit' (separate test angle)
+            conn.execute("ALTER TABLE batch_requests ADD COLUMN kind TEXT DEFAULT 'normal'")
+        except sqlite3.OperationalError:
+            pass
         # ── TikTok feedback loop ──────────────────────────────────────────
         # One row per authorized account (the OAuth refresh token is what we keep;
         # access tokens are short-lived and refreshed from it). open_id is TikTok's
@@ -5649,6 +5653,7 @@ NAV_CONTENT = ('<div class="nav"><a class="brand" href="/admin/stats">' + CANDOR
     '<a href="/content/glowup">📈 Glow-up</a>'
     '<a href="/content/headtohead">🆚 H2H</a>'
     '<a href="/h2hprofiles/export">👥 A/B</a>'
+    '<a href="/content/bestfit">🎯 Best Fit</a>'
     '<span class="sp"></span>'
     '<a href="/colleges?full=1" style="font-size:.82em;opacity:.65">full site</a> '
     '<a href="/logout">Logout</a></div>')
@@ -12341,7 +12346,13 @@ def content_queue_push():
     if not (d.get("img1") and d.get("img2") and d.get("img3")):
         return ("need img1, img2, img3", 400)
     with db() as conn:
-        assigned = _assign_content_account(conn, d.get("school_slug"), d.get("slide3_type"))
+        # Best-fit is a SEPARATE test angle — never auto-assign it to a real
+        # account's rotation; park it under the 'bestfit' sentinel so it only shows
+        # on the /content/bestfit tab, not in the main /content/today wheel.
+        if d.get("slide3_type") == "bestfit":
+            assigned = "bestfit"
+        else:
+            assigned = _assign_content_account(conn, d.get("school_slug"), d.get("slide3_type"))
         cur = conn.execute(
             """INSERT INTO content_queue
                (school_slug, school_name, accent, title_text, title_formula, slide3_type,
@@ -12459,10 +12470,11 @@ def content_batch_pending():
     if not _autopilot_authed():
         return ("unauthorized", 401)
     with db() as conn:
-        r = conn.execute("SELECT id, count, slugs FROM batch_requests WHERE claimed_at IS NULL ORDER BY id ASC LIMIT 1").fetchone()
+        r = conn.execute("SELECT id, count, slugs, kind FROM batch_requests WHERE claimed_at IS NULL ORDER BY id ASC LIMIT 1").fetchone()
     if not r:
         return jsonify(pending=False)
-    return jsonify(pending=True, id=r["id"], count=r["count"], slugs=r["slugs"] or "")
+    return jsonify(pending=True, id=r["id"], count=r["count"], slugs=r["slugs"] or "",
+                   kind=(r["kind"] or "normal"))
 
 
 @app.route("/content/batch-claim", methods=["POST"])
@@ -12627,6 +12639,129 @@ def content_queue_action(cid, action):
             conn.execute(f"UPDATE content_queue SET status=?, {col}=CURRENT_TIMESTAMP WHERE id=?", (action, cid))
         conn.commit()
     return redirect(url_for("content_today"))
+
+
+_CONTENT_SAVE_JS = (
+    '<script>'
+    'async function saveCard(btn){var card=btn.closest(".qcard");if(!card)return;'
+    ' var t=btn.textContent;btn.disabled=true;btn.textContent="Preparing…";'
+    ' try{var els=[].slice.call(card.querySelectorAll(".cslide")),fs=[];'
+    '  for(var i=0;i<els.length;i++){var r=await fetch(els[i].src);var bl=await r.blob();'
+    '   fs.push(new File([bl],"candor-slide-"+(i+1)+".png",{type:"image/png"}));}'
+    '  if(navigator.canShare&&navigator.canShare({files:fs})){await navigator.share({files:fs,title:"Candor carousel"});}'
+    '  else{fs.forEach(function(f){var a=document.createElement("a");a.href=URL.createObjectURL(f);'
+    '   a.download=f.name;document.body.appendChild(a);a.click();a.remove();});}'
+    ' }catch(e){}btn.disabled=false;btn.textContent=t;}'
+    'function cardAct(form){var card=form.closest(".qcard");'
+    ' fetch(form.action,{method:"POST",body:new FormData(form)}).catch(function(){});'
+    ' if(card){card.style.transition="opacity .15s";card.style.opacity="0";'
+    '  setTimeout(function(){card.remove();},150);} return false;}'
+    '</script>')
+
+
+@app.route("/content/bestfit")
+@login_required
+def content_bestfit():
+    """Best Fit tab — the 'Where should they go?' test angle, kept SEPARATE from the
+    main content wheel. Lists best-fit carousels (slide3_type='bestfit', parked under
+    the 'bestfit' sentinel account so they never enter the real rotation) + a Make
+    button that queues a bestfit render batch."""
+    if not _is_creator():
+        abort(404)
+    with db() as conn:
+        rows = list(conn.execute(
+            "SELECT * FROM content_queue WHERE slide3_type='bestfit' AND status!='posted' "
+            "ORDER BY id DESC").fetchall())
+        total = conn.execute("SELECT COUNT(*) c FROM content_queue WHERE slide3_type='bestfit'").fetchone()["c"]
+        queued = conn.execute("SELECT COUNT(*) c FROM batch_requests WHERE kind='bestfit' AND claimed_at IS NULL").fetchone()["c"]
+    cards = []
+    for r in rows:
+        _ck = [k for k in ("img1", "img2", "img3", "img4") if r[k]]
+        imgs = "".join(
+            f'<div style="flex:1;min-width:150px"><img class="cslide" src="{r[k]}" alt="slide {i}" '
+            f'style="width:100%;border-radius:12px;border:1px solid #1d2a3d;-webkit-touch-callout:default">'
+            f'<div style="text-align:center;font-size:12px;color:#7c8aa0;margin-top:4px">Slide {i}</div></div>'
+            for i, k in enumerate(_ck, 1))
+        imgs += (f'<div style="flex:1;min-width:150px"><img class="cslide" src="{_CTA_SLIDE_URL}" alt="CTA slide" '
+                 f'style="width:100%;border-radius:12px;border:1px solid #1d2a3d;-webkit-touch-callout:default">'
+                 f'<div style="text-align:center;font-size:12px;color:#7c8aa0;margin-top:4px">Slide {len(_ck)+1} · CTA</div></div>')
+        try:
+            _variant = (json.loads(r["meta"]) if r["meta"] else {}).get("variant", "fit")
+        except Exception:
+            _variant = "fit"
+        meta = f'{r["school_name"] or r["school_slug"] or ""} · {_variant}'
+        cards.append(
+            f'<div class="qcard" style="background:#0c1521;border:1px solid #1d2a3d;border-radius:16px;padding:16px;margin:0 0 18px">'
+            f'<div style="font-weight:800;font-size:17px;margin:0 0 2px">{r["title_text"] or meta}</div>'
+            f'<div style="color:#7c8aa0;font-size:13px;margin:0 0 10px">{meta} · {len(_ck)} slides</div>'
+            f'<div style="display:flex;gap:10px;flex-wrap:wrap">{imgs}</div>'
+            f'<button type="button" onclick="saveCard(this)" style="width:100%;background:#2f6df0;color:#fff;'
+            f'font-weight:800;border:0;padding:13px;border-radius:10px;margin:14px 0 12px;cursor:pointer">⬇️ Save all slides</button>'
+            f'<div style="display:flex;gap:10px;margin-top:4px">'
+            f'<form method="post" action="/content/queue/{r["id"]}/posted" style="flex:1" onsubmit="return cardAct(this)">{csrf_input()}'
+            f'<input type="hidden" name="account" value="bestfit">'
+            f'<button style="width:100%;background:#5fc9b6;color:#06121a;font-weight:800;border:0;padding:12px;border-radius:10px">✓ Posted</button></form>'
+            f'<form method="post" action="/content/queue/{r["id"]}/skipped" style="flex:1" onsubmit="return cardAct(this)">{csrf_input()}'
+            f'<button style="width:100%;background:#16202e;color:#e9eef5;font-weight:700;border:1px solid #1d2a3d;padding:12px;border-radius:10px">Skip</button></form>'
+            f'</div></div>')
+    if not cards:
+        cards.append('<div style="color:#7c8aa0;text-align:center;padding:40px 0">No best-fit carousels yet. '
+                     'Hit “Make” above — they render on the Mac/Railway worker and land here in a couple minutes.</div>')
+    try:
+        _rqn = max(1, min(8, int(request.args.get("requested") or 0)))
+    except ValueError:
+        _rqn = 0
+    banner = (f'<div style="background:#13351f;border:1px solid #1f7a45;color:#bdf3d0;border-radius:12px;'
+              f'padding:12px 14px;margin:0 0 16px;font-weight:600">⚡ Requested {_rqn} best-fit carousel(s) — '
+              f'rendering now; refresh in a minute or two.</div>' if _rqn else '')
+    _vs = ('width:100%;padding:10px;border-radius:9px;background:#0a1320;color:#e9eef5;'
+           'border:1px solid #2b3a4f;margin:0 0 8px;font-size:14px')
+    make_btn = (
+        f'<form method="post" action="/content/bestfit/make" style="background:#0c1521;border:1px solid #1d2a3d;'
+        f'border-radius:14px;padding:14px;margin:0 0 18px">{csrf_input()}'
+        f'<div style="font-weight:800;font-size:12px;color:#7c8aa0;margin:0 0 8px;letter-spacing:.4px">MAKE BEST-FIT CAROUSELS (separate from the main wheel)</div>'
+        f'<div style="display:flex;gap:10px;flex-wrap:wrap">'
+        f'<select name="variant" style="{_vs};flex:1;min-width:140px">'
+        f'<option value="mix">🎲 Mix (fit + dream)</option>'
+        f'<option value="dream">💭 Dream vs Best Fit</option>'
+        f'<option value="fit">🎯 Trait → Best Fit</option></select>'
+        f'<select name="count" style="{_vs};flex:1;min-width:120px">'
+        f'<option value="3">3 carousels</option><option value="6" selected>6 carousels</option>'
+        f'<option value="8">8 carousels</option></select></div>'
+        f'<button style="width:100%;background:#5fc9b6;color:#06121a;font-weight:800;border:0;'
+        f'padding:13px;border-radius:11px;font-size:15px;cursor:pointer">⚡ Make best-fit carousels</button></form>')
+    note = (f'<div style="color:#7c8aa0;font-size:14px;margin:0 0 18px">{len(cards) if rows else 0} ready to post · '
+            f'{queued} batch queued · {total} made all-time · these post to a SEPARATE test account, '
+            f'not your main rotation.</div>')
+    body = (f'<div style="max-width:720px;margin:0 auto;padding:16px 12px 80px">'
+            f'<h1 style="margin:0 0 4px">🎯 Best Fit</h1>{note}{banner}{make_btn}'
+            + "".join(cards) + '</div>' + _CONTENT_SAVE_JS)
+    return _page(body, title="Content · Best Fit")
+
+
+@app.route("/content/bestfit/make", methods=["POST"])
+@login_required
+def content_bestfit_make():
+    """Queue a best-fit render batch (kind='bestfit'; variant in the slugs column).
+    The Mac daemon or the Railway render worker renders them via make_bestfit and
+    pushes with slide3_type='bestfit' -> 'bestfit' sentinel account."""
+    if not _is_creator():
+        abort(404)
+    try:
+        n = max(1, min(8, int(request.form.get("count", "6"))))
+    except (TypeError, ValueError):
+        n = 6
+    variant = request.form.get("variant", "mix")
+    if variant not in ("fit", "dream", "mix"):
+        variant = "mix"
+    with db() as conn:
+        existing = conn.execute(
+            "SELECT id FROM batch_requests WHERE kind='bestfit' AND claimed_at IS NULL LIMIT 1").fetchone()
+        if not existing:        # coalesce — don't stack duplicate unclaimed batches
+            conn.execute("INSERT INTO batch_requests (count, slugs, kind) VALUES (?,?,?)",
+                         (n, variant, "bestfit"))
+        conn.commit()
+    return redirect(url_for("content_bestfit", requested=n))
 
 
 @app.route("/content/today")
@@ -18058,7 +18193,7 @@ def tiktok_home():
 # on the Mac; this only consumes the on-demand button queue.
 def _render_consume_one(factory):
     with db() as conn:
-        row = conn.execute("SELECT id, count, slugs FROM batch_requests "
+        row = conn.execute("SELECT id, count, slugs, kind FROM batch_requests "
                            "WHERE claimed_at IS NULL ORDER BY id ASC LIMIT 1").fetchone()
         if not row:
             return
@@ -18071,8 +18206,24 @@ def _render_consume_one(factory):
         n = max(1, min(8, int(row["count"] or 4)))
     except (TypeError, ValueError):
         n = 4
-    slugs = [s for s in (row["slugs"] or "").split(",") if s.strip()]
+    kind = (row["kind"] or "normal")
     made = 0
+    if kind == "bestfit":
+        # Separate test angle: render best-fit carousels (slugs holds the variant:
+        # fit / dream / mix). They push with slide3_type='bestfit' -> 'bestfit'
+        # sentinel account, so they only land on the /content/bestfit tab.
+        variant = (row["slugs"] or "mix").strip() or "mix"
+        for i in range(n):
+            v = variant if variant in ("fit", "dream") else ("dream" if i % 2 else "fit")
+            try:
+                cid, _ = factory.make_bestfit(variant=v)
+                if cid:
+                    made += 1
+            except Exception as e:
+                print(f" * render worker bestfit {i}: {e}", flush=True)
+        print(f" * render worker: bestfit batch {row['id']} -> {made}/{n} queued", flush=True)
+        return
+    slugs = [s for s in (row["slugs"] or "").split(",") if s.strip()]
     for i in range(n):
         chosen = slugs[i] if i < len(slugs) else None    # creator-picked school or auto
         for attempt in range(2):
