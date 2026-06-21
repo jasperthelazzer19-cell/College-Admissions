@@ -17189,11 +17189,11 @@ def admin_stats():
     <div class="value accent">{real_visitors}</div>
     <div class="delta">2+ pageviews · {scrapers_excluded:,} single-hit scrapers excluded</div>
   </div>
-  <div class="stat-card">
-    <div class="label">Total users</div>
+  <a class="stat-card" href="/admin/signups?key={ADMIN_KEY}" style="display:block;text-decoration:none;cursor:pointer">
+    <div class="label">Total users 📈</div>
     <div class="value accent">{total_users}</div>
-    <div class="delta">+{users_today} today · +{users_week} this week</div>
-  </div>
+    <div class="delta">+{users_today} today · +{users_week} this week · tap for chart</div>
+  </a>
   <div class="stat-card">
     <div class="label">Profiles completed</div>
     <div class="value">{profiles_done}</div>
@@ -17241,6 +17241,149 @@ def admin_stats():
 <p class="muted" style="font-size:.78em;margin-top:18px">Auto-refreshes every 90s · scraper-excluded counts use the 2+ pageview heuristic. Bookmark this URL for quick access.</p>
 <script>setTimeout(function(){{location.reload();}}, 90000);</script>
 """, title="Activity — Candor")
+
+
+@app.route("/admin/signups")
+def admin_signups():
+    """Clickable from the Total-users stat: an intraday 'stock chart' of signups
+    for one day — cumulative count rising through the day, a dot per signup. A
+    clickable daily-history strip + prev/next + date picker jump to any past day.
+    Inline SVG (no CDN) so it renders even behind a school content filter."""
+    if not (_key_eq(request.args.get("key"), ADMIN_KEY) or _is_creator()):
+        return ("<h1>401 Unauthorized</h1>", 401)
+    from datetime import datetime, timedelta
+    TZ = -7  # PT, matches /admin/stats
+    key = request.args.get("key", ADMIN_KEY)
+    with db() as conn:
+        daily = conn.execute(
+            f"SELECT date(created_at,'{TZ} hours') d, COUNT(*) n FROM users "
+            f"WHERE created_at IS NOT NULL GROUP BY d ORDER BY d"
+        ).fetchall()
+        today = conn.execute(f"SELECT date('now','{TZ} hours') d").fetchone()["d"]
+    daily = [r for r in daily if r["d"]]
+    counts_by_day = {r["d"]: r["n"] for r in daily}
+    earliest = daily[0]["d"] if daily else today
+    # Selected day (?day=YYYY-MM-DD), default today, clamped to [earliest, today].
+    day = request.args.get("day") or today
+    try:
+        datetime.strptime(day, "%Y-%m-%d")
+    except ValueError:
+        day = today
+    day = min(max(day, earliest), today)
+    with db() as conn:
+        rows = conn.execute(
+            f"SELECT email, "
+            f"CAST(strftime('%H',created_at,'{TZ} hours') AS INT)*3600 + "
+            f"CAST(strftime('%M',created_at,'{TZ} hours') AS INT)*60 + "
+            f"CAST(strftime('%S',created_at,'{TZ} hours') AS INT) sod, "
+            f"strftime('%H:%M',created_at,'{TZ} hours') hm "
+            f"FROM users WHERE date(created_at,'{TZ} hours')=? ORDER BY created_at",
+            (day,)
+        ).fetchall()
+    total = len(rows)
+
+    # ── Intraday cumulative "stock" chart (SVG) ───────────────────────────────
+    W, H = 820, 320
+    padL, padR, padT, padB = 46, 16, 16, 32
+    plotW, plotH = W - padL - padR, H - padT - padB
+    ymax = max(total, 1)
+    X = lambda sod: padL + (sod / 86400.0) * plotW
+    Yc = lambda c: padT + plotH - (c / ymax) * plotH
+    seg = [f"M{X(0):.1f},{Yc(0):.1f}"]
+    prev = 0
+    for i, r in enumerate(rows):
+        c = i + 1
+        seg.append(f"L{X(r['sod']):.1f},{Yc(prev):.1f} L{X(r['sod']):.1f},{Yc(c):.1f}")
+        prev = c
+    seg.append(f"L{X(86400):.1f},{Yc(prev):.1f}")
+    line_d = " ".join(seg)
+    area_d = line_d + f" L{X(86400):.1f},{Yc(0):.1f} L{X(0):.1f},{Yc(0):.1f} Z"
+    grid = ""
+    for h, lab in [(0, "12a"), (6, "6a"), (12, "12p"), (18, "6p"), (24, "12a")]:
+        gx = X(h * 3600)
+        grid += (f'<line x1="{gx:.1f}" y1="{padT}" x2="{gx:.1f}" y2="{padT+plotH}" stroke="#1a2536" stroke-width="1"/>'
+                 f'<text x="{gx:.1f}" y="{H-10}" fill="#5f6f86" font-size="11" text-anchor="middle">{lab}</text>')
+    yt = ""
+    for c in sorted({0, ymax, max(1, ymax // 2)}):
+        gy = Yc(c)
+        yt += (f'<line x1="{padL}" y1="{gy:.1f}" x2="{padL+plotW}" y2="{gy:.1f}" stroke="#141d29" stroke-width="1"/>'
+               f'<text x="{padL-8}" y="{gy+4:.1f}" fill="#5f6f86" font-size="11" text-anchor="end">{c}</text>')
+    dots = ""
+    for i, r in enumerate(rows):
+        em = (r["email"] or "").replace("&", "&amp;").replace("<", "&lt;").replace('"', "&quot;")
+        dots += (f'<circle cx="{X(r["sod"]):.1f}" cy="{Yc(i+1):.1f}" r="3.2" fill="#5fc9b6" '
+                 f'stroke="#0b1219" stroke-width="1"><title>{em} · {r["hm"]}</title></circle>')
+    svg = (f'<svg viewBox="0 0 {W} {H}" width="100%" style="display:block;background:#0b1219;'
+           f'border:1px solid #1a2536;border-radius:12px" preserveAspectRatio="none">'
+           f'<defs><linearGradient id="sg" x1="0" y1="0" x2="0" y2="1">'
+           f'<stop offset="0" stop-color="#5fc9b6" stop-opacity="0.45"/>'
+           f'<stop offset="1" stop-color="#5fc9b6" stop-opacity="0"/></linearGradient></defs>'
+           f'{yt}{grid}<path d="{area_d}" fill="url(#sg)"/>'
+           f'<path d="{line_d}" fill="none" stroke="#5fc9b6" stroke-width="2" '
+           f'stroke-linejoin="round"/>{dots}</svg>')
+
+    # ── Clickable daily-history strip (last 60 days, gaps filled with 0) ───────
+    end_dt = datetime.strptime(today, "%Y-%m-%d")
+    start_dt = max(end_dt - timedelta(days=59), datetime.strptime(earliest, "%Y-%m-%d"))
+    bars = ""
+    bmax = max([counts_by_day.get(d, 0) for d in counts_by_day] + [1])
+    d_dt = start_dt
+    while d_dt <= end_dt:
+        ds = d_dt.strftime("%Y-%m-%d")
+        n = counts_by_day.get(ds, 0)
+        hpct = max(int(n / bmax * 100), 2 if n else 0)
+        col = "#5fc9b6" if ds == day else ("#2f6f63" if n else "#16202e")
+        bars += (f'<a href="/admin/signups?key={key}&day={ds}" title="{ds}: {n} signup(s)" '
+                 f'style="flex:1;min-width:3px;display:flex;align-items:flex-end;justify-content:center;text-decoration:none">'
+                 f'<div style="width:74%;height:{hpct}%;min-height:{2 if n else 0}px;background:{col};border-radius:2px 2px 0 0"></div></a>')
+    strip = (f'<div style="display:flex;align-items:flex-end;gap:1px;height:80px;padding:8px 4px;'
+             f'background:#0b1219;border:1px solid #1a2536;border-radius:12px">{bars}</div>')
+
+    # ── Navigation (prev / next / date picker) ────────────────────────────────
+    day_dt = datetime.strptime(day, "%Y-%m-%d")
+    prev_day = (day_dt - timedelta(days=1)).strftime("%Y-%m-%d")
+    next_day = (day_dt + timedelta(days=1)).strftime("%Y-%m-%d")
+    nice = day_dt.strftime("%A, %b %-d, %Y")
+    tag = " · today" if day == today else (" · yesterday" if day == (end_dt - timedelta(days=1)).strftime("%Y-%m-%d") else "")
+    def navbtn(target, label, ok):
+        if ok:
+            return (f'<a href="/admin/signups?key={key}&day={target}" '
+                    f'style="padding:8px 14px;border-radius:9px;background:#16202e;border:1px solid #2b3a4f;'
+                    f'color:#e9eef5;text-decoration:none;font-weight:700">{label}</a>')
+        return (f'<span style="padding:8px 14px;border-radius:9px;background:#0e1620;border:1px solid #1a2536;'
+                f'color:#3c4a5e;font-weight:700">{label}</span>')
+    nav = (f'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:6px 0 14px">'
+           f'{navbtn(prev_day, "← Prev", day > earliest)}'
+           f'{navbtn(next_day, "Next →", day < today)}'
+           f'<input type="date" value="{day}" min="{earliest}" max="{today}" '
+           f'onchange="location.href=\'/admin/signups?key={key}&day=\'+this.value" '
+           f'style="padding:7px 10px;border-radius:9px;background:#16202e;border:1px solid #2b3a4f;'
+           f'color:#e9eef5;font-size:14px;color-scheme:dark">'
+           f'<span style="margin-left:auto;color:#7c8aa0;font-size:13px">'
+           f'<b style="color:#e9eef5">{total}</b> signup(s) on {nice.split(",")[0]}</span></div>')
+
+    # ── That day's signups list ───────────────────────────────────────────────
+    if rows:
+        listing = "".join(
+            f'<div style="display:flex;justify-content:space-between;padding:7px 0;border-top:1px solid var(--border);font-size:.86em">'
+            f'<span style="color:var(--text)">{(r["email"] or "—")}</span>'
+            f'<span class="muted">{r["hm"]}</span></div>'
+            for r in rows)
+    else:
+        listing = '<p class="muted">No signups on this day.</p>'
+
+    body = (
+        f'<div class="bar" style="margin-bottom:6px"><a href="/admin/stats?key={key}">← Activity</a></div>'
+        f'<h1 style="margin:0 0 2px">Signups · {nice}{tag}</h1>'
+        f'<p class="muted" style="margin:0 0 12px;font-size:.86em">Cumulative signups through the day (PT). '
+        f'Hover a dot for who &amp; when. Tap a bar below — or use the arrows / date picker — to jump to any past day.</p>'
+        f'{nav}{svg}'
+        f'<h3 style="margin:20px 0 6px;color:var(--text-2);font-size:.82em;letter-spacing:.6px;text-transform:uppercase;font-weight:600">Last 60 days</h3>'
+        f'{strip}'
+        f'<div class="card" style="margin-top:18px"><h3 style="margin-top:0">Signups on {nice.split(",")[0]} '
+        f'<span class="muted" style="font-size:.6em;font-weight:500">· {total} total</span></h3>{listing}</div>'
+    )
+    return _page(body, title=f"Signups {day} — Candor")
 
 
 @app.route("/admin/data-status")
