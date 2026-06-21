@@ -17336,6 +17336,7 @@ def admin_signups():
         bars += (f'<a href="/admin/signups?key={key}&day={ds}" title="{ds}: {n} signup(s)" '
                  f'style="flex:1;min-width:3px;display:flex;align-items:flex-end;justify-content:center;text-decoration:none">'
                  f'<div style="width:74%;height:{hpct}%;min-height:{2 if n else 0}px;background:{col};border-radius:2px 2px 0 0"></div></a>')
+        d_dt += timedelta(days=1)
     strip = (f'<div style="display:flex;align-items:flex-end;gap:1px;height:80px;padding:8px 4px;'
              f'background:#0b1219;border:1px solid #1a2536;border-radius:12px">{bars}</div>')
 
