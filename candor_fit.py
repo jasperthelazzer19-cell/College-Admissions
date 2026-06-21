@@ -1,191 +1,135 @@
-"""Candor "Where should they go?" fit engine.
+"""Candor "Where should they go?" content helper — driven by Candor's REAL My Fit
+engine (app.compute_my_fit / school_match), not a parallel copy.
 
-Powers the best-fit content angle (lifestyle/vibe instead of admit-odds). Pure:
-every function takes a slug + the school dict (from app.COLLEGES_BY_SLUG) and
-returns derived attributes / trait copy — no app import, no DB, easy to test.
+Flow: pick a vibe-rich seed school -> read its REAL attributes via app's own
+helpers (climate_of / sports_strength / greek_strength / setting_of / size bucket)
+-> set those as a student's preferences -> let app.compute_my_fit rank EVERY school
+-> the #1 is Candor's honest My Fit pick (the reveal). The trait slide shows the
+prefs the student set. So the carousel is literally the product's output.
 
-The carousel is reverse-engineered: pick the best-fit school FIRST, derive its
-real vibe (region/climate from state, size bucket from size, curated sports/greek/
-setting), then write 4-5 lifestyle traits that TRUE-describe it. That makes the
-reveal feel earned and gives commenters something to argue about
-("Wisconsin fits those traits better", "Michigan clears").
+`A` in every signature is the app module (passed in to avoid an import cycle;
+app does not import this file).
 """
 import random
 
-# ── climate by state (content axis: cold winters vs warm/sunny) ──────────────
-_COLD = {"Massachusetts", "Rhode Island", "Connecticut", "New York", "New Hampshire",
-         "Vermont", "Maine", "New Jersey", "Pennsylvania", "Michigan", "Wisconsin",
-         "Minnesota", "Illinois", "Indiana", "Ohio", "Iowa", "Nebraska", "North Dakota",
-         "South Dakota", "Montana", "Wyoming", "Alaska"}
-_WARM = {"California", "Florida", "Georgia", "Texas", "Louisiana", "Alabama",
-         "Mississippi", "South Carolina", "Arizona", "New Mexico", "Nevada", "Hawaii",
-         "Tennessee", "Oklahoma", "Arkansas"}
-# everything else (NC, VA, MD, DC, WA, OR, MO, KY, CO, UT, ...) reads as "mild"
+SIZE_ORDER = ["xs", "small", "medium", "ml", "large"]
 
-# ── region phrasing by state ─────────────────────────────────────────────────
-_REGION = {
-    "Massachusetts": "the Northeast", "Rhode Island": "the Northeast",
-    "Connecticut": "the Northeast", "New York": "the Northeast",
-    "New Hampshire": "the Northeast", "Vermont": "the Northeast",
-    "Maine": "the Northeast", "New Jersey": "the Northeast",
-    "Pennsylvania": "the Northeast",
-    "Michigan": "the Midwest", "Wisconsin": "the Midwest", "Illinois": "the Midwest",
-    "Indiana": "the Midwest", "Ohio": "the Midwest", "Missouri": "the Midwest",
-    "Minnesota": "the Midwest", "Iowa": "the Midwest",
-    "Florida": "the South", "Georgia": "the South", "Texas": "the South",
-    "Louisiana": "the South", "North Carolina": "the South", "Virginia": "the South",
-    "Tennessee": "the South", "South Carolina": "the South", "Alabama": "the South",
-    "California": "the West Coast", "Washington": "the West Coast",
-    "Oregon": "the West Coast", "Colorado": "the West", "Arizona": "the Southwest",
-    "Maryland": "the Mid-Atlantic", "District of Columbia": "the Mid-Atlantic",
-}
-
-# ── curated vibe membership (slug-keyed; only needs the renderable ~50) ───────
-BIG_SPORTS = {"umich", "wisc", "notre-dame", "usc", "ut-austin", "uf", "miami", "unc",
-              "ucla", "duke", "gatech", "uiuc", "umd", "purdue", "uw", "uva", "villanova"}
-GREEK = {"usc", "vanderbilt", "wake-forest", "tulane", "uva", "ut-austin", "uf",
-         "miami", "duke", "villanova", "wisc", "umich", "unc"}
-URBAN = {"nyu", "bu", "northeastern", "columbia", "usc", "ucla", "gatech", "georgetown",
-         "uchicago", "upenn", "jhu", "cmu", "tulane"}
-COLLEGE_TOWN = {"cornell", "dartmouth", "williams", "amherst", "umich", "unc", "uva",
-                "uf", "wisc", "uiuc", "notre-dame", "ut-austin", "duke"}
-# everything else falls back to "suburban"
-
-# schools that read as a "dream / reach" name on TikTok (Format 2 contrast)
+# Reach/"dream school" names for the Dream-vs-Best-Fit variant.
 DREAM_NAMES = ["harvard", "stanford", "mit", "yale", "princeton", "columbia", "upenn",
                "brown", "duke", "uchicago", "cornell", "dartmouth", "ucla", "ucb", "nyu"]
 
 
-def _climate(state):
-    if state in _COLD:
-        return "cold"
-    if state in _WARM:
-        return "warm"
-    return "mild"
-
-
-def _size_bucket(size):
-    size = size or 0
-    if size >= 20000:
-        return "large"
-    if size >= 7000:
-        return "mid"
-    return "small"
-
-
-def _setting(slug):
-    if slug in URBAN:
-        return "urban"
-    if slug in COLLEGE_TOWN:
-        return "college-town"
-    return "suburban"
-
-
-def vibe(slug, school):
-    """Derived attributes for one school (mix of real fields + curated tags)."""
-    state = (school.get("state") or "").strip()
-    majors = school.get("majors") or []
+def base_profile(major=None, state="California"):
+    """A complete, strong synthetic applicant so compute_my_fit's admit-realism +
+    academic components run without an LLM call (keeps best-fit $0 + deterministic).
+    Fit is 80% preferences, so the exact academics barely move the ranking."""
     return {
-        "slug": slug,
-        "state": state,
-        "region": _REGION.get(state, "a great spot"),
-        "climate": _climate(state),
-        "size": school.get("size") or 0,
-        "size_bucket": _size_bucket(school.get("size")),
-        "public": (school.get("type") == "public"),
-        "elite": (school.get("tier") or 9) <= 2,
-        "top_major": majors[0] if majors else None,
-        "sports": slug in BIG_SPORTS,
-        "greek": slug in GREEK,
-        "setting": _setting(slug),
+        "uw_gpa": 3.92, "weighted_gpa": 4.4, "sat": 1490, "act": 33,
+        "major": major or "Business", "state": state, "school_type": "public",
+        "ecs": "Founded a club; varsity sport; part-time job",
+        "leadership": "Team captain; club president",
+        "awards": "AP Scholar with Distinction", "aps": "AP Calculus BC, AP Economics, AP English",
     }
 
 
-# trait phrasings per attribute (a few variants each so carousels don't repeat)
-_PHRASES = {
-    "sports": ["Big-time college sports", "A huge sports culture", "Saturday football energy",
-               "Real game-day atmosphere"],
-    "greek": ["A big Greek life scene", "Frats and sororities", "Strong Greek life"],
-    "spirit": ["Tons of school spirit", "A school everyone's proud of"],
-    "cold": ["Cold winters and real seasons", "Snowy, four-season winters", "Actual fall and winter"],
-    "warm": ["Warm, sunny weather", "Sunshine basically year-round", "Warm-weather campus life"],
-    "mild": ["Mild, easy weather", "Nice weather most of the year"],
-    "large": ["A big-school feel", "A huge campus", "Tens of thousands of students"],
-    "mid": ["A mid-sized campus", "Not too big, not too small"],
-    "small": ["A small, tight-knit campus", "Small classes and a close community"],
-    "public": ["A big public-school vibe"],
-    "urban": ["A real city campus", "City life right outside the door"],
-    "college-town": ["A classic college town", "A town that lives for the school"],
-    "suburban": ["A pretty, self-contained campus"],
-    "elite": ["Seriously strong academics", "Top-tier academics"],
+def vibe_pool(slugs, A):
+    """Seed schools that make a GOOD best-fit debate: real sports-strong or
+    Greek-strong schools (per app's own data). Falls back to all if thin."""
+    pool = [s for s in slugs
+            if A.sports_strength(A.COLLEGES_BY_SLUG[s]) == "strong"
+            or A.greek_strength(A.COLLEGES_BY_SLUG[s]) == "strong"]
+    return pool or list(slugs)
+
+
+def prefs_for_school(merged_school, A):
+    """Build pref_* values that match a seed school's REAL attributes, using app's
+    own helpers — so the resulting My Fit ranking points at that kind of school."""
+    climate = A.climate_of(merged_school)            # warm / mild / cold
+    sports = A.sports_strength(merged_school)         # strong / medium / low
+    greek = A.greek_strength(merged_school)           # strong / medium / light
+    setting = A.setting_of(merged_school)             # urban / college_town / suburban / rural
+    size_b = A._bucket_of(merged_school.get("size", 0) or 0, A.SIZE_RANGES, SIZE_ORDER)
+    prefs = {"pref_weather": climate, "pref_setting": setting, "pref_size": size_b}
+    if sports == "strong":
+        prefs["pref_sports"] = "strong"
+    elif sports == "low":
+        prefs["pref_sports"] = "low"
+    if greek == "strong":
+        prefs["pref_greek"] = "strong"
+    elif greek == "light":
+        prefs["pref_greek"] = "avoid"
+    majors = merged_school.get("majors") or []
+    if majors:
+        prefs["major"] = majors[0]
+        prefs["pref_major_strength"] = "top"
+    return prefs
+
+
+def rank_by_fit(profile, slugs, A):
+    """Run the REAL engine over every renderable school -> sorted [(slug, score)]."""
+    scored = []
+    for s in slugs:
+        try:
+            merged = A.merged_school(A.COLLEGES_BY_SLUG[s])
+            score, _ = A.compute_my_fit(profile, merged)
+            scored.append((s, score))
+        except Exception:
+            continue
+    scored.sort(key=lambda x: -x[1])
+    return scored
+
+
+_TRAIT = {
+    "weather": {"warm": "Warm, sunny weather", "cold": "Cold winters and real seasons",
+                "mild": "Mild, easy weather"},
+    "sports": {"strong": "Big-time college sports", "low": "Low-key on sports"},
+    "greek": {"strong": "A big Greek life scene", "avoid": "No Greek life"},
+    "size": {"xs": "A small, tight-knit campus", "small": "A smaller campus",
+             "medium": "A mid-sized campus", "ml": "A big campus", "large": "A huge campus"},
+    "setting": {"urban": "A big-city campus", "college_town": "A classic college town",
+                "suburban": "A suburban campus", "rural": "A rural campus"},
 }
 
 
-def traits(slug, school, n=5, rng=random):
-    """4-5 punchy lifestyle traits that TRUE-describe the school, ordered most-
-    distinctive first so the best-fit reveal feels earned."""
-    v = vibe(slug, school)
-    buckets = []
-    if v["sports"]:
-        buckets.append("sports")
-    if v["climate"] in ("cold", "warm"):
-        buckets.append(v["climate"])
-    if v["greek"]:
-        buckets.append("greek")
-    if v["top_major"]:
-        buckets.append("major")
-    buckets.append(v["size_bucket"])
-    if v["sports"] or v["public"]:
-        buckets.append("spirit")
-    buckets.append(v["setting"])
-    if v["elite"]:
-        buckets.append("elite")
-    if v["climate"] == "mild":
-        buckets.append("mild")
-    if v["public"]:
-        buckets.append("public")
-
-    out, seen = [], set()
-    for b in buckets:
-        if b in seen:
-            continue
-        seen.add(b)
-        if b == "major":
-            txt = rng.choice([f"A top {v['top_major']} program", f"Strong {v['top_major']}"])
-        else:
-            txt = rng.choice(_PHRASES[b])
-        out.append(txt)
-        if len(out) >= n:
-            break
+def traits_from_prefs(prefs, n=5):
+    """Human-readable lifestyle traits = the prefs the student set (what My Fit ran)."""
+    out = []
+    for key, pref_key in (("weather", "pref_weather"), ("sports", "pref_sports"),
+                          ("greek", "pref_greek"), ("size", "pref_size"),
+                          ("setting", "pref_setting")):
+        v = prefs.get(pref_key)
+        if v and v in _TRAIT[key]:
+            out.append(_TRAIT[key][v])
+    if prefs.get("major"):
+        out.append(f"Strong {prefs['major']}")
     return out[:n]
 
 
-def dream_for(fit_slug, fit_school, colleges_by_slug, rng=random):
-    """Pick a higher-prestige 'dream school' that contrasts with the best fit —
-    a reach name whose vibe differs (different climate/region or setting), so the
-    'but Candor thinks their best fit is...' reveal creates real tension."""
-    fv = vibe(fit_slug, fit_school)
+def dream_for(fit_slug, fit_school, A, rng=random):
+    """A higher-prestige 'dream school' that contrasts the My Fit pick (different
+    climate / region / setting) so the reveal has tension."""
+    fc = A.climate_of(fit_school)
+    fr = A.region_of(fit_school)
+    fs = A.setting_of(fit_school)
     fit_acc = fit_school.get("accept") or 0.2
     cands = []
     for s in DREAM_NAMES:
         if s == fit_slug:
             continue
-        sc = colleges_by_slug.get(s)
+        sc = A.COLLEGES_BY_SLUG.get(s)
         if not sc:
             continue
-        dv = vibe(s, sc)
-        harder = (sc.get("accept") or 1) <= fit_acc + 0.02   # at least as selective
-        different = (dv["climate"] != fv["climate"] or dv["region"] != fv["region"]
-                     or dv["setting"] != fv["setting"])
+        scm = A.merged_school(sc)
+        harder = (scm.get("accept") or 1) <= fit_acc + 0.02
+        different = (A.climate_of(scm) != fc or A.region_of(scm) != fr or A.setting_of(scm) != fs)
         if harder and different:
             cands.append(s)
-    if not cands:                       # fall back to any harder reach name
+    if not cands:
         cands = [s for s in DREAM_NAMES if s != fit_slug
-                 and (colleges_by_slug.get(s, {}).get("accept") or 1) <= fit_acc + 0.02]
+                 and (A.COLLEGES_BY_SLUG.get(s, {}).get("accept") or 1) <= fit_acc + 0.02]
     return rng.choice(cands) if cands else None
 
 
-# header copy for the trait slide, by variant
 HEADERS = {
     "fit": ["THIS STUDENT WANTS...", "THEY WANT:", "WHAT THEY ACTUALLY WANT:"],
     "dream": ["BUT THEY ACTUALLY WANT:", "WHAT THEY'RE REALLY AFTER:", "THEY ACTUALLY WANT:"],

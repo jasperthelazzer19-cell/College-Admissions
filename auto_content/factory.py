@@ -377,19 +377,41 @@ def make_h2h(dry=False, slug=None):
     return _finish(payload, dry, f"H2H {short}")
 
 
-def make_bestfit(dry=False, slug=None, variant=None):
-    """'Where should they go?' — the lifestyle/fit angle (not admit-odds).
-
-    variant 'fit'  (3 slides): hook → trait list → 'BEST FIT: <school>' + logo.
-    variant 'dream'(4 slides): 'DREAM SCHOOL: <reach>' + logo → trait list →
-            'BUT CANDOR THINKS THEIR BEST FIT IS...' → '<school>' + logo.
-    The best-fit school is picked first, then the traits are written to TRUE-
-    describe it, so the reveal feels earned + debate-worthy."""
+def _pick_bestfit_seed():
+    """Pick a vibe-rich SEED school (sports/Greek-strong per app's own data),
+    weighted by real demand + iconic floors, avoiding recent picks. Its real
+    attributes become the student's preferences; the engine then ranks the winner."""
     import candor_fit
-    slug = slug if slug in SCHOOLS else (_pick_school(respect_cap=False) or random.choice(SCHOOLS))
+    pool = candor_fit.vibe_pool(SCHOOLS, app)
+    recent = set(_post_state().get("recent", [])[-RECENT_NOREPEAT:])
+    cand = [s for s in pool if s not in recent] or pool
+    dem = _demand()
+    base = {s: max(dem.get(s, 0) + SCHOOL_WEIGHT_BASELINE, _floor(s)) for s in cand}
+    return random.choices(list(base), weights=list(base.values()))[0]
+
+
+def make_bestfit(dry=False, slug=None, variant=None):
+    """'Where should they go?' — lifestyle/fit angle, powered by Candor's REAL My
+    Fit engine. Pick a vibe-rich seed school → set its real attributes as the
+    student's preferences → app.compute_my_fit ranks EVERY school → the #1 is the
+    reveal (Candor's honest My Fit pick). Traits = the prefs the student set.
+
+    variant 'fit'  (3 slides): hook → trait list → 'BEST FIT: <#1>' + logo.
+    variant 'dream'(4 slides): 'DREAM SCHOOL: <reach>' + logo → trait list →
+            'BUT CANDOR THINKS THEIR BEST FIT IS...' → '<#1>' + logo."""
+    import candor_fit
+    seed = slug if slug in SCHOOLS else _pick_bestfit_seed()
+    seed_merged = app.merged_school(app.COLLEGES_BY_SLUG[seed])
+    prefs = candor_fit.prefs_for_school(seed_merged, app)
+    profile = candor_fit.base_profile(major=prefs.get("major"),
+                                      state=app.COLLEGES_BY_SLUG[seed].get("state") or "California")
+    profile.update(prefs)
+    ranked = candor_fit.rank_by_fit(profile, SCHOOLS, app)
+    slug = ranked[0][0] if ranked else seed       # the engine's honest #1 = the reveal
+    _push_recent(slug)
     sch = app.COLLEGES_BY_SLUG[slug]
     short, accent = app._school_brand(slug, sch.get("name"))
-    traits = candor_fit.traits(slug, sch)
+    traits = candor_fit.traits_from_prefs(prefs)
     if variant not in ("fit", "dream"):
         variant = random.choices(["fit", "dream"], weights=[1, 1])[0]
     tmp = "/tmp/cren_factory"; os.makedirs(tmp, exist_ok=True)
@@ -397,7 +419,7 @@ def make_bestfit(dry=False, slug=None, variant=None):
     ac = urllib.parse.quote(accent)
 
     if variant == "dream":
-        dream = candor_fit.dream_for(slug, sch, app.COLLEGES_BY_SLUG)
+        dream = candor_fit.dream_for(slug, app.merged_school(sch), app)
         if not dream:
             variant = "fit"                       # no clean contrast -> fall back
     if variant == "dream":
@@ -646,16 +668,19 @@ def make_one(dry=False, slug=None, slide3=None, ctype=None, count_toward_cap=Tru
             if single:
                 tot = sum(n for n, _ in single)
                 cperf["single"] = (tot, sum(n * v for n, v in single) / max(1, tot))
-            for st in ("compare", "h2h", "bestfit"):
+            for st in ("compare", "h2h"):
                 if st in perf:
                     cperf[st] = perf[st]
-            w = _blend({"single": 6, "compare": 3, "h2h": 3, "bestfit": 3}, cperf)
+            w = _blend({"single": 6, "compare": 3, "h2h": 3}, cperf)
             keys = list(w)
             ctype = random.choices(keys, weights=[w[k] for k in keys])[0]
             if ctype == "h2h" and count_toward_cap and _h2h_today() >= H2H_DAILY_CAP:
-                ctype = random.choice(["single", "compare", "bestfit"])
+                ctype = random.choice(["single", "compare"])
     if ctype == "compare":
         return make_compare(dry)
+    # NOTE: 'bestfit' is intentionally NOT in the auto rotation — it's a separate
+    # test angle for a dedicated account. Reachable only via explicit ctype
+    # (make_bestfit_batch.py renders them straight to a folder, no queue push).
     if ctype == "bestfit":          # lifestyle/fit angle — picks its own school
         return make_bestfit(dry)
     # single / h2h target ONE school — weight by demand, respect the daily cap
