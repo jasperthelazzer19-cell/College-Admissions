@@ -4604,6 +4604,15 @@ def init_db():
         )""")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_page_visits_ts ON page_visits(ts)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_page_visits_visitor ON page_visits(visitor_id, ts)")
+        # Tracked-link clicks (e.g. the win-back email). One row per click on /go/<slug>.
+        conn.execute("""CREATE TABLE IF NOT EXISTS link_clicks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            slug TEXT NOT NULL,
+            ts TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            ip TEXT,
+            user_agent TEXT
+        )""")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_link_clicks_slug ON link_clicks(slug, ts)")
         # Store the user-agent so single-pageview visitors can be counted (real
         # human) while bots are excluded by UA — no need for the 2+ heuristic on
         # new data. Legacy rows keep user_agent NULL.
@@ -13519,6 +13528,54 @@ _DEMO_SLUGS = [
     "harvard","mit","stanford","yale","princeton","upenn","brown","cornell",
     "columbia","duke","uchicago","ucb","northwestern","vanderbilt","rice","notre-dame",
 ]
+
+# ── Tracked redirect links (campaign click tracking) ───────────────────────
+# /go/<slug> logs a click then 302s to the target, so we can count how many
+# people clicked a link (e.g. the win-back email). View counts at /admin/link-clicks.
+_GO_LINKS = {
+    "win50": "https://buy.stripe.com/bJe28s7S7cqhaa4eLC5AQ05?prefilled_promo_code=RETURN50",
+}
+
+@app.route("/go/<slug>")
+def go_link(slug):
+    target = _GO_LINKS.get(slug)
+    if not target:
+        abort(404)
+    try:
+        ip = (request.headers.get("X-Forwarded-For") or request.remote_addr or "").split(",")[0].strip()
+        with db() as conn:
+            conn.execute("INSERT INTO link_clicks (slug, ip, user_agent) VALUES (?,?,?)",
+                         (slug, ip, (request.headers.get("User-Agent") or "")[:300]))
+            conn.commit()
+    except Exception as e:
+        print("link click log:", e)
+    return redirect(target, code=302)
+
+
+@app.route("/admin/link-clicks")
+def admin_link_clicks():
+    if not _is_creator():
+        abort(404)
+    with db() as conn:
+        rows = conn.execute(
+            "SELECT slug, COUNT(*) c, COUNT(DISTINCT ip) uniq, MAX(ts) last "
+            "FROM link_clicks GROUP BY slug ORDER BY c DESC").fetchall()
+    trs = "".join(
+        f"<tr style='border-top:1px solid #1d2a3d'><td style='padding:8px 0'>/go/{r['slug']}</td>"
+        f"<td><b style='font-size:20px'>{r['c']}</b></td><td>{r['uniq']}</td>"
+        f"<td style='color:#7c8aa0'>{r['last']}</td></tr>" for r in rows)
+    if not trs:
+        trs = "<tr><td colspan=4 style='padding:20px;color:#7c8aa0'>No clicks yet.</td></tr>"
+    html = ("<html><body style='font-family:system-ui;background:#0a131c;color:#e9eef5;"
+            "max-width:640px;margin:0 auto;padding:32px 18px'>"
+            "<h1 style='margin:0 0 16px'>📊 Link clicks</h1>"
+            "<table style='width:100%;border-collapse:collapse'>"
+            "<tr style='text-align:left;color:#7c8aa0;font-size:13px'><th>Link</th><th>Clicks</th>"
+            "<th>Unique</th><th>Last click</th></tr>" + trs + "</table>"
+            "<p style='color:#7c8aa0;margin-top:24px;font-size:13px'>“Unique” = distinct IPs. "
+            "Auto-refresh by reloading.</p></body></html>")
+    return Response(html, mimetype="text/html")
+
 
 @app.route("/api/demo-odds")
 def api_demo_odds():
