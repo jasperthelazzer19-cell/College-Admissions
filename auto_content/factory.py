@@ -258,19 +258,6 @@ def wait_local_app():
     return False
 
 
-# Bright, scroll-stopping backgrounds for the best-fit title slide (bg, text).
-# Each pair is high-contrast so the big Anton hook stays legible at thumbnail size.
-_BESTFIT_TITLE_COLORS = [
-    ("#ff5a5f", "#ffffff"),   # coral
-    ("#635bff", "#ffffff"),   # indigo
-    ("#ffd23f", "#15130d"),   # bright yellow
-    ("#19c39a", "#06231c"),   # teal-green
-    ("#ff8fe0", "#15130d"),   # hot pink
-    ("#3a86ff", "#ffffff"),   # electric blue
-    ("#ff7a18", "#15130d"),   # orange
-]
-
-
 def _title_png(slug, lines, accent_words, nologo=False, bg=None, fg=None):
     hook = urllib.parse.quote("\n".join(mark_accents(lines, accent_words)))
     extra = "&nologo=1" if nologo else ""
@@ -437,8 +424,8 @@ def make_bestfit(dry=False, slug=None, variant=None):
     # on a bright colored slide (not the wordy 4-want black-on-white version).
     wants = candor_fit.title_wants(prefs, n=2)
     title_lines = wants + ["WHERE?"]          # bare hook: 2 wants + a one-word question
-    _bg, _fg = random.choice(_BESTFIT_TITLE_COLORS)
-    s1 = _title_png(slug, title_lines, [], nologo=True, bg=_bg, fg=_fg)
+    # text in the best-fit school's brand color on a clean white slide
+    s1 = _title_png(slug, title_lines, [], nologo=True, fg=accent)
     s2 = _shot(f"{tmp}/bf_reveal.png", reveal_url, verify=False)
     payload = dict(school_slug=slug, school_name=f"Best Fit: {short}", accent=accent,
                    title_text=", ".join(w.lower() for w in wants) + " — where?",
