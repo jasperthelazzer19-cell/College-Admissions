@@ -12296,6 +12296,12 @@ def bestfit_result():
     if not scored:
         abort(404)
     win_slug, win_score = scored[0]
+    # &win=<slug> pins the reveal to a specific winner (the content factory passes the
+    # same school it used for the cover color/hashtags), so the cover and this reveal
+    # can never show two different schools. Must be a real, scored school.
+    forced = (request.args.get("win") or "").strip()
+    if forced and forced in COLLEGES_BY_SLUG and any(s == forced for s, _ in scored):
+        win_slug = forced
     merged = merged_school(COLLEGES_BY_SLUG[win_slug])
     short, color = _school_brand(win_slug, merged.get("name"))
     logo = INST_LOGOS.get(win_slug) or SCHOOL_LOGOS.get(win_slug)

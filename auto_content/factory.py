@@ -405,24 +405,40 @@ def make_bestfit(dry=False, slug=None, variant=None):
     seed = slug if slug in SCHOOLS else _pick_bestfit_seed()
     seed_merged = app.merged_school(app.COLLEGES_BY_SLUG[seed])
     prefs = candor_fit.prefs_for_school(seed_merged, app)
-    profile = candor_fit.base_profile(major=prefs.get("major"),
-                                      state=app.COLLEGES_BY_SLUG[seed].get("state") or "California")
+    # Pick the reveal winner the SAME WAY the /bestfit/result page does (same pool,
+    # same base_profile, same compute_my_fit) so the cover's school / color / hashtags
+    # can NEVER disagree with the slide-2 reveal. The old code ranked with a different
+    # function + a California state, so the cover said one school (UNC-blue text,
+    # #unc hashtags) while the reveal page showed another (Maryland).
+    profile = candor_fit.base_profile(major=prefs.get("major"))
     profile.update(prefs)
-    ranked = candor_fit.rank_by_fit(profile, SCHOOLS, app)
-    slug = ranked[0][0] if ranked else seed       # the engine's honest #1 = the reveal
+    pool = sorted(set(app.INST_LOGOS) & set(app.COLLEGES_BY_SLUG))
+    scored = []
+    for s in pool:
+        try:
+            score, _ = app.compute_my_fit(profile, app.merged_school(app.COLLEGES_BY_SLUG[s]))
+            scored.append((s, score))
+        except Exception:
+            continue
+    scored.sort(key=lambda x: -x[1])
+    slug = scored[0][0] if scored else seed       # the engine's #1 = the reveal
     _push_recent(slug)
     sch = app.COLLEGES_BY_SLUG[slug]
     short, accent = app._school_brand(slug, sch.get("name"))
     tmp = "/tmp/cren_factory"; os.makedirs(tmp, exist_ok=True)
     pq = urllib.parse.urlencode(prefs)        # prefs -> /bestfit/result reveal page
-    reveal_url = f"{LOCAL_URL}/bestfit/result?rkey={CRON_KEY}&clean=1&{pq}"
+    # win=slug pins the reveal to exactly the school we used for the cover, so they're
+    # always the same school even if the prefs round-trip drifts.
+    reveal_url = f"{LOCAL_URL}/bestfit/result?rkey={CRON_KEY}&clean=1&win={slug}&{pq}"
 
-    # Slide 1: title with the WANTS ("THIS STUDENT WANTS big sports, greek life,
-    # ... WHERE SHOULD THEY GO?"). Slide 2: the Candor /bestfit/result reveal.
-    # The promo/CTA slide auto-appends in the viewer, so no img3 needed.
-    # Punchy, scroll-stopping title: just the 2 strongest wants + a short question,
-    # on a bright colored slide (not the wordy 4-want black-on-white version).
-    wants = candor_fit.title_wants(prefs, n=2)
+    # Cover wants = traits the student asked for that the REVEAL school actually has,
+    # so the cover never promises something the reveal contradicts (e.g. "BIG SPORTS"
+    # over a moderate-sports school). Falls back to the winner's own defining traits.
+    win_prefs = candor_fit.prefs_for_school(app.merged_school(sch), app)
+    shared = {k: v for k, v in prefs.items() if win_prefs.get(k) == v}
+    wants = candor_fit.title_wants(shared, n=2)
+    if len(wants) < 2:
+        wants = candor_fit.title_wants(win_prefs, n=2)
     title_lines = wants + ["WHAT COLLEGE?"]   # bare hook: 2 wants + the question
     # text in the best-fit school's brand color on a clean white slide
     s1 = _title_png(slug, title_lines, [], nologo=True, fg=accent)
