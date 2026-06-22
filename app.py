@@ -2524,7 +2524,10 @@ def ec_exceptional_strength(profile):
     elite cap, and they lift it smoothly. Recruited athletes and an explicit
     is_exceptional flag still get a strong floor."""
     r = ec_rating_for_fit(profile)
-    exc = max(0.0, min(1.0, (r - 720.0) / 280.0))
+    # Middle-ground (candidate): start the ramp lower (640 vs 720) so a strong-but-
+    # not-exceptional profile gets a PARTIAL lift instead of falling off the cliff to
+    # the standard cap. Genuinely national-tier (900+) still reaches ~1.0.
+    exc = max(0.0, min(1.0, (r - 640.0) / 360.0))
     if profile.get("athlete"):
         exc = max(exc, 0.70)
     if profile.get("is_exceptional"):
