@@ -4,5 +4,6 @@ flask-limiter
 anthropic
 requests
 bleach
+Pillow
 
 tzdata

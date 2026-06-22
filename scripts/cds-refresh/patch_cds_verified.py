@@ -10,8 +10,8 @@ import json
 import re
 from pathlib import Path
 
-APP_PY = Path("/Users/jasperlasser/Desktop/college-tool/app.py")
-RESULTS = Path("/Users/jasperlasser/Desktop/college-tool/scripts/cds-refresh/results.jsonl")
+APP_PY = Path("/Users/jasperlasser/college-tool/app.py")
+RESULTS = Path("/Users/jasperlasser/college-tool/scripts/cds-refresh/results.jsonl")
 
 
 def good_fields(e: dict) -> dict:

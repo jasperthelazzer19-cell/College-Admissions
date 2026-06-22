@@ -5,7 +5,7 @@
 # Mac just replenishes the buffer when it's on. Secrets live in
 # ~/.candor_autopilot.env (NOT in git).
 source "$HOME/.candor_autopilot.env"
-cd "$HOME/Desktop/college-tool" || exit 1
+cd "$HOME/college-tool" || exit 1
 LOG="$HOME/Library/Logs/candor-autopilot.log"
 # One-day skip guard: if ~/.candor_skip_slot holds this exact YYYY-MM-DD-HH, skip
 # this slot once (used to move a single day's slot to a manual one-shot time).

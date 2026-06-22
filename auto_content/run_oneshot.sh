@@ -2,7 +2,7 @@
 # One-off carousel batch (manually scheduled). Runs the same slot job once, then
 # removes its own LaunchAgent so it never fires again.
 source "$HOME/.candor_autopilot.env"
-cd "$HOME/Desktop/college-tool" || exit 1
+cd "$HOME/college-tool" || exit 1
 LOG="$HOME/Library/Logs/candor-autopilot.log"
 echo "=== $(date) ONESHOT run ===" >> "$LOG"
 /usr/bin/python3 auto_content/factory.py --slot >> "$LOG" 2>&1

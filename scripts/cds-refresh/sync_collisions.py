@@ -8,7 +8,7 @@ see CDS_VERIFIED values at runtime.
 import re
 from pathlib import Path
 
-APP_PY = Path("/Users/jasperlasser/Desktop/college-tool/app.py")
+APP_PY = Path("/Users/jasperlasser/college-tool/app.py")
 text = APP_PY.read_text()
 
 cb_start = text.find("COLLEGES = [")

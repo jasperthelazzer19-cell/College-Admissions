@@ -4734,7 +4734,11 @@ def init_db():
         # so we can attribute TikTok stats back to the carousel's school/format/hook.
         # assigned_account: which account this carousel should be posted to, set
         # round-robin at push time so the queue is pre-distributed across all 5.
-        for col in ("posted_account TEXT", "tiktok_video_id TEXT", "assigned_account TEXT"):
+        # tt_publish_id / tt_post_status / tt_posted_at track an auto-pushed TikTok
+        # draft (Content Posting API, Stage 1) so the same carousel never gets
+        # pushed twice and /content/today can show it already went out.
+        for col in ("posted_account TEXT", "tiktok_video_id TEXT", "assigned_account TEXT",
+                    "tt_publish_id TEXT", "tt_post_status TEXT", "tt_posted_at TEXT"):
             try:
                 conn.execute(f"ALTER TABLE content_queue ADD COLUMN {col}")
             except sqlite3.OperationalError:
@@ -12793,6 +12797,48 @@ def content_view_one(cid):
     return _page(body, title="Carousel · Candor")
 
 
+@app.route("/content/slide/<int:cid>/<piece>.jpg")
+def content_slide_jpg(cid, piece):
+    """Public JPEG for one carousel slide (piece = 1..4) or the CTA (piece='cta'),
+    used by TikTok's Content Posting API PULL_FROM_URL fetcher. Key-gated
+    (?key=CRON_KEY) because TikTok fetches with no cookies; the verified domain
+    prefix is candoradmit.com. Slides are stored as base64 PNG data URLs, but
+    TikTok photo posts require JPEG/WebP, so convert on the fly with Pillow."""
+    if not CRON_KEY or request.args.get("key") != CRON_KEY:
+        abort(404)
+    import base64 as _b64, io as _io
+    from PIL import Image as _Img
+    if piece == "cta":
+        try:
+            with open(os.path.join(app.static_folder, "cta_slide.png"), "rb") as f:
+                raw = f.read()
+        except Exception:
+            abort(404)
+    else:
+        try:
+            n = int(piece)
+        except (TypeError, ValueError):
+            abort(404)
+        if n not in (1, 2, 3, 4):
+            abort(404)
+        with db() as conn:
+            r = conn.execute(f"SELECT img{n} AS img FROM content_queue WHERE id=?", (cid,)).fetchone()
+        if not r or not r["img"]:
+            abort(404)
+        data = r["img"]
+        if isinstance(data, str) and data.startswith("data:"):
+            data = data.split(",", 1)[1]
+        raw = _b64.b64decode(data)
+    try:
+        im = _Img.open(_io.BytesIO(raw)).convert("RGB")
+        out = _io.BytesIO()
+        im.save(out, format="JPEG", quality=92)
+        return Response(out.getvalue(), mimetype="image/jpeg",
+                        headers={"Cache-Control": "public, max-age=86400"})
+    except Exception:
+        abort(500)
+
+
 @app.route("/content/queue/<int:cid>/<action>", methods=["POST"])
 @login_required
 def content_queue_action(cid, action):
@@ -17890,7 +17936,7 @@ TIKTOK_AUTH_URL = "https://www.tiktok.com/v2/auth/authorize/"
 TIKTOK_TOKEN_URL = "https://open.tiktokapis.com/v2/oauth/token/"
 TIKTOK_USERINFO_URL = "https://open.tiktokapis.com/v2/user/info/"
 TIKTOK_VIDEO_LIST_URL = "https://open.tiktokapis.com/v2/video/list/"
-TIKTOK_SCOPES = "user.info.basic,video.list"
+TIKTOK_SCOPES = "user.info.basic,video.list,video.upload,video.publish"
 _TT_VIDEO_FIELDS = "id,create_time,share_url,video_description,view_count,like_count,comment_count,share_count"
 
 
@@ -18126,6 +18172,150 @@ def _tiktok_attribute():
             linked += 1
         conn.commit()
     return linked
+
+
+# --- Content Posting API: auto-push carousels to TikTok (Stage 1 = drafts) ----
+# Unaudited apps can only push as a DRAFT (post_mode=MEDIA_UPLOAD -> lands in the
+# creator's TikTok inbox, they tap "Post" in-app) or DIRECT_POST forced to
+# SELF_ONLY. After TikTok's content-posting audit, flip TIKTOK_AUTOPOST_DIRECT=1
+# for public auto-publish (Stage 2). Whole feature is gated by TIKTOK_POST_ENABLED
+# so this code is dormant until the 6 accounts are re-authed with video.upload.
+# Photos are pulled from our TikTok-verified domain (candoradmit.com) as JPEGs
+# served by /content/slide/<cid>/<n>.jpg.
+TIKTOK_POST_INIT_URL = "https://open.tiktokapis.com/v2/post/publish/content/init/"
+TIKTOK_POST_STATUS_URL = "https://open.tiktokapis.com/v2/post/publish/status/fetch/"
+
+
+def _public_base():
+    """Verified public origin for PULL_FROM_URL — must match the TikTok-verified
+    domain prefix (candoradmit.com), NOT the railway.app host."""
+    b = os.environ.get("PUBLIC_BASE_URL")
+    if b:
+        return b.rstrip("/")
+    from urllib.parse import urlsplit
+    try:
+        p = urlsplit(TIKTOK_REDIRECT_URI)
+        if p.scheme and p.netloc:
+            return f"{p.scheme}://{p.netloc}"
+    except Exception:
+        pass
+    return "https://candoradmit.com"
+
+
+def _carousel_image_urls(r):
+    """Ordered public JPEG URLs for a carousel's slides + the CTA, for TikTok
+    PULL_FROM_URL. Key-gated so TikTok's cookieless fetcher can read them."""
+    from urllib.parse import quote
+    base, key = _public_base(), quote(CRON_KEY)
+    urls = [f"{base}/content/slide/{r['id']}/{i}.jpg?key={key}"
+            for i, col in enumerate(("img1", "img2", "img3", "img4"), 1) if r[col]]
+    urls.append(f"{base}/content/slide/{r['id']}/cta.jpg?key={key}")
+    return urls
+
+
+def _tiktok_post_caption(r):
+    """Caption = the same 5 hashtags shown under the carousel (his manual habit is
+    to copy that block), kept well under TikTok's limit."""
+    return " ".join(_carousel_hashtags(r))[:990]
+
+
+def _tiktok_post_photos(acct, image_urls, caption, direct=False, privacy="SELF_ONLY"):
+    """Init a photo post. direct=False -> MEDIA_UPLOAD (draft to inbox, no audit).
+    Returns (publish_id, raw_response). Raises RuntimeError on API error."""
+    token = _tiktok_access_token(acct)
+    post_info = {"title": caption, "disable_comment": False}
+    if direct:
+        post_info["privacy_level"] = privacy        # required for DIRECT_POST
+        post_info["auto_add_music"] = True           # required for photo direct post
+    body = {
+        "post_info": post_info,
+        "source_info": {"source": "PULL_FROM_URL", "photo_cover_index": 0,
+                        "photo_images": image_urls},
+        "post_mode": "DIRECT_POST" if direct else "MEDIA_UPLOAD",
+        "media_type": "PHOTO",
+    }
+    resp = requests.post(TIKTOK_POST_INIT_URL,
+                         headers={"Authorization": f"Bearer {token}",
+                                  "Content-Type": "application/json; charset=UTF-8"},
+                         json=body, timeout=30).json()
+    err = resp.get("error") or {}
+    if err.get("code") not in (None, "", "ok"):
+        raise RuntimeError(f"{err.get('code')}: {err.get('message')}")
+    pid = (resp.get("data") or {}).get("publish_id")
+    if not pid:
+        raise RuntimeError(f"no publish_id: {resp}")
+    return pid, resp
+
+
+def _tiktok_autopost_ids(ids):
+    """Best-effort: push each just-released carousel to its assigned account as a
+    TikTok draft. NEVER raises — a posting failure must not break the release flow.
+    Skips accounts that haven't been re-authed with the video.upload scope yet."""
+    if not ids:
+        return
+    direct = os.environ.get("TIKTOK_AUTOPOST_DIRECT") == "1"   # Stage 2, post-audit
+    for cid in ids:
+        try:
+            with db() as conn:
+                r = conn.execute("SELECT * FROM content_queue WHERE id=?", (cid,)).fetchone()
+                if not r or r["tt_publish_id"]:
+                    continue                          # gone, or already pushed
+                acct = conn.execute("SELECT * FROM tiktok_accounts WHERE label=?",
+                                    (r["assigned_account"],)).fetchone()
+            if not acct or not acct["open_id"]:
+                continue                              # unlinked placeholder slot
+            scope = acct["scope"] or ""
+            need = "video.publish" if direct else "video.upload"
+            if need not in scope:
+                print(f" * autopost cid {cid}: {r['assigned_account']} missing {need} scope — skip", flush=True)
+                continue
+            pid, _ = _tiktok_post_photos(acct, _carousel_image_urls(r),
+                                         _tiktok_post_caption(r), direct=direct)
+            with db() as conn:
+                conn.execute("UPDATE content_queue SET tt_publish_id=?, tt_post_status=?, "
+                             "tt_posted_at=CURRENT_TIMESTAMP WHERE id=?",
+                             (pid, "DIRECT" if direct else "DRAFT", cid))
+                conn.commit()
+            print(f" * autopost cid {cid} -> {r['assigned_account']} "
+                  f"({'direct' if direct else 'draft'}) publish_id={pid}", flush=True)
+        except Exception as e:
+            print(f" * autopost cid {cid} failed: {e}", flush=True)
+
+
+@app.route("/tiktok/test-post", methods=["GET", "POST"])
+@login_required
+def tiktok_test_post():
+    """Controlled single push to verify the pipeline end-to-end before flipping
+    TIKTOK_POST_ENABLED on the schedule. ?cid=<id>&account=<label> (both optional;
+    defaults to the newest carousel + first connected account). Returns the real
+    TikTok API result (or error + the slide URLs + the account's scope) as JSON."""
+    if not _is_creator():
+        abort(404)
+    cid = request.values.get("cid", type=int)
+    label = request.values.get("account")
+    with db() as conn:
+        if cid:
+            r = conn.execute("SELECT * FROM content_queue WHERE id=?", (cid,)).fetchone()
+        else:
+            r = conn.execute("SELECT * FROM content_queue WHERE img1 IS NOT NULL "
+                             "ORDER BY id DESC LIMIT 1").fetchone()
+        if not r:
+            return jsonify(ok=False, error="no carousel in queue")
+        if label:
+            acct = conn.execute("SELECT * FROM tiktok_accounts WHERE label=?", (label,)).fetchone()
+        else:
+            acct = conn.execute("SELECT * FROM tiktok_accounts ORDER BY connected_at LIMIT 1").fetchone()
+    if not acct:
+        return jsonify(ok=False, error="no connected TikTok account")
+    direct = request.values.get("direct") == "1"
+    urls = _carousel_image_urls(r)
+    try:
+        pid, raw = _tiktok_post_photos(acct, urls, _tiktok_post_caption(r), direct=direct)
+        return jsonify(ok=True, publish_id=pid, account=acct["label"], cid=r["id"],
+                       mode="direct" if direct else "draft", images=urls)
+    except Exception as e:
+        return jsonify(ok=False, error=str(e), account=acct["label"], cid=r["id"],
+                       scope=acct["scope"], images=urls)
 
 
 # Engagement score = reach + virality signals. Shares move an account's growth
@@ -18603,6 +18793,7 @@ def _release_due_batches():
         midnight_utc = midnight.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
     except Exception:
         midnight_utc = midnight.strftime("%Y-%m-%d %H:%M:%S")
+    released_ids = []
     with db() as conn:
         for slot in CONTENT_SLOTS:
             if hhmm < slot:
@@ -18616,6 +18807,15 @@ def _release_due_batches():
             conn.commit()
             if ids:
                 print(f" * auto-released {len(ids)} (one per account) for slot {slot} (local {hhmm})", flush=True)
+                released_ids += ids
+    # Stage 1 auto-post: after releasing (and closing the write txn), push each
+    # released carousel to its account's TikTok inbox as a draft. Dormant unless
+    # TIKTOK_POST_ENABLED=1; never breaks the release flow if posting fails.
+    if released_ids and os.environ.get("TIKTOK_POST_ENABLED") == "1":
+        try:
+            _tiktok_autopost_ids(released_ids)
+        except Exception as e:
+            print(" * autopost batch error:", e, flush=True)
 
 
 def _release_scheduler_loop():

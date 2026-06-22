@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 from collections import Counter
 
-APP = Path("/Users/jasperlasser/Desktop/college-tool/app.py").read_text()
+APP = Path("/Users/jasperlasser/college-tool/app.py").read_text()
 
 def extract(start_pat: str, end_pat: str):
     s = APP.find(start_pat)
