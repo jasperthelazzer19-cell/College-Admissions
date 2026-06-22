@@ -11975,7 +11975,7 @@ def _hook_html(hook, accent, outline=None):
     return "".join(f'<span style="color:{accent}{stroke}">{t}</span>' if a else t for t, a in parts)
 
 
-def _title_frame(line_html, logo_html, maxH=1040, logoH=360, cardH=1402, maxFont=0, logoMax=0):
+def _title_frame(line_html, logo_html, maxH=1040, logoH=360, cardH=1402, maxFont=0, logoMax=0, fg="#111"):
     """Shared @candor title-slide frame used by BOTH the single-school hook and
     the compare title, so they look identical: each line scaled to span the full
     width (justified-block look), with the school logo(s) in a band at the bottom.
@@ -11999,7 +11999,7 @@ def _title_frame(line_html, logo_html, maxH=1040, logoH=360, cardH=1402, maxFont
     # virtual-time render — only sets line-height + the logo max-height.
     return (f'<div id="tcard" style="height:{cardH}px;display:flex;flex-direction:column;justify-content:center;'
             f'align-items:center;gap:{gap}px;'
-            f"font-family:'AntonEmb','Anton',sans-serif;font-weight:400;letter-spacing:-2px;color:#111;text-transform:uppercase\">"
+            f"font-family:'AntonEmb','Anton',sans-serif;font-weight:400;letter-spacing:-2px;color:{fg};text-transform:uppercase\">"
             f'<div id="tbox" style="display:flex;flex-direction:column;text-align:center;gap:0px;width:100%">{line_html}</div>'
             f'<div id="tlogo" style="display:flex;align-items:center;justify-content:center;width:100%">{logo_html}</div>'
             f'</div>'
@@ -12036,7 +12036,7 @@ def _title_frame(line_html, logo_html, maxH=1040, logoH=360, cardH=1402, maxFont
             f'setTimeout(fit,250);setTimeout(fit,700);}})();</script>')
 
 
-def _title_card_body(slug, sch, hook, nologo=False):
+def _title_card_body(slug, sch, hook, nologo=False, fg="#111"):
     """Slide-1 hook card in the exact @candor style: the hook is broken into
     short lines (separated by newlines) and EACH line is scaled independently to
     span the full width edge-to-edge (the justified-block look), center-aligned,
@@ -12055,7 +12055,7 @@ def _title_card_body(slug, sch, hook, nologo=False):
     # Singles fill BIG: words scale to full width (cap keeps a short line from
     # dominating), lines packed tight, and any leftover room grows the logo (up to
     # logoMax) instead of opening gaps. cardH+pad sum to the full card.
-    return _title_frame(line_html, logo_html, cardH=1436, maxFont=380, logoMax=700)
+    return _title_frame(line_html, logo_html, cardH=1436, maxFont=380, logoMax=700, fg=fg)
 
 
 def _compare_title_body(slugs):
@@ -12177,9 +12177,11 @@ def title_export():
                                                  dl_name=f"{slug}-title-stats",
                                                  clean=request.args.get("clean") == "1"),
                             mimetype="text/html")
-    body = _title_card_body(slug, sch, hook, nologo=request.args.get("nologo") == "1")
+    bg = request.args.get("bg") or "#fff"
+    fg = request.args.get("fg") or "#111"
+    body = _title_card_body(slug, sch, hook, nologo=request.args.get("nologo") == "1", fg=fg)
     return Response(_profile_export_page(body, dl_name=f"{slug}-title", pad="52px 58px 48px",
-                                         clean=request.args.get("clean") == "1"),
+                                         clean=request.args.get("clean") == "1", bg=bg, fg=fg),
                     mimetype="text/html")
 
 
@@ -12830,6 +12832,7 @@ def content_bestfit():
         f'<option value="dream">💭 Dream vs Best Fit</option>'
         f'<option value="fit">🎯 Trait → Best Fit</option></select>'
         f'<select name="count" style="{_vs};flex:1;min-width:120px">'
+        f'<option value="1">1 carousel</option>'
         f'<option value="3">3 carousels</option><option value="6" selected>6 carousels</option>'
         f'<option value="8">8 carousels</option></select></div>'
         f'<button style="width:100%;background:#5fc9b6;color:#06121a;font-weight:800;border:0;'
@@ -13175,7 +13178,7 @@ __INTERFACE__
 </script></body></html>"""
 
 
-def _profile_export_page(inner_html, dl_name="profile", pad="80px 78px 64px", clean=False):
+def _profile_export_page(inner_html, dl_name="profile", pad="80px 78px 64px", clean=False, bg="#fff", fg="#111"):
     """Render a white profile slide on its OWN white-canvas template (NOT the
     dark chances template, which was bleeding dark into the save and glitching
     it). Content auto-scales to fit so nothing is cut off.
@@ -13184,13 +13187,13 @@ def _profile_export_page(inner_html, dl_name="profile", pad="80px 78px 64px", cl
     1024x1536 at the top-left — for headless-Chrome screenshot by the autopilot
     renderer (no scaler, no buttons, fonts embedded, auto-fit runs on load)."""
     card = ('<link href="https://fonts.googleapis.com/css2?family=Anton&display=swap" rel="stylesheet">'
-            '<div id="card" style="width:1024px;height:1536px;background:#fff;position:relative;overflow:hidden;'
+            f'<div id="card" style="width:1024px;height:1536px;background:{bg};position:relative;overflow:hidden;'
             "font-family:'InterEmb',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif\">"
             f'<div id="pcontent" style="position:absolute;top:0;left:0;width:1024px;box-sizing:border-box;'
-            f'padding:{pad};color:#111;transform-origin:top center;display:flex;flex-direction:column;align-items:stretch">'
+            f'padding:{pad};color:{fg};transform-origin:top center;display:flex;flex-direction:column;align-items:stretch">'
             + inner_html + '</div></div>')
     if clean:
-        return _clean_render_page(card, bg="#ffffff", fit=True)
+        return _clean_render_page(card, bg=bg, fit=True)
     return (_PROFILE_EXPORT_HTML.replace("__CARD__", card)
             .replace("__DL__", dl_name).replace("__INTERFACE__", _INTER_FACE))
 

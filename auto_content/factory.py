@@ -258,9 +258,24 @@ def wait_local_app():
     return False
 
 
-def _title_png(slug, lines, accent_words, nologo=False):
+# Bright, scroll-stopping backgrounds for the best-fit title slide (bg, text).
+# Each pair is high-contrast so the big Anton hook stays legible at thumbnail size.
+_BESTFIT_TITLE_COLORS = [
+    ("#ff5a5f", "#ffffff"),   # coral
+    ("#635bff", "#ffffff"),   # indigo
+    ("#ffd23f", "#15130d"),   # bright yellow
+    ("#19c39a", "#06231c"),   # teal-green
+    ("#ff8fe0", "#15130d"),   # hot pink
+    ("#3a86ff", "#ffffff"),   # electric blue
+    ("#ff7a18", "#15130d"),   # orange
+]
+
+
+def _title_png(slug, lines, accent_words, nologo=False, bg=None, fg=None):
     hook = urllib.parse.quote("\n".join(mark_accents(lines, accent_words)))
     extra = "&nologo=1" if nologo else ""
+    if bg: extra += "&bg=" + urllib.parse.quote(bg)
+    if fg: extra += "&fg=" + urllib.parse.quote(fg)
     return _shot("/tmp/cren_factory/t.png",
                  f"{LOCAL_URL}/title/export?rkey={CRON_KEY}&clean=1&slug={slug}&hook={hook}{extra}")
 
@@ -418,13 +433,16 @@ def make_bestfit(dry=False, slug=None, variant=None):
     # Slide 1: title with the WANTS ("THIS STUDENT WANTS big sports, greek life,
     # ... WHERE SHOULD THEY GO?"). Slide 2: the Candor /bestfit/result reveal.
     # The promo/CTA slide auto-appends in the viewer, so no img3 needed.
-    wants = candor_fit.title_wants(prefs)
-    title_lines = ["THIS STUDENT", "WANTS..."] + wants + ["WHERE SHOULD", "THEY GO?"]
-    s1 = _title_png(slug, title_lines, [], nologo=True)
+    # Punchy, scroll-stopping title: just the 2 strongest wants + a short question,
+    # on a bright colored slide (not the wordy 4-want black-on-white version).
+    wants = candor_fit.title_wants(prefs, n=2)
+    title_lines = ["THIS KID WANTS"] + wants + ["WHERE TO?"]
+    _bg, _fg = random.choice(_BESTFIT_TITLE_COLORS)
+    s1 = _title_png(slug, title_lines, [], nologo=True, bg=_bg, fg=_fg)
     s2 = _shot(f"{tmp}/bf_reveal.png", reveal_url, verify=False)
     payload = dict(school_slug=slug, school_name=f"Best Fit: {short}", accent=accent,
-                   title_text="THIS STUDENT WANTS " + ", ".join(w.lower() for w in wants)
-                              + " — WHERE SHOULD THEY GO?",
+                   title_text="THIS KID WANTS " + ", ".join(w.lower() for w in wants)
+                              + " — WHERE TO?",
                    title_formula="bestfit", slide3_type="bestfit",
                    profile_json="{}", odds_text="", grade_text="",
                    img1=s1, img2=s2, meta={"bestfit": True, "wants": wants})
