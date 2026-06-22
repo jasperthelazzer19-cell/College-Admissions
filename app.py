@@ -12831,12 +12831,11 @@ def content_slide_jpg(cid, piece):
         raw = _b64.b64decode(data)
     try:
         im = _Img.open(_io.BytesIO(raw)).convert("RGB")
-        # TikTok photo posts reject oversized images (our slides render at ~2048x3072).
-        # Cap the long edge to 1920 so it sits inside TikTok's photo spec; keep aspect.
-        longest = max(im.size)
-        if longest > 1920:
-            s = 1920 / longest
-            im = im.resize((max(1, round(im.width * s)), max(1, round(im.height * s))), _Img.LANCZOS)
+        # TikTok photo spec is 1080x1920 (9:16) max — our slides render at ~2048x3072
+        # (2:3). Fit INSIDE the 1080x1920 box (preserve aspect): a 2:3 slide becomes
+        # 1080x1620, which is within both the max width (1080) and max height (1920).
+        # Capping only the long edge before let width hit 1280 -> picture_size_check_failed.
+        im.thumbnail((1080, 1920), _Img.LANCZOS)
         out = _io.BytesIO()
         im.save(out, format="JPEG", quality=90)
         print(f" * slide served cid={cid} piece={piece} {im.size} "
