@@ -452,7 +452,7 @@ def make_bestfit(dry=False, slug=None, variant=None):
 
 
 # ── daily head-to-head cap (they cost ~2-4x a normal carousel) ─────────────
-H2H_DAILY_CAP = int(os.environ.get("H2H_DAILY_CAP", "2"))
+H2H_DAILY_CAP = int(os.environ.get("H2H_DAILY_CAP", "5"))
 _H2H_STATE = os.path.join(HERE, ".h2h_state.json")
 
 
@@ -639,6 +639,19 @@ def _pick_school(respect_cap=True, avoid_recent=True):
     return pick
 
 
+def resolve_format(fmt):
+    """Map a creator-picked format name (from the Today 'Make' button) to make_one's
+    (ctype, slide3) args. Returns (None, None) for auto/normal so make_one rotates."""
+    return {
+        "chances": ("single", "chances"),
+        "grade":   ("single", "grade"),
+        "glowup":  ("single", "glowup"),
+        "compare": ("compare", None),
+        "h2h":     ("h2h", None),
+        "single":  ("single", None),
+    }.get((fmt or "").strip().lower(), (None, None))
+
+
 def make_one(dry=False, slug=None, slide3=None, ctype=None, count_toward_cap=True):
     """Dispatcher. Explicit slug (text-to-make) -> single, uncapped. Otherwise
     rotate formats; for the per-school formats (single/h2h) pick the school
@@ -664,7 +677,7 @@ def make_one(dry=False, slug=None, slide3=None, ctype=None, count_toward_cap=Tru
             for st in ("compare", "h2h"):
                 if st in perf:
                     cperf[st] = perf[st]
-            w = _blend({"single": 6, "compare": 3, "h2h": 3}, cperf)
+            w = _blend({"single": 5, "compare": 3, "h2h": 6}, cperf)   # lean into "which student gets in" (h2h)
             keys = list(w)
             ctype = random.choices(keys, weights=[w[k] for k in keys])[0]
             if ctype == "h2h" and count_toward_cap and _h2h_today() >= H2H_DAILY_CAP:

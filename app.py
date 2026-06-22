@@ -4792,7 +4792,46 @@ def get_profile(user_id):
         return dict(row) if row else None
 
 
+def normalize_gpa(raw):
+    """Translate a GPA on a weighted (5.0/6.0) or 100-point scale onto the 4.0
+    UNWEIGHTED scale the odds engine expects. Magnitude-based — kids type whatever
+    scale their school uses, so anything above a real 4.0 is converted. A normal
+    3.9 is untouched. The conversion table is intentionally simple/adjustable since
+    it feeds the odds; tune the bands if a school's scale maps differently."""
+    try:
+        g = float(raw)
+    except (TypeError, ValueError):
+        return raw
+    if g <= 0:
+        return raw
+    if g <= 4.0:
+        return round(g, 3)                                   # already 4.0 scale
+    if g <= 5.0:                                             # weighted 5.0 (AP/honors bump)
+        return round(min(4.0, 3.2 + (g - 4.0) * 0.8), 3)    # 4.0->3.2, 4.5->3.6, 5.0->4.0
+    if g <= 6.0:                                             # weighted 6.0 scale
+        return round(min(4.0, 2.8 + (g - 4.0) * 0.6), 3)
+    if g <= 100:                                            # 100-point scale (letter bands)
+        for lo, val in ((93,4.0),(90,3.7),(87,3.3),(83,3.0),(80,2.7),
+                        (77,2.3),(73,2.0),(70,1.7),(67,1.3),(65,1.0)):
+            if g >= lo:
+                return val
+        return round(max(0.0, (g - 50) / 12.5), 2)
+    return 4.0
+
+
 def save_profile(user_id, p):
+    # Translate a weighted / 100-point GPA onto the 4.0 scale before anything reads
+    # it; keep what the student actually typed as their weighted GPA if they didn't
+    # give one separately. (Was silently feeding e.g. a 4.8 straight into the engine.)
+    p = dict(p)
+    _g = p.get("uw_gpa")
+    if _g not in (None, ""):
+        try:
+            if float(_g) > 4.0 and not p.get("weighted_gpa"):
+                p["weighted_gpa"] = _g
+        except (TypeError, ValueError):
+            pass
+        p["uw_gpa"] = normalize_gpa(_g)
     # Legacy is now derived from legacy_schools — auto-true if user listed any.
     legacy_schools = (p.get("legacy_schools") or "").strip()
     legacy_flag = 1 if legacy_schools else (1 if p.get("legacy") else 0)
@@ -12563,6 +12602,18 @@ def content_request_batch():
     # Mac off (Railway just flips DB rows). Only if the buffer can't cover the
     # request do we fall back to generating the remainder (emergency).
     chosen = [s for s in request.form.getlist("slugs") if s in COLLEGES_BY_SLUG][:n]
+    fmt = (request.form.get("format") or "auto").strip().lower()
+    # A specific format must be GENERATED fresh — the pre-made buffer is mixed-format,
+    # so we can't serve a guaranteed format from it. Drop a kind-tagged batch request
+    # and let the render worker / Mac daemon make exactly that format.
+    if fmt and fmt != "auto" and fmt in ("chances", "grade", "glowup", "compare", "h2h"):
+        with db() as conn:
+            existing = conn.execute("SELECT id FROM batch_requests WHERE claimed_at IS NULL LIMIT 1").fetchone()
+            if not existing:
+                conn.execute("INSERT INTO batch_requests (count, slugs, kind) VALUES (?,?,?)",
+                             (n, ",".join(chosen) if chosen else None, fmt))
+            conn.commit()
+        return redirect(url_for("content_today", requested=n))
     with db() as conn:
         rows = _release_one_per_account(conn, "make", limit=n)   # one per account, up to n
         short = n - len(rows)
@@ -12973,21 +13024,30 @@ def content_today():
            'border:1px solid #2b3a4f;margin:0 0 8px;font-size:14px')
     sel1 = f'<select name="slugs" style="{_ss}">{_opts}</select>'
     sel4 = "".join(f'<select name="slugs" style="{_ss}">{_opts}</select>' for _ in range(5))
+    # Format picker — lets the creator force a specific format instead of the auto
+    # rotation. A chosen format always GENERATES fresh (the buffer is mixed-format).
+    _fmt_opts = ('<option value="auto">🎲 any format (auto)</option>'
+                 '<option value="chances">Chances</option>'
+                 '<option value="grade">Profile grade</option>'
+                 '<option value="glowup">Glow-up</option>'
+                 '<option value="compare">Compare — 1 student, 3 schools</option>'
+                 '<option value="h2h">Head-to-head — which student gets in</option>')
+    selfmt = f'<select name="format" style="{_ss}">{_fmt_opts}</select>'
     _active_n = _active_account_count()
     make_btn = (
         '<div style="display:flex;gap:12px;margin:0 0 18px;flex-wrap:wrap">'
         f'<form method="post" action="/content/request-batch" style="flex:1;min-width:210px;background:#0c1521;'
         f'border:1px solid #1d2a3d;border-radius:14px;padding:14px">{csrf_input()}'
         f'<input type="hidden" name="count" value="1">'
-        f'<div style="font-weight:800;font-size:12px;color:#7c8aa0;margin:0 0 8px;letter-spacing:.4px">PICK A SCHOOL (OR AUTO)</div>'
-        f'{sel1}'
+        f'<div style="font-weight:800;font-size:12px;color:#7c8aa0;margin:0 0 8px;letter-spacing:.4px">SCHOOL + FORMAT (OR AUTO)</div>'
+        f'{sel1}{selfmt}'
         f'<button style="width:100%;background:#16202e;color:#e9eef5;font-weight:800;border:1px solid #2b3a4f;'
         f'padding:13px;border-radius:11px;font-size:15px;cursor:pointer">⚡ Make 1</button></form>'
         f'<form method="post" action="/content/request-batch" style="flex:2;min-width:240px;background:#0c1521;'
         f'border:1px solid #1d2a3d;border-radius:14px;padding:14px">{csrf_input()}'
         f'<input type="hidden" name="count" value="auto">'
         f'<div style="font-weight:800;font-size:12px;color:#7c8aa0;margin:0 0 8px;letter-spacing:.4px">ONE PER ACCOUNT (BLANKS = AUTO)</div>'
-        f'{sel4}'
+        f'{sel4}{selfmt}'
         f'<button style="width:100%;background:#5fc9b6;color:#06121a;font-weight:800;border:0;'
         f'padding:13px;border-radius:11px;font-size:15px;cursor:pointer">⚡ Make a set — one per account ({_active_n})</button></form>'
         '</div>')
@@ -13434,7 +13494,7 @@ def api_demo_odds():
         act = int(request.args.get("act") or 0)
     except ValueError:
         return jsonify({"error":"bad input"}), 400
-    gpa = max(2.0, min(4.0, gpa))
+    gpa = max(2.0, min(4.0, normalize_gpa(gpa) or gpa))   # translate weighted/100-scale before clamping
     if sat: sat = max(1000, min(1600, sat))
     if act: act = max(12, min(36, act))
     # Demo placeholder ECs/leadership/awards. The strength is bumped above
@@ -17983,13 +18043,34 @@ def tiktok_perf_by(group_col):
         return {}
     out = {}
     try:
+        import time as _t
         with db() as conn:
             rows = conn.execute(
-                f"SELECT c.{group_col} k, COUNT(*) n, AVG({_TT_SCORE_SQL}) s "
+                f"SELECT c.{group_col} k, ({_TT_SCORE_SQL}) s, p.create_time ct "
                 f"FROM content_queue c JOIN tiktok_posts p ON p.carousel_id = c.id "
-                f"WHERE c.{group_col} IS NOT NULL AND p.view_count IS NOT NULL "
-                f"GROUP BY c.{group_col}").fetchall()
-        out = {r["k"]: (r["n"], float(r["s"] or 0)) for r in rows}
+                f"WHERE c.{group_col} IS NOT NULL AND p.view_count IS NOT NULL").fetchall()
+        if not rows:
+            return {}
+        now = _t.time()
+        # RECENCY: weight each post by an exponential half-life so the signal tracks
+        # what's working NOW, not a months-old viral that skews a format forever.
+        halflife = float(os.environ.get("TT_PERF_HALFLIFE_DAYS", "30")) * 86400.0
+        agg = {}                       # k -> [weight_sum, weighted_score_sum, raw_n]
+        gw = gs = 0.0
+        for r in rows:
+            k = r["k"]; s = float(r["s"] or 0.0)
+            age = max(0.0, now - (r["ct"] or now))
+            w = 0.5 ** (age / halflife) if halflife > 0 else 1.0
+            a = agg.setdefault(k, [0.0, 0.0, 0])
+            a[0] += w; a[1] += w * s; a[2] += 1
+            gw += w; gs += w * s
+        gmean = (gs / gw) if gw > 0 else 0.0
+        # SHRINKAGE: pull each group's recency-weighted average toward the global mean
+        # by K effective posts, so one lucky post can't hijack a whole format's weight.
+        K = float(os.environ.get("TT_PERF_SHRINK_K", "3"))
+        for k, (wsum, wscore, n) in agg.items():
+            wavg = (wscore / wsum) if wsum > 0 else 0.0
+            out[k] = (n, (wsum * wavg + K * gmean) / (wsum + K) if (wsum + K) > 0 else wavg)
     except Exception as e:
         print("tiktok perf:", e)
     return out
@@ -18337,11 +18418,12 @@ def _render_consume_one(factory):
         print(f" * render worker: bestfit batch {row['id']} -> {made}/{n} queued", flush=True)
         return
     slugs = [s for s in (row["slugs"] or "").split(",") if s.strip()]
+    _ct, _s3 = factory.resolve_format(kind)              # creator-picked format (None,None = auto)
     for i in range(n):
         chosen = slugs[i] if i < len(slugs) else None    # creator-picked school or auto
         for attempt in range(2):
             try:
-                cid, _ = factory.make_one(slug=chosen, count_toward_cap=False)
+                cid, _ = factory.make_one(slug=chosen, slide3=_s3, ctype=_ct, count_toward_cap=False)
                 if cid:
                     made += 1
                 break

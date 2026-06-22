@@ -173,13 +173,14 @@ def _render_session(batch, web_n, web_slugs, specifics, max_rowid, web_kind="nor
             batch = False        # handled; fall through to any text specifics
         if batch:
             n = web_n if web_n else int(os.environ.get("SLOT_COUNT", "4"))
+            _ct, _s3 = factory.resolve_format(web_kind)   # creator-picked format (None,None = auto rotate)
             text_back(f"On it — making a fresh batch of {n} \U0001F3AC give me a few min...")
             made = []
             for i in range(n):
                 chosen = web_slugs[i] if i < len(web_slugs) else None  # creator-picked school or auto
                 for attempt in range(3):
                     try:
-                        cid, name = factory.make_one(slug=chosen, count_toward_cap=False)
+                        cid, name = factory.make_one(slug=chosen, slide3=_s3, ctype=_ct, count_toward_cap=False)
                         if cid:
                             made.append((cid, name)); break
                     except Exception as e:

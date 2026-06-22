@@ -269,6 +269,10 @@ def generate(slug=None, uid=181, want_slide3=None):
     profile = d["profile"]
     for f in ("ecs", "leadership", "awards"):
         profile[f] = _normalize_list_field(profile.get(f))
+    # Put the GPA on the 4.0 scale before it's saved AND before it's rendered on the
+    # carousel, so a weighted/100-point value never shows up raw on a TikTok slide.
+    if profile.get("uw_gpa") not in (None, ""):
+        profile["uw_gpa"] = app.normalize_gpa(profile["uw_gpa"])
     import time as _t
     for _attempt in range(4):                       # retry transient SQLite IO errors
         try:
