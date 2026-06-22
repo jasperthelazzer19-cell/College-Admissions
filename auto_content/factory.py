@@ -423,12 +423,12 @@ def make_bestfit(dry=False, slug=None, variant=None):
     # Punchy, scroll-stopping title: just the 2 strongest wants + a short question,
     # on a bright colored slide (not the wordy 4-want black-on-white version).
     wants = candor_fit.title_wants(prefs, n=2)
-    title_lines = wants + ["WHERE?"]          # bare hook: 2 wants + a one-word question
+    title_lines = wants + ["WHAT COLLEGE?"]   # bare hook: 2 wants + the question
     # text in the best-fit school's brand color on a clean white slide
     s1 = _title_png(slug, title_lines, [], nologo=True, fg=accent)
     s2 = _shot(f"{tmp}/bf_reveal.png", reveal_url, verify=False)
     payload = dict(school_slug=slug, school_name=f"Best Fit: {short}", accent=accent,
-                   title_text=", ".join(w.lower() for w in wants) + " — where?",
+                   title_text=", ".join(w.lower() for w in wants) + " — what college?",
                    title_formula="bestfit", slide3_type="bestfit",
                    profile_json="{}", odds_text="", grade_text="",
                    img1=s1, img2=s2, meta={"bestfit": True, "wants": wants})
