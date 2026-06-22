@@ -12800,12 +12800,12 @@ def content_view_one(cid):
 @app.route("/content/slide/<int:cid>/<piece>.jpg")
 def content_slide_jpg(cid, piece):
     """Public JPEG for one carousel slide (piece = 1..4) or the CTA (piece='cta'),
-    used by TikTok's Content Posting API PULL_FROM_URL fetcher. Key-gated
-    (?key=CRON_KEY) because TikTok fetches with no cookies; the verified domain
-    prefix is candoradmit.com. Slides are stored as base64 PNG data URLs, but
-    TikTok photo posts require JPEG/WebP, so convert on the fly with Pillow."""
-    if not CRON_KEY or request.args.get("key") != CRON_KEY:
-        abort(404)
+    used by TikTok's Content Posting API PULL_FROM_URL fetcher. NO auth/query
+    string: TikTok's fetcher normalizes/strips query params, so a ?key= gate made
+    it hit this 404 and fail with photo_pull_failed. These are marketing carousels
+    (demo profiles, destined for public TikTok), so a clean public URL is fine.
+    Slides are stored as base64 PNG data URLs; TikTok photo posts require JPEG, so
+    convert on the fly with Pillow."""
     import base64 as _b64, io as _io
     from PIL import Image as _Img
     if piece == "cta":
@@ -18218,11 +18218,10 @@ def _public_base():
 def _carousel_image_urls(r):
     """Ordered public JPEG URLs for a carousel's slides + the CTA, for TikTok
     PULL_FROM_URL. Key-gated so TikTok's cookieless fetcher can read them."""
-    from urllib.parse import quote
-    base, key = _public_base(), quote(CRON_KEY)
-    urls = [f"{base}/content/slide/{r['id']}/{i}.jpg?key={key}"
+    base = _public_base()
+    urls = [f"{base}/content/slide/{r['id']}/{i}.jpg"
             for i, col in enumerate(("img1", "img2", "img3", "img4"), 1) if r[col]]
-    urls.append(f"{base}/content/slide/{r['id']}/cta.jpg?key={key}")
+    urls.append(f"{base}/content/slide/{r['id']}/cta.jpg")
     return urls
 
 
