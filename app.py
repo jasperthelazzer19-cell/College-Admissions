@@ -17936,7 +17936,12 @@ TIKTOK_AUTH_URL = "https://www.tiktok.com/v2/auth/authorize/"
 TIKTOK_TOKEN_URL = "https://open.tiktokapis.com/v2/oauth/token/"
 TIKTOK_USERINFO_URL = "https://open.tiktokapis.com/v2/user/info/"
 TIKTOK_VIDEO_LIST_URL = "https://open.tiktokapis.com/v2/video/list/"
-TIKTOK_SCOPES = "user.info.basic,video.list,video.upload,video.publish"
+# Stage 1 only requests video.upload (draft/inbox posting). video.publish is NOT
+# requested here because it isn't enabled on the app (Direct Post is off, pending
+# the content-posting audit) — requesting a disabled scope makes TikTok reject the
+# WHOLE auth with invalid_scope. Add video.publish back here only once Direct Post
+# is enabled in the portal (Stage 2).
+TIKTOK_SCOPES = "user.info.basic,video.list,video.upload"
 _TT_VIDEO_FIELDS = "id,create_time,share_url,video_description,view_count,like_count,comment_count,share_count"
 
 
