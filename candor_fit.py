@@ -105,6 +105,31 @@ def traits_from_prefs(prefs, n=5):
     return out[:n]
 
 
+_WANT = {
+    "pref_weather": {"warm": "WARM WEATHER", "cold": "COLD WEATHER", "mild": "MILD WEATHER"},
+    "pref_sports": {"strong": "BIG SPORTS", "low": "A CHILL SPORTS SCENE"},
+    "pref_greek": {"strong": "GREEK LIFE", "avoid": "NO GREEK LIFE"},
+    "pref_size": {"large": "A HUGE CAMPUS", "ml": "A BIG CAMPUS", "medium": "A MID-SIZE CAMPUS",
+                  "small": "A SMALL CAMPUS", "xs": "A TINY CAMPUS"},
+    "pref_setting": {"urban": "CITY LIFE", "college_town": "A COLLEGE TOWN",
+                     "suburban": "A SUBURBAN CAMPUS", "rural": "A RURAL CAMPUS"},
+}
+_WANT_ORDER = ["pref_sports", "pref_greek", "pref_weather", "pref_size", "pref_setting"]
+
+
+def title_wants(prefs, n=4):
+    """Short ALL-CAPS 'wants' tokens for the title slide (one per line), e.g.
+    ['BIG SPORTS', 'GREEK LIFE', 'WARM WEATHER', 'A HUGE CAMPUS']."""
+    out = []
+    for k in _WANT_ORDER:
+        v = prefs.get(k)
+        if v and v in _WANT[k]:
+            out.append(_WANT[k][v])
+    if prefs.get("major"):
+        out.append(f"STRONG {prefs['major'].upper()}")
+    return out[:n]
+
+
 def dream_for(fit_slug, fit_school, A, rng=random):
     """A higher-prestige 'dream school' that contrasts the My Fit pick (different
     climate / region / setting) so the reveal has tension."""

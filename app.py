@@ -12443,7 +12443,10 @@ def content_queue_push():
     if not _autopilot_authed():
         return ("unauthorized", 401)
     d = request.get_json(silent=True) or {}
-    if not (d.get("img1") and d.get("img2") and d.get("img3")):
+    # Best-fit is title + reveal (2 slides); the promo/CTA auto-appends in the
+    # viewer. Everything else needs all 3.
+    _need3 = d.get("slide3_type") != "bestfit"
+    if not (d.get("img1") and d.get("img2") and (d.get("img3") or not _need3)):
         return ("need img1, img2, img3", 400)
     with db() as conn:
         # Best-fit is a SEPARATE test angle — never auto-assign it to a real

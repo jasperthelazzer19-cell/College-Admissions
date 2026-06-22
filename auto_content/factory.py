@@ -411,53 +411,24 @@ def make_bestfit(dry=False, slug=None, variant=None):
     _push_recent(slug)
     sch = app.COLLEGES_BY_SLUG[slug]
     short, accent = app._school_brand(slug, sch.get("name"))
-    traits = candor_fit.traits_from_prefs(prefs)
-    if variant not in ("fit", "dream"):
-        variant = random.choices(["fit", "dream"], weights=[1, 1])[0]
     tmp = "/tmp/cren_factory"; os.makedirs(tmp, exist_ok=True)
-    tq = urllib.parse.quote("|".join(traits))
-    ac = urllib.parse.quote(accent)
     pq = urllib.parse.urlencode(prefs)        # prefs -> /bestfit/result reveal page
     reveal_url = f"{LOCAL_URL}/bestfit/result?rkey={CRON_KEY}&clean=1&{pq}"
 
-    if variant == "dream":
-        dream = candor_fit.dream_for(slug, app.merged_school(sch), app)
-        if not dream:
-            variant = "fit"                       # no clean contrast -> fall back
-    if variant == "dream":
-        dshort = app._school_brand(dream, app.COLLEGES_BY_SLUG[dream].get("name"))[0]
-        header = random.choice(candor_fit.HEADERS["dream"])
-        s1 = _title_png(dream, ["THIS STUDENT'S", "DREAM SCHOOL:", f"*{dshort}*"], [dshort])
-        s2 = _shot(f"{tmp}/bf2.png",
-                   f"{LOCAL_URL}/bestfit/export?rkey={CRON_KEY}&clean=1&slug={slug}&accent={ac}"
-                   f"&header={urllib.parse.quote(header)}&traits={tq}")
-        s3 = _title_png(slug, ["BUT CANDOR", "THINKS THEIR", "BEST FIT IS..."], [], nologo=True)
-        s4 = _shot(f"{tmp}/bf_reveal.png", reveal_url, verify=False)   # /bestfit/result reveal
-        title = f"DREAM {dshort} vs BEST FIT {short}"
-        payload = dict(school_slug=slug, school_name=f"Best Fit: {short}", accent=accent,
-                       title_text=title, title_formula="bestfit", slide3_type="bestfit",
-                       profile_json="{}", odds_text="", grade_text="",
-                       img1=s1, img2=s2, img3=s3, img4=s4,
-                       meta={"bestfit": True, "variant": "dream", "dream": dream,
-                             "traits": traits})
-        return _finish(payload, dry, f"BESTFIT(dream) {dshort}->{short}")
-
-    header = random.choice(candor_fit.HEADERS["fit"])
-    hook_opts = [["THIS STUDENT", "DOESN'T CARE", "ABOUT RANKINGS"],
-                 ["WHERE SHOULD", "THIS STUDENT", "GO?"],
-                 ["FIND THIS", "STUDENT'S", "PERFECT", "SCHOOL"]]
-    s1 = _title_png(slug, random.choice(hook_opts), [], nologo=True)
-    s2 = _shot(f"{tmp}/bf2.png",
-               f"{LOCAL_URL}/bestfit/export?rkey={CRON_KEY}&clean=1&slug={slug}&accent={ac}"
-               f"&header={urllib.parse.quote(header)}&traits={tq}")
-    s3 = _shot(f"{tmp}/bf_reveal.png", reveal_url, verify=False)   # /bestfit/result reveal
+    # Slide 1: title with the WANTS ("THIS STUDENT WANTS big sports, greek life,
+    # ... WHERE SHOULD THEY GO?"). Slide 2: the Candor /bestfit/result reveal.
+    # The promo/CTA slide auto-appends in the viewer, so no img3 needed.
+    wants = candor_fit.title_wants(prefs)
+    title_lines = ["THIS STUDENT", "WANTS..."] + wants + ["WHERE SHOULD", "THEY GO?"]
+    s1 = _title_png(slug, title_lines, [], nologo=True)
+    s2 = _shot(f"{tmp}/bf_reveal.png", reveal_url, verify=False)
     payload = dict(school_slug=slug, school_name=f"Best Fit: {short}", accent=accent,
-                   title_text=f"WHERE SHOULD THIS STUDENT GO? BEST FIT: {short}",
+                   title_text="THIS STUDENT WANTS " + ", ".join(w.lower() for w in wants)
+                              + " — WHERE SHOULD THEY GO?",
                    title_formula="bestfit", slide3_type="bestfit",
                    profile_json="{}", odds_text="", grade_text="",
-                   img1=s1, img2=s2, img3=s3, meta={"bestfit": True, "variant": "fit",
-                                                    "traits": traits})
-    return _finish(payload, dry, f"BESTFIT(fit) {short}")
+                   img1=s1, img2=s2, meta={"bestfit": True, "wants": wants})
+    return _finish(payload, dry, f"BESTFIT {short} <- {', '.join(wants)}")
 
 
 # ── daily head-to-head cap (they cost ~2-4x a normal carousel) ─────────────
