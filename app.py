@@ -12800,7 +12800,8 @@ def content_bestfit():
             f'<div style="display:flex;gap:10px;flex-wrap:wrap">{imgs}</div>'
             f'<button type="button" onclick="saveCard(this)" style="width:100%;background:#2f6df0;color:#fff;'
             f'font-weight:800;border:0;padding:13px;border-radius:10px;margin:14px 0 12px;cursor:pointer">⬇️ Save all slides</button>'
-            f'<div style="display:flex;gap:10px;margin-top:4px">'
+            f'{_hashtag_block(r)}'
+            f'<div style="display:flex;gap:10px;margin-top:10px">'
             f'<form method="post" action="/content/queue/{r["id"]}/posted" style="flex:1" onsubmit="return cardAct(this)">{csrf_input()}'
             f'<input type="hidden" name="account" value="bestfit">'
             f'<button style="width:100%;background:#5fc9b6;color:#06121a;font-weight:800;border:0;padding:12px;border-radius:10px">✓ Posted</button></form>'
@@ -12838,7 +12839,7 @@ def content_bestfit():
             f'not your main rotation.</div>')
     body = (f'<div style="max-width:720px;margin:0 auto;padding:16px 12px 80px">'
             f'<h1 style="margin:0 0 4px">🎯 Best Fit</h1>{note}{banner}{make_btn}'
-            + "".join(cards) + '</div>' + _CONTENT_SAVE_JS)
+            + "".join(cards) + '</div>' + _CONTENT_SAVE_JS + _HASHTAG_JS)
     return _page(body, title="Content · Best Fit")
 
 
