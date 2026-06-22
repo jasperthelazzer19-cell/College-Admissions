@@ -12224,6 +12224,106 @@ def bestfit_export():
                     mimetype="text/html")
 
 
+def _parse_bestfit_prefs(args):
+    """Read best-fit preferences from query params. Accepts the real pref_* keys
+    (pref_weather=warm&pref_sports=strong&...&major=Business) plus a few short
+    aliases for friendly URLs (w, sports, greek, size, setting)."""
+    prefs = {k: v for k, v in args.items() if k.startswith("pref_") and v}
+    if args.get("major"):
+        prefs["major"] = args["major"]
+        prefs.setdefault("pref_major_strength", "top")
+    alias = {
+        "w": ("pref_weather", {"warm": "warm", "cold": "cold", "mild": "mild"}),
+        "weather": ("pref_weather", {"warm": "warm", "cold": "cold", "mild": "mild"}),
+        "sports": ("pref_sports", {"big": "strong", "strong": "strong", "chill": "low", "low": "low"}),
+        "greek": ("pref_greek", {"yes": "strong", "strong": "strong", "no": "avoid", "avoid": "avoid"}),
+        "size": ("pref_size", {"small": "small", "mid": "medium", "medium": "medium",
+                               "big": "ml", "huge": "large", "large": "large"}),
+        "setting": ("pref_setting", {"city": "urban", "urban": "urban",
+                                     "town": "college_town", "college_town": "college_town",
+                                     "suburb": "suburban", "suburban": "suburban"}),
+        "city": ("pref_setting", {"1": "urban", "yes": "urban"}),
+    }
+    for a, (key, vmap) in alias.items():
+        v = args.get(a)
+        if v and key not in prefs:
+            prefs[key] = vmap.get(v.lower(), v.lower())
+    return prefs
+
+
+def _bestfit_reason(key, txt):
+    """Prettify a school_match per_pref text into a clean reveal-card line."""
+    txt = (txt or "").strip()
+    if key == "weather":
+        return {"warm": "Warm, sunny weather", "cold": "Cold-weather seasons",
+                "mild": "Mild weather"}.get(txt, f"{txt.title()} weather")
+    if key == "setting":
+        return {"urban": "Big-city campus", "college_town": "Classic college town",
+                "suburban": "Suburban campus", "rural": "Rural campus"}.get(txt, txt.replace("_", " ").title())
+    return (txt[0].upper() + txt[1:]) if txt else key.replace("_", " ").title()
+
+
+@app.route("/bestfit/result")
+@login_required
+def bestfit_result():
+    """Best-fit REVEAL page — the 'invent a page like /chances' feature. Takes a
+    student's PREFERENCES via query params, runs Candor's real My Fit engine
+    (compute_my_fit / school_match) over every renderable school, and renders the
+    #1 match + why it fits, in the same dark export style as chances/grade.
+    clean=1 = headless export for the content carousels."""
+    if not (_is_creator() or _has_render_key()):
+        abort(404)
+    import candor_fit
+    import html as _html
+    esc = _html.escape
+    prefs = _parse_bestfit_prefs(request.args)
+    if not any(k.startswith("pref_") for k in prefs):
+        abort(404)                                  # need at least one preference
+    profile = candor_fit.base_profile(major=prefs.get("major"))
+    profile.update(prefs)
+    pool = sorted(set(INST_LOGOS) & set(COLLEGES_BY_SLUG))
+    scored = []
+    for s in pool:
+        try:
+            sc = merged_school(COLLEGES_BY_SLUG[s])
+            score, _ = compute_my_fit(profile, sc)
+            scored.append((s, score))
+        except Exception:
+            continue
+    scored.sort(key=lambda x: -x[1])
+    if not scored:
+        abort(404)
+    win_slug, win_score = scored[0]
+    merged = merged_school(COLLEGES_BY_SLUG[win_slug])
+    short, color = _school_brand(win_slug, merged.get("name"))
+    logo = INST_LOGOS.get(win_slug) or SCHOOL_LOGOS.get(win_slug)
+    # Reasons = the prefs THIS school actually satisfies (match/neutral), prettified.
+    m = school_match(profile, merged) or {}
+    reasons = [_bestfit_reason(k, txt) for k, (verdict, txt) in (m.get("per_pref") or {}).items()
+               if verdict in ("match", "neutral")][:5]
+    if not reasons:                                  # fallback to the stated wants
+        reasons = candor_fit.traits_from_prefs(prefs)
+    runners = ", ".join(_school_brand(s, COLLEGES_BY_SLUG[s].get("name"))[0] for s, _ in scored[1:4])
+    logo_img = (f'<img src="{logo}" style="height:230px;max-width:78%;object-fit:contain;'
+                f'display:block;margin:6px auto 2px">' if logo else "")
+    reason_lis = "".join(f"<li>{esc(r)}</li>" for r in reasons)
+    card = f'''<div id="card" class="full">
+  <div class="pill-top"><span class="line"></span><span class="pill">CANDOR'S BEST FIT</span><span class="line r"></span></div>
+  <div class="title">Where this student belongs</div>
+  <div class="ccard" style="text-align:center">
+    {logo_img}
+    <div style="font-family:'AntonEmb','Anton',sans-serif;font-size:104px;line-height:.96;color:{color};text-transform:uppercase;letter-spacing:-1px;margin:8px 0 8px">{esc(short)}</div>
+    <div class="fit">fit {int(round(win_score))}/100</div>
+    <div class="rt-h" style="margin-top:20px">Why it fits</div>
+    <ul class="bullets">{reason_lis}</ul>
+    {f'<div class="meta" style="margin-top:14px">Close runner-ups: {esc(runners)}</div>' if runners else ''}
+  </div>
+  <div class="foot"><span class="lock">&#128274;</span>candoradmit.com</div>
+</div>'''
+    page = _tiktok_page(card, win_slug, esc(short), clean=request.args.get("clean") == "1")
+    return Response(page, mimetype="text/html")
+
+
 # ─── CONTENT AUTOPILOT ────────────────────────────────────────────────────
 # The Mac generator (Claude Code on Max = free) pre-renders carousels and POSTs
 # them to /content/queue/push. A scheduler hits /cron/content-release at each
