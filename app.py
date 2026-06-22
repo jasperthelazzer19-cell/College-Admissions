@@ -12831,8 +12831,16 @@ def content_slide_jpg(cid, piece):
         raw = _b64.b64decode(data)
     try:
         im = _Img.open(_io.BytesIO(raw)).convert("RGB")
+        # TikTok photo posts reject oversized images (our slides render at ~2048x3072).
+        # Cap the long edge to 1920 so it sits inside TikTok's photo spec; keep aspect.
+        longest = max(im.size)
+        if longest > 1920:
+            s = 1920 / longest
+            im = im.resize((max(1, round(im.width * s)), max(1, round(im.height * s))), _Img.LANCZOS)
         out = _io.BytesIO()
-        im.save(out, format="JPEG", quality=92)
+        im.save(out, format="JPEG", quality=90)
+        print(f" * slide served cid={cid} piece={piece} {im.size} "
+              f"ua={request.headers.get('User-Agent','?')[:60]}", flush=True)
         return Response(out.getvalue(), mimetype="image/jpeg",
                         headers={"Cache-Control": "public, max-age=86400"})
     except Exception:
