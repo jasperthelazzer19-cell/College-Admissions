@@ -417,6 +417,8 @@ def make_bestfit(dry=False, slug=None, variant=None):
     tmp = "/tmp/cren_factory"; os.makedirs(tmp, exist_ok=True)
     tq = urllib.parse.quote("|".join(traits))
     ac = urllib.parse.quote(accent)
+    pq = urllib.parse.urlencode(prefs)        # prefs -> /bestfit/result reveal page
+    reveal_url = f"{LOCAL_URL}/bestfit/result?rkey={CRON_KEY}&clean=1&{pq}"
 
     if variant == "dream":
         dream = candor_fit.dream_for(slug, app.merged_school(sch), app)
@@ -430,7 +432,7 @@ def make_bestfit(dry=False, slug=None, variant=None):
                    f"{LOCAL_URL}/bestfit/export?rkey={CRON_KEY}&clean=1&slug={slug}&accent={ac}"
                    f"&header={urllib.parse.quote(header)}&traits={tq}")
         s3 = _title_png(slug, ["BUT CANDOR", "THINKS THEIR", "BEST FIT IS..."], [], nologo=True)
-        s4 = _title_png(slug, [f"*{short}*"], [short])
+        s4 = _shot(f"{tmp}/bf_reveal.png", reveal_url, verify=False)   # /bestfit/result reveal
         title = f"DREAM {dshort} vs BEST FIT {short}"
         payload = dict(school_slug=slug, school_name=f"Best Fit: {short}", accent=accent,
                        title_text=title, title_formula="bestfit", slide3_type="bestfit",
@@ -448,7 +450,7 @@ def make_bestfit(dry=False, slug=None, variant=None):
     s2 = _shot(f"{tmp}/bf2.png",
                f"{LOCAL_URL}/bestfit/export?rkey={CRON_KEY}&clean=1&slug={slug}&accent={ac}"
                f"&header={urllib.parse.quote(header)}&traits={tq}")
-    s3 = _title_png(slug, ["CANDOR'S", "BEST FIT:", f"*{short}*"], [short])
+    s3 = _shot(f"{tmp}/bf_reveal.png", reveal_url, verify=False)   # /bestfit/result reveal
     payload = dict(school_slug=slug, school_name=f"Best Fit: {short}", accent=accent,
                    title_text=f"WHERE SHOULD THIS STUDENT GO? BEST FIT: {short}",
                    title_formula="bestfit", slide3_type="bestfit",
