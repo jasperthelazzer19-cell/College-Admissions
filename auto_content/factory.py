@@ -436,10 +436,15 @@ def make_bestfit(dry=False, slug=None, variant=None):
     # over a moderate-sports school). Falls back to the winner's own defining traits.
     win_prefs = candor_fit.prefs_for_school(app.merged_school(sch), app)
     shared = {k: v for k, v in prefs.items() if win_prefs.get(k) == v}
-    wants = candor_fit.title_wants(shared, n=2)
-    if len(wants) < 2:
-        wants = candor_fit.title_wants(win_prefs, n=2)
-    title_lines = wants + ["WHAT COLLEGE?"]   # bare hook: 2 wants + the question
+    # Show 3-4 wants (Jasper: title was too vague at 2). title_wants pulls every
+    # want the prefs justify, randomizes the phrasing + order, so the categories
+    # vary across generations instead of always reading "BIG SPORTS / GREEK LIFE".
+    # Fall back to the winner's own full traits if the shared set is too thin to
+    # hit 3 — still the reveal school's REAL attributes, so cover never lies.
+    wants = candor_fit.title_wants(shared, n=4)
+    if len(wants) < 3:
+        wants = candor_fit.title_wants(win_prefs, n=4)
+    title_lines = wants + ["WHAT COLLEGE?"]   # bare hook: 3-4 wants + the question
     # text in the best-fit school's brand color on a clean white slide
     s1 = _title_png(slug, title_lines, [], nologo=True, fg=accent)
     s2 = _shot(f"{tmp}/bf_reveal.png", reveal_url, verify=False)

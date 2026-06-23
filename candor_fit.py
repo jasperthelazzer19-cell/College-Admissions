@@ -105,29 +105,95 @@ def traits_from_prefs(prefs, n=5):
     return out[:n]
 
 
+# Each pref value maps to a LIST of equivalent concrete phrasings — same meaning,
+# different words. title_wants picks one at random so two carousels with the same
+# seed school don't read identically. Keep these specific and student-real (the
+# things people actually weigh when picking a school), not vague filler.
 _WANT = {
-    "pref_weather": {"warm": "WARM WEATHER", "cold": "COLD WEATHER", "mild": "MILD WEATHER"},
-    "pref_sports": {"strong": "BIG SPORTS", "low": "A CHILL SPORTS SCENE"},
-    "pref_greek": {"strong": "GREEK LIFE", "avoid": "NO GREEK LIFE"},
-    "pref_size": {"large": "A HUGE CAMPUS", "ml": "A BIG CAMPUS", "medium": "A MID-SIZE CAMPUS",
-                  "small": "A SMALL CAMPUS", "xs": "A TINY CAMPUS"},
-    "pref_setting": {"urban": "CITY LIFE", "college_town": "A COLLEGE TOWN",
-                     "suburban": "A SUBURBAN CAMPUS", "rural": "A RURAL CAMPUS"},
+    "pref_weather": {
+        "warm": ["WARM WEATHER", "SUNSHINE YEAR-ROUND", "NO REAL WINTER", "BEACH WEATHER"],
+        "cold": ["COLD WINTERS", "REAL SEASONS", "SNOW ON CAMPUS", "SWEATER WEATHER"],
+        "mild": ["EASY WEATHER", "MILD WINTERS", "NEVER TOO COLD"],
+    },
+    "pref_sports": {
+        "strong": ["BIG-TIME SPORTS", "GAMEDAY CULTURE", "A REAL SPORTS SCENE",
+                   "PACKED FOOTBALL SATURDAYS", "D1 SPORTS"],
+        "low": ["A CHILL SPORTS SCENE", "SPORTS DON'T RUN THE SCHOOL",
+                "LOW-KEY ON SPORTS"],
+    },
+    "pref_greek": {
+        "strong": ["A BIG GREEK SCENE", "FRATS & SORORITIES", "GREEK LIFE",
+                   "A REAL GREEK CULTURE"],
+        "avoid": ["NO GREEK LIFE", "ZERO FRAT CULTURE", "NO RUSH"],
+    },
+    "pref_size": {
+        "large": ["A HUGE CAMPUS", "A MASSIVE STUDENT BODY", "A BIG STATE-SCHOOL FEEL"],
+        "ml": ["A BIG CAMPUS", "A LARGE STUDENT BODY", "PLENTY OF PEOPLE TO MEET"],
+        "medium": ["A MID-SIZE CAMPUS", "NOT TOO BIG, NOT TOO SMALL"],
+        "small": ["A SMALL CAMPUS", "SMALLER CLASSES", "A TIGHTER COMMUNITY"],
+        "xs": ["A TINY CAMPUS", "TINY CLASSES", "A CLOSE-KNIT COMMUNITY"],
+    },
+    "pref_setting": {
+        "urban": ["CITY LIFE", "A BIG-CITY CAMPUS", "EVERYTHING WALKABLE",
+                  "AN URBAN CAMPUS"],
+        "college_town": ["A CLASSIC COLLEGE TOWN", "A TRUE COLLEGE-TOWN VIBE",
+                         "A TOWN BUILT AROUND THE SCHOOL"],
+        "suburban": ["A SUBURBAN CAMPUS", "A QUIET, SAFE AREA"],
+        "rural": ["A RURAL CAMPUS", "WIDE-OPEN SPACE", "OUT IN NATURE"],
+    },
 }
-_WANT_ORDER = ["pref_sports", "pref_greek", "pref_weather", "pref_size", "pref_setting"]
+_WANT_ORDER = ["pref_sports", "pref_greek", "pref_weather", "pref_setting", "pref_size"]
+
+# Major / program family -> a concrete academic "want" the student is after. Lets
+# the title say something real about academics (a strong CS program, great pre-med)
+# instead of only lifestyle vibes. Matched loosely against the seed school's major.
+_MAJOR_WANTS = [
+    (("computer", "cs", "software", "data"), ["A STRONG CS PROGRAM", "A TOP CS SCHOOL",
+                                              "A SERIOUS TECH SCENE"]),
+    (("engineer",), ["A TOP ENGINEERING SCHOOL", "A STRONG ENGINEERING PROGRAM"]),
+    (("business", "finance", "account", "economic", "manage"),
+     ["A STRONG BUSINESS SCHOOL", "REAL WALL-STREET PIPELINE", "A TOP BUSINESS PROGRAM"]),
+    (("bio", "pre-med", "premed", "health", "nurs", "neuro"),
+     ["GREAT PRE-MED", "A STRONG PRE-MED TRACK", "A REAL RESEARCH SCENE"]),
+    (("art", "design", "music", "film", "theat", "media"),
+     ["A SERIOUS ARTS SCENE", "A STRONG ARTS PROGRAM"]),
+    (("polit", "law", "internation", "government", "public"),
+     ["A STRONG POLI-SCI PROGRAM", "A PIPELINE INTO LAW & POLICY"]),
+    (("psych", "sociol", "english", "history", "philos"),
+     ["STRONG LIBERAL ARTS", "GREAT HUMANITIES"]),
+]
 
 
-def title_wants(prefs, n=4):
+def _major_want(major):
+    """A concrete program want for a major string, or a generic 'STRONG <MAJOR>'."""
+    m = (major or "").lower()
+    if not m:
+        return None
+    for keys, phrasings in _MAJOR_WANTS:
+        if any(k in m for k in keys):
+            return random.choice(phrasings)
+    return f"A STRONG {major.upper()} PROGRAM"
+
+
+def title_wants(prefs, n=4, rng=random):
     """Short ALL-CAPS 'wants' tokens for the title slide (one per line), e.g.
-    ['BIG SPORTS', 'GREEK LIFE', 'WARM WEATHER', 'A HUGE CAMPUS']."""
-    out = []
+    ['GAMEDAY CULTURE', 'GREEK LIFE', 'SUNSHINE YEAR-ROUND', 'A STRONG CS PROGRAM'].
+
+    Pulls every want the prefs justify (so each token is a real attribute of the
+    same school the reveal lands on — never a promise the reveal contradicts), picks
+    a random concrete phrasing per category, and shuffles the order so the same seed
+    doesn't always lead with the same two. Returns up to n."""
+    pool = []
     for k in _WANT_ORDER:
         v = prefs.get(k)
-        if v and v in _WANT[k]:
-            out.append(_WANT[k][v])
-    if prefs.get("major"):
-        out.append(f"STRONG {prefs['major'].upper()}")
-    return out[:n]
+        opts = _WANT.get(k, {}).get(v)
+        if opts:
+            pool.append(rng.choice(opts))
+    mw = _major_want(prefs.get("major"))
+    if mw:
+        pool.append(mw)
+    rng.shuffle(pool)
+    return pool[:n]
 
 
 def dream_for(fit_slug, fit_school, A, rng=random):
