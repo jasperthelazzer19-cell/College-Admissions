@@ -5823,7 +5823,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',function(){navig
   }catch(e){}
 })();
 </script>"""
-    return f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+    return f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="google-site-verification" content="CAOEiEPPk2BbSD6HMXgq9YfdyLDY7XXHQCfYfNq1zvY">
 {favicon}{pwa_head}
 {social_meta}
 {csrf_meta}<title>{title}</title><style>{BASE_CSS}</style></head>
@@ -10898,6 +10898,7 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
     _og_desc = f"College chances calculator with verified Common Data Set figures from {cds_count}+ schools. Built by a HS junior to be honest, not optimistic."
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="google-site-verification" content="CAOEiEPPk2BbSD6HMXgq9YfdyLDY7XXHQCfYfNq1zvY">
 <title>Candor — College admissions chances, calibrated</title>
 <link rel="canonical" href="{_site_url}">
 <link rel="manifest" href="/manifest.webmanifest">
