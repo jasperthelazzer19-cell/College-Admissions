@@ -12642,6 +12642,39 @@ def content_request_batch():
     return redirect(url_for("content_today", requested=n))
 
 
+@app.route("/content/queue/<int:cid>/send-tiktok", methods=["POST"])
+@login_required
+def content_send_tiktok(cid):
+    """Creator taps '📲 Send to TikTok' on /content/today — push this carousel to a
+    connected account's TikTok inbox as a draft (Content Posting API, MEDIA_UPLOAD).
+    Prefers the carousel's assigned account; falls back to any account that already
+    has the video.upload scope, so it works before every account is re-authed."""
+    if not _is_creator():
+        abort(404)
+    with db() as conn:
+        r = conn.execute("SELECT * FROM content_queue WHERE id=?", (cid,)).fetchone()
+        if not r:
+            return jsonify(ok=False, error="carousel not found")
+        acct = None
+        if r["assigned_account"]:
+            acct = conn.execute("SELECT * FROM tiktok_accounts WHERE label=? AND IFNULL(scope,'') LIKE '%video.upload%'",
+                                (r["assigned_account"],)).fetchone()
+        if not acct:
+            acct = conn.execute("SELECT * FROM tiktok_accounts WHERE IFNULL(scope,'') LIKE '%video.upload%' "
+                                "ORDER BY connected_at LIMIT 1").fetchone()
+    if not acct:
+        return jsonify(ok=False, error="No connected account has posting permission yet — reconnect one at /tiktok first.")
+    try:
+        pid, _ = _tiktok_post_photos(acct, _carousel_image_urls(r), _tiktok_post_caption(r), direct=False)
+        with db() as conn:
+            conn.execute("UPDATE content_queue SET tt_publish_id=?, tt_post_status='DRAFT', "
+                         "tt_posted_at=CURRENT_TIMESTAMP WHERE id=?", (pid, cid))
+            conn.commit()
+        return jsonify(ok=True, account=acct["label"], publish_id=pid)
+    except Exception as e:
+        return jsonify(ok=False, error=str(e))
+
+
 @app.route("/content/batch-pending")
 def content_batch_pending():
     """Mac daemon poll: oldest unclaimed batch request. Auth: key=CRON_KEY."""
@@ -13088,7 +13121,11 @@ def content_today():
             f'font-weight:800;border:1px solid #2b3a4f;padding:13px;border-radius:10px;cursor:pointer">📸 For Instagram</button>'
             f'</div>'
             f'{_hashtag_block(r)}'
-            f'<div style="display:flex;gap:10px;margin-top:10px">'
+            f'<button type="button" onclick="sendTikTok(this,{r["id"]})" style="width:100%;background:#fe2c55;'
+            f'color:#fff;font-weight:800;border:0;padding:13px;border-radius:10px;cursor:pointer;margin:0 0 6px">'
+            f'📲 Send to TikTok (draft)</button>'
+            f'<div class="ttresult" style="font-size:13px;color:#9fb2c8;margin:0 0 8px"></div>'
+            f'<div style="display:flex;gap:10px;margin-top:4px">'
             f'<form method="post" action="/content/queue/{r["id"]}/posted" style="flex:1" onsubmit="return cardAct(this)">{csrf_input()}{_acct_select(r["assigned_account"])}'
             f'<button style="width:100%;background:#5fc9b6;color:#06121a;font-weight:800;border:0;padding:12px;border-radius:10px">✓ Posted</button></form>'
             f'<form method="post" action="/content/queue/{r["id"]}/skipped" style="flex:1" onsubmit="return cardAct(this)">{csrf_input()}'
@@ -13183,6 +13220,20 @@ def content_today():
         ' fetch(form.action,{method:"POST",body:new FormData(form)}).catch(function(){});'
         ' if(card){card.style.transition="opacity .15s";card.style.opacity="0";'
         '  setTimeout(function(){card.remove();},150);} return false;}'
+        # Send to TikTok: push this carousel to a connected account's TikTok inbox as
+        # a draft (Content Posting API) and show the result inline — no save/upload.
+        'async function sendTikTok(btn,cid){var card=btn.closest(".qcard");'
+        ' var out=card?card.querySelector(".ttresult"):null;btn.disabled=true;'
+        ' btn.textContent="Sending…";if(out)out.textContent="";'
+        ' try{var tok=(document.querySelector("input[name=csrf_token]")||{}).value||"";'
+        '  var r=await fetch("/content/queue/"+cid+"/send-tiktok",{method:"POST",headers:{"X-CSRFToken":tok}});'
+        '  var d=await r.json();'
+        '  if(d.ok){btn.textContent="✓ Sent to TikTok";btn.style.background="#13351f";'
+        '   if(out){out.style.color="#bdf3d0";out.textContent="Draft sent to "+(d.account||"your TikTok")+" — open TikTok → Inbox to post.";}}'
+        '  else{btn.disabled=false;btn.textContent="📲 Send to TikTok (draft)";'
+        '   if(out){out.style.color="#ff9b9b";out.textContent=d.error||"Failed — try again.";}}'
+        ' }catch(e){btn.disabled=false;btn.textContent="📲 Send to TikTok (draft)";'
+        '  if(out){out.style.color="#ff9b9b";out.textContent="Network error.";}}}'
         '</script>')
     body = (f'<div style="max-width:720px;margin:0 auto;padding:16px 12px 80px">'
             + f'<h1 style="margin:0 0 4px">📅 Today</h1>'
