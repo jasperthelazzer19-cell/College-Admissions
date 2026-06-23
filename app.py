@@ -18285,7 +18285,10 @@ def _tiktok_post_photos(acct, image_urls, caption, direct=False, privacy="SELF_O
     """Init a photo post. direct=False -> MEDIA_UPLOAD (draft to inbox, no audit).
     Returns (publish_id, raw_response). Raises RuntimeError on API error."""
     token = _tiktok_access_token(acct)
-    post_info = {"title": caption, "disable_comment": False}
+    # For PHOTO posts, `title` is a separate plain-text heading; the real CAPTION
+    # (where # become clickable hashtags) is `description`. Putting the hashtags in
+    # `title` made them post as dead text — they belong in `description`.
+    post_info = {"title": "", "description": caption, "disable_comment": False}
     if direct:
         post_info["privacy_level"] = privacy        # required for DIRECT_POST
         post_info["auto_add_music"] = True           # required for photo direct post
