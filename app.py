@@ -12858,8 +12858,19 @@ def content_batch_claim():
 
 
 # Static CTA card (the "Want your own odds?" slide) appended as the LAST slide of
-# every carousel — it's identical every time, so it's a static asset.
+# every carousel — it's identical every time, so it's a static asset. Best-fit
+# carousels get their own CTA ("Want the right school for you?") instead.
 _CTA_SLIDE_URL = "/static/cta_slide.png"
+_CTA_SLIDE_BESTFIT_URL = "/static/cta_slide_bestfit.png"
+
+
+def _cta_url(r):
+    """Best-fit carousels end with the best-fit CTA; everything else gets the
+    standard 'want your own odds?' CTA."""
+    try:
+        return _CTA_SLIDE_BESTFIT_URL if (r and r["slide3_type"] == "bestfit") else _CTA_SLIDE_URL
+    except Exception:
+        return _CTA_SLIDE_URL
 
 
 def _carousel_hashtags(r):
@@ -12950,7 +12961,7 @@ def content_view_one(cid):
         for i, k in enumerate(_keys, 1))
     # CTA is the LAST slide of every carousel (and part of "Save all slides").
     _cta_i = len(_keys) + 1
-    imgs += (f'<img class="cslide" data-slide="{_cta_i}" src="{_CTA_SLIDE_URL}" alt="slide {_cta_i}" '
+    imgs += (f'<img class="cslide" data-slide="{_cta_i}" src="{_cta_url(r)}" alt="slide {_cta_i}" '
              f'style="width:100%;max-width:500px;border-radius:14px;margin:0 0 16px;-webkit-touch-callout:default;'
              f'display:block;margin-left:auto;margin-right:auto">')
     save_btn = (
@@ -12994,8 +13005,17 @@ def content_slide_jpg(cid, piece):
     import base64 as _b64, io as _io
     from PIL import Image as _Img
     if piece == "cta":
+        # Best-fit carousels end with the best-fit CTA; everything else the standard one.
+        ctafile = "cta_slide.png"
         try:
-            with open(os.path.join(app.static_folder, "cta_slide.png"), "rb") as f:
+            with db() as conn:
+                _r = conn.execute("SELECT slide3_type FROM content_queue WHERE id=?", (cid,)).fetchone()
+            if _r and _r["slide3_type"] == "bestfit":
+                ctafile = "cta_slide_bestfit.png"
+        except Exception:
+            pass
+        try:
+            with open(os.path.join(app.static_folder, ctafile), "rb") as f:
                 raw = f.read()
         except Exception:
             abort(404)
@@ -13114,7 +13134,7 @@ def content_bestfit():
             f'style="width:100%;border-radius:12px;border:1px solid #1d2a3d;-webkit-touch-callout:default">'
             f'<div style="text-align:center;font-size:12px;color:#7c8aa0;margin-top:4px">Slide {i}</div></div>'
             for i, k in enumerate(_ck, 1))
-        imgs += (f'<div style="flex:1;min-width:150px"><img class="cslide" src="{_CTA_SLIDE_URL}" alt="CTA slide" '
+        imgs += (f'<div style="flex:1;min-width:150px"><img class="cslide" src="{_cta_url(r)}" alt="CTA slide" '
                  f'style="width:100%;border-radius:12px;border:1px solid #1d2a3d;-webkit-touch-callout:default">'
                  f'<div style="text-align:center;font-size:12px;color:#7c8aa0;margin-top:4px">Slide {len(_ck)+1} · CTA</div></div>')
         try:
@@ -13255,7 +13275,7 @@ def content_today():
             f'<div style="text-align:center;font-size:12px;color:#7c8aa0;margin-top:4px">Slide {i}</div></div>'
             for i, k in enumerate(_ck, 1))
         # CTA appended as the LAST slide (part of "Save all slides").
-        imgs += (f'<div style="flex:1;min-width:150px"><img class="cslide" src="{_CTA_SLIDE_URL}" alt="CTA slide" '
+        imgs += (f'<div style="flex:1;min-width:150px"><img class="cslide" src="{_cta_url(r)}" alt="CTA slide" '
                  f'style="width:100%;border-radius:12px;border:1px solid #1d2a3d;-webkit-touch-callout:default">'
                  f'<div style="text-align:center;font-size:12px;color:#7c8aa0;margin-top:4px">Slide {len(_ck)+1} · CTA</div></div>')
         meta = f'{r["school_name"] or r["school_slug"] or ""} · {r["slide3_type"] or ""}'
