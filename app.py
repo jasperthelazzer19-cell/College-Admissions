@@ -6128,6 +6128,8 @@ def college_detail_html(slug):
     ]
     _ldjson = "".join(
         f'<script type="application/ld+json">{_json.dumps(s)}</script>' for s in _ld)
+    gpa_links = " · ".join(
+        f'<a href="/college/{slug}/gpa/{s:.1f}">{s:.1f} GPA</a>' for s in _GPA_SCENARIOS)
     return _page(f"""
 {_ldjson}
 <div class="bar"><a href="/colleges">&larr; back to browse</a></div>
@@ -6148,6 +6150,7 @@ def college_detail_html(slug):
     <a class="btn btn-light" href="/college/{c['slug']}/profiles">Real profiles & essays</a>
     {save_btn}
   </div>
+  <div style="margin-top:12px;font-size:.85em;color:var(--muted)">Chances by GPA: {gpa_links}</div>
 </div>
 <p class="muted" style="font-size:.78em;margin:14px 0 6px">Stats below are CDS-based estimates from recent admissions cycles. Verify on the school's official site before making application decisions.</p>
 <div class="grid">
@@ -9227,6 +9230,9 @@ def sitemap_xml():
     base = request.url_root.rstrip("/")
     urls = ["/", "/colleges", "/rankings"]
     urls += [f"/college/{c['slug']}" for c in COLLEGES]
+    # Long-tail GPA-scenario pages ("<school> chances with a 3.7 GPA"), one per
+    # school per GPA tier — the calculator-powered programmatic SEO layer.
+    urls += [f"/college/{c['slug']}/gpa/{g:.1f}" for c in COLLEGES for g in _GPA_SCENARIOS]
     from html import escape as _esc
     items = "".join(
         f"<url><loc>{_esc(base + u)}</loc><changefreq>weekly</changefreq></url>"
@@ -10954,6 +10960,119 @@ def colleges_page():
 @app.route("/college/<slug>")
 def college_detail(slug):
     return college_detail_html(slug)
+
+
+# Long-tail SEO: a page per (school, GPA) targeting "<school> chances with a 3.7
+# GPA" type searches that the calculator answers uniquely well. READ-ONLY — it
+# just runs the EXISTING odds engine (compute_fit + estimate_odds) with the GPA
+# preset and the school's median SAT, so no algorithm/data changes. SEO 2026-06.
+_GPA_SCENARIOS = [3.0, 3.5, 3.7, 3.9, 4.0]
+
+
+@app.route("/college/<slug>/gpa/<gpa>")
+def college_gpa_chances(slug, gpa):
+    raw = COLLEGES_BY_SLUG.get(slug)
+    if not raw:
+        abort(404)
+    try:
+        g = round(float(gpa), 2)
+    except (TypeError, ValueError):
+        abort(404)
+    if not (1.0 <= g <= 4.0):
+        abort(404)
+    c = merged_school(raw)
+    name = c["name"]
+    glabel = f"{g:.1f}"
+    try:
+        base = request.url_root.rstrip("/")
+    except Exception:
+        base = "https://candoradmit.com"
+    # Odds estimate: this GPA + the school's median SAT, everything else typical.
+    sat_mid = None
+    try:
+        if c.get("sat_25") and c.get("sat_75"):
+            sat_mid = round((c["sat_25"] + c["sat_75"]) / 2)
+    except Exception:
+        pass
+    profile = {"uw_gpa": g}
+    if sat_mid:
+        profile["sat"] = sat_mid
+    low = high = None
+    try:
+        fit, _ = compute_fit(profile, c)
+        low, high = estimate_odds(c, fit, profile)
+    except Exception:
+        pass
+    odds_str = f"{round(low)}–{round(high)}%" if (low is not None and high is not None) else "—"
+    glo, ghi = c.get("gpa_lo"), c.get("gpa_hi")
+    if glo and ghi:
+        rng = f"{glo}–{ghi}"
+        if g < glo:
+            stand = f"<b>below</b> {name}'s admitted middle-50% GPA range of {rng}"
+            verdict = ("On GPA alone this is a reach — to be competitive you'd want strong test "
+                       "scores, a demanding course load, and a standout application to offset it.")
+        elif g > ghi:
+            stand = f"<b>above</b> {name}'s admitted middle-50% GPA range of {rng}"
+            verdict = ("You're competitive on GPA — at a school this selective the rest of your "
+                       "application (rigor, essays, extracurriculars, and spikes) is what decides it.")
+        else:
+            stand = f"<b>right in</b> {name}'s admitted middle-50% GPA range of {rng}"
+            verdict = ("That puts you in the typical admitted band. It's a solid baseline, but GPA "
+                       "alone won't get you in — the rest of your profile carries real weight here.")
+    else:
+        rng = ""
+        stand = f"in line with {name}'s typical admitted students"
+        verdict = "It's a reasonable starting point — your full profile decides the rest."
+    accept = round((c.get("accept") or 0) * 100, 1)
+    sat_line = (f"SAT mid-50%: <b>{c['sat_25']}–{c['sat_75']}</b>. "
+                if c.get("sat_25") and c.get("sat_75") else "")
+    # sibling GPA pages (internal links) + the main school page + the calculator
+    sib = "".join(
+        f'<a class="btn btn-light" href="/college/{slug}/gpa/{s:.1f}" '
+        f'style="{"font-weight:800;border-color:var(--teal)" if abs(s-g)<0.001 else ""}">{s:.1f} GPA</a>'
+        for s in _GPA_SCENARIOS)
+    import json as _json
+    _ld = _json.dumps({
+        "@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [
+            {"@type": "ListItem", "position": 1, "name": "Colleges", "item": f"{base}/colleges"},
+            {"@type": "ListItem", "position": 2, "name": name, "item": f"{base}/college/{slug}"},
+            {"@type": "ListItem", "position": 3, "name": f"{glabel} GPA chances",
+             "item": f"{base}/college/{slug}/gpa/{glabel}"}]})
+    body = f"""
+<script type="application/ld+json">{_ld}</script>
+<div class="bar"><a href="/college/{slug}">&larr; {name}</a></div>
+<div class="card">
+  <h1 style="margin:0 0 6px">{name} Admission Chances with a {glabel} GPA</h1>
+  <div class="muted">Estimated from verified Common Data Set figures — {name}'s overall acceptance rate is {accept}%. {sat_line}</div>
+  <div class="grid" style="margin-top:16px">
+    <div class="card">
+      <h3 style="margin-top:0">Estimated chances</h3>
+      <div class="odds" style="color:#2b6cff">{odds_str}</div>
+      <div class="muted" style="font-size:.82em">with a {glabel} GPA{f" and ~{sat_mid} SAT" if sat_mid else ""}, everything else typical</div>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">How your GPA compares</h3>
+      <p style="margin:.3em 0">A {glabel} GPA is {stand}.</p>
+      <p class="muted" style="margin:.3em 0;font-size:.9em">{verdict}</p>
+    </div>
+  </div>
+  <p style="margin:16px 0 6px">A GPA is the single biggest academic factor, but it's necessary, not sufficient — especially at a {accept}%-acceptance school like {name}. Your test scores, course rigor, extracurriculars, essays, and any standout achievements all move the number. The estimate above assumes typical scores and rigor; your real odds depend on your full profile.</p>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
+    <a class="btn btn-primary" href="/college/{slug}/plan">★ Calculate my real chances</a>
+    <a class="btn btn-light" href="/college/{slug}">{name} overview</a>
+  </div>
+</div>
+<div class="card">
+  <h3 style="margin-top:0">{name} chances by GPA</h3>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">{sib}</div>
+</div>
+<p class="muted" style="font-size:.78em;margin:14px 0 6px">Estimates are CDS-based and for a typical applicant. Run your full profile for your real, calibrated odds.</p>
+"""
+    return _page(body,
+                 title=f"{name} Chances with a {glabel} GPA — Acceptance Odds — Candor",
+                 description=f"What are your chances of getting into {name} with a {glabel} GPA? "
+                             f"Real estimate from verified Common Data Set data — {name} accepts {accept}%. "
+                             f"See your true odds free on Candor.")
 
 
 @app.route("/rankings")
