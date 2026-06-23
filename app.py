@@ -18729,6 +18729,7 @@ def _render_consume_one(factory):
         return
     slugs = [s for s in (row["slugs"] or "").split(",") if s.strip()]
     _ct, _s3 = factory.resolve_format(kind)              # creator-picked format (None,None = auto)
+    made_ids = []
     for i in range(n):
         chosen = slugs[i] if i < len(slugs) else None    # creator-picked school or auto
         for attempt in range(2):
@@ -18736,10 +18737,23 @@ def _render_consume_one(factory):
                 cid, _ = factory.make_one(slug=chosen, slide3=_s3, ctype=_ct, count_toward_cap=False)
                 if cid:
                     made += 1
+                    made_ids.append(cid)
                 break
             except Exception as e:
                 print(f" * render worker make {i} attempt {attempt}: {e}", flush=True)
-    print(f" * render worker: batch {row['id']} -> {made}/{n} carousels queued", flush=True)
+    # The Today "Make" button is an explicit "show me one NOW" — release what we
+    # just generated so it lands on /content/today. Without this, a format-picked
+    # carousel is made into the pending buffer and silently never appears (the bug
+    # where "the format picker doesn't work"). make_one already pushed them as
+    # 'pending'; flip those exact rows to 'released'.
+    if made_ids:
+        with db() as conn:
+            conn.execute(
+                "UPDATE content_queue SET status='released', slot='make', "
+                "released_at=CURRENT_TIMESTAMP WHERE id IN (%s) AND status='pending'"
+                % ",".join("?" * len(made_ids)), made_ids)
+            conn.commit()
+    print(f" * render worker: batch {row['id']} -> {made}/{n} carousels made+released", flush=True)
 
 
 def _render_worker_loop():
