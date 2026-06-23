@@ -6104,12 +6104,37 @@ def college_detail_html(slug):
     majors_tags = "".join(f'<span class="tag">{m}</span>' for m in c["majors"])
     type_pill = f'<span class="pill pill-{c["type"]}">{c["type"]}</span>'
     tier_pill = f'<span class="pill pill-tier-{c["tier"]}">Tier {c["tier"]}</span>'
+    # JSON-LD structured data: the school as a CollegeOrUniversity entity + a
+    # breadcrumb trail. Helps Google understand the page and makes the CDS data
+    # citable in AI Overviews / ChatGPT. SEO 2026-06.
+    import json as _json
+    try:
+        _base = request.url_root.rstrip("/")
+    except Exception:
+        _base = "https://candoradmit.com"
+    _cs = city_state(c) or ""
+    _loc = _cs.split(",")[0].strip() if _cs else ""
+    _reg = _cs.split(",")[-1].strip() if "," in _cs else ""
+    _ld = [
+        {"@context": "https://schema.org", "@type": "CollegeOrUniversity",
+         "name": c["name"], "url": f"{_base}/college/{c['slug']}",
+         "description": (c.get("desc") or "")[:300],
+         "address": {"@type": "PostalAddress", "addressLocality": _loc,
+                     "addressRegion": _reg, "addressCountry": "US"}},
+        {"@context": "https://schema.org", "@type": "BreadcrumbList",
+         "itemListElement": [
+             {"@type": "ListItem", "position": 1, "name": "Colleges", "item": f"{_base}/colleges"},
+             {"@type": "ListItem", "position": 2, "name": c["name"], "item": f"{_base}/college/{c['slug']}"}]},
+    ]
+    _ldjson = "".join(
+        f'<script type="application/ld+json">{_json.dumps(s)}</script>' for s in _ld)
     return _page(f"""
+{_ldjson}
 <div class="bar"><a href="/colleges">&larr; back to browse</a></div>
 <div class="card">
   <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;align-items:flex-start">
     <div>
-      <h1 style="margin:0 0 4px">{c['name']} {verified_badge}</h1>
+      <h1 style="margin:0 0 4px">{c['name']} Acceptance Rate &amp; Chances {verified_badge}</h1>
       <div class="muted">{city_state(c)} ({region_of(c)}) · {c['size']:,} undergrads · ~{avg_class_size_estimate(c)} avg class size · {sf_ratio(c)}:1 student-faculty · ${c['tuition']:,}/yr sticker</div>
     </div>
     <div>{type_pill} {tier_pill}</div>
@@ -9058,6 +9083,13 @@ def school_chat_html(slug):
 # ─── FLASK APP ────────────────────────────────────────────
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
+# Railway terminates TLS at the edge and forwards as plain http, so Flask's
+# request.url_root came back as http:// — which made every canonical tag, OG
+# url, sitemap and robots/llms URL point to http and split our ranking signals.
+# ProxyFix honors Railway's X-Forwarded-Proto so request.scheme/url_root are
+# https, fixing all of those at once. SEO 2026-06.
+from werkzeug.middleware.proxy_fix import ProxyFix
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 # Secure session cookies. In production we use SameSite=None so the
 # session rides along when the app is embedded in the Framer iframe
