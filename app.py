@@ -17706,14 +17706,20 @@ def admin_returning():
         )
         ident = f'<span style="color:var(--teal)">{who}</span>'
         span_days = r["active_days"] or 1
+        # Email on its OWN full-width line (word-break so it never truncates on a
+        # phone) + tap-to-select for easy copy; stats on a second line below.
         rows_html += (
-            f'<div style="display:flex;gap:12px;padding:7px 0;border-top:1px solid var(--border);font-size:.85em;align-items:center">'
-            f'<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{ident}</span>'
+            f'<div style="padding:10px 0;border-top:1px solid var(--border);font-size:.85em">'
+            f'<div style="display:flex;gap:8px;align-items:center;margin-bottom:4px">'
+            f'<span style="flex:1;color:var(--teal);font-weight:600;word-break:break-all;user-select:all">{who}</span>'
             f'{badge}'
-            f'<span style="width:84px;text-align:right">{r["sessions"]} sessions</span>'
-            f'<span style="width:70px;text-align:right">{span_days} day{"s" if span_days!=1 else ""}</span>'
-            f'<span style="width:60px;text-align:right">{r["hits"]} hits</span>'
-            f'<span style="width:150px;text-align:right" class="muted">{_fmt(r["last_seen"])}</span>'
+            f'</div>'
+            f'<div style="display:flex;gap:14px;color:var(--text-2);font-size:.92em;flex-wrap:wrap">'
+            f'<span>{r["sessions"]} sessions</span>'
+            f'<span>{span_days} day{"s" if span_days!=1 else ""}</span>'
+            f'<span>{r["hits"]} hits</span>'
+            f'<span class="muted" style="margin-left:auto">{_fmt(r["last_seen"])}</span>'
+            f'</div>'
             f'</div>'
         )
     return _page(f"""
@@ -17758,13 +17764,8 @@ def admin_returning():
 
 <h2 style="margin-top:24px">Returning users (top 80 by sessions)</h2>
 <div class="card">
-  <div style="display:flex;gap:12px;padding:6px 0;font-size:.78em;color:var(--text-2);text-transform:uppercase;letter-spacing:.4px">
-    <span style="flex:1">who</span>
-    <span style="width:78px;text-align:center">plan</span>
-    <span style="width:84px;text-align:right">sessions</span>
-    <span style="width:70px;text-align:right">days</span>
-    <span style="width:60px;text-align:right">hits</span>
-    <span style="width:150px;text-align:right">last seen</span>
+  <div style="padding:6px 0;font-size:.72em;color:var(--text-2);text-transform:uppercase;letter-spacing:.4px">
+    email + plan · then sessions / days / hits / last seen
   </div>
   {rows_html or '<p class="muted">No returning users in this window.</p>'}
 </div>
