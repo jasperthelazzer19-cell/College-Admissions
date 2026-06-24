@@ -3770,7 +3770,12 @@ def estimate_odds(school, fit, profile):
     #       while the lower base keeps the overall level down. Net at fit 65: 1.10
     #       (was 1.20); at fit 77: 1.22 (was 1.255); a 64->77 fit swing now moves the
     #       multiplier ~0.14 instead of ~0.08. Elites stay cap-bound, so unaffected.
-    fit_mult = 0.10 + (min(fit, 65.0) / 65.0) ** 1.6 + max(0.0, fit - 65.0) / 65.0 * 0.65
+    # 2026-06-24: tiny generosity lift for HIGH/TOP profiles below exceptional — bumped the
+    # upper-band slope 0.65 -> 0.75. This term is 0 for fit <= 65, so mid/low profiles are
+    # untouched; exceptional profiles use the separate cap override; elite caps still bind
+    # (Stanford stays ~4%). Net effect: ~+2-4% relative odds only for strong, non-exceptional
+    # applicants at non-cap-bound schools. Targeted band nudge, NOT a global multiplier.
+    fit_mult = 0.10 + (min(fit, 65.0) / 65.0) ** 1.6 + max(0.0, fit - 65.0) / 65.0 * 0.75
     hook_mult = 1.0
     if profile.get("athlete"): hook_mult *= 1.30
     # Legacy is a real, measurable boost at top schools — Harvard ~6x,
@@ -13456,7 +13461,17 @@ def profile_slide_export(slug):
     st = (p.get("state") or "").strip()
     if st: acad.append(plainln(f"{st} Resident"))
     if p.get("uw_gpa") is not None: acad.append(numln(p["uw_gpa"], "UW GPA"))
-    if p.get("weighted_gpa") is not None: acad.append(numln(p["weighted_gpa"], "W GPA"))
+    # Only show the weighted GPA when it's a believable weighted value (above the
+    # unweighted, on a <5.0 scale). Hides off-scale leaks like "100 W GPA" and the
+    # lazy "5.0 W GPA" placeholder that the generated demo profiles sometimes carry.
+    _wg = p.get("weighted_gpa")
+    if _wg is not None:
+        try:
+            _wgf, _uwf = float(_wg), float(p.get("uw_gpa") or 0)
+            if _uwf < _wgf < 5.0:
+                acad.append(numln(_wg, "W GPA"))
+        except (TypeError, ValueError):
+            pass
     # Test-blind schools (UCs) don't consider scores — don't feature a test stat
     # on the profile slide for them (it implies the score matters here).
     if is_test_blind(slug):
@@ -13633,7 +13648,17 @@ def _profile_card_body(p, title, accent, footer_html):
     st = (p.get("state") or "").strip()
     if st: acad.append(plainln(f"{st} Resident"))
     if p.get("uw_gpa") is not None: acad.append(numln(p["uw_gpa"], "UW GPA"))
-    if p.get("weighted_gpa") is not None: acad.append(numln(p["weighted_gpa"], "W GPA"))
+    # Only show the weighted GPA when it's a believable weighted value (above the
+    # unweighted, on a <5.0 scale). Hides off-scale leaks like "100 W GPA" and the
+    # lazy "5.0 W GPA" placeholder that the generated demo profiles sometimes carry.
+    _wg = p.get("weighted_gpa")
+    if _wg is not None:
+        try:
+            _wgf, _uwf = float(_wg), float(p.get("uw_gpa") or 0)
+            if _uwf < _wgf < 5.0:
+                acad.append(numln(_wg, "W GPA"))
+        except (TypeError, ValueError):
+            pass
     if p.get("sat"):
         sm, se = p.get("sat_math"), p.get("sat_ebrw")
         sub = f" ({sm} Math, {se} RW)" if sm and se else ""
