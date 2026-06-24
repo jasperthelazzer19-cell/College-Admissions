@@ -4178,6 +4178,12 @@ def init_db():
             password_salt TEXT NOT NULL,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
         )""")
+        conn.execute("""CREATE TABLE IF NOT EXISTS password_resets (
+            token TEXT PRIMARY KEY,
+            user_id INTEGER NOT NULL,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            used INTEGER DEFAULT 0
+        )""")
         conn.execute("""CREATE TABLE IF NOT EXISTS profiles (
             user_id INTEGER PRIMARY KEY,
             uw_gpa REAL,
@@ -5788,8 +5794,8 @@ def _page(body_html, title="Candor", description=None):
                '<rect x=%2240%22 y=%2220%22 width=%225.5%22 height=%2226%22 fill=%22url(%23g)%22 rx=%221.2%22/>'
                '</svg>">')
     footer = """<div style="max-width:1180px;margin:60px auto 30px;padding:24px;color:var(--text-3);font-size:.84em;text-align:center;border-top:1px solid var(--border)">
-made by a high school junior. found a bug? something looks wrong? tell me on the
-<a href="https://www.reddit.com/user/Zestyclose_Tower_380" style="color:var(--text-2)">reddit</a>.
+made by a high school junior. found a bug? something looks wrong? email me at
+<a href="mailto:jasperthelazzer19@gmail.com" style="color:var(--text-2)">jasperthelazzer19@gmail.com</a>.
 free chances calculator. <a href="/upgrade" style="color:var(--text-2)">Candor Premium</a> is $3/month for the strategy on top.
 <div style="margin-top:10px;color:var(--text-3)">still grinding your ACT? I also built <a href="https://forma-prep.up.railway.app" style="color:var(--text-2)">Forma</a> — real test prep, same honesty.</div>
 </div>"""
@@ -6678,7 +6684,7 @@ def login_html():
   <label>Password</label>
   <input type="password" name="password" required>
   <button class="btn btn-primary" type="submit">Log in</button>
-  <p class="muted" style="font-size:.85em;margin-top:14px">No account? <a href="/signup{nxt_qs}">Sign up</a>.</p>
+  <p class="muted" style="font-size:.85em;margin-top:14px">No account? <a href="/signup{nxt_qs}">Sign up</a>. &middot; <a href="/forgot-password">Forgot password?</a></p>
 </form>
 """, title="Log in — Candor")
 
@@ -11160,6 +11166,85 @@ def login_page():
 def logout():
     session.pop("user_id", None)
     return redirect(url_for("landing"))
+
+
+@app.route("/forgot-password", methods=["GET", "POST"])
+@_rate_limit("5 per 15 minutes", methods=["POST"])
+def forgot_password():
+    if current_user():
+        return redirect(url_for("profile_page"))
+    if request.method == "POST":
+        email = (request.form.get("email") or "").strip().lower()
+        with db() as conn:
+            row = conn.execute("SELECT id FROM users WHERE email=?", (email,)).fetchone()
+            if row:
+                token = secrets.token_urlsafe(32)
+                conn.execute("INSERT INTO password_resets (token, user_id) VALUES (?,?)", (token, row["id"]))
+                conn.commit()
+                link = request.url_root.rstrip("/") + url_for("reset_password", token=token)
+                html = (
+                    '<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:480px;margin:0 auto;color:#0a131c">'
+                    '<h2 style="margin:0 0 8px">Reset your Candor password</h2>'
+                    '<p style="color:#4b5563;line-height:1.5">Click below to choose a new password. '
+                    'This link works once and expires in 1 hour.</p>'
+                    f'<a href="{link}" style="display:inline-block;background:#0f766e;color:#fff;text-decoration:none;'
+                    'padding:11px 22px;border-radius:8px;font-weight:700">Reset password &rarr;</a>'
+                    '<p style="color:#9ca3af;font-size:12px;margin-top:18px">If you did not request this, you can ignore this email '
+                    'and your password stays the same.</p></div>')
+                _send_email(email, "Reset your Candor password", html)
+        # Always the same message — never reveal whether an email is registered.
+        flash("If that email has an account, a reset link is on the way. Check your inbox (and spam).", "success")
+        return redirect(url_for("login_page"))
+    return _page(
+        '<div class="bar"><a href="/login">&larr; back</a></div>'
+        '<h1>Reset password</h1>'
+        '<form method="post" action="/forgot-password" class="card" style="max-width:440px">'
+        + csrf_input() +
+        '<label style="margin-top:0">Email</label>'
+        '<input type="email" name="email" required autofocus>'
+        '<button class="btn btn-primary" type="submit">Send reset link</button>'
+        '<p class="muted" style="font-size:.85em;margin-top:14px">Remembered it? <a href="/login">Log in</a>.</p>'
+        '</form>', title="Reset password — Candor")
+
+
+@app.route("/reset-password/<token>", methods=["GET", "POST"])
+@_rate_limit("10 per 15 minutes", methods=["POST"])
+def reset_password(token):
+    from datetime import datetime, timedelta
+    with db() as conn:
+        row = conn.execute("SELECT token, user_id, created_at, used FROM password_resets WHERE token=?",
+                           (token,)).fetchone()
+    valid = bool(row) and not row["used"]
+    if valid:
+        try:
+            created = datetime.fromisoformat((row["created_at"] or "").replace("Z", ""))
+            valid = (datetime.utcnow() - created) < timedelta(hours=1)
+        except Exception:
+            valid = True   # unparseable timestamp — rely on single-use + secret token
+    if not valid:
+        flash("That reset link is invalid or has expired. Request a new one.", "error")
+        return redirect(url_for("forgot_password"))
+    if request.method == "POST":
+        password = request.form.get("password") or ""
+        if len(password) < 8:
+            flash("Password must be at least 8 characters.", "error")
+        else:
+            h, salt = hash_password(password)
+            with db() as conn:
+                conn.execute("UPDATE users SET password_hash=?, password_salt=? WHERE id=?", (h, salt, row["user_id"]))
+                conn.execute("UPDATE password_resets SET used=1 WHERE token=?", (token,))
+                conn.commit()
+            flash("Password updated — you can log in now.", "success")
+            return redirect(url_for("login_page"))
+    return _page(
+        '<div class="bar"><a href="/login">&larr; back</a></div>'
+        '<h1>Set a new password</h1>'
+        '<form method="post" class="card" style="max-width:440px">'
+        + csrf_input() +
+        '<label style="margin-top:0">New password</label>'
+        '<input type="password" name="password" required autofocus minlength="8">'
+        '<button class="btn btn-primary" type="submit">Update password</button>'
+        '</form>', title="Set a new password — Candor")
 
 
 @app.route("/profile", methods=["GET", "POST"])
@@ -17026,25 +17111,48 @@ def _deadline_items(uid):
     return items
 
 
-def _send_email(to, subject, html):
-    """Send one email via Resend. No-op (returns False) until RESEND_API_KEY is
-    set, so the whole reminder system stays dormant and safe until you wire up a
-    provider. Returns True on a 2xx send."""
-    if not RESEND_API_KEY or not to:
+def _send_email_smtp(to, subject, html):
+    """Fallback sender via Gmail SMTP (GMAIL_USER + GMAIL_APP_PASSWORD). Used for
+    low-volume transactional mail (e.g. password resets) when Resend isn't set up."""
+    user = os.environ.get("GMAIL_USER")
+    pw = (os.environ.get("GMAIL_APP_PASSWORD") or "").replace(" ", "")
+    if not user or not pw or not to:
         return False
     try:
-        r = requests.post(
-            "https://api.resend.com/emails",
-            headers={"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"},
-            json={"from": EMAIL_FROM, "to": [to], "subject": subject, "html": html},
-            timeout=20)
-        if r.status_code >= 300:
-            print(f"resend error {r.status_code}: {r.text[:160]}")
-            return False
+        import smtplib, ssl
+        from email.mime.text import MIMEText
+        from email.utils import formataddr
+        msg = MIMEText(html, "html", "utf-8")
+        msg["Subject"] = subject
+        msg["From"] = formataddr(("Candor", user))
+        msg["To"] = to
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=ssl.create_default_context()) as s:
+            s.login(user, pw)
+            s.sendmail(user, [to], msg.as_string())
         return True
     except Exception as e:
-        print(f"resend send error: {e}")
+        print(f"smtp send error: {e}")
         return False
+
+
+def _send_email(to, subject, html):
+    """Send one email. Prefers Resend (RESEND_API_KEY); falls back to Gmail SMTP
+    (GMAIL_USER/GMAIL_APP_PASSWORD). Returns True on success, False if no provider."""
+    if not to:
+        return False
+    if RESEND_API_KEY:
+        try:
+            r = requests.post(
+                "https://api.resend.com/emails",
+                headers={"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"},
+                json={"from": EMAIL_FROM, "to": [to], "subject": subject, "html": html},
+                timeout=20)
+            if r.status_code < 300:
+                return True
+            print(f"resend error {r.status_code}: {r.text[:160]}")
+        except Exception as e:
+            print(f"resend send error: {e}")
+    return _send_email_smtp(to, subject, html)
 
 
 def _deadline_email_html(item):
