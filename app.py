@@ -18542,7 +18542,54 @@ def _tiktok_autopost_ids(ids):
             print(f" * autopost cid {cid} -> {r['assigned_account']} "
                   f"({'direct' if direct else 'draft'}) publish_id={pid}", flush=True)
         except Exception as e:
-            print(f" * autopost cid {cid} failed: {e}", flush=True)
+            # Record the failed attempt + a running count so _retry_failed_posts can
+            # re-try it within minutes (not hours, at the next slot) and give up after
+            # a few attempts so we never hammer the TikTok API on a hard failure.
+            n = "?"
+            try:
+                with db() as conn:
+                    cur = conn.execute("SELECT tt_post_status FROM content_queue WHERE id=?", (cid,)).fetchone()
+                    n = 1
+                    if cur and (cur["tt_post_status"] or "").startswith("FAILED"):
+                        try:
+                            n = int((cur["tt_post_status"]).rsplit("x", 1)[-1]) + 1
+                        except (ValueError, IndexError):
+                            n = 2
+                    conn.execute("UPDATE content_queue SET tt_post_status=? WHERE id=?", (f"FAILED x{n}", cid))
+                    conn.commit()
+            except Exception:
+                pass
+            print(f" * autopost cid {cid} failed (attempt {n}): {e}", flush=True)
+
+
+def _retry_failed_posts(max_attempts=5):
+    """Re-attempt today's released-but-unposted carousels promptly, so a flaky TikTok
+    upload recovers in minutes instead of waiting hours for the next slot. Only looks at
+    the last few hours and caps attempts per carousel, so a hard failure never hammers
+    the API. Safe to call repeatedly: _tiktok_autopost_ids skips anything already posted."""
+    if os.environ.get("TIKTOK_POST_ENABLED") != "1":
+        return
+    from datetime import datetime, timezone, timedelta
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=6)).strftime("%Y-%m-%d %H:%M:%S")
+    with db() as conn:
+        rows = conn.execute(
+            "SELECT id, tt_post_status FROM content_queue "
+            "WHERE status='released' AND tt_publish_id IS NULL AND released_at >= ? "
+            "ORDER BY released_at", (cutoff,)).fetchall()
+    ids = []
+    for r in rows:
+        st = r["tt_post_status"] or ""
+        n = 0
+        if st.startswith("FAILED"):
+            try:
+                n = int(st.rsplit("x", 1)[-1])
+            except (ValueError, IndexError):
+                n = 1
+        if n < max_attempts:
+            ids.append(r["id"])
+    if ids:
+        print(f" * retrying {len(ids)} unposted carousel(s): {ids}", flush=True)
+        _tiktok_autopost_ids(ids)
 
 
 @app.route("/tiktok/test-post", methods=["GET", "POST"])
@@ -19098,11 +19145,20 @@ def _release_due_batches():
 def _release_scheduler_loop():
     import time as _t
     _t.sleep(15)                                  # let the server bind first
+    next_retry = 0.0
     while True:
         try:
             _release_due_batches()
         except Exception as e:
             print(" * release scheduler error:", e, flush=True)
+        # Every ~2 min, re-attempt any released-but-unposted carousel so a flaky
+        # TikTok upload recovers in minutes instead of waiting hours for the next slot.
+        if _t.time() >= next_retry:
+            try:
+                _retry_failed_posts()
+            except Exception as e:
+                print(" * retry-failed-posts error:", e, flush=True)
+            next_retry = _t.time() + 120
         _t.sleep(30)
 
 
