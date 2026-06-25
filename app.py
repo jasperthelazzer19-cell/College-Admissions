@@ -18290,6 +18290,7 @@ _PH_ASSETS_HOST = POSTHOG_HOST.replace("://us.i.", "://us-assets.i.").replace(":
 
 @app.route("/ingest/", defaults={"path": ""}, methods=["GET", "POST", "OPTIONS"])
 @app.route("/ingest/<path:path>", methods=["GET", "POST", "OPTIONS"])
+@_csrf_exempt   # analytics POSTs from the PostHog SDK carry no CSRF token; this is a same-origin proxy to PostHog
 def posthog_proxy(path):
     if not POSTHOG_API_KEY:
         return ("not found", 404)
