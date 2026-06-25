@@ -5739,9 +5739,14 @@ def _nav():
 
 
 def _flash():
+    # SECURITY: escape both the category and the message before interpolating
+    # into HTML. Today every flash() call passes a static, trusted string, so
+    # this changes nothing visible — but it removes the latent stored/reflected
+    # XSS footgun if anyone ever flashes user-supplied text (e.g. an email).
+    from html import escape as _esc
     msgs = []
     for cat, msg in (request.environ.get("flashes") or []):
-        msgs.append(f'<div class="flash {cat}">{msg}</div>')
+        msgs.append(f'<div class="flash {_esc(str(cat))}">{_esc(str(msg))}</div>')
     flashed = []
     try:
         from flask import get_flashed_messages
@@ -5749,7 +5754,7 @@ def _flash():
     except Exception:
         pass
     for cat, msg in flashed:
-        msgs.append(f'<div class="flash {cat}">{msg}</div>')
+        msgs.append(f'<div class="flash {_esc(str(cat))}">{_esc(str(msg))}</div>')
     return "\n".join(msgs)
 
 
@@ -9353,6 +9358,27 @@ def _allow_framer_embed(response):
     response.headers["Content-Security-Policy"] = (
         "frame-ancestors 'self' https://*.framer.app https://*.framer.website"
     )
+    # ── Baseline security headers (safe for every response) ──
+    # nosniff: stop browsers from MIME-sniffing a response into an
+    # executable type (defense-in-depth against content-type confusion).
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    # Referrer-Policy: never leak full URLs cross-site. This is important
+    # because several /admin/* pages embed ?key=ADMIN_KEY in the URL and in
+    # on-page links — without this, the secret key could leak to third
+    # parties via the Referer header. strict-origin-when-cross-origin sends
+    # only the origin (no path/query) on cross-site navigations.
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    # Don't let the browser auto-grant powerful features to embedded content.
+    response.headers.setdefault(
+        "Permissions-Policy",
+        "geolocation=(), microphone=(), camera=(), payment=()",
+    )
+    # HSTS: only in production (behind Railway's TLS edge). Tells browsers to
+    # always use https for this domain. Guarded to prod so local http dev is
+    # unaffected. No `preload` and a modest max-age — conservative on purpose.
+    if _IS_PROD:
+        response.headers.setdefault(
+            "Strict-Transport-Security", "max-age=31536000; includeSubDomains")
     return response
 
 # Rate limiting (per-IP). Defaults are generous; sensitive routes (login,
@@ -17484,6 +17510,16 @@ def stripe_webhook():
         expected = _hmac.new(STRIPE_WEBHOOK_SECRET.encode(), signed, _hashlib.sha256).hexdigest()
         if not any(_hmac.compare_digest(expected, s) for s in sigs):
             return ("invalid signature", 400)
+        # Replay protection: reject events whose signed timestamp is too old.
+        # Stripe's own default tolerance is 5 minutes. A valid signature on a
+        # stale payload could otherwise be replayed; this bounds that window.
+        # (Skipped if ts is missing/unparseable so a malformed header still
+        # fails on the signature check above rather than here.)
+        try:
+            if ts and abs(time.time() - int(ts)) > 300:
+                return ("timestamp outside tolerance", 400)
+        except (ValueError, TypeError):
+            pass
     except Exception as e:
         print(f"stripe webhook signature error: {e}")
         return ("signature error", 400)
@@ -18380,8 +18416,12 @@ def tiktok_callback():
     """TikTok redirects here after the account authorizes. Exchange code -> tokens,
     store the account, and pull its videos once."""
     if request.args.get("error"):
-        return _legal_page("TikTok", f"<p>Authorization failed: "
-                           f"{request.args.get('error_description') or request.args.get('error')}</p>"
+        # SECURITY: escape the provider-supplied error text — it comes straight
+        # from the query string, so rendering it raw is reflected XSS (an
+        # attacker can craft /tiktok/callback?error=x&error_description=<script>…).
+        from html import escape as _esc
+        _err = _esc(request.args.get('error_description') or request.args.get('error') or "")
+        return _legal_page("TikTok", f"<p>Authorization failed: {_err}</p>"
                            f"<p><a href='/tiktok/connect'>Try again</a></p>")
     code, state = request.args.get("code"), request.args.get("state")
     if not code or not state or state != session.get("tt_state"):
