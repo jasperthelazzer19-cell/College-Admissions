@@ -18025,7 +18025,7 @@ def stripe_webhook():
 @app.route("/admin/grant-paid")
 def admin_grant_paid():
     """Manual fallback: grant paid status by email. Use if webhook isn't set up."""
-    if not _key_eq(request.args.get("key"), ADMIN_KEY):
+    if not _is_creator():
         return ("<h1>401 Unauthorized</h1>", 401)
     email = (request.args.get("email") or "").strip().lower()
     if not email:
@@ -18045,7 +18045,7 @@ def admin_calibration():
     """Backtest odds vs. real reported outcomes (user_outcomes). Buckets each
     prediction by midpoint odds, compares predicted vs ACTUAL admit rate.
     Well-calibrated => predicted ~= actual per row. ?key=ADMIN_KEY"""
-    if not _key_eq(request.args.get("key"), ADMIN_KEY):
+    if not _is_creator():
         return ("<h1>401 Unauthorized</h1><p>Pass <code>?key=YOUR_ADMIN_KEY</code></p>", 401)
     BUCKETS = [(0,5),(5,10),(10,20),(20,35),(35,50),(50,70),(70,101)]
     try:
@@ -18141,7 +18141,7 @@ def admin_refresh_scorecard():
 def admin_visitors():
     """Visitor traffic breakdown — distinguish real engaged users from
     cookie-less scrapers. Pass ?window=1hour or ?window=24hours."""
-    if not _key_eq(request.args.get("key"), ADMIN_KEY):
+    if not _is_creator():
         return ("<h1>401 Unauthorized</h1>", 401)
     window = request.args.get("window", "1 hour")
     if window not in ("1 hour", "6 hours", "24 hours", "7 days"):
@@ -18258,7 +18258,7 @@ def admin_returning():
     account's logged-in history into sessions. 2+ sessions = a returning user.
     Multi-day = came back another day; otherwise they came back the same day.
     Only signed-up users are counted (tracked by account, not cookie)."""
-    if not _key_eq(request.args.get("key"), ADMIN_KEY):
+    if not _is_creator():
         return ("<h1>401 Unauthorized</h1>", 401)
     TZ = -7              # PT offset for day-bucketing
     GAP = 2.0           # hours; gap this large = a new session (a comeback)
@@ -18731,7 +18731,7 @@ def admin_signups():
 @app.route("/admin/data-status")
 def admin_data_status():
     """Show how many schools have Scorecard overrides applied + fields covered."""
-    if not _key_eq(request.args.get("key"), ADMIN_KEY):
+    if not _is_creator():
         return ("<h1>401 Unauthorized</h1>", 401)
     with db() as conn:
         rows = conn.execute("SELECT college_slug, accept, sat_25, sat_75, size, tuition, source, verified_at FROM school_stats_overrides").fetchall()
