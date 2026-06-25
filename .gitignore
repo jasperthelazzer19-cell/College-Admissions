@@ -4,6 +4,7 @@ __pycache__/
 .env
 .gstack/
 .venv/
+.ph-venv/
 *.bak
 *.db
 *.db-journal

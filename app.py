@@ -241,6 +241,58 @@ CRON_KEY = os.environ.get("CRON_KEY", "") or os.environ.get("ADMIN_KEY", "")
 TIKTOK_CLIENT_KEY = os.environ.get("TIKTOK_CLIENT_KEY", "")
 TIKTOK_CLIENT_SECRET = os.environ.get("TIKTOK_CLIENT_SECRET", "")
 TIKTOK_REDIRECT_URI = os.environ.get("TIKTOK_REDIRECT_URI", "https://candoradmit.com/tiktok/callback")
+
+# ── PostHog product analytics (optional; no-ops cleanly until configured) ──
+# POSTHOG_API_KEY is the *publishable project API key* (the "phc_..." key). It's
+# safe to embed in client JS, so we expose it to the page template. POSTHOG_HOST
+# is the ingestion host. Until POSTHOG_API_KEY is set, both client init and the
+# server client are skipped, so deploying before the key exists is harmless.
+# The browser talks to a same-origin "/ingest" reverse proxy (defined below)
+# instead of the PostHog host directly, which survives most ad blockers and
+# avoids third-party CSP/connect-src headaches.
+POSTHOG_API_KEY = os.environ.get("POSTHOG_API_KEY", "")
+POSTHOG_HOST = os.environ.get("POSTHOG_HOST", "https://us.i.posthog.com").rstrip("/")
+
+# Server-side capture client. Built once at import; sync_mode=True so each
+# capture sends synchronously inside the short-lived Flask request (no
+# background flush thread to miss on a per-request worker). Stubbed to a no-op
+# when the key is unset so callers never have to branch.
+class _PostHogStub:
+    """Drop-in no-op when POSTHOG_API_KEY is unset. Swallows every call."""
+    enabled = False
+    def capture(self, *a, **k): pass
+    def identify(self, *a, **k): pass
+    def flush(self, *a, **k): pass
+    def shutdown(self, *a, **k): pass
+
+if POSTHOG_API_KEY:
+    try:
+        from posthog import Posthog as _Posthog
+        posthog_server = _Posthog(
+            project_api_key=POSTHOG_API_KEY,
+            host=POSTHOG_HOST,
+            sync_mode=True,      # send within the request; no background thread
+            flush_at=1,
+            flush_interval=0,
+        )
+        posthog_server.enabled = True
+    except Exception as _ph_err:  # bad key, import failure — never break boot
+        print(f"PostHog: server client init failed, analytics disabled ({_ph_err})")
+        posthog_server = _PostHogStub()
+else:
+    posthog_server = _PostHogStub()
+
+def ph_server_capture(distinct_id, event, properties=None):
+    """Server-side capture that never raises into the request path."""
+    if not getattr(posthog_server, "enabled", False) or not distinct_id:
+        return
+    try:
+        posthog_server.capture(
+            distinct_id=str(distinct_id), event=event, properties=properties or {})
+        posthog_server.flush()
+    except Exception as _e:
+        print(f"PostHog capture failed for {event}: {_e}")
+
 ARTICLE_TTL_HOURS = 12   # how long to cache per-college articles
 SCORECARD_TTL_DAYS = 30  # refresh federal stats monthly
 FREE_TRIAL_MESSAGES = 3
@@ -5763,6 +5815,75 @@ def _flash():
     return "\n".join(msgs)
 
 
+def _ph_queue_event(event, properties=None):
+    """Request-scoped: queue a client-side PostHog event for the page about to
+    render. Page builders call this so _posthog_head() can emit an accurate
+    posthog.capture() with server-known props (e.g. odds tier) instead of
+    scraping the DOM. No-op when analytics is off."""
+    if not POSTHOG_API_KEY:
+        return
+    try:
+        evs = getattr(request, "_ph_events", None)
+        if evs is None:
+            evs = []
+            request._ph_events = evs
+        evs.append((event, properties or {}))
+    except Exception:
+        pass
+
+
+def _posthog_head():
+    """Client snippet injected into every _page() <head>. Returns "" when
+    POSTHOG_API_KEY is unset so the integration no-ops cleanly. Talks to a
+    same-origin /ingest reverse proxy for ad-blocker resilience; ui_host points
+    at the real PostHog host so links from the toolbar resolve correctly.
+    Calls identify() for logged-in users (merging the anon history) and emits
+    any request-scoped events queued via _ph_queue_event()."""
+    if not POSTHOG_API_KEY:
+        return ""
+    import json as _json
+    key_js = _json.dumps(POSTHOG_API_KEY)
+    ui_host_js = _json.dumps(POSTHOG_HOST)
+    # Identify the logged-in user (id is not a secret). PostHog merges the prior
+    # anonymous distinct_id into this id automatically.
+    identify_js = ""
+    try:
+        uid = session.get("user_id")
+    except Exception:
+        uid = None
+    if uid:
+        identify_js = f"posthog.identify({_json.dumps(str(uid))});"
+    # Request-scoped client events queued by page builders.
+    events_js = ""
+    try:
+        for ev, props in getattr(request, "_ph_events", []) or []:
+            events_js += f"posthog.capture({_json.dumps(ev)},{_json.dumps(props)});"
+    except Exception:
+        pass
+    return (
+        "<script>\n"
+        "!function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){"
+        "function g(t,e){var o=e.split('.');2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){"
+        "t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement('script'))."
+        "type='text/javascript',p.crossOrigin='anonymous',p.async=!0,p.src=s.api_host+'/static/array.js',"
+        "(r=t.getElementsByTagName('script')[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a='posthog',"
+        "u.people=u.people||[],u.toString=function(t){var e='posthog';return'posthog'!==a&&(e+='.'+a),t||(e+=' (stub)'),e},"
+        "u.people.toString=function(){return u.toString(1)+'.people (stub)'},o='init capture register register_once register_for_session "
+        "unregister unregister_for_session getFeatureFlag getFeatureFlagPayload isFeatureEnabled reloadFeatureFlags "
+        "updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures on onFeatureFlags onSessionId getSurveys getActiveMatchingSurveys "
+        "renderSurvey canRenderSurvey getNextSurveyStep identify setPersonProperties group resetGroups setPersonPropertiesForFlags "
+        "resetPersonPropertiesForFlags setGroupPropertiesForFlags resetGroupPropertiesForFlags reset get_distinct_id getGroups "
+        "get_session_id get_session_replay_url alias set_config startSessionRecording stopSessionRecording "
+        "sessionRecordingStarted captureException loadToolbar get_property getSessionProperty createPersonProfile "
+        "opt_in_capturing opt_out_capturing has_opted_in_capturing has_opted_out_capturing clear_opt_in_out_capturing "
+        "debug getPageViewId captureTraceFeedback captureTraceMetric'.split(' '),n=0;n<o.length;n++)g(u,o[n]);"
+        "e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);\n"
+        f"posthog.init({key_js},{{api_host:'/ingest',ui_host:{ui_host_js},defaults:'2025-05-24',person_profiles:'identified_only'}});\n"
+        f"{identify_js}{events_js}\n"
+        "</script>"
+    )
+
+
 def _page(body_html, title="Candor", description=None):
     from html import escape as _esc
     description = description or "Honest college admissions chances, calibrated to verified Common Data Set data. Built by a HS junior to tell you the truth, not a flattering number."
@@ -5858,7 +5979,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',function(){navig
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="google-site-verification" content="CAOEiEPPk2BbSD6HMXgq9YfdyLDY7XXHQCfYfNq1zvY">
 {favicon}{pwa_head}
 {social_meta}
-{csrf_meta}<title>{title}</title><style>{BASE_CSS}</style></head>
+{csrf_meta}{_posthog_head()}<title>{title}</title><style>{BASE_CSS}</style></head>
 <body>{_nav()}<div class="wrap">{_flash()}{body_html}</div>{footer}{pwa_script}</body></html>"""
 
 
@@ -9381,6 +9502,13 @@ def _allow_framer_embed(response):
     # legacy header that can't express an allowlist, so we drop it and
     # rely on CSP frame-ancestors, which all modern browsers honor.
     response.headers.pop("X-Frame-Options", None)
+    # NOTE: this policy intentionally declares only frame-ancestors. The app has
+    # no default-src/script-src/connect-src, so the browser imposes no script or
+    # XHR origin restriction. PostHog rides entirely on the same-origin /ingest
+    # reverse proxy (SDK assets + event ingestion are first-party), so it needs
+    # no script-src/connect-src allowance. We deliberately do NOT add those
+    # directives here: introducing them would newly restrict every existing
+    # inline handler and third-party script on the site and risk breakage.
     response.headers["Content-Security-Policy"] = (
         "frame-ancestors 'self' https://*.framer.app https://*.framer.website"
     )
@@ -17920,6 +18048,43 @@ def upgrade_thanks():
       <p style="margin-top:16px"><a href="/plans" class="btn btn-light">Go to my plan</a></p>
     </div>{poll}"""
     return _page(body, title="Thanks — Candor")
+
+
+# ── PostHog reverse proxy ──────────────────────────────────────────────────
+# Same-origin tunnel so the browser sends analytics to candoradmit.com/ingest
+# instead of *.posthog.com directly. This dodges most tracker blockers and keeps
+# the page CSP simple (everything is first-party). /ingest/static/* fetches the
+# PostHog JS bundles from the assets CDN; everything else proxies to the
+# ingestion host. No-ops with 404 when POSTHOG_API_KEY is unset.
+_PH_ASSETS_HOST = POSTHOG_HOST.replace("://us.i.", "://us-assets.i.").replace("://eu.i.", "://eu-assets.i.")
+
+@app.route("/ingest/", defaults={"path": ""}, methods=["GET", "POST", "OPTIONS"])
+@app.route("/ingest/<path:path>", methods=["GET", "POST", "OPTIONS"])
+def posthog_proxy(path):
+    if not POSTHOG_API_KEY:
+        return ("not found", 404)
+    # Static SDK assets come from the assets CDN; events/decide/etc from the host.
+    if path.startswith("static/"):
+        target = f"{_PH_ASSETS_HOST}/{path}"
+    else:
+        target = f"{POSTHOG_HOST}/{path}"
+    if request.query_string:
+        target += "?" + request.query_string.decode("latin-1")
+    # Forward minimal headers; let requests set Host. Strip hop-by-hop ones.
+    fwd_headers = {"Content-Type": request.headers.get("Content-Type", "application/json")}
+    if request.headers.get("User-Agent"):
+        fwd_headers["User-Agent"] = request.headers["User-Agent"]
+    try:
+        if request.method == "POST":
+            upstream = requests.post(target, data=request.get_data(), headers=fwd_headers, timeout=15)
+        else:
+            upstream = requests.get(target, headers=fwd_headers, timeout=15)
+    except Exception as e:
+        print(f"PostHog proxy error to {target}: {e}")
+        return ("bad gateway", 502)
+    excluded = {"content-encoding", "content-length", "transfer-encoding", "connection"}
+    resp_headers = [(k, v) for k, v in upstream.headers.items() if k.lower() not in excluded]
+    return Response(upstream.content, status=upstream.status_code, headers=resp_headers)
 
 
 @app.route("/stripe/webhook", methods=["POST"])
