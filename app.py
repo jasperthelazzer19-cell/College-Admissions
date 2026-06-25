@@ -5688,6 +5688,7 @@ NAV = """<div class="nav"><a class="brand" href="/">""" + CANDOR_LOGO_SVG + """C
 __UPGRADE_CTA__<a href="/rankings/my-fit">★ My Fit</a>
 <a href="/colleges">Browse</a>
 <a href="/rankings">Rankings</a>
+<a href="/guides">Guides</a>
 <a href="/grade">Profile Grade</a>
 <a href="/improve">Improve</a>
 <a href="/plans">My Colleges</a>
@@ -6162,6 +6163,7 @@ def college_detail_html(slug):
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
     <a class="btn btn-primary" href="/college/{c['slug']}/plan">★ Calculate my chances</a>
     <a class="btn btn-light" href="/chances/{c['slug']}">Chances only</a>
+    <a class="btn btn-light" href="/college/{c['slug']}/requirements">Requirements</a>
     <a class="btn btn-light" href="/college/{c['slug']}/improve">Improve guide</a>
     <a class="btn btn-light" href="/college/{c['slug']}/profiles">Real profiles & essays</a>
     {save_btn}
@@ -9244,8 +9246,13 @@ def sitemap_xml():
     Google discovers and indexes all the school pages (the long-tail SEO
     engine). Generated from COLLEGES so it stays in sync automatically."""
     base = request.url_root.rstrip("/")
-    urls = ["/", "/colleges", "/rankings"]
+    urls = ["/", "/colleges", "/rankings", "/guides"]
+    # Cornerstone guide pages (broad informational terms → funnel into the tool).
+    urls += [f"/guides/{g[0]}" for g in GUIDES]
     urls += [f"/college/{c['slug']}" for c in COLLEGES]
+    # Per-school admission-requirements pages ("<school> admission requirements /
+    # GPA / SAT requirements") — programmatic SEO off existing CDS data.
+    urls += [f"/college/{c['slug']}/requirements" for c in COLLEGES]
     # Long-tail GPA-scenario pages ("<school> chances with a 3.7 GPA"), one per
     # school per GPA tier — the calculator-powered programmatic SEO layer.
     urls += [f"/college/{c['slug']}/gpa/{g:.1f}" for c in COLLEGES for g in _GPA_SCENARIOS]
@@ -9276,7 +9283,9 @@ def llms_txt():
         f"- {base}/ : chances calculator + how it works\n"
         f"- {base}/colleges : browse all CDS-verified schools\n"
         f"- {base}/rankings : school rankings\n"
-        f"- {base}/college/<school> : per-school acceptance rate, score ranges, and odds\n\n"
+        f"- {base}/guides : honest admissions guides (how chances work, building a list, reach/target/safety)\n"
+        f"- {base}/college/<school> : per-school acceptance rate, score ranges, and odds\n"
+        f"- {base}/college/<school>/requirements : per-school GPA / SAT / ACT admission requirements\n\n"
         "## Notes\n"
         "- Data source: official Common Data Set reports, hand-verified.\n"
         "- Free to use; Candor Premium is $3/month for the strategy layer.\n"
@@ -11110,6 +11119,401 @@ def college_gpa_chances(slug, gpa):
                  description=f"What are your chances of getting into {name} with a {glabel} GPA? "
                              f"Real estimate from verified Common Data Set data — {name} accepts {accept}%. "
                              f"See your true odds free on Candor.")
+
+
+# ─── PROGRAMMATIC SEO: per-school admission-requirements pages ─────────────
+# Targets the high-intent long-tail "<school> admission requirements",
+# "<school> GPA requirements", "<school> SAT requirements" searches. Built
+# ONLY from CDS data already in the codebase (merged_school) — no new stats,
+# no algorithm touch. READ-ONLY. Each page is genuinely useful (the real
+# ranges, what they mean, internal links, schema). SEO 2026-06.
+
+def _similar_schools(c, limit=6):
+    """Schools with the same tier + type, for internal cross-linking. Falls
+    back to same-tier-any-type if too few. Pure read off COLLEGES."""
+    slug = c["slug"]
+    same = [x for x in COLLEGES
+            if x["slug"] != slug and x.get("tier") == c.get("tier")
+            and x.get("type") == c.get("type")]
+    if len(same) < limit:
+        extra = [x for x in COLLEGES
+                 if x["slug"] != slug and x.get("tier") == c.get("tier")
+                 and x not in same]
+        same = same + extra
+    return same[:limit]
+
+
+def college_requirements_html(slug):
+    raw = COLLEGES_BY_SLUG.get(slug)
+    if not raw:
+        abort(404)
+    c = merged_school(raw)
+    name = c["name"]
+    try:
+        base = request.url_root.rstrip("/")
+    except Exception:
+        base = "https://candoradmit.com"
+    accept = round((c.get("accept") or 0) * 100, 1)
+    tb = is_test_blind(c)
+    glo, ghi = c.get("gpa_lo"), c.get("gpa_hi")
+    gpa_rng = f"{glo}–{ghi}" if (glo and ghi) else "not publicly reported"
+    sat_rng = "Test-blind (SAT/ACT not considered)" if tb else (
+        f"{c['sat_25']}–{c['sat_75']}" if (c.get("sat_25") and c.get("sat_75")) else "not publicly reported")
+    act_rng = "Test-blind (SAT/ACT not considered)" if tb else (
+        f"{c['act_25']}–{c['act_75']}" if (c.get("act_25") and c.get("act_75")) else "not publicly reported")
+    # Plain-language read on each requirement, from the real numbers.
+    if glo and ghi:
+        if ghi >= 3.95:
+            gpa_note = (f"Admitted students sit at the very top — a near-perfect unweighted GPA "
+                        f"({gpa_rng}) is typical. There's almost no room to give back grades here.")
+        elif ghi >= 3.8:
+            gpa_note = (f"You'll want to be at or above the {gpa_rng} band. A few B's are survivable "
+                        f"if the rest of the application is strong.")
+        else:
+            gpa_note = (f"The admitted middle 50% lands at {gpa_rng}, so this is reachable with solid "
+                        f"grades and a coherent application.")
+    else:
+        gpa_note = "GPA range isn't publicly broken out for this school. Aim for the strongest grades your course load allows."
+    if tb:
+        test_note = (f"{name} is test-blind: it won't look at SAT or ACT scores at all, even if you submit them. "
+                     f"Spend that energy on grades, rigor, and the rest of your application.")
+    elif c.get("sat_25") and c.get("sat_75"):
+        test_note = (f"Most admitted students score in the {sat_rng} SAT / {act_rng} ACT range. "
+                     f"Many selective schools are test-optional right now — check {name}'s current policy, "
+                     f"but a score inside this band only helps.")
+    else:
+        test_note = (f"{name} doesn't publish a clear admitted score range. If you test well, a strong score "
+                     f"rarely hurts at a school this selective.")
+    sims = _similar_schools(c)
+    sim_links = "".join(
+        f'<a class="btn btn-light" href="/college/{x["slug"]}/requirements">{x["name"]}</a>'
+        for x in sims)
+    gpa_links = " · ".join(
+        f'<a href="/college/{slug}/gpa/{s:.1f}">chances with a {s:.1f} GPA</a>' for s in _GPA_SCENARIOS)
+    import json as _json
+    _ld = [
+        {"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [
+            {"@type": "ListItem", "position": 1, "name": "Colleges", "item": f"{base}/colleges"},
+            {"@type": "ListItem", "position": 2, "name": name, "item": f"{base}/college/{slug}"},
+            {"@type": "ListItem", "position": 3, "name": "Admission requirements",
+             "item": f"{base}/college/{slug}/requirements"}]},
+        {"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [
+            {"@type": "Question", "name": f"What GPA do you need for {name}?",
+             "acceptedAnswer": {"@type": "Answer",
+                "text": (f"The middle 50% of admitted {name} students have an unweighted GPA of {gpa_rng}."
+                         if (glo and ghi) else f"{name} does not publish a clear admitted GPA range.")}},
+            {"@type": "Question", "name": f"What SAT/ACT score do you need for {name}?",
+             "acceptedAnswer": {"@type": "Answer",
+                "text": (f"{name} is test-blind and does not consider SAT or ACT scores." if tb else
+                         (f"The admitted middle 50% scores {sat_rng} on the SAT and {act_rng} on the ACT."
+                          if c.get("sat_25") else f"{name} does not publish a clear admitted test-score range."))}},
+            {"@type": "Question", "name": f"How hard is it to get into {name}?",
+             "acceptedAnswer": {"@type": "Answer",
+                "text": f"{name} admits about {accept}% of applicants in its most recent reported cycle."}}]},
+    ]
+    _ldjson = "".join(f'<script type="application/ld+json">{_json.dumps(s)}</script>' for s in _ld)
+    body = f"""
+{_ldjson}
+<div class="bar"><a href="/college/{slug}">&larr; {name}</a></div>
+<div class="card">
+  <h1 style="margin:0 0 6px">{name} Admission Requirements (GPA, SAT &amp; ACT)</h1>
+  <div class="muted">{city_state(c)} · {accept}% acceptance rate · figures from verified Common Data Set reporting</div>
+  <p style="margin:14px 0 6px">Here's what {name} actually looks for, pulled from the real admitted-student numbers — not a wish list. Use these as the bar to clear, then see where your own profile lands.</p>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+    <a class="btn btn-primary" href="/college/{slug}/plan">★ Check my chances at {name}</a>
+    <a class="btn btn-light" href="/college/{slug}">{name} overview</a>
+  </div>
+</div>
+<div class="grid">
+  <div class="card">
+    <h3 style="margin-top:0">GPA requirement</h3>
+    <div class="odds">{gpa_rng}</div>
+    <div class="muted" style="font-size:.82em">middle 50% of admitted students (unweighted)</div>
+    <p style="margin:.6em 0 0;font-size:.92em">{gpa_note}</p>
+  </div>
+  <div class="card">
+    <h3 style="margin-top:0">SAT requirement</h3>
+    <div class="odds" style="font-size:{('1.3em' if tb else 'inherit')}">{sat_rng}</div>
+    <div class="muted" style="font-size:.82em">middle 50% admitted SAT</div>
+  </div>
+  <div class="card">
+    <h3 style="margin-top:0">ACT requirement</h3>
+    <div class="odds" style="font-size:{('1.3em' if tb else 'inherit')}">{act_rng}</div>
+    <div class="muted" style="font-size:.82em">middle 50% admitted ACT</div>
+  </div>
+</div>
+<div class="card">
+  <h3 style="margin-top:0">What test scores really mean here</h3>
+  <p style="margin:.3em 0;font-size:.95em">{test_note}</p>
+</div>
+<div class="card">
+  <h3 style="margin-top:0">The honest version</h3>
+  <p style="margin:.3em 0">Hitting these numbers gets you into the pile. It doesn't get you in. {name} accepts {accept}% of applicants, which means most students with the "right" GPA and scores still get turned down. Course rigor, essays, recommendations, and a clear spike are what separate admits from the rest of the qualified pool.</p>
+  <p class="muted" style="margin:.6em 0 0;font-size:.9em">Want your real number instead of a range? Run your full profile and Candor estimates your odds at {name}, calibrated to actual outcomes.</p>
+  <div style="margin-top:12px">
+    <a class="btn btn-primary" href="/college/{slug}/plan">★ Calculate my real chances</a>
+  </div>
+</div>
+<div class="card">
+  <h3 style="margin-top:0">{name} chances by GPA</h3>
+  <div class="muted" style="font-size:.9em">{gpa_links}</div>
+</div>
+<div class="card">
+  <h3 style="margin-top:0">Requirements at similar schools</h3>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">{sim_links}</div>
+</div>
+<p class="muted" style="font-size:.78em;margin:14px 0 6px">Ranges are CDS-based estimates from recent cycles. Always confirm current requirements and test policy on {name}'s official admissions site before you apply.</p>
+"""
+    return _page(body,
+                 title=f"{name} Admission Requirements — GPA, SAT & ACT — Candor",
+                 description=(f"{name} admission requirements: the real GPA, SAT, and ACT ranges of admitted "
+                              f"students from verified Common Data Set data. {name} accepts {accept}%. "
+                              f"See your true odds free on Candor."))
+
+
+@app.route("/college/<slug>/requirements")
+def college_requirements(slug):
+    return college_requirements_html(slug)
+
+
+# ─── CORNERSTONE GUIDES ───────────────────────────────────────────────────
+# Broad-term informational pages that rank for "how to build a college list",
+# "reach target safety", "how are admission chances calculated" and funnel
+# readers into the tool. Plain human voice, real internal links. SEO 2026-06.
+
+def _guide_cta(label="★ Build my college list free", href="/plans"):
+    return (f'<div style="margin-top:18px"><a class="btn btn-primary" href="{href}">{label}</a>'
+            f'<a class="btn btn-light" href="/colleges" style="margin-left:8px">Browse schools</a></div>')
+
+
+# Registry drives the index page + sitemap. Each entry: slug -> (title, blurb).
+GUIDES = [
+    ("how-admission-chances-are-calculated",
+     "How admission chances are calculated",
+     "What actually goes into an honest acceptance-odds estimate, and why most calculators get it wrong."),
+    ("how-to-build-a-college-list",
+     "How to build a college list",
+     "A simple way to pick how many schools to apply to and how to balance them so you're not stuck in April."),
+    ("reach-target-safety-explained",
+     "Reach, target, and safety schools explained",
+     "What the three categories really mean, how to sort any school into one, and how many of each you actually need."),
+]
+GUIDE_BY_SLUG = {g[0]: g for g in GUIDES}
+
+
+def _guide_page(slug, h1, lead, sections_html, faq=None, cta=None, description=None):
+    try:
+        base = request.url_root.rstrip("/")
+    except Exception:
+        base = "https://candoradmit.com"
+    import json as _json
+    _ld = [{"@context": "https://schema.org", "@type": "Article",
+            "headline": h1, "author": {"@type": "Organization", "name": "Candor"},
+            "publisher": {"@type": "Organization", "name": "Candor"},
+            "mainEntityOfPage": f"{base}/guides/{slug}",
+            "description": (description or lead)[:300]},
+           {"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [
+               {"@type": "ListItem", "position": 1, "name": "Guides", "item": f"{base}/guides"},
+               {"@type": "ListItem", "position": 2, "name": h1, "item": f"{base}/guides/{slug}"}]}]
+    if faq:
+        _ld.append({"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [
+            {"@type": "Question", "name": q,
+             "acceptedAnswer": {"@type": "Answer", "text": a}} for q, a in faq]})
+    _ldjson = "".join(f'<script type="application/ld+json">{_json.dumps(s)}</script>' for s in _ld)
+    other = "".join(
+        f'<li style="margin:6px 0"><a href="/guides/{s}">{t}</a></li>'
+        for s, t, _ in GUIDES if s != slug)
+    body = f"""
+{_ldjson}
+<div class="bar"><a href="/guides">&larr; all guides</a></div>
+<div class="card">
+  <h1 style="margin:0 0 8px">{h1}</h1>
+  <p style="margin:0;font-size:1.05em;color:var(--text-2)">{lead}</p>
+</div>
+{sections_html}
+<div class="card">
+  {cta or _guide_cta()}
+</div>
+<div class="card">
+  <h3 style="margin-top:0">More guides</h3>
+  <ul style="margin:0;padding-left:18px">{other}</ul>
+</div>
+"""
+    return _page(body, title=f"{h1} — Candor",
+                 description=description or lead)
+
+
+def guide_chances_calculated_html():
+    sections = """
+<div class="card">
+  <h2 style="margin-top:0">The short version</h2>
+  <p>Your chances at a given school come down to two things: how far your profile sits from the students that school actually admits, and how selective the school is to begin with. Candor measures the first against verified Common Data Set numbers and scales it by the second. That's it. No vibes.</p>
+</div>
+<div class="card">
+  <h2 style="margin-top:0">What goes into the number</h2>
+  <p>The inputs that move your odds, roughly in order of weight:</p>
+  <ul style="line-height:1.7">
+    <li><b>GPA and course rigor.</b> The biggest academic signal. A 3.7 in the hardest classes your school offers reads very differently from a 3.7 in easy ones.</li>
+    <li><b>Test scores</b>, where the school still uses them. A score inside the admitted middle-50% helps; a score below it is a drag you have to make up elsewhere.</li>
+    <li><b>The school's acceptance rate.</b> A 4% school and a 40% school treat the same profile completely differently. This is why one number can't apply everywhere.</li>
+    <li><b>Spikes and the rest of the application</b> — a real achievement, a clear focus, essays, recommendations. At selective schools this is what decides it once you've cleared the academic bar.</li>
+  </ul>
+</div>
+<div class="card">
+  <h2 style="margin-top:0">Why most calculators lie</h2>
+  <p>Open five "chance me" tools and you'll see roughly 25-30% at every top-20 school. That's not a coincidence — it's a default. Telling everyone they have a decent shot at Stanford keeps people clicking, but Stanford admits about 4 in 100. A calculator that says 28% is doing you no favors when the real answer is closer to 4.</p>
+  <p>Candor calibrates against actual outcomes, so the headline number is meant to be accurate, not flattering. If your odds are low, it says so. That's the whole point of the name.</p>
+</div>
+<div class="card">
+  <h2 style="margin-top:0">What a chances estimate can't do</h2>
+  <p>No tool can read your essays or know that a coach is pulling for you. An estimate is a calibrated starting point built from the parts that are measurable. Treat it as a map, not a verdict — then go make the parts it can't see as strong as you can.</p>
+</div>
+"""
+    faq = [
+        ("How are college admission chances calculated?",
+         "By comparing your academic profile (GPA, rigor, test scores) against the verified admitted-student data for each school, then scaling by how selective that school is. Candor calibrates the result against real admission outcomes so the number is accurate rather than optimistic."),
+        ("Are online chances calculators accurate?",
+         "Most aren't — they tend to show a similar middling percentage for every selective school. A useful calculator uses real per-school data and is honest when your odds are low."),
+        ("What's the most important factor in admissions?",
+         "GPA combined with course rigor is the biggest academic factor. At selective schools, once you've cleared the academic bar, essays, recommendations, and a clear spike decide the rest."),
+    ]
+    return _guide_page(
+        "how-admission-chances-are-calculated",
+        "How Admission Chances Are Calculated",
+        "Most chance-me tools quietly tell everyone the same flattering number. Here's what actually drives your odds — and how an honest estimate is built.",
+        sections, faq=faq,
+        cta=_guide_cta("★ See my real chances free", "/colleges"),
+        description="How college admission chances are actually calculated — GPA, rigor, test scores, and selectivity — and why most calculators are too optimistic. Get an honest estimate free on Candor.")
+
+
+def guide_build_college_list_html():
+    sections = """
+<div class="card">
+  <h2 style="margin-top:0">Start with how many</h2>
+  <p>Most students land somewhere around 8 to 12 applications. Fewer than 6 and you're leaning hard on a few outcomes you don't control. More than 15 and the quality of each application starts to drop because you've run out of hours. Pick a number you can actually do well, then fill it.</p>
+</div>
+<div class="card">
+  <h2 style="margin-top:0">Balance the list</h2>
+  <p>A good list isn't a pile of dream schools. A rough split that works for a lot of people:</p>
+  <ul style="line-height:1.7">
+    <li><b>2-3 reaches.</b> Schools where you're below or right at the typical admit. Apply, but don't count on them.</li>
+    <li><b>4-5 targets.</b> Schools where your numbers sit comfortably in the admitted range. These are the heart of the list.</li>
+    <li><b>2-3 safeties.</b> Schools where you're clearly above the bar and the cost works. At least one should be a place you'd genuinely be happy to attend.</li>
+  </ul>
+  <p>The mistake is a list that's all reaches with one throwaway safety you'd hate. Flip that. <a href="/guides/reach-target-safety-explained">Here's how to sort any school into a category.</a></p>
+</div>
+<div class="card">
+  <h2 style="margin-top:0">Check the money before you fall in love</h2>
+  <p>A school you can't afford isn't really on your list. Run net-price calculators early, and make sure at least one safety is affordable without a maybe-scholarship. Future-you in April will be grateful.</p>
+</div>
+<div class="card">
+  <h2 style="margin-top:0">Then make it real</h2>
+  <p>Once you've got names, sort them honestly. Candor reads your profile, estimates your odds at each school against verified data, and flags where your list is too top-heavy or too thin. You add and remove, it keeps the balance honest.</p>
+</div>
+"""
+    faq = [
+        ("How many colleges should I apply to?",
+         "Most students apply to about 8 to 12. The right number is the most you can apply to without the quality of each application slipping — usually under 15."),
+        ("How should I balance my college list?",
+         "A common split is 2-3 reaches, 4-5 targets, and 2-3 safeties. Make sure at least one safety is both affordable and somewhere you'd actually want to go."),
+        ("What's the biggest mistake when building a college list?",
+         "Loading it with reaches and treating safeties as an afterthought. If your only likely admits are schools you'd hate, the list has failed at its main job."),
+    ]
+    return _guide_page(
+        "how-to-build-a-college-list",
+        "How to Build a College List",
+        "Picking where to apply is mostly about counting and balance, not luck. Here's a simple way to do it so you're not panicking in April.",
+        sections, faq=faq,
+        cta=_guide_cta("★ Build my balanced list free", "/plans"),
+        description="How to build a balanced college list: how many schools to apply to, how to split reaches, targets, and safeties, and how to keep the list honest. Free planner on Candor.")
+
+
+def guide_reach_target_safety_html():
+    sections = """
+<div class="card">
+  <h2 style="margin-top:0">What the three words mean</h2>
+  <ul style="line-height:1.7">
+    <li><b>Safety</b> — your numbers are clearly above the school's admitted range, and you can afford it. A near-sure yes.</li>
+    <li><b>Target</b> — your numbers sit inside the admitted middle-50%. A real coin-flip-ish shot.</li>
+    <li><b>Reach</b> — your numbers are below the admitted range, or the school is so selective that strong numbers still aren't enough.</li>
+  </ul>
+</div>
+<div class="card">
+  <h2 style="margin-top:0">How to sort a school in two minutes</h2>
+  <p>Pull up the school's admitted GPA and test-score ranges (every Candor school page has them, straight from the Common Data Set). Then:</p>
+  <ul style="line-height:1.7">
+    <li>You're above both ranges and the school admits a decent share of applicants → <b>safety</b>.</li>
+    <li>You're inside both ranges → <b>target</b>.</li>
+    <li>You're below either range → <b>reach</b>.</li>
+  </ul>
+  <p>One catch: any school that admits under roughly 15% of applicants is a reach for almost everyone, even with perfect numbers. There just aren't enough seats. Sort honestly and an Ivy is a reach no matter how good your transcript looks.</p>
+</div>
+<div class="card">
+  <h2 style="margin-top:0">How many of each</h2>
+  <p>A workable mix is something like 2-3 reaches, 4-5 targets, 2-3 safeties. The exact count matters less than the shape: most of your list should be targets and safeties, because those are the schools that actually decide where you end up. <a href="/guides/how-to-build-a-college-list">More on sizing the whole list here.</a></p>
+</div>
+<div class="card">
+  <h2 style="margin-top:0">Let the data sort it for you</h2>
+  <p>Eyeballing ranges is fine, but it's easy to talk yourself into calling a reach a target. Candor sorts every school on your list automatically from your real profile, so the labels are honest instead of hopeful.</p>
+</div>
+"""
+    faq = [
+        ("What is a reach, target, and safety school?",
+         "A safety is a school where your numbers are clearly above the admitted range and you can afford it. A target is one where your numbers fall inside the admitted middle-50%. A reach is one where your numbers are below the range, or the school is so selective that even strong numbers aren't enough."),
+        ("Is a 15% acceptance rate a reach?",
+         "Yes. Any school admitting under roughly 15% of applicants is a reach for nearly everyone, regardless of GPA or test scores, because the number of seats is far smaller than the number of qualified applicants."),
+        ("How many reach, target, and safety schools should I have?",
+         "A common balance is 2-3 reaches, 4-5 targets, and 2-3 safeties. Most of your list should be targets and safeties since those are the likeliest admits."),
+    ]
+    return _guide_page(
+        "reach-target-safety-explained",
+        "Reach, Target, and Safety Schools Explained",
+        "Three labels that decide how your whole list is built. Here's what each one really means and how to sort any school in about two minutes.",
+        sections, faq=faq,
+        cta=_guide_cta("★ Auto-sort my list free", "/plans"),
+        description="Reach, target, and safety schools explained: what each category means, how to sort any college using admitted GPA and test ranges, and how many of each you need. Free on Candor.")
+
+
+def guides_index_html():
+    cards = "".join(
+        f'<a class="card" href="/guides/{s}" style="display:block;text-decoration:none;color:inherit">'
+        f'<h3 style="margin:0 0 6px">{t}</h3>'
+        f'<p class="muted" style="margin:0;font-size:.92em">{b}</p></a>'
+        for s, t, b in GUIDES)
+    body = f"""
+<div class="card">
+  <h1 style="margin:0 0 6px">College Admissions Guides</h1>
+  <p style="margin:0;color:var(--text-2)">Straight answers to the questions students actually ask — how chances work, how to build a list, and what reach/target/safety really mean. No fluff, no scare tactics.</p>
+</div>
+<div class="grid">{cards}</div>
+<div class="card">
+  <h3 style="margin-top:0">Ready to use it?</h3>
+  <p class="muted" style="margin:.2em 0 0">See your real, calibrated odds at any school and build a balanced list — free.</p>
+  {_guide_cta()}
+</div>
+"""
+    return _page(body, title="College Admissions Guides — Candor",
+                 description="Honest college admissions guides: how chances are calculated, how to build a balanced college list, and reach/target/safety explained. Free tools from Candor.")
+
+
+@app.route("/guides")
+def guides_index():
+    return guides_index_html()
+
+
+@app.route("/guides/how-admission-chances-are-calculated")
+def guide_chances_calculated():
+    return guide_chances_calculated_html()
+
+
+@app.route("/guides/how-to-build-a-college-list")
+def guide_build_college_list():
+    return guide_build_college_list_html()
+
+
+@app.route("/guides/reach-target-safety-explained")
+def guide_reach_target_safety():
+    return guide_reach_target_safety_html()
 
 
 @app.route("/rankings")
