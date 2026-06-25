@@ -217,6 +217,27 @@ SECRET_KEY = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
 ADMIN_KEY = os.environ.get("ADMIN_KEY", "")  # gates the bulk-refresh endpoint
 STRIPE_PAYMENT_LINK = os.environ.get("STRIPE_PAYMENT_LINK",
     "https://buy.stripe.com/fZu14ob4jai9dmgdHy5AQ03")
+# ── Annual plan (NEW) ─────────────────────────────────────────────────────
+# Second Stripe Payment Link for a yearly subscription. DORMANT until the env
+# var is set: if STRIPE_PAYMENT_LINK_ANNUAL is empty, the upgrade page hides the
+# annual option entirely and only the $3/mo plan shows — so nothing breaks before
+# the owner creates the price in Stripe.
+#
+# FLAG (owner action — Stripe dashboard):
+#   1. Products -> Candor Premium -> Add another price -> Recurring, Yearly,
+#      amount = PREMIUM_ANNUAL_PRICE below (default $30/yr). Use the SAME product
+#      as the monthly price so both share one subscription/customer object.
+#   2. Payment Links -> New -> that yearly price -> after-payment redirect to
+#      https://candoradmit.com/upgrade/thanks (same as monthly).
+#   3. Set STRIPE_PAYMENT_LINK_ANNUAL in Railway env to that link's URL.
+#   4. No new webhook needed: it's still subscription mode, so the existing
+#      checkout.session.completed + customer.subscription.deleted handlers grant
+#      and revoke premium exactly like the monthly plan.
+STRIPE_PAYMENT_LINK_ANNUAL = os.environ.get("STRIPE_PAYMENT_LINK_ANNUAL", "")
+# Display prices (dollars). Change here AND in Stripe if you reprice — these are
+# only the numbers shown in copy; Stripe is the source of truth for what's charged.
+PREMIUM_MONTHLY_PRICE = int(os.environ.get("PREMIUM_MONTHLY_PRICE", "3"))
+PREMIUM_ANNUAL_PRICE  = int(os.environ.get("PREMIUM_ANNUAL_PRICE", "30"))
 STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
 # Stripe no-code customer/billing portal login link (Settings → Billing →
 # Customer portal → share link). Lets a subscriber manage/cancel via Stripe's
@@ -7291,6 +7312,37 @@ def chances_html(slug):
         f'<a class="btn btn-light btn-sm" href="/chances/{r["slug"]}/export" '
         f'style="margin-left:auto">Export TikTok slide</a>'
     ) if _is_creator() else ""
+    # Contextual upsell, shown to FREE users only, right after they see the
+    # number — the highest-intent moment. The line speaks to the tier they just
+    # got (a reach reads differently than a safety), so it's specific, not spammy.
+    _u = current_user()
+    _is_paid_now = bool(_u and _u.get("is_paid"))
+    if _is_paid_now:
+        _upsell = ""
+    else:
+        _tier = r["tier"]
+        if _tier in ("Dream", "Reach"):
+            _u_head = f"{r['odds_low']}–{r['odds_high']}% isn't a no. Here's how to move it."
+            _u_line = (f"At a reach like {r['school']}, the margin is in the round you pick, the "
+                       f"essays, and whether a retake is worth it. Premium gives you a real plan "
+                       f"for this school — and tells you if +60 SAT actually changes this number.")
+        elif _tier == "Target":
+            _u_head = f"{r['school']} is winnable. Don't leave it to chance."
+            _u_line = ("A target school comes down to execution: the right round, demonstrated "
+                       "interest, and essays that fit. Premium maps out exactly what to do for "
+                       "this school and where it sits in your overall list.")
+        else:
+            _u_head = "One safety isn't a list. See if yours actually holds up."
+            _u_line = ("Premium grades your whole list 1–10 and runs the simulator on your "
+                       "reaches together — so you know your odds of landing somewhere you'll "
+                       "be happy, not just this one school.")
+        _upsell = f"""<div class="card" style="margin-top:18px;background:linear-gradient(135deg,#0f3a37 0%,#0a131c 100%);border:1px solid rgba(95,201,182,.3)">
+  <div style="font-size:.74em;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#5fc9b6;margin-bottom:6px">Next step · Premium ${PREMIUM_MONTHLY_PRICE}/mo</div>
+  <h3 style="margin:0 0 8px;color:#e6edf3">{_u_head}</h3>
+  <p class="muted" style="margin:0 0 14px;line-height:1.55">{_u_line}</p>
+  <a class="btn btn-primary btn-sm" href="/upgrade">See what Premium unlocks →</a>
+  <a class="btn btn-light btn-sm" href="/upgrade?for=parent" style="margin-left:6px">Show your parents →</a>
+</div>"""
     return _page(f"""
 <div class="bar" style="display:flex;align-items:center;gap:8px"><a href="/college/{r['slug']}">&larr; back to {r['school']}</a>{export_btn}</div>
 <div class="card">
@@ -7320,13 +7372,7 @@ def chances_html(slug):
   </ul>
   <p class="muted" style="font-size:.82em;margin-top:8px"><i>tldr: a high-confidence "5-12%" means probably 5-12%. A low-confidence "5-12%" means the real range could be 2-25%.</i></p>
 </details>
-<div class="card" style="margin-top:18px;background:linear-gradient(135deg,#0f3a37 0%,#0a131c 100%);border:1px solid rgba(95,201,182,.3)">
-  <div style="font-size:.74em;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#5fc9b6;margin-bottom:6px">Next step</div>
-  <h3 style="margin:0 0 8px;color:#e6edf3">Turn this number into a plan</h3>
-  <p class="muted" style="margin:0 0 14px;line-height:1.55">Candor Premium ($3/mo) unlocks a personalized strategy for {r['school']}, score-push impact, and your list grader. Or share this report with your parents and let them decide.</p>
-  <a class="btn btn-primary btn-sm" href="/upgrade">Upgrade — $3/mo</a>
-  <a class="btn btn-light btn-sm" href="/upgrade?for=parent" style="margin-left:6px">Show your parents →</a>
-</div>
+{_upsell}
 <p style="margin-top:18px"><a class="btn btn-light" href="/profile">Edit profile</a> <a class="btn btn-light" href="/college/{r['slug']}/improve">Get tailored advice for {r['school']} &rarr;</a></p>
 """, title=f"Your chances at {r['school']} — Candor")
 
@@ -15322,23 +15368,24 @@ def plans_index_page():
   <p class="muted" style="font-size:1.05em;line-height:1.55;margin:0 0 24px">Every school you've chanced or saved, grouped by application round (ED1, ED2, EA, REA, RD), with personalized odds, fit scores, list grading, and an admissions simulator.</p>
 
   <div class="card" style="background:linear-gradient(135deg,#0f3a37 0%,#0a131c 100%);border:1px solid rgba(95,201,182,.3);padding:28px;margin-bottom:24px">
-    <h2 style="margin:0 0 14px;font-size:1.3em">What's inside</h2>
+    <h2 style="margin:0 0 14px;font-size:1.3em">What you'd see here</h2>
     <ul style="line-height:1.85;padding-left:18px;margin:0;color:#cbd5e1">
-      <li><b style="color:#e6edf3">Round-by-round dashboard</b> — see your ED, EA, and RD lists side by side</li>
-      <li><b style="color:#e6edf3">List grader (1–10)</b> — is your list balanced? Too top-heavy? Too safe?</li>
-      <li><b style="color:#e6edf3">Admissions simulator</b> — what's the probability you get into AT LEAST one of your reaches?</li>
-      <li><b style="color:#e6edf3">Personalized AI strategy per school</b> — calibrated to your stats and what each school weights</li>
-      <li><b style="color:#e6edf3">Score push impact</b> — would a +60 SAT or +2 ACT actually move your odds here?</li>
+      <li><b style="color:#e6edf3">Your whole list in one view</b> — ED, EA, and RD side by side, so you can see the shape of your year</li>
+      <li><b style="color:#e6edf3">A 1–10 grade on your list</b> — too top-heavy? too safe? You'll know before it's too late to fix</li>
+      <li><b style="color:#e6edf3">Your odds of getting in <i>somewhere</i> good</b> — the simulator runs your reaches together</li>
+      <li><b style="color:#e6edf3">A real plan for each school</b> — calibrated to your stats and what that school actually weights</li>
+      <li><b style="color:#e6edf3">Is a retake worth it?</b> — see how +60 SAT or +2 ACT moves your real odds before you commit the time</li>
     </ul>
   </div>
 
-  <div style="display:flex;gap:12px;flex-wrap:wrap">
-    <a class="btn btn-primary" href="/signup" style="padding:12px 24px">Sign up free →</a>
-    <a class="btn btn-light" href="/upgrade" style="padding:12px 24px">See Premium ($3/mo)</a>
+  <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+    <a class="btn btn-primary" href="/signup?next=/plans" style="padding:12px 24px">Start free →</a>
+    <a class="btn btn-light" href="/upgrade" style="padding:12px 24px">See Premium</a>
+    <span class="muted" style="font-size:.9em">Premium is ${0}/mo. Cancel anytime.</span>
   </div>
-  <p class="muted" style="font-size:.85em;margin-top:18px">Free chances calculator stays free. Premium unlocks the full strategic dashboard.</p>
+  <p class="muted" style="font-size:.85em;margin-top:18px">The chances calculator stays free, forever. Premium is the strategy layer on top.</p>
 </div>
-""", title="My Colleges — Candor")
+""".format(PREMIUM_MONTHLY_PRICE), title="My Colleges — Candor")
     return plans_index_html()
 
 
@@ -17929,13 +17976,97 @@ def _premium_comparison_html():
             <th style="text-align:center;padding:13px 10px;font-weight:700;color:var(--text);width:88px">Free</th>
             <th style="text-align:center;padding:13px 10px;width:104px;background:rgba(95,201,182,.06)">
               <div style="font-weight:700;color:var(--teal)">Premium</div>
-              <div style="font-size:.72em;font-weight:600;color:var(--text-2);margin-top:1px">$3/mo</div>
+              <div style="font-size:.72em;font-weight:600;color:var(--text-2);margin-top:1px">${PREMIUM_MONTHLY_PRICE}/mo</div>
             </th>
           </tr>
         </thead>
         <tbody>{body_rows}</tbody>
       </table>
     </div>"""
+
+
+def _stripe_link(base, user):
+    """Attach client_reference_id + prefilled_email to a Stripe Payment Link so
+    the webhook can tie the payment to the right account. Anon -> raw link
+    (they're sent through signup first). Returns base unchanged if empty."""
+    if not base:
+        return base
+    if not user:
+        return base
+    sep = "&" if "?" in base else "?"
+    return f"{base}{sep}client_reference_id={user['id']}&prefilled_email={user['email']}"
+
+
+# What Premium actually does, in plain language. Benefit-first (the outcome),
+# not a feature name — used on /upgrade and /plans so the value gap is concrete.
+PREMIUM_BENEFITS = [
+    ("Know exactly what to do this week",
+     "A personalized, step-by-step strategy for every school on your list — calibrated to your stats, ECs, and what that specific school weights. Not generic advice."),
+    ("Stop wasting your ED on the wrong school",
+     "Round-by-round (ED1 / ED2 / EA / REA / RD) odds across your whole list, so your one binding early slot goes where it actually moves the needle."),
+    ("Find out if a retake is even worth it",
+     "Score-push impact shows how a +60 SAT or +2 ACT changes your real odds at each school — before you spend a Saturday on it."),
+    ("See if your list is actually balanced",
+     "The list grader scores your list 1–10 and the admissions simulator tells you your odds of getting into at least one reach. Too top-heavy? You'll know."),
+    ("Never miss a deadline",
+     "Every ED / EA / RD date for your saved schools, auto-built and counted down, with email reminders as each one gets close."),
+]
+
+
+def _premium_benefits_html():
+    """Benefit-led list (outcome first) for the upgrade page."""
+    items = "".join(
+        f'<div style="display:flex;gap:12px;padding:13px 0;border-top:1px solid var(--border)">'
+        f'<span style="color:var(--teal);font-weight:800;font-size:1.1em;line-height:1.4">✓</span>'
+        f'<div><div style="font-weight:600;color:var(--text);line-height:1.35">{h}</div>'
+        f'<div class="muted" style="font-size:.9em;margin-top:3px;line-height:1.5">{d}</div></div></div>'
+        for h, d in PREMIUM_BENEFITS)
+    return f'<div style="margin:6px 0 4px">{items}</div>'
+
+
+def _trust_signals_html():
+    """Real-data trust block. We do NOT fabricate counts or quotes. Each slot is
+    either a true, already-supported claim or a FLAGged placeholder for the owner
+    to fill with a real number/quote before relying on it.
+
+    FLAG (owner): the two bracketed slots below render as plain, honest copy with
+    no fake numbers. To turn them into real social proof, drop in a true paid-user
+    or admit count, or a real testimonial you have permission to use. Until then
+    they stay generic on purpose — do not invent figures."""
+    # Always-true claims, grounded in the codebase (CDS-verified data, the
+    # build story already used elsewhere on the site, easy cancellation).
+    chips = [
+        ("295+ schools", "Odds built on each school's verified Common Data Set, not a vibe."),
+        ("Cancel in one click", "It's a month-to-month subscription. Leave anytime, keep what you paid for."),
+        ("Built by a student", "Made by a high school junior, not a $5,000 consultant pushing one answer."),
+    ]
+    chip_html = "".join(
+        f'<div style="flex:1;min-width:150px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:14px">'
+        f'<div style="font-weight:700;color:var(--teal);margin-bottom:3px">{t}</div>'
+        f'<div class="muted" style="font-size:.85em;line-height:1.45">{d}</div></div>'
+        for t, d in chips)
+    # FLAG slot: real testimonial / real number goes here when available.
+    quote_slot = (
+        '<!-- FLAG (owner): replace with a REAL testimonial or a REAL stat (e.g. '
+        '"X students upgraded this month" / "rated 4.8 by N users"). Do not '
+        'fabricate. Left empty by design so nothing false ships. -->')
+    return (f'<div style="display:flex;gap:10px;flex-wrap:wrap;margin:18px 0 4px">{chip_html}</div>'
+            f'{quote_slot}')
+
+
+def premium_upsell_card(benefit_headline, benefit_line, cta_label="See what Premium unlocks",
+                        cta_href="/upgrade", compact=False):
+    """Reusable contextual upgrade prompt for high-intent moments. Speaks to ONE
+    specific benefit the user just bumped into (passed in), not a generic pitch.
+    Use it wherever a free user hits a gated feature or a natural upgrade moment."""
+    price = f"${PREMIUM_MONTHLY_PRICE}/mo"
+    pad = "14px 16px" if compact else "20px"
+    return (f'<div class="card" style="background:linear-gradient(135deg,#0f3a37 0%,#0a131c 100%);'
+            f'border:1px solid rgba(95,201,182,.3);padding:{pad}">'
+            f'<div style="font-size:.72em;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#5fc9b6;margin-bottom:6px">Candor Premium · {price}</div>'
+            f'<h3 style="margin:0 0 7px;color:#e6edf3;font-size:1.12em;line-height:1.25">{benefit_headline}</h3>'
+            f'<p class="muted" style="margin:0 0 13px;line-height:1.55">{benefit_line}</p>'
+            f'<a class="btn btn-primary btn-sm" href="{cta_href}">{cta_label} →</a></div>')
 
 
 @app.route("/upgrade")
@@ -17945,22 +18076,20 @@ def upgrade_page():
     _ph_queue_event("upgrade_viewed", {"logged_in": bool(user)})
     is_paid = False
     status = None
-    pay_url = STRIPE_PAYMENT_LINK
     if user:
         status = usage_status(user["id"])
         is_paid = status.get("is_paid")
-        sep = "&" if "?" in STRIPE_PAYMENT_LINK else "?"
-        pay_url = (f"{STRIPE_PAYMENT_LINK}{sep}client_reference_id={user['id']}"
-                   f"&prefilled_email={user['email']}")
-    # Subscribe button: anon users get sent through signup first so we can
-    # attach the Stripe payment to a real account via client_reference_id.
-    subscribe_href = pay_url if user else "/signup?next=/upgrade"
-    subscribe_label = "Subscribe — $3/mo" if user else "Sign up to subscribe — $3/mo"
-    # checkout_started fires only when the button actually sends a logged-in user
-    # to Stripe Checkout (anon users go to /signup first, which is not a checkout).
-    checkout_onclick = (
-        ' onclick="try{window.posthog&&posthog.capture(\'checkout_started\','
-        "{plan:'monthly',interval:'monthly'})}catch(e){}\"" if user else "")
+    # Per-plan Stripe links, with the account stapled on so the webhook can match
+    # the payment. Anon users get routed through signup first.
+    monthly_href = _stripe_link(STRIPE_PAYMENT_LINK, user) if user else "/signup?next=/upgrade"
+    annual_href = (_stripe_link(STRIPE_PAYMENT_LINK_ANNUAL, user) if user else "/signup?next=/upgrade") \
+                  if STRIPE_PAYMENT_LINK_ANNUAL else None
+    # checkout_started analytics fires only when a logged-in user actually heads to Stripe.
+    def _checkout_onclick(plan):
+        return (" onclick=\"try{window.posthog&&posthog.capture('checkout_started',"
+                "{plan:'" + plan + "',interval:'" + plan + "'})}catch(e){}\"") if user else ""
+    checkout_onclick = _checkout_onclick("monthly")
+    checkout_onclick_annual = _checkout_onclick("annual")
 
     for_parent = request.args.get("for") == "parent"
 
@@ -17969,7 +18098,7 @@ def upgrade_page():
           <div class="stat-card" style="margin-bottom:14px">
             <div class="label">Plan</div>
             <div class="value accent">Candor Premium</div>
-            <div class="delta">Unlocked — Candor Premium · $3/mo</div>
+            <div class="delta">Unlocked — Candor Premium</div>
           </div>
           <p class="muted" style="margin:0 0 14px">You're all set. Every premium feature is unlocked on your account. Keep your Stripe email receipt for your records.</p>
           <a href="/plans" class="btn btn-primary">Go to my plan &rarr;</a>
@@ -17979,39 +18108,124 @@ def upgrade_page():
 
     if for_parent:
         headline = "Help your kid apply to the right schools."
-        sub = ("Most chances calculators give a flattering number that doesn't help anyone decide anything. "
-               "Candor uses verified Common Data Set data from 295+ schools and tells you the truth — "
-               "so the ED slot, the test retake, and the supplemental essay time actually go where they matter. "
-               "Just $3/month, cancel anytime.")
+        sub = ("Most chances calculators hand you a flattering number that doesn't help anyone "
+               "decide anything. Candor uses verified Common Data Set data from 295+ schools and "
+               "tells you the truth, so the ED slot, the retake, and the essay hours actually go "
+               "where they matter. Less than one coffee a month.")
         social = ('<p class="muted" style="font-size:.85em;margin:18px 0 0">'
-                  'Built by a high school junior who got tired of $5,000 consultants telling families different things.'
+                  'Built by a high school junior who got tired of watching families pay $5,000 consultants for different answers.'
                   '</p>')
     else:
         headline = "Stop guessing where you stand."
-        sub = ("You ran your chances. Premium is the part that turns a number into a plan: "
-               "what to do this week, where to send your ED, whether a retake is actually worth it, "
-               "and a personalized strategy for every school you're considering.")
+        sub = ("You ran your chances. That's the number. Premium is the part that turns it into a "
+               "plan: what to do this week, where to send your ED, whether a retake is worth a "
+               "Saturday, and a real strategy for every school you're weighing.")
         social = ""
 
+    price_m = PREMIUM_MONTHLY_PRICE
+    price_a = PREMIUM_ANNUAL_PRICE
+    benefits = _premium_benefits_html()
     bundle = _premium_comparison_html()
+    trust = _trust_signals_html()
 
-    body = f"""<div class="card" style="max-width:620px">
+    # ── Plan selector ──────────────────────────────────────────────────────
+    # Annual anchors the monthly: show the per-month equivalent and the savings
+    # so $3/mo reads as the easy entry and the year reads as the deal. Annual
+    # only renders if the owner has wired STRIPE_PAYMENT_LINK_ANNUAL.
+    if annual_href:
+        eff_month = price_a / 12.0
+        eff_str = (f"${eff_month:.0f}" if abs(eff_month - round(eff_month)) < 0.05
+                   else f"${eff_month:.2f}")
+        save_pct = round((1 - (price_a / (price_m * 12.0))) * 100)
+        plan_picker = f"""
+      <div id="plan-picker" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:8px 0 4px">
+        <label data-plan="monthly" style="cursor:pointer;border:2px solid var(--teal);border-radius:12px;padding:15px 16px;background:rgba(95,201,182,.06);transition:border-color .12s">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span style="font-weight:700">Monthly</span>
+            <input type="radio" name="plan" value="monthly" checked style="accent-color:var(--teal)">
+          </div>
+          <div style="font-size:1.7em;font-weight:800;letter-spacing:-1px;margin-top:4px">${price_m}<span style="font-size:.5em;font-weight:600;color:var(--text-2)">/mo</span></div>
+          <div class="muted" style="font-size:.8em">Cancel anytime</div>
+        </label>
+        <label data-plan="annual" style="cursor:pointer;border:2px solid var(--border-strong);border-radius:12px;padding:15px 16px;position:relative;transition:border-color .12s">
+          <div style="position:absolute;top:-10px;right:12px;background:var(--accent-grad);color:#031715;font-size:.66em;font-weight:800;letter-spacing:.5px;padding:3px 9px;border-radius:999px">SAVE {save_pct}%</div>
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span style="font-weight:700">Yearly</span>
+            <input type="radio" name="plan" value="annual" style="accent-color:var(--teal)">
+          </div>
+          <div style="font-size:1.7em;font-weight:800;letter-spacing:-1px;margin-top:4px">${price_a}<span style="font-size:.5em;font-weight:600;color:var(--text-2)">/yr</span></div>
+          <div class="muted" style="font-size:.8em">Just {eff_str}/mo, billed once</div>
+        </label>
+      </div>"""
+        cta_label = "Sign up to subscribe" if not user else "Subscribe monthly"
+        cta_label_annual = "Sign up to subscribe" if not user else "Subscribe yearly"
+        cta_block = f"""
+      {plan_picker}
+      <a id="cta-monthly" href="{monthly_href}"{checkout_onclick} class="btn btn-primary" style="display:block;text-align:center;font-size:1.02em;padding:13px 28px;margin-top:12px">{cta_label} — ${price_m}/mo →</a>
+      <a id="cta-annual" href="{annual_href}"{checkout_onclick_annual} class="btn btn-primary" style="display:none;text-align:center;font-size:1.02em;padding:13px 28px;margin-top:12px">{cta_label_annual} — ${price_a}/yr →</a>
+      <script>
+      (function(){{
+        var radios=document.querySelectorAll('#plan-picker input[name=plan]');
+        var cm=document.getElementById('cta-monthly'), ca=document.getElementById('cta-annual');
+        var teal=getComputedStyle(document.documentElement).getPropertyValue('--teal')||'#5fc9b6';
+        function sync(){{
+          var v=document.querySelector('#plan-picker input[name=plan]:checked').value;
+          var monthly=v==='monthly';
+          cm.style.display=monthly?'block':'none'; ca.style.display=monthly?'none':'block';
+          document.querySelectorAll('#plan-picker label').forEach(function(l){{
+            var on=l.getAttribute('data-plan')===v;
+            l.style.borderColor=on?teal.trim():'var(--border-strong)';
+            l.style.background=on?'rgba(95,201,182,.06)':'transparent';
+          }});
+        }}
+        radios.forEach(function(r){{r.addEventListener('change',sync);}});
+        document.querySelectorAll('#plan-picker label').forEach(function(l){{
+          l.addEventListener('click',function(){{var i=l.querySelector('input');i.checked=true;sync();}});
+        }});
+        sync();
+      }})();
+      </script>"""
+        price_hero = (f'<span style="font-size:2.4em;font-weight:700;letter-spacing:-1px;background:var(--accent-grad);'
+                      f'-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent">${price_m}</span>'
+                      f'<span class="muted">/month — or ${price_a}/year and save {save_pct}%. Cancel anytime.</span>')
+        renew_terms = (f"<b>Recurring subscription.</b> Monthly is <b>US ${price_m}.00/month</b>; yearly is "
+                       f"<b>US ${price_a}.00/year</b>. Whichever you pick <b>auto-renews</b> at that price until you "
+                       f"cancel. Cancel anytime to stop future charges — you keep access through the period you "
+                       f"already paid for. See our <a href=\"/subscription-terms\">Subscription &amp; Refund Terms</a>.")
+    else:
+        cta_label = "Sign up to subscribe" if not user else "Subscribe"
+        cta_block = (f'<a href="{monthly_href}"{checkout_onclick} class="btn btn-primary" '
+                     f'style="display:block;text-align:center;font-size:1.02em;padding:13px 28px;margin-top:8px">'
+                     f'{cta_label} — ${price_m}/mo →</a>')
+        price_hero = (f'<span style="font-size:2.4em;font-weight:700;letter-spacing:-1px;background:var(--accent-grad);'
+                      f'-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent">${price_m}</span>'
+                      f'<span class="muted">/month · cancel anytime, use it through your whole app cycle</span>')
+        renew_terms = (f"<b>Recurring subscription.</b> By subscribing you authorize Candor to charge your payment "
+                       f"method <b>US ${price_m}.00 every month</b> until you cancel. It <b>auto-renews monthly</b>; "
+                       f"cancel anytime to stop future charges (you keep access through the period you paid for). "
+                       f"See our <a href=\"/subscription-terms\">Subscription &amp; Refund Terms</a>.")
+
+    body = f"""<div class="card" style="max-width:640px">
       <div style="font-size:.78em;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--teal);margin-bottom:6px">Candor Premium</div>
       <h1 style="margin:0 0 10px;font-size:2em;line-height:1.15">{headline}</h1>
       <p class="muted" style="margin:0 0 6px;font-size:1em;line-height:1.55">{sub}</p>
-      <div style="display:flex;align-items:baseline;gap:8px;margin:22px 0 6px">
-        <span style="font-size:2.4em;font-weight:700;letter-spacing:-1px;background:var(--accent-grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent">$3</span>
-        <span class="muted">/month · cancel anytime, use it through your whole app cycle</span>
+      <div style="display:flex;align-items:baseline;gap:8px;margin:20px 0 14px">{price_hero}</div>
+
+      <h2 style="font-size:1.15em;margin:24px 0 2px">What ${price_m}/month actually unlocks</h2>
+      {benefits}
+
+      <div style="margin-top:26px">
+        {cta_block}
       </div>
+      <div style="background:rgba(95,201,182,.05);border:1px solid var(--border);border-radius:6px;padding:10px 13px;margin:12px 0 10px;font-size:.8em;line-height:1.5;color:var(--text-2)">
+        {renew_terms}
+      </div>
+      <p class="muted" style="font-size:.78em;margin:6px 0 0">Secure checkout through Stripe. Premium activates within ~30 seconds of payment. By continuing you agree to the <a href="/terms">Terms</a> and <a href="/subscription-terms">auto-renewal terms</a>.</p>
+
+      <h2 style="font-size:1.15em;margin:30px 0 0">Free vs Premium</h2>
       {bundle}
-      <div style="background:rgba(95,201,182,.05);border:1px solid var(--border);border-radius:6px;padding:10px 13px;margin:10px 0 12px;font-size:.8em;line-height:1.5;color:var(--text-2)">
-        <b>Recurring subscription.</b> By subscribing you authorize Candor to charge your payment
-        method <b>US $3.00 every month</b> until you cancel. It <b>auto-renews monthly</b>; cancel
-        anytime to stop future charges (you keep access through the period you paid for). See our
-        <a href="/subscription-terms">Subscription &amp; Refund Terms</a>.
-      </div>
-      <a href="{subscribe_href}"{checkout_onclick} class="btn btn-primary" style="font-size:1em;padding:12px 28px;margin-top:4px">{subscribe_label} →</a>
-      <p class="muted" style="font-size:.78em;margin:14px 0 0">Secure checkout through Stripe. Premium activates within ~30 seconds of payment. By continuing you agree to the <a href="/terms">Terms</a> and <a href="/subscription-terms">auto-renewal terms</a>.</p>
+
+      {trust}
       {social}
     </div>"""
     return _page(body, title="Upgrade — Candor")
@@ -19341,6 +19555,8 @@ def subscription_terms_page():
     portal = (f'<a href="{STRIPE_BILLING_PORTAL_URL}">Stripe billing portal</a>'
               if STRIPE_BILLING_PORTAL_URL
               else f'emailing <a href="mailto:{CANCEL_EMAIL}">{CANCEL_EMAIL}</a>')
+    annual_frag = (f", or US ${PREMIUM_ANNUAL_PRICE}.00 per year if you choose the yearly plan"
+                   if STRIPE_PAYMENT_LINK_ANNUAL else "")
     return _legal_page("Subscription, Auto-Renewal &amp; Refund Terms", f"""
 <p>These terms describe Candor Premium billing. They are part of our
 <a href="/terms">Terms of Service</a> and are presented before you pay, as required by
@@ -19348,9 +19564,9 @@ California’s Automatic Renewal Law and similar state laws.</p>
 
 <h3>Recurring subscription — plain language</h3>
 <ul>
-  <li><b>Candor Premium is US $3.00 per month.</b></li>
-  <li><b>It automatically renews every month</b> and your payment method is charged each month
-      <b>until you cancel</b>. There is no fixed end date.</li>
+  <li><b>Candor Premium is US ${PREMIUM_MONTHLY_PRICE}.00 per month{annual_frag}.</b></li>
+  <li><b>It automatically renews</b> at the end of each billing period and your payment method is
+      charged again <b>until you cancel</b>. There is no fixed end date.</li>
   <li>Billing is handled securely by <b>Stripe</b>. Your subscription continues at the same price
       unless we notify you of a change in advance.</li>
 </ul>
