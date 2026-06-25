@@ -237,7 +237,7 @@ STRIPE_PAYMENT_LINK_ANNUAL = os.environ.get("STRIPE_PAYMENT_LINK_ANNUAL", "")
 # Display prices (dollars). Change here AND in Stripe if you reprice — these are
 # only the numbers shown in copy; Stripe is the source of truth for what's charged.
 PREMIUM_MONTHLY_PRICE = int(os.environ.get("PREMIUM_MONTHLY_PRICE", "3"))
-PREMIUM_ANNUAL_PRICE  = int(os.environ.get("PREMIUM_ANNUAL_PRICE", "30"))
+PREMIUM_ANNUAL_PRICE  = int(os.environ.get("PREMIUM_ANNUAL_PRICE", "20"))
 STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
 # Stripe no-code customer/billing portal login link (Settings → Billing →
 # Customer portal → share link). Lets a subscriber manage/cancel via Stripe's
