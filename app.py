@@ -6679,15 +6679,8 @@ def signup_html():
   <label>Password</label>
   <input type="password" name="password" minlength="8" required>
   <p class="muted" style="font-size:.78em;margin-top:6px">8+ characters. We never email you marketing.</p>
-  <label style="display:flex;align-items:flex-start;gap:9px;margin-top:14px;font-weight:400;font-size:.85em;line-height:1.5;cursor:pointer">
-    <input type="checkbox" name="agree_terms" value="1" required style="width:auto;margin:3px 0 0">
-    <span>I am at least 13 years old (and, if under 18, have my parent or guardian's permission),
-    and I agree to Candor's <a href="/terms" target="_blank">Terms of Service</a>,
-    <a href="/privacy" target="_blank">Privacy Policy</a>, and
-    <a href="/disclaimer" target="_blank">Prediction Disclaimer</a> — admissions odds are
-    estimates, not guarantees.</span>
-  </label>
   <button class="btn btn-primary" type="submit" style="margin-top:14px">{cta_label}</button>
+  <p class="muted" style="font-size:.78em;margin-top:12px;line-height:1.5">By creating an account you agree to Candor's <a href="/terms" target="_blank">Terms</a>, <a href="/privacy" target="_blank">Privacy Policy</a>, and <a href="/disclaimer" target="_blank">Disclaimer</a> — admissions odds are estimates, not guarantees.</p>
   <p class="muted" style="font-size:.85em;margin-top:14px">Already registered? <a href="/login{nxt_qs}">Log in</a>.</p>
 </form>
 <p class="muted" style="font-size:.85em;margin-top:16px"><a href="/#demo" style="color:var(--text-2)">← Just try the free calculator first</a></p>
@@ -11585,13 +11578,10 @@ def signup_page():
     if request.method == "POST":
         email = (request.form.get("email") or "").strip().lower()
         password = request.form.get("password") or ""
-        agreed = request.form.get("agree_terms") in ("1", "on", "true")
         if not re.match(r"^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$", email):
             flash("Invalid email address.", "error")
         elif len(password) < 8:
             flash("Password must be at least 8 characters.", "error")
-        elif not agreed:
-            flash("Please confirm you're 13+ and agree to the Terms, Privacy Policy, and Disclaimer to continue.", "error")
         else:
             with db() as conn:
                 if conn.execute("SELECT 1 FROM users WHERE email=?", (email,)).fetchone():
