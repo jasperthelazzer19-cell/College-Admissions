@@ -11110,6 +11110,7 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="google-site-verification" content="CAOEiEPPk2BbSD6HMXgq9YfdyLDY7XXHQCfYfNq1zvY">
+{_posthog_head()}
 <title>Candor — College admissions chances, calibrated</title>
 <link rel="canonical" href="{_site_url}">
 <link rel="manifest" href="/manifest.webmanifest">
