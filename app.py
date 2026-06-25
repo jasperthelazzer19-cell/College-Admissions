@@ -4385,6 +4385,10 @@ def init_db():
             "free_msgs_used INTEGER DEFAULT 0",
             "msgs_this_month INTEGER DEFAULT 0",
             "msg_month_anchor TEXT",
+            # Consent record: when the user accepted Terms/Privacy/Disclaimer +
+            # affirmed the 13+ age gate at signup. Evidentiary value for the
+            # arbitration clause and the minors posture.
+            "terms_accepted_at TEXT",
         ):
             try:
                 conn.execute(f"ALTER TABLE users ADD COLUMN {col_def}")
@@ -5804,6 +5808,17 @@ made by a high school junior. found a bug? something looks wrong? email me at
 <a href="mailto:jasperthelazzer19@gmail.com" style="color:var(--text-2)">jasperthelazzer19@gmail.com</a>.
 free chances calculator. <a href="/upgrade" style="color:var(--text-2)">Candor Premium</a> is $3/month for the strategy on top.
 <div style="margin-top:10px;color:var(--text-3)">still grinding your ACT? I also built <a href="https://forma-prep.up.railway.app" style="color:var(--text-2)">Forma</a> — real test prep, same honesty.</div>
+<div style="margin-top:14px;color:var(--text-3);font-size:.95em">
+  Admissions odds are estimates, not guarantees. Candor is independent and not affiliated with any college.
+</div>
+<nav aria-label="Legal" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px 14px;justify-content:center">
+  <a href="/terms" style="color:var(--text-2)">Terms</a>
+  <a href="/privacy" style="color:var(--text-2)">Privacy</a>
+  <a href="/disclaimer" style="color:var(--text-2)">Disclaimer</a>
+  <a href="/minors" style="color:var(--text-2)">Minors &amp; Parents</a>
+  <a href="/subscription-terms" style="color:var(--text-2)">Billing</a>
+  <a href="/accessibility" style="color:var(--text-2)">Accessibility</a>
+</nav>
 </div>"""
     pwa_head = ('<link rel="manifest" href="/manifest.webmanifest">'
                 '<meta name="theme-color" content="#070d16">'
@@ -6664,7 +6679,15 @@ def signup_html():
   <label>Password</label>
   <input type="password" name="password" minlength="8" required>
   <p class="muted" style="font-size:.78em;margin-top:6px">8+ characters. We never email you marketing.</p>
-  <button class="btn btn-primary" type="submit">{cta_label}</button>
+  <label style="display:flex;align-items:flex-start;gap:9px;margin-top:14px;font-weight:400;font-size:.85em;line-height:1.5;cursor:pointer">
+    <input type="checkbox" name="agree_terms" value="1" required style="width:auto;margin:3px 0 0">
+    <span>I am at least 13 years old (and, if under 18, have my parent or guardian's permission),
+    and I agree to Candor's <a href="/terms" target="_blank">Terms of Service</a>,
+    <a href="/privacy" target="_blank">Privacy Policy</a>, and
+    <a href="/disclaimer" target="_blank">Prediction Disclaimer</a> — admissions odds are
+    estimates, not guarantees.</span>
+  </label>
+  <button class="btn btn-primary" type="submit" style="margin-top:14px">{cta_label}</button>
   <p class="muted" style="font-size:.85em;margin-top:14px">Already registered? <a href="/login{nxt_qs}">Log in</a>.</p>
 </form>
 <p class="muted" style="font-size:.85em;margin-top:16px"><a href="/#demo" style="color:var(--text-2)">← Just try the free calculator first</a></p>
@@ -7160,6 +7183,7 @@ def chances_html(slug):
   </div>
   <div class="odds" style="color:#2b6cff">{r['odds_low']}–{r['odds_high']}%</div>
   <div class="muted" style="font-size:.82em">your estimated chances</div>
+  {PREDICTION_DISCLAIMER_BANNER}
   {(f'<div style="margin-top:14px;padding:10px 14px;background:rgba(95,201,182,.08);border:1px solid rgba(95,201,182,.25);border-radius:4px;font-size:.88em"><b style="color:var(--teal)">★ Exceptional applicant override</b><div class="muted" style="margin-top:4px">{exc_reason or "Flagged exceptional based on your profile."} Your odds reflect this above the standard cap.</div></div>' if profile.get('is_exceptional') else '')}
   {(lambda _sch, _det: (lambda _sub: render_admissions_breakdown(_sch, _det, personalized_rates=personalize_round_odds(uid, _sch, _det, profile, r['odds_low'], r['odds_high'], sub_school=_sub), scale=(((r.get('odds_low',0)+r.get('odds_high',0))/2.0) / r['accept_rate_pct']) if r.get('accept_rate_pct') else 1.0, sub_school=_sub))(sub_school_for_major(r['slug'], profile.get('major') or '')))(COLLEGES_BY_SLUG.get(r['slug']), admissions_detail(COLLEGES_BY_SLUG.get(r['slug'])))}
   {narrative_html}
@@ -10718,7 +10742,15 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
 
 <footer>
   <div class="lp-wrap">
-    <p>Built by a HS junior. Not affiliated with any university or admissions service.<br>Stats verified against Common Data Set publications. <a href="/colleges">Browse all schools →</a></p>
+    <p>Built by a HS junior. Not affiliated with any university or admissions service.<br>Stats verified against Common Data Set publications. Admissions odds are estimates, not guarantees. <a href="/colleges">Browse all schools →</a></p>
+    <nav aria-label="Legal" style="margin-top:10px;display:flex;flex-wrap:wrap;gap:4px 14px;justify-content:center;font-size:.92em">
+      <a href="/terms">Terms</a>
+      <a href="/privacy">Privacy</a>
+      <a href="/disclaimer">Disclaimer</a>
+      <a href="/minors">Minors &amp; Parents</a>
+      <a href="/subscription-terms">Billing</a>
+      <a href="/accessibility">Accessibility</a>
+    </nav>
   </div>
 </footer>
 
@@ -11553,17 +11585,22 @@ def signup_page():
     if request.method == "POST":
         email = (request.form.get("email") or "").strip().lower()
         password = request.form.get("password") or ""
+        agreed = request.form.get("agree_terms") in ("1", "on", "true")
         if not re.match(r"^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$", email):
             flash("Invalid email address.", "error")
         elif len(password) < 8:
             flash("Password must be at least 8 characters.", "error")
+        elif not agreed:
+            flash("Please confirm you're 13+ and agree to the Terms, Privacy Policy, and Disclaimer to continue.", "error")
         else:
             with db() as conn:
                 if conn.execute("SELECT 1 FROM users WHERE email=?", (email,)).fetchone():
                     flash("That email is already registered.", "error")
                 else:
                     h, salt = hash_password(password)
-                    cur = conn.execute("INSERT INTO users (email, password_hash, password_salt) VALUES (?,?,?)", (email, h, salt))
+                    cur = conn.execute(
+                        "INSERT INTO users (email, password_hash, password_salt, terms_accepted_at) "
+                        "VALUES (?,?,?,CURRENT_TIMESTAMP)", (email, h, salt))
                     conn.commit()
                     session.permanent = True
                     session["user_id"] = cur.lastrowid
@@ -17833,8 +17870,14 @@ def upgrade_page():
         <span class="muted">/month · cancel anytime, use it through your whole app cycle</span>
       </div>
       {bundle}
+      <div style="background:rgba(95,201,182,.05);border:1px solid var(--border);border-radius:6px;padding:10px 13px;margin:10px 0 12px;font-size:.8em;line-height:1.5;color:var(--text-2)">
+        <b>Recurring subscription.</b> By subscribing you authorize Candor to charge your payment
+        method <b>US $3.00 every month</b> until you cancel. It <b>auto-renews monthly</b>; cancel
+        anytime to stop future charges (you keep access through the period you paid for). See our
+        <a href="/subscription-terms">Subscription &amp; Refund Terms</a>.
+      </div>
       <a href="{subscribe_href}" class="btn btn-primary" style="font-size:1em;padding:12px 28px;margin-top:4px">{subscribe_label} →</a>
-      <p class="muted" style="font-size:.78em;margin:14px 0 0">Secure checkout through Stripe. Premium activates within ~30 seconds of payment.</p>
+      <p class="muted" style="font-size:.78em;margin:14px 0 0">Secure checkout through Stripe. Premium activates within ~30 seconds of payment. By continuing you agree to the <a href="/terms">Terms</a> and <a href="/subscription-terms">auto-renewal terms</a>.</p>
       {social}
     </div>"""
     return _page(body, title="Upgrade — Candor")
@@ -18761,35 +18804,414 @@ def tiktok_site_verification(token):
     return Response(f"tiktok-developers-site-verification={token}", mimetype="text/plain")
 
 
-def _legal_page(title, body_html):
-    return _page(f'<div style="max-width:720px;margin:0 auto;padding:32px 18px 80px;line-height:1.6">'
-                 f'<h1 style="margin:0 0 14px">{title}</h1>{body_html}</div>', title=f"{title} · Candor")
+# ════════════════════════════════════════════════════════════════════════
+#  LEGAL / COMPLIANCE
+#  Drafted 2026-06 as a good-faith sue-shield. NOT legal advice — a licensed
+#  attorney in the chosen governing-law state must review before relying on
+#  these. Search this file for "FLAG:" to find every decision Jasper still owes.
+# ════════════════════════════════════════════════════════════════════════
+
+# FLAG (governing law): pick the state whose law governs + where arbitration
+# sits. Default below is California because Candor operates from CA and CA's
+# consumer/auto-renewal law is the strictest (covering CA covers most others).
+# If Jasper forms an LLC in another state, change these two constants.
+LEGAL_GOVERNING_STATE = os.environ.get("LEGAL_GOVERNING_STATE", "California")
+LEGAL_VENUE_COUNTY = os.environ.get("LEGAL_VENUE_COUNTY", "Los Angeles County, California")
+# FLAG (entity): until an LLC/corp exists, the operator is an individual sole
+# proprietor and is PERSONALLY liable. Forming an LLC is the single biggest
+# liability-shield available and is strongly recommended before scaling.
+LEGAL_ENTITY = os.environ.get("LEGAL_ENTITY", "Candor (operated by an individual sole proprietor)")
+LEGAL_CONTACT_EMAIL = os.environ.get("LEGAL_CONTACT_EMAIL", "jasperthelazzer19@gmail.com")
+LEGAL_EFFECTIVE_DATE = os.environ.get("LEGAL_EFFECTIVE_DATE", "June 24, 2026")
+# FLAG (minimum age): the lowest age allowed to hold an account. 13 keeps us
+# out of COPPA's verifiable-parental-consent regime (which applies to under-13).
+# A higher floor (e.g. 16) is even safer. See /minors and the age-gate at signup.
+LEGAL_MIN_AGE = int(os.environ.get("LEGAL_MIN_AGE", "13"))
 
 
-@app.route("/privacy")
-def privacy_page():
-    return _legal_page("Privacy Policy",
-        "<p>Candor (candoradmit.com) helps students estimate college-admissions odds and "
-        "creates short-form content about admissions.</p>"
-        "<p><b>TikTok data.</b> If the site owner connects their own TikTok account(s) via "
-        "TikTok Login, Candor reads only that account's <i>own</i> public video metadata and "
-        "engagement counts (views, likes, comments, shares) through TikTok's Display API, to "
-        "measure which of the owner's posts perform best. We do not access other users' data, "
-        "private data, messages, or post on anyone's behalf.</p>"
-        "<p><b>Storage & retention.</b> Access tokens and the pulled stats are stored privately "
-        "on our server and used only for this analytics purpose. The owner can disconnect an "
-        "account at any time, which deletes its stored tokens.</p>"
-        "<p><b>Contact.</b> jasperthelazzer19@gmail.com</p>")
+def _legal_page(title, body_html, effective=True):
+    eff = (f'<p class="muted" style="font-size:.82em;margin:0 0 22px">Last updated: '
+           f'{LEGAL_EFFECTIVE_DATE}</p>') if effective else ""
+    nav = ('<div class="muted" style="font-size:.82em;margin:0 0 18px;display:flex;'
+           'flex-wrap:wrap;gap:4px 14px">'
+           '<a href="/terms">Terms</a><a href="/privacy">Privacy</a>'
+           '<a href="/disclaimer">Disclaimer</a><a href="/minors">Minors &amp; Parents</a>'
+           '<a href="/subscription-terms">Billing</a><a href="/accessibility">Accessibility</a>'
+           '</div>') if effective else ""
+    return _page(
+        f'<div style="max-width:760px;margin:0 auto;padding:32px 18px 90px;line-height:1.65">'
+        f'<h1 style="margin:0 0 6px">{title}</h1>{eff}{nav}{body_html}'
+        f'<p class="muted" style="font-size:.82em;margin-top:32px">Questions about this policy? '
+        f'Email <a href="mailto:{LEGAL_CONTACT_EMAIL}">{LEGAL_CONTACT_EMAIL}</a>.</p></div>',
+        title=f"{title} · Candor")
 
 
+# ─────────────────────────  PREDICTION DISCLAIMER  ─────────────────────────
+# The #1 sue-shield. Short banner is surfaced on every results page; the full
+# version lives at /disclaimer.
+
+PREDICTION_DISCLAIMER_BANNER = (
+    '<div role="note" aria-label="Important disclaimer about admissions estimates" '
+    'style="margin:18px 0;padding:12px 15px;background:rgba(95,201,182,.06);'
+    'border:1px solid rgba(95,201,182,.28);border-radius:6px;font-size:.84em;line-height:1.55;color:var(--text-2)">'
+    '<b style="color:var(--teal)">These are estimates, not a promise.</b> '
+    'Candor’s odds are statistical predictions based on historical data — '
+    '<b>not advice and not a guarantee of admission or rejection</b>. Real admissions '
+    'decisions depend on many factors Candor can’t see. Candor is an independent '
+    'tool and is <b>not affiliated with, endorsed by, or representing any college or '
+    'university</b>. <a href="/disclaimer">Read the full disclaimer →</a>'
+    '</div>'
+)
+
+
+@app.route("/disclaimer")
+def disclaimer_page():
+    return _legal_page("Prediction Disclaimer", """
+<p><b>Read this before you rely on any number Candor shows you.</b></p>
+
+<h3>Estimates, not guarantees</h3>
+<p>Every admissions chance, fit score, tier, and confidence label on Candor is a
+<b>statistical estimate</b> generated by a model from historical, publicly available data
+(primarily Common Data Set publications and similar sources). These outputs are
+<b>predictions, not promises</b>. Candor does <b>not</b> guarantee that you will be admitted to,
+or rejected from, any college or university, regardless of the number shown. A high estimate
+is not an offer of admission and a low estimate is not a reason to give up.</p>
+
+<h3>Not professional advice</h3>
+<p>Candor is an informational tool. Nothing on the site is individualized counseling, legal,
+financial, or educational advice, and using Candor does not create an advisor‑client or
+counselor relationship. Admissions outcomes depend on many factors no model can see —
+essays, recommendations, interviews, institutional priorities that change year to year,
+holistic review, demonstrated interest, and luck. <b>Do not make a decision you can’t
+undo</b> (skipping an application, declining an offer, changing schools) based solely on a
+Candor estimate. Confirm everything with your school counselor and each college’s
+admissions office.</p>
+
+<h3>No affiliation with any college</h3>
+<p>Candor is an <b>independent</b> product. It is <b>not affiliated with, sponsored by,
+endorsed by, partnered with, or acting on behalf of</b> any college, university, the College
+Board, or any admissions office. College names, logos, and statistics are used for
+identification and informational purposes only. Any trademarks belong to their respective
+owners.</p>
+
+<h3>Accuracy of data</h3>
+<p>We work to keep the underlying data accurate, but admissions data changes, sources contain
+errors, and policies shift. We make <b>no warranty</b> that any figure is current, complete, or
+error‑free. If you spot something wrong, email
+<a href="mailto:%s">%s</a>.</p>
+
+<p class="muted" style="margin-top:24px">By using Candor you acknowledge that you understand
+and accept this disclaimer. It is part of, and incorporated into, the
+<a href="/terms">Terms of Service</a>.</p>
+""" % (LEGAL_CONTACT_EMAIL, LEGAL_CONTACT_EMAIL))
+
+
+# ─────────────────────────────  TERMS OF SERVICE  ─────────────────────────
 @app.route("/terms")
 def terms_page():
-    return _legal_page("Terms of Service",
-        "<p>Candor (candoradmit.com) is provided as-is for informational purposes. Admissions "
-        "odds are estimates, not guarantees. By using the site you agree not to misuse it or "
-        "attempt to access data you don't own.</p>"
-        "<p>The TikTok integration is used solely by the site owner to read their own accounts' "
-        "post performance. Contact: jasperthelazzer19@gmail.com</p>")
+    return _legal_page("Terms of Service", f"""
+<p>These Terms of Service (“Terms”) are a binding agreement between you and
+{LEGAL_ENTITY} (“Candor,” “we,” “us”), governing your use of
+candoradmit.com and related services (the “Service”). <b>By creating an account,
+subscribing, or using the Service, you agree to these Terms, the
+<a href="/privacy">Privacy Policy</a>, and the <a href="/disclaimer">Prediction
+Disclaimer</a>.</b> If you do not agree, do not use the Service.</p>
+
+<h3>1. Who may use Candor</h3>
+<p>You must be at least {LEGAL_MIN_AGE} years old to create an account. If you are under 18,
+you may use Candor only with the involvement and permission of a parent or legal guardian,
+who agrees to these Terms on your behalf. See <a href="/minors">Minors &amp; Parents</a>.
+You agree the information you give us is accurate and that you will keep your password
+confidential. You are responsible for activity under your account.</p>
+
+<h3>2. What Candor is — and is not</h3>
+<p>Candor provides <b>statistical estimates</b> of college‑admissions chances and related
+informational content and planning tools. <b>Candor does not guarantee admission to any
+school.</b> Estimates are predictions, not advice and not promises. Candor is not affiliated
+with or endorsed by any college or university. See the
+<a href="/disclaimer">Prediction Disclaimer</a>, which is incorporated into these Terms.</p>
+
+<h3>3. Account and subscriptions</h3>
+<p>Some features require a paid subscription (“Candor Premium”). Billing, renewal,
+cancellation, and refund terms are described in our
+<a href="/subscription-terms">Subscription &amp; Billing Terms</a>, which are part of these
+Terms. Payments are processed by Stripe; we do not store your full card number.</p>
+
+<h3>4. Acceptable use</h3>
+<p>You agree not to: (a) scrape, crawl, or bulk‑download the Service or its data except as
+expressly permitted; (b) resell, sublicense, or redistribute Candor’s outputs as your own
+product; (c) reverse‑engineer the model or attempt to extract the underlying algorithm;
+(d) upload false, unlawful, or other people’s personal data without permission;
+(e) attempt to gain unauthorized access to accounts, systems, or data; (f) use the Service to
+harass, defraud, or harm anyone; or (g) interfere with the Service’s operation or security.
+We may suspend or terminate accounts that violate these Terms.</p>
+
+<h3>5. Intellectual property</h3>
+<p>Candor, its software, design, text, and the compiled data and model outputs are owned by us
+or our licensors and are protected by law. We grant you a limited, personal, non‑exclusive,
+non‑transferable license to use the Service for your own college‑planning purposes. You
+retain ownership of the profile information you submit and grant us a license to use it to
+operate and improve the Service.</p>
+
+<h3>6. Disclaimer of warranties</h3>
+<p>THE SERVICE IS PROVIDED “AS IS” AND “AS AVAILABLE,” WITHOUT WARRANTIES OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE, ACCURACY, AND NON‑INFRINGEMENT. WE DO NOT WARRANT THAT THE SERVICE
+WILL BE UNINTERRUPTED, ERROR‑FREE, OR THAT ANY ESTIMATE, SCORE, OR RECOMMENDATION IS
+ACCURATE, RELIABLE, OR WILL PRODUCE ANY PARTICULAR ADMISSIONS OUTCOME.</p>
+
+<h3>7. Limitation of liability</h3>
+<p>TO THE MAXIMUM EXTENT PERMITTED BY LAW, CANDOR AND ITS OPERATOR WILL NOT BE LIABLE FOR ANY
+INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, OR FOR ANY LOSS OF
+ADMISSION, SCHOLARSHIP, OPPORTUNITY, DATA, OR PROFITS, ARISING FROM OR RELATED TO YOUR USE OF
+(OR INABILITY TO USE) THE SERVICE OR ANY RELIANCE ON ITS ESTIMATES. <b>OUR TOTAL AGGREGATE
+LIABILITY FOR ANY CLAIM IS LIMITED TO THE GREATER OF (A) THE AMOUNT YOU PAID US IN THE 12
+MONTHS BEFORE THE CLAIM, OR (B) US $50.</b> Some jurisdictions do not allow certain
+limitations, so parts of this section may not apply to you.</p>
+
+<h3>8. Indemnification</h3>
+<p>You agree to indemnify and hold harmless Candor and its operator from any claims, damages,
+losses, and expenses (including reasonable legal fees) arising out of your misuse of the
+Service, your violation of these Terms, or your violation of any law or third‑party right.</p>
+
+<h3>9. Dispute resolution — arbitration and class‑action waiver</h3>
+<p><b>Please read this section carefully; it affects your legal rights.</b> Except for small‑claims
+matters and requests for injunctive relief, any dispute arising out of or relating to these
+Terms or the Service will be resolved by <b>binding individual arbitration</b> administered by a
+recognized arbitration provider (e.g., the American Arbitration Association) under its consumer
+rules, seated in {LEGAL_VENUE_COUNTY}, rather than in court. <b>You and Candor each waive the
+right to a jury trial and the right to participate in a class, collective, or representative
+action.</b> Disputes will be brought only in an individual capacity. If a court finds the
+class‑action waiver unenforceable as to a particular claim, that claim (and only that claim)
+may proceed in court. You may opt out of this arbitration agreement by emailing
+<a href="mailto:{LEGAL_CONTACT_EMAIL}">{LEGAL_CONTACT_EMAIL}</a> within 30 days of first
+accepting these Terms. <span class="muted">[FLAG: arbitration clauses against minors and the
+enforceability of class‑waivers are litigated and state‑specific — an attorney must
+confirm this clause is enforceable for a teen audience in the chosen state before relying on
+it.]</span></p>
+
+<h3>10. Governing law</h3>
+<p>These Terms are governed by the laws of the State of {LEGAL_GOVERNING_STATE}, without regard
+to its conflict‑of‑laws rules. Subject to Section 9, the courts located in
+{LEGAL_VENUE_COUNTY} have jurisdiction.</p>
+
+<h3>11. Changes; termination</h3>
+<p>We may update these Terms; material changes will be posted here with a new “Last
+updated” date and, where required, notified to you. Continued use after changes means you
+accept them. You may stop using the Service and delete your account at any time; we may suspend
+or terminate access for violations or to comply with law.</p>
+
+<h3>12. Contact</h3>
+<p>{LEGAL_ENTITY} — <a href="mailto:{LEGAL_CONTACT_EMAIL}">{LEGAL_CONTACT_EMAIL}</a>.</p>
+""")
+
+
+# ───────────────────────────────  PRIVACY POLICY  ─────────────────────────
+@app.route("/privacy")
+def privacy_page():
+    return _legal_page("Privacy Policy", f"""
+<p>This Privacy Policy explains what {LEGAL_ENTITY} (“Candor”) collects, how we use
+it, and your choices. By using candoradmit.com you agree to this Policy.</p>
+
+<h3>Information we collect</h3>
+<ul>
+  <li><b>Account data:</b> your email address and a securely hashed password.</li>
+  <li><b>Profile data you enter:</b> academic and applicant information you choose to provide —
+      GPA, test scores, coursework/APs, intended major, state, extracurriculars, awards,
+      demographic flags you opt to share (e.g., first‑generation, legacy, athlete), college
+      preferences, and the schools you look at. You decide what to enter; you can leave fields
+      blank.</li>
+  <li><b>Payment data:</b> if you subscribe, <b>Stripe</b> collects and processes your payment
+      details. We receive a confirmation and limited billing metadata (e.g., that you paid, your
+      email, subscription status) — <b>we never see or store your full card number</b>.</li>
+  <li><b>Technical data:</b> standard server logs (IP address, browser type, timestamps) and a
+      session cookie that keeps you logged in. We use cookies only for login/session and basic
+      site function, not third‑party advertising.</li>
+</ul>
+
+<h3>How we use it</h3>
+<p>To generate your admissions estimates and planning tools; to create and secure your account;
+to process subscriptions; to send transactional email (password resets, receipts, important
+notices); to maintain, debug, and improve the Service; and to comply with law. We do
+<b>not</b> sell your personal information, and we do not show third‑party ads.</p>
+
+<h3>Third parties we share with</h3>
+<ul>
+  <li><b>Stripe</b> — payment processing (their privacy terms apply to card data).</li>
+  <li><b>Resend / email and (fallback) Gmail SMTP</b> — to deliver transactional email.</li>
+  <li><b>Anthropic (Claude)</b> — some Premium features generate written strategy using an AI
+      model. When used, the relevant profile details needed for that feature may be sent to
+      Anthropic’s API to produce your result. <span class="muted">[FLAG: confirm whether
+      Anthropic API requests are sent for any minor’s data and that this is acceptable under
+      Anthropic’s terms for users under 18.]</span></li>
+  <li><b>Railway</b> — our hosting provider stores the application and database.</li>
+  <li><b>Legal/safety</b> — we may disclose information if required by law or to protect
+      rights and safety.</li>
+</ul>
+
+<h3>Data retention</h3>
+<p>We keep your account and profile data while your account is active. If you delete your
+account or ask us to delete your data, we remove your personal data within a reasonable period,
+except where we must keep limited records (e.g., payment/tax records) to comply with law.</p>
+
+<h3>Your rights and choices</h3>
+<p>You can view and edit your profile at any time. You can request a copy of your data, ask us
+to correct it, or ask us to delete your account and data by emailing
+<a href="mailto:{LEGAL_CONTACT_EMAIL}">{LEGAL_CONTACT_EMAIL}</a>. We honor verified requests.</p>
+<p><b>California (CCPA/CPRA):</b> California residents have the right to know what personal
+information we collect, to request deletion, to correct it, and to not be discriminated against
+for exercising these rights. We do not sell or “share” personal information for
+cross‑context behavioral advertising.</p>
+<p><b>EU/UK (GDPR):</b> if you are in the EEA or UK, you have rights to access, correct, delete,
+restrict, and port your data, and to object to certain processing. Our legal bases are your
+consent, performance of our contract with you, and our legitimate interest in operating the
+Service. <span class="muted">[FLAG: Candor is US‑based; if you knowingly serve EU/UK minors
+you should confirm GDPR‑K age‑of‑consent handling, which ranges 13–16 by country.]</span></p>
+
+<h3>Children’s privacy</h3>
+<p>Candor is intended for students {LEGAL_MIN_AGE} and older. We do not knowingly collect
+personal information from children under {LEGAL_MIN_AGE}. See
+<a href="/minors">Minors &amp; Parents</a> for how we handle teen data and parental requests. If
+you believe a child under {LEGAL_MIN_AGE} gave us data, email us and we will delete it.</p>
+
+<h3>Security</h3>
+<p>We use reasonable safeguards (hashed passwords, encrypted transport/HTTPS, access controls).
+No method of transmission or storage is 100% secure, so we cannot guarantee absolute security.</p>
+
+<h3>Changes</h3>
+<p>We may update this Policy; the “Last updated” date above reflects the latest version.</p>
+""")
+
+
+# ───────────────────────────  MINORS / COPPA / TEENS  ─────────────────────
+@app.route("/minors")
+def minors_page():
+    return _legal_page("Minors &amp; Parents", f"""
+<p>Candor is built for high‑school students, and we know many of our users are minors. This
+page explains how we treat younger users’ data and what parents and guardians should know.</p>
+
+<h3>Minimum age</h3>
+<p>You must be at least <b>{LEGAL_MIN_AGE} years old</b> to create a Candor account. <b>Candor is
+not directed to children under {LEGAL_MIN_AGE}, and we do not knowingly collect personal
+information from them.</b> If we learn that a user is under {LEGAL_MIN_AGE}, we will delete the
+account and associated data.</p>
+
+<h3>If you are between {LEGAL_MIN_AGE} and 17</h3>
+<p>You should use Candor with a parent or guardian’s knowledge and permission. We ask only for
+the academic information needed to estimate admissions chances. Please do not enter sensitive
+details Candor does not ask for, and do not share your password.</p>
+
+<h3>For parents and guardians</h3>
+<p>You may review your child’s information, ask us to correct it, or ask us to delete your
+child’s account and data at any time by emailing
+<a href="mailto:{LEGAL_CONTACT_EMAIL}">{LEGAL_CONTACT_EMAIL}</a> from an address we can verify.
+We will act on verified requests promptly. Subscriptions are intended to be set up by a parent
+or with parental permission; you can cancel anytime (see
+<a href="/subscription-terms">Billing</a>).</p>
+
+<h3>COPPA</h3>
+<p>The U.S. Children’s Online Privacy Protection Act (COPPA) governs collection of personal
+information from children under 13. Candor’s {LEGAL_MIN_AGE}+ age floor is designed to keep
+Candor outside COPPA’s under‑13 scope. We do not knowingly collect data from anyone under
+13, and we do not target the under‑13 audience.</p>
+
+<div class="card" style="margin-top:18px;border-color:var(--border-strong)">
+<b>FLAG — product decision needed (highest‑risk item).</b>
+<p class="muted" style="margin:8px 0 0;font-size:.9em">Because much of the audience is minors,
+Jasper must choose an enforcement approach. Drafted options, easiest → strongest:</p>
+<ol class="muted" style="font-size:.9em;line-height:1.6">
+  <li><b>Self‑attestation age gate (currently wired at signup):</b> a required “I am
+      {LEGAL_MIN_AGE} or older” checkbox + consent to Terms/Privacy. Low friction; the common
+      baseline for teen‑facing US sites that avoid under‑13 data.</li>
+  <li><b>Date‑of‑birth gate:</b> collect birth year and block under‑{LEGAL_MIN_AGE}; lets
+      you flag under‑18 accounts for lighter data handling.</li>
+  <li><b>Parental‑consent flow for under‑18:</b> capture a parent email and consent before a
+      minor’s data is processed or before checkout. Strongest, highest friction; consider it if
+      you ever knowingly serve under‑13 or expand sensitive data collection.</li>
+</ol>
+<p class="muted" style="font-size:.9em;margin-top:8px">An attorney should confirm which level is
+required given the exact data collected and states/countries served. The newer state “age‑appropriate
+design” / kids‑privacy laws (e.g., CA AADC, and several 2024–2026 state laws) are evolving
+and are a real risk area for a teen product.</p>
+</div>
+""")
+
+
+# ──────────────────────  SUBSCRIPTION / AUTO‑RENEWAL TERMS  ──────────────
+@app.route("/subscription-terms")
+@app.route("/refund-policy")
+def subscription_terms_page():
+    portal = (f'<a href="{STRIPE_BILLING_PORTAL_URL}">Stripe billing portal</a>'
+              if STRIPE_BILLING_PORTAL_URL
+              else f'emailing <a href="mailto:{CANCEL_EMAIL}">{CANCEL_EMAIL}</a>')
+    return _legal_page("Subscription, Auto-Renewal &amp; Refund Terms", f"""
+<p>These terms describe Candor Premium billing. They are part of our
+<a href="/terms">Terms of Service</a> and are presented before you pay, as required by
+California’s Automatic Renewal Law and similar state laws.</p>
+
+<h3>Recurring subscription — plain language</h3>
+<ul>
+  <li><b>Candor Premium is US $3.00 per month.</b></li>
+  <li><b>It automatically renews every month</b> and your payment method is charged each month
+      <b>until you cancel</b>. There is no fixed end date.</li>
+  <li>Billing is handled securely by <b>Stripe</b>. Your subscription continues at the same price
+      unless we notify you of a change in advance.</li>
+</ul>
+
+<h3>How to cancel</h3>
+<p>You can cancel anytime by {portal}. Cancellation stops future charges; you keep Premium access
+through the end of the billing period you already paid for. After that, your account reverts to
+the free tier — your data and estimates remain.</p>
+
+<h3>Refund policy</h3>
+<p>Because Premium is a low‑cost monthly plan you can cancel before the next charge, payments are
+generally non‑refundable except where required by law. If you were charged in error, charged
+after cancelling, or believe you’re entitled to a refund (including under any applicable state
+auto‑renewal or consumer law), email <a href="mailto:{CANCEL_EMAIL}">{CANCEL_EMAIL}</a> and we
+will review and, where appropriate, refund promptly. Legacy one‑time purchasers retain the
+access they bought.</p>
+
+<h3>Price or term changes</h3>
+<p>If we change the price or renewal terms, we will give you advance notice and, where required,
+obtain your consent before the change takes effect, so you can cancel first.</p>
+
+<p class="muted" style="font-size:.85em;margin-top:18px">[FLAG: California’s ARL requires the
+recurring terms to be disclosed in “clear and conspicuous”, “visual proximity” to the
+purchase button and an affirmative consent before charging. The disclosure is now shown next to
+the Subscribe button — have an attorney confirm it satisfies your states, and confirm Stripe
+sends a renewal/receipt email.]</p>
+""")
+
+
+# ──────────────────────────  ACCESSIBILITY STATEMENT  ─────────────────────
+@app.route("/accessibility")
+def accessibility_page():
+    return _legal_page("Accessibility Statement", f"""
+<p>Candor wants every student to be able to use the Service, including people with disabilities.
+We aim to conform to the <b>Web Content Accessibility Guidelines (WCAG) 2.1 Level AA</b> as a
+practical target and to keep improving over time.</p>
+
+<h3>What we do</h3>
+<p>We build with semantic HTML, keyboard‑navigable forms, labeled inputs, and readable
+contrast, and we test changes as we ship them.</p>
+
+<h3>Known gaps we’re working on</h3>
+<p>We’re a small, fast‑moving product and some areas don’t yet fully meet AA. Known
+issues include: color‑contrast on muted/secondary text against the dark theme; reliance on
+color alone to convey some tier/confidence information; charts and the slide‑export views that
+need fuller text alternatives; focus‑visible styling that isn’t consistent everywhere; and
+some interactive controls that need stronger ARIA labeling. We are addressing these.</p>
+
+<h3>Need help, or hit a barrier?</h3>
+<p>If any part of Candor is hard to use because of a disability, email
+<a href="mailto:{LEGAL_CONTACT_EMAIL}">{LEGAL_CONTACT_EMAIL}</a> with the page and the problem and
+we will help and prioritize a fix. We can provide information in an alternate format on request.</p>
+
+<p class="muted" style="font-size:.85em;margin-top:18px">[FLAG: ADA web‑accessibility suits
+against small sites are common. Running an automated audit (e.g., axe / Lighthouse) and fixing
+the contrast + color‑only + focus issues above materially lowers risk. This statement should
+not claim full WCAG conformance until a real audit is passed.]</p>
+""")
 
 
 @app.route("/tiktok/connect")
