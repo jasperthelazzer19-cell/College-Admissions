@@ -7258,6 +7258,12 @@ def chances_html(slug):
         "fit": fit, "tier": tier, "odds_low": low, "odds_high": high,
         "confidence": confidence_level(profile, components),
     }
+    # Client-side analytics: a real user viewed their chances for this school.
+    _ph_queue_event("chances_viewed", {
+        "school_slug": slug,
+        "odds_tier": tier,          # Dream / Reach / Target / Safety
+        "confidence": r["confidence"],
+    })
     force_refresh = request.args.get("refresh") == "1"
     bullets = None
     if not force_refresh:
@@ -11722,6 +11728,7 @@ def signup_page():
                     conn.commit()
                     session.permanent = True
                     session["user_id"] = cur.lastrowid
+                    ph_server_capture(cur.lastrowid, "user_signed_up", {"method": "email"})
                     flash("Account created — fill in your profile next.", "success")
                     return redirect(session.pop("next_url", None) or url_for("profile_page"))
     return signup_html()
@@ -11742,6 +11749,7 @@ def login_page():
         if row and verify_password(password, row["password_hash"], row["password_salt"]):
             session.permanent = True
             session["user_id"] = row["id"]
+            ph_server_capture(row["id"], "user_logged_in", {"method": "email"})
             return redirect(session.pop("next_url", None) or url_for("profile_page"))
         flash("Wrong email or password.", "error")
     return login_html()
@@ -17932,6 +17940,8 @@ def _premium_comparison_html():
 @app.route("/upgrade")
 def upgrade_page():
     user = current_user()
+    # Client-side analytics: the upgrade/paywall page was viewed.
+    _ph_queue_event("upgrade_viewed", {"logged_in": bool(user)})
     is_paid = False
     status = None
     pay_url = STRIPE_PAYMENT_LINK
@@ -17945,6 +17955,11 @@ def upgrade_page():
     # attach the Stripe payment to a real account via client_reference_id.
     subscribe_href = pay_url if user else "/signup?next=/upgrade"
     subscribe_label = "Subscribe — $3/mo" if user else "Sign up to subscribe — $3/mo"
+    # checkout_started fires only when the button actually sends a logged-in user
+    # to Stripe Checkout (anon users go to /signup first, which is not a checkout).
+    checkout_onclick = (
+        ' onclick="try{window.posthog&&posthog.capture(\'checkout_started\','
+        "{plan:'monthly',interval:'monthly'})}catch(e){}\"" if user else "")
 
     for_parent = request.args.get("for") == "parent"
 
@@ -17994,7 +18009,7 @@ def upgrade_page():
         anytime to stop future charges (you keep access through the period you paid for). See our
         <a href="/subscription-terms">Subscription &amp; Refund Terms</a>.
       </div>
-      <a href="{subscribe_href}" class="btn btn-primary" style="font-size:1em;padding:12px 28px;margin-top:4px">{subscribe_label} →</a>
+      <a href="{subscribe_href}"{checkout_onclick} class="btn btn-primary" style="font-size:1em;padding:12px 28px;margin-top:4px">{subscribe_label} →</a>
       <p class="muted" style="font-size:.78em;margin:14px 0 0">Secure checkout through Stripe. Premium activates within ~30 seconds of payment. By continuing you agree to the <a href="/terms">Terms</a> and <a href="/subscription-terms">auto-renewal terms</a>.</p>
       {social}
     </div>"""
@@ -18136,6 +18151,7 @@ def stripe_webhook():
         cust = obj.get("customer")
         sub_id = obj.get("subscription")  # present for subscription-mode checkouts
         granted = False
+        granted_uid = None  # the user id we granted premium to, for analytics
         if ref:
             try:
                 uid = int(ref)
@@ -18144,6 +18160,7 @@ def stripe_webhook():
                                  (cust, sub_id, uid))
                     conn.commit()
                 granted = True
+                granted_uid = uid
             except (ValueError, TypeError):
                 pass
         # Fallback: a payment made through a shared/bookmarked Stripe link has
@@ -18160,9 +18177,23 @@ def stripe_webhook():
                     conn.commit()
                     if cur.rowcount:
                         granted = True
+                        mrow = conn.execute(
+                            "SELECT id FROM users WHERE LOWER(email)=?", (email,)).fetchone()
+                        if mrow:
+                            granted_uid = mrow["id"]
             if not granted:
                 print(f"stripe webhook: paid checkout could not be matched to a user "
                       f"(ref={ref!r} email={email!r}) — grant manually via /admin/grant-paid")
+        # Analytics: premium activated. distinct_id = our user id (not the Stripe
+        # customer id) so it merges with the user's web history.
+        if granted_uid is not None:
+            amount = obj.get("amount_total")
+            ph_server_capture(granted_uid, "subscription_activated", {
+                "plan": "premium",
+                "interval": "monthly",
+                "amount_cents": amount,
+                "currency": (obj.get("currency") or "").upper() or None,
+            })
     # Subscription model ($3/mo): when the subscription ends — a cancellation
     # reaches its period end, or Stripe gives up after failed payments — revoke
     # premium. Match by customer id (stored at checkout), falling back to the
@@ -18172,6 +18203,11 @@ def stripe_webhook():
         cust = obj.get("customer")
         sub_id = obj.get("id")
         with db() as conn:
+            # Capture the affected user id(s) before revoking, for analytics.
+            revoked_rows = conn.execute(
+                "SELECT id FROM users WHERE stripe_customer_id=? "
+                "OR (stripe_subscription_id IS NOT NULL AND stripe_subscription_id=?)",
+                (cust, sub_id)).fetchall()
             cur = conn.execute(
                 "UPDATE users SET is_paid=0 WHERE stripe_customer_id=? "
                 "OR (stripe_subscription_id IS NOT NULL AND stripe_subscription_id=?)",
@@ -18179,6 +18215,11 @@ def stripe_webhook():
             conn.commit()
         print(f"stripe webhook: subscription ended — revoked premium "
               f"(customer={cust!r} sub={sub_id!r} rows={cur.rowcount})")
+        for _r in revoked_rows:
+            ph_server_capture(_r["id"], "subscription_canceled", {
+                "plan": "premium",
+                "interval": "monthly",
+            })
     # A single failed payment is NOT a cancellation: Stripe retries (dunning) and
     # fires subscription.deleted only if it ultimately gives up. Don't revoke
     # here, or a customer whose card retries fine would be wrongly cut off.
