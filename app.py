@@ -4788,6 +4788,10 @@ def init_db():
             conn.execute("ALTER TABLE batch_requests ADD COLUMN kind TEXT DEFAULT 'normal'")
         except sqlite3.OperationalError:
             pass
+        # A manual "Make a set" cancels the day's next auto-drop so we don't double-post.
+        # Each (day, slot) here is skipped by the server-side release scheduler.
+        conn.execute("""CREATE TABLE IF NOT EXISTS batch_skips (
+            day TEXT NOT NULL, slot TEXT NOT NULL, PRIMARY KEY(day, slot))""")
         # ── TikTok feedback loop ──────────────────────────────────────────
         # One row per authorized account (the OAuth refresh token is what we keep;
         # access tokens are short-lived and refreshed from it). open_id is TikTok's
@@ -13487,7 +13491,8 @@ def content_request_batch():
     if not _is_creator():
         abort(404)
     raw = request.form.get("count", "4")
-    if raw == "auto":                       # "one per active account" — drops to 4 if one's paused
+    is_set = (raw == "auto")                 # the "one per account" set button
+    if is_set:                               # "one per active account" — drops to 4 if one's paused
         n = _active_account_count()
     else:
         try:
@@ -13495,32 +13500,43 @@ def content_request_batch():
         except (TypeError, ValueError):
             n = 4
     n = max(1, min(8, n))
-    # Serve from the queue: release N already-made carousels from the pending
-    # buffer the Mac keeps topped up. Instant, costs nothing, and works with the
-    # Mac off (Railway just flips DB rows). Only if the buffer can't cover the
-    # request do we fall back to generating the remainder (emergency).
-    chosen = [s for s in request.form.getlist("slugs") if s in COLLEGES_BY_SLUG][:n]
-    fmt = (request.form.get("format") or "auto").strip().lower()
-    # A specific format must be GENERATED fresh — the pre-made buffer is mixed-format,
-    # so we can't serve a guaranteed format from it. Drop a kind-tagged batch request
-    # and let the render worker / Mac daemon make exactly that format.
-    if fmt and fmt != "auto" and fmt in ("chances", "grade", "glowup", "compare", "h2h"):
+    VALID_FMTS = ("chances", "grade", "glowup", "compare", "h2h")
+    # Per-slot picks: slugs[i] (a school or blank) paired with fmts[i] (a format or
+    # 'auto'), submitted as parallel lists so each carousel carries its own choices.
+    _slugs = request.form.getlist("slugs")
+    _fmts = request.form.getlist("fmts")
+    def _slot(i):
+        s = (_slugs[i] if i < len(_slugs) else "").strip()
+        f = (_fmts[i] if i < len(_fmts) else "").strip().lower()
+        return (s if s in COLLEGES_BY_SLUG else None,
+                f if f in VALID_FMTS else None)
+    pairs = [_slot(i) for i in range(n)]
+    any_picked = any(s or f for s, f in pairs)
+
+    # NOTHING picked -> serve from the pre-made buffer queue. Instant, costs nothing,
+    # works with the Mac off (Railway just flips DB rows). Generate only the shortfall.
+    if not any_picked:
         with db() as conn:
-            existing = conn.execute("SELECT id FROM batch_requests WHERE claimed_at IS NULL LIMIT 1").fetchone()
-            if not existing:
-                conn.execute("INSERT INTO batch_requests (count, slugs, kind) VALUES (?,?,?)",
-                             (n, ",".join(chosen) if chosen else None, fmt))
+            rows = _release_one_per_account(conn, "make", limit=n)   # one per account, up to n
+            short = n - len(rows)
+            if short > 0 and not conn.execute(
+                    "SELECT id FROM batch_requests WHERE claimed_at IS NULL LIMIT 1").fetchone():
+                conn.execute("INSERT INTO batch_requests (count, slugs) VALUES (?, ?)", (short, None))
             conn.commit()
         return redirect(url_for("content_today", requested=n))
+
+    # SOMETHING picked -> GENERATE FRESH, one batch_request per slot so each carousel
+    # gets its OWN school + format (the render worker / Mac claims them one at a time;
+    # kind = the chosen format, or 'normal' for the auto rotation).
     with db() as conn:
-        rows = _release_one_per_account(conn, "make", limit=n)   # one per account, up to n
-        short = n - len(rows)
-        if short > 0:
-            existing = conn.execute("SELECT id FROM batch_requests WHERE claimed_at IS NULL LIMIT 1").fetchone()
-            if not existing:
-                slugs_csv = ",".join(chosen[len(rows):]) if chosen else None
-                conn.execute("INSERT INTO batch_requests (count, slugs) VALUES (?, ?)", (short, slugs_csv))
+        for s, f in pairs:
+            conn.execute("INSERT INTO batch_requests (count, slugs, kind) VALUES (1, ?, ?)",
+                         (s, f or "normal"))
         conn.commit()
+    # Optionally replace the day's next scheduled auto-drop so we don't double-post
+    # (creator ticks the box on the set form; default on).
+    if is_set and request.form.get("cancel_next"):
+        _cancel_next_content_slot()
     return redirect(url_for("content_today", requested=n))
 
 
@@ -14054,34 +14070,44 @@ def content_today():
         f'<option value="{s}">{_esc(nm)}</option>' for s, nm in _ren)
     _ss = ('width:100%;padding:10px;border-radius:9px;background:#0a1320;color:#e9eef5;'
            'border:1px solid #2b3a4f;margin:0 0 8px;font-size:14px')
-    sel1 = f'<select name="slugs" style="{_ss}">{_opts}</select>'
-    sel4 = "".join(f'<select name="slugs" style="{_ss}">{_opts}</select>' for _ in range(5))
     # Format picker — lets the creator force a specific format instead of the auto
-    # rotation. A chosen format always GENERATES fresh (the buffer is mixed-format).
+    # rotation. A chosen format (or school) always GENERATES fresh; all-auto serves
+    # from the pre-made buffer queue.
     _fmt_opts = ('<option value="auto">🎲 any format (auto)</option>'
                  '<option value="chances">Chances</option>'
                  '<option value="grade">Profile grade</option>'
                  '<option value="glowup">Glow-up</option>'
                  '<option value="compare">Compare — 1 student, 3 schools</option>'
                  '<option value="h2h">Head-to-head — which student gets in</option>')
-    selfmt = f'<select name="format" style="{_ss}">{_fmt_opts}</select>'
     _active_n = _active_account_count()
+    # Each slot is a (school + format) PAIR so every carousel in a set can carry its
+    # own school AND its own format — submitted as parallel `slugs` / `fmts` lists.
+    def _pair_row():
+        return (f'<div style="display:flex;gap:8px">'
+                f'<select name="slugs" style="{_ss};flex:1">{_opts}</select>'
+                f'<select name="fmts" style="{_ss};flex:1">{_fmt_opts}</select></div>')
+    sel1   = _pair_row()
+    selset = "".join(_pair_row() for _ in range(max(1, _active_n)))
     make_btn = (
         '<div style="display:flex;gap:12px;margin:0 0 18px;flex-wrap:wrap">'
         f'<form method="post" action="/content/request-batch" style="flex:1;min-width:210px;background:#0c1521;'
         f'border:1px solid #1d2a3d;border-radius:14px;padding:14px">{csrf_input()}'
         f'<input type="hidden" name="count" value="1">'
         f'<div style="font-weight:800;font-size:12px;color:#7c8aa0;margin:0 0 8px;letter-spacing:.4px">SCHOOL + FORMAT (OR AUTO)</div>'
-        f'{sel1}{selfmt}'
+        f'{sel1}'
         f'<button style="width:100%;background:#16202e;color:#e9eef5;font-weight:800;border:1px solid #2b3a4f;'
         f'padding:13px;border-radius:11px;font-size:15px;cursor:pointer">⚡ Make 1</button></form>'
         f'<form method="post" action="/content/request-batch" style="flex:2;min-width:240px;background:#0c1521;'
         f'border:1px solid #1d2a3d;border-radius:14px;padding:14px">{csrf_input()}'
         f'<input type="hidden" name="count" value="auto">'
-        f'<div style="font-weight:800;font-size:12px;color:#7c8aa0;margin:0 0 8px;letter-spacing:.4px">ONE PER ACCOUNT (BLANKS = AUTO)</div>'
-        f'{sel4}{selfmt}'
+        f'<div style="font-weight:800;font-size:12px;color:#7c8aa0;margin:0 0 8px;letter-spacing:.4px">ONE PER ACCOUNT — SCHOOL + FORMAT EACH (BLANK = AUTO)</div>'
+        f'{selset}'
+        f'<label style="display:flex;align-items:center;gap:8px;color:#9fb0c6;font-size:13px;margin:2px 0 10px;cursor:pointer">'
+        f'<input type="checkbox" name="cancel_next" value="1" checked style="width:16px;height:16px;accent-color:#5fc9b6">'
+        f'cancel the next scheduled drop (avoid double-posting)</label>'
         f'<button style="width:100%;background:#5fc9b6;color:#06121a;font-weight:800;border:0;'
-        f'padding:13px;border-radius:11px;font-size:15px;cursor:pointer">⚡ Make a set — one per account ({_active_n})</button></form>'
+        f'padding:13px;border-radius:11px;font-size:15px;cursor:pointer">⚡ Make a set — one per account ({_active_n})</button>'
+        f'<div style="color:#5d6b80;font-size:11px;margin:8px 0 0;text-align:center">picking any school/format generates fresh from the queue</div></form>'
         '</div>')
     save_script = (
         '<script>'
@@ -20488,6 +20514,30 @@ def _render_worker_loop():
         _t.sleep(20)
 
 
+def _cancel_next_content_slot():
+    """When the creator manually makes a set, mark the day's NEXT upcoming posting
+    slot as skipped so the server-side scheduler doesn't also auto-drop a batch
+    (which would double-post). No-op if no slots remain today."""
+    from datetime import datetime, timezone, timedelta
+    try:
+        from zoneinfo import ZoneInfo
+        now_local = datetime.now(ZoneInfo(os.environ.get("CONTENT_TZ", "America/Los_Angeles")))
+    except Exception:
+        now_local = datetime.now(timezone.utc) - timedelta(hours=7)   # PDT fallback
+    hhmm = now_local.strftime("%H:%M")
+    day_local = now_local.strftime("%Y-%m-%d")
+    nxt = next((slot for slot in CONTENT_SLOTS if slot >= hhmm), None)
+    if not nxt:
+        return                                    # no scheduled drop left today
+    try:
+        with db() as conn:
+            conn.execute("INSERT OR IGNORE INTO batch_skips (day, slot) VALUES (?, ?)",
+                         (day_local, nxt))
+            conn.commit()
+    except Exception as e:
+        print(" * cancel-next-slot failed:", e, flush=True)
+
+
 def _release_due_batches():
     """Server-side auto-release: at each posting slot (in CONTENT_TZ, default PT),
     release one batch — one carousel per ACTIVE account — from the pending buffer
@@ -20500,6 +20550,7 @@ def _release_due_batches():
     except Exception:
         now_local = datetime.now(timezone.utc) - timedelta(hours=7)   # PDT fallback
     hhmm = now_local.strftime("%H:%M")
+    day_local = now_local.strftime("%Y-%m-%d")
     midnight = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
     try:
         midnight_utc = midnight.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
@@ -20510,6 +20561,9 @@ def _release_due_batches():
         for slot in CONTENT_SLOTS:
             if hhmm < slot:
                 continue                          # slot hasn't arrived yet today
+            if conn.execute("SELECT 1 FROM batch_skips WHERE day=? AND slot=?",
+                            (day_local, slot)).fetchone():
+                continue                          # a manual 'Make a set' cancelled this slot
             already = conn.execute(
                 "SELECT COUNT(*) c FROM content_queue WHERE slot=? AND released_at >= ?",
                 (slot, midnight_utc)).fetchone()["c"]
