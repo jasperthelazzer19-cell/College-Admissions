@@ -13356,9 +13356,11 @@ def _live_account_labels(conn):
 
 
 def _release_one_per_account(conn, slot, limit=None):
-    """Release ONE pending carousel per active account (its oldest pending), so a
-    released batch is one-per-account — never 2 for one account and 0 for another.
-    `limit` caps how many accounts get one this round. Returns released row ids."""
+    """Release ONE pending carousel per active account — never N for one account and
+    0 for another. If an account has no pending of its OWN (the buffer skewed onto
+    another account, e.g. a newer account hogged the rotation), STEAL a spare from an
+    over-loaded account (>=2 pending) and reassign it, so the set truly spreads to
+    every account. `limit` caps how many accounts get one. Returns released row ids."""
     ids = []
     for lab in _live_account_labels(conn):
         if limit is not None and len(ids) >= limit:
@@ -13366,6 +13368,20 @@ def _release_one_per_account(conn, slot, limit=None):
         row = conn.execute(
             "SELECT id FROM content_queue WHERE status='pending' AND assigned_account=? "
             "ORDER BY id ASC LIMIT 1", (lab,)).fetchone()
+        if not row:
+            # No pending for this account — reassign a spare from an over-covered one
+            # so 'one per account' actually covers it (fixes the 6-on-one-account bug).
+            donor = conn.execute(
+                "SELECT id FROM content_queue WHERE status='pending' AND assigned_account IN ("
+                "  SELECT assigned_account FROM content_queue"
+                "  WHERE status='pending' AND assigned_account IS NOT NULL"
+                "    AND assigned_account != 'bestfit'"
+                "  GROUP BY assigned_account HAVING COUNT(*) >= 2) "
+                "ORDER BY id DESC LIMIT 1").fetchone()
+            if donor:
+                conn.execute("UPDATE content_queue SET assigned_account=? WHERE id=?",
+                             (lab, donor["id"]))
+                row = donor
         if row:
             conn.execute("UPDATE content_queue SET status='released', slot=?, "
                          "released_at=CURRENT_TIMESTAMP WHERE id=?", (slot, row["id"]))
