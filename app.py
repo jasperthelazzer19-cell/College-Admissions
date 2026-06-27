@@ -13307,7 +13307,7 @@ def bestfit_result():
 # them to /content/queue/push. A scheduler hits /cron/content-release at each
 # posting slot (8/12/3/7:30) to release one + email the link. /content/today is
 # the creator-only page that serves released carousels ready to save.
-CONTENT_SLOTS = ["08:00", "12:00", "15:00", "19:30"]
+CONTENT_SLOTS = ["08:00", "12:00", "15:00", "18:00", "21:00"]  # 5x/day (2026-06 test, was 4x: 8/12/3/7:30)
 
 
 def _autopilot_authed():

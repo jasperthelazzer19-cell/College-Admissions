@@ -190,13 +190,13 @@ def _render_session(batch, web_n, web_slugs, specifics, max_rowid, web_kind="nor
                 # The phone "Make N" button (a multi-carousel batch) stands in for
                 # one scheduled slot — drop a marker so the next slot skips itself,
                 # to avoid double-posting. BUT only during the active posting day
-                # (08:00–19:30 local): a batch made overnight (after the last 7:30
+                # (08:00–21:00 local): a batch made overnight (after the last 9pm
                 # slot or before the 8am slot) should NOT cancel the next scheduled
                 # slot — there's nothing to double up with, and skipping would just
                 # lose the morning's content. "Make 1" (n==1) never skips.
                 import datetime as _dt
                 _now = _dt.datetime.now().time()
-                _active_day = _dt.time(8, 0) <= _now < _dt.time(19, 30)
+                _active_day = _dt.time(8, 0) <= _now < _dt.time(21, 0)
                 if web_n and web_n > 1 and _active_day:
                     try:
                         open(os.path.expanduser("~/.candor_skip_next_slot"), "w").close()
