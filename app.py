@@ -9447,9 +9447,13 @@ def sitemap_xml():
     # Per-school admission-requirements pages ("<school> admission requirements /
     # GPA / SAT requirements") — programmatic SEO off existing CDS data.
     urls += [f"/college/{c['slug']}/requirements" for c in COLLEGES]
-    # Long-tail GPA-scenario pages ("<school> chances with a 3.7 GPA"), one per
-    # school per GPA tier — the calculator-powered programmatic SEO layer.
-    urls += [f"/college/{c['slug']}/gpa/{g:.1f}" for c in COLLEGES for g in _GPA_SCENARIOS]
+    # Long-tail GPA-scenario pages ("<school> chances with a 3.7 GPA") are
+    # intentionally EXCLUDED from the sitemap while the domain is young and
+    # low-authority. ~1,990 near-identical templated pages were diluting Google's
+    # crawl budget on a ~2-month domain (only ~28 of ~2,400 pages were indexed).
+    # The pages stay LIVE and reachable (linked from each school page) — they're
+    # just not pushed to Google until the site earns authority. Re-add later:
+    #   urls += [f"/college/{c['slug']}/gpa/{g:.1f}" for c in COLLEGES for g in _GPA_SCENARIOS]
     from html import escape as _esc
     items = "".join(
         f"<url><loc>{_esc(base + u)}</loc><changefreq>weekly</changefreq></url>"
