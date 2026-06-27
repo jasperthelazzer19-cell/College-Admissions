@@ -9507,6 +9507,9 @@ _BOT_UA_RE = re.compile(
     r"curl/|wget|scrapy|httpclient|go-http|java/|okhttp|libwww|ahrefs|semrush|"
     r"mj12|dotbot|petalbot|gptbot|claudebot|ccbot|bytespider|dataforseo|"
     r"serpapi|amazonbot|applebot|yandex|baidu|sogou|archive\.org|uptime|"
+    # AI-agent / assistant crawlers that send a non-'bot' UA and slip the above:
+    r"claude-user|chatgpt-user|oai-searchbot|perplexity|meta-externalagent|"
+    r"cohere|anthropic|google-extended|gemini|diffbot|youbot|imagesift|"
     r"monitor|preview|fetch|scan", re.I)
 # SQL predicate for a "real" (non-scraper) visit, ANDed into every admin
 # traffic metric. Purely BEHAVIORAL: a real visitor is either logged in or has
@@ -9516,8 +9519,30 @@ _BOT_UA_RE = re.compile(
 # get counted. Single-hit anonymous visitors are indistinguishable from scrapers
 # by UA alone, so they're excluded. (Verified 2026-06: the old UA clause was
 # inflating the "real" count by ~13% with WP-exploit scanners and bot defaults.)
-_REAL_VISITOR_SQL = ("(user_id IS NOT NULL OR visitor_id IN "
-                     "(SELECT visitor_id FROM page_visits GROUP BY visitor_id HAVING COUNT(*) >= 2))")
+# Distributed scrapers defeat the 2+ rule by sending a normal browser UA, accepting
+# the cv_id cookie, and crawling several pages each. Their tell: a burst of dozens of
+# FRESH visitor_ids sharing one *identical* full UA string on a single day.
+# DESKTOP-ONLY ON PURPOSE: Candor's real audience is mobile (TikTok), and real desktop
+# users don't cluster on an exact UA like that, but datacenter scrapers do. Mobile UAs
+# are NEVER cluster-filtered, so real TikTok traffic is guaranteed untouched. The
+# (user_agent, date) match means a UA is only discounted on the actual day it bursted,
+# not forever. Tune _BOT_CLUSTER_MIN up if real desktop users ever get filtered.
+# (2026-06: a desktop same-UA-cluster wave — Windows UAs + Claude-User etc. — was
+# inflating "real" 24h visitors ~3.5x, e.g. 350 -> 99 actual humans.)
+_BOT_CLUSTER_MIN = 15
+_DESKTOP_UA_SQL = ("user_agent NOT LIKE '%Mobile%' AND user_agent NOT LIKE '%iPhone%' "
+                   "AND user_agent NOT LIKE '%Android%'")
+_BOT_CLUSTER_DAYS_SQL = (
+    "(SELECT user_agent, date(ts) FROM page_visits "
+    f"WHERE user_id IS NULL AND user_agent IS NOT NULL AND {_DESKTOP_UA_SQL} "
+    "GROUP BY user_agent, date(ts) "
+    f"HAVING COUNT(DISTINCT visitor_id) >= {_BOT_CLUSTER_MIN})")
+# A "real" visit: logged in, OR an anonymous browser that (a) persisted a cookie
+# across 2+ pageviews AND (b) isn't part of a desktop same-UA scraper cluster that day.
+_REAL_VISITOR_SQL = (
+    "(user_id IS NOT NULL OR (visitor_id IN "
+    "(SELECT visitor_id FROM page_visits GROUP BY visitor_id HAVING COUNT(*) >= 2) "
+    "AND (user_agent, date(ts)) NOT IN " + _BOT_CLUSTER_DAYS_SQL + "))")
 
 @app.before_request
 def _log_page_visit():
@@ -18910,8 +18935,16 @@ def admin_stats():
             pageviews_24h = conn.execute(
                 f"SELECT COUNT(*) c FROM page_visits WHERE ts >= datetime('now','-24 hours') AND {_REAL_VISITOR_SQL}"
             ).fetchone()["c"]
+            # Visitors we newly drop as same-UA scraper clusters (would've counted
+            # as 'real' under the old 2+-only rule) — shown so the filter is visible.
+            bots_filtered_24h = conn.execute(
+                "SELECT COUNT(DISTINCT visitor_id) c FROM page_visits WHERE ts >= datetime('now','-24 hours') "
+                "AND user_id IS NULL AND visitor_id IN "
+                "(SELECT visitor_id FROM page_visits GROUP BY visitor_id HAVING COUNT(*) >= 2) "
+                f"AND (user_agent, date(ts)) IN {_BOT_CLUSTER_DAYS_SQL}"
+            ).fetchone()["c"]
         except Exception:
-            visitors_1h = visitors_24h = pageviews_24h = 0
+            visitors_1h = visitors_24h = pageviews_24h = bots_filtered_24h = 0
         # All-time visitors, scrapers excluded. Heuristic (same as /admin/traffic):
         # a real visitor persists a cookie and racks up 2+ pageviews; single-hit
         # visitor_ids are almost all scrapers (fresh cookie per request).
@@ -18967,7 +19000,7 @@ def admin_stats():
   <div class="stat-card">
     <div class="label">Visitors last 24h</div>
     <div class="value accent">{visitors_24h}</div>
-    <div class="delta">real users · bots excluded</div>
+    <div class="delta">real users · {bots_filtered_24h} bot-cluster hits filtered</div>
   </div>
   <div class="stat-card">
     <div class="label">Page views last 24h</div>
