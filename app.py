@@ -9510,7 +9510,10 @@ _BOT_UA_RE = re.compile(
     # AI-agent / assistant crawlers that send a non-'bot' UA and slip the above:
     r"claude-user|chatgpt-user|oai-searchbot|perplexity|meta-externalagent|"
     r"cohere|anthropic|google-extended|gemini|diffbot|youbot|imagesift|"
-    r"monitor|preview|fetch|scan", re.I)
+    r"monitor|preview|fetch|scan|"
+    # Jasper's own Otto agent pings the content-queue status endpoint — its UA is
+    # literally "otto"; word-bounded so it can't match a real browser string.
+    r"\botto\b", re.I)
 # SQL predicate for a "real" (non-scraper) visit, ANDed into every admin
 # traffic metric. Purely BEHAVIORAL: a real visitor is either logged in or has
 # 2+ pageviews (a persistent cookie across requests). We deliberately do NOT
