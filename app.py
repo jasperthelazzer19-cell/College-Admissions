@@ -4730,6 +4730,20 @@ def init_db():
             conn.execute("ALTER TABLE users ADD COLUMN premium_until TEXT")
         except sqlite3.OperationalError:
             pass
+        # Metered free tier: users who sign up from the meter's launch onward
+        # get FREE_CALC_LIMIT free calculations (requests within CALC_DEBOUNCE_S
+        # seconds of each other count as one), then a $3/mo paywall. Everyone who
+        # already existed when the meter shipped is grandfathered to unlimited —
+        # a one-shot UPDATE that runs only on the boot that first adds the column.
+        _meter_is_new_col = False
+        try:
+            conn.execute("ALTER TABLE users ADD COLUMN unlimited INTEGER DEFAULT 0")
+            _meter_is_new_col = True
+        except sqlite3.OperationalError:
+            pass
+        if _meter_is_new_col:
+            conn.execute("UPDATE users SET unlimited=1")
+            print("meter: grandfathered all existing users to unlimited")
         # Owner / founder accounts — auto-granted premium so the owner can
         # always access premium features without going through Stripe.
         OWNER_EMAILS = ("jasperthelazzer19@gmail.com", "jlasser@newroads.org")
@@ -7376,6 +7390,65 @@ def _chances_narrative_block(slug, r, ready):
 </script>"""
 
 
+# ── Metered free tier ─────────────────────────────────────────────────────
+# New users (signed up after the meter shipped) get FREE_CALC_LIMIT free odds
+# calculations. Rapid re-requests within CALC_DEBOUNCE_S seconds collapse into a
+# single calculation (so a page refresh / quick re-render doesn't burn one).
+# NEVER metered: premium subscribers (is_paid), grandfathered users (unlimited),
+# and logged-out visitors (they have no saved calc history to meter anyway).
+FREE_CALC_LIMIT = 5
+CALC_DEBOUNCE_S = 5
+
+def _calc_meter(user, slug=None):
+    """Return (blocked, used, limit) for the given user.
+
+    `used` is the number of distinct calculations so far, where any calc_runs
+    within CALC_DEBOUNCE_S seconds of each other count as one. `blocked` is True
+    only when a metered user has used up the free limit AND the current request
+    starts a *new* calculation (not a rapid re-request of the last one)."""
+    # Premium and grandfathered-unlimited users are never metered.
+    if not user or user.get("is_paid") or user.get("unlimited"):
+        return (False, 0, FREE_CALC_LIMIT)
+    from datetime import datetime
+    with db() as conn:
+        rows = conn.execute(
+            "SELECT ts FROM calc_runs WHERE user_id=? ORDER BY ts", (user["id"],)
+        ).fetchall()
+    def _parse(t):
+        try: return datetime.strptime((t or "")[:19], "%Y-%m-%d %H:%M:%S")
+        except Exception: return None
+    used, last = 0, None
+    for r in rows:
+        t = _parse(r["ts"])
+        if t is None: continue
+        if last is None or (t - last).total_seconds() > CALC_DEBOUNCE_S:
+            used += 1
+        last = t
+    # Is this request a rapid re-request of the most recent calc? Then it's free
+    # (same calculation) regardless of the limit.
+    if last is not None and (datetime.utcnow() - last).total_seconds() <= CALC_DEBOUNCE_S:
+        return (False, used, FREE_CALC_LIMIT)
+    # Otherwise this request would start a new calculation.
+    return (used >= FREE_CALC_LIMIT, used, FREE_CALC_LIMIT)
+
+
+def _calc_paywall_html(used, limit):
+    """Shown when a metered free user tries calculation #(limit+1)."""
+    return _page(f"""
+<div class="card" style="max-width:560px;margin:8vh auto;text-align:center;
+     background:linear-gradient(135deg,#0f3a37 0%,#0a131c 100%);
+     border:1px solid rgba(95,201,182,.3);padding:40px 32px">
+  <div style="font-size:.78em;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#5fc9b6;margin-bottom:10px">Candor Premium · $3/mo</div>
+  <h1 style="margin:0 0 12px;font-size:1.7em">You've used your {limit} free calculations</h1>
+  <p class="muted" style="font-size:1.02em;line-height:1.6;margin:0 0 24px">
+    Keep going with unlimited honest odds for every school on your list, plus the
+    full profile grade, what-each-school-values breakdown, and list strategy.</p>
+  <a class="btn btn-primary" href="/upgrade" style="font-size:1.05em;padding:13px 30px">Go Premium — $3/mo →</a>
+  <p class="muted" style="font-size:.82em;margin:18px 0 0">Already subscribed? <a href="/login">Log in</a>.</p>
+</div>
+""", title="Unlock unlimited odds — Candor")
+
+
 def chances_html(slug):
     uid = current_user()["id"]
     profile = _chances_profile(uid, slug)
@@ -7385,6 +7458,10 @@ def chances_html(slug):
         return redirect(url_for("profile_page"))
     school_data = COLLEGES_BY_SLUG.get(slug)
     if not school_data: abort(404)
+    # Metered free tier: block calculation #(limit+1) for new free users.
+    _blocked, _used, _limit = _calc_meter(current_user(), slug)
+    if _blocked:
+        return _calc_paywall_html(_used, _limit)
     _log_calc_run(slug, uid)
     exc_reason = profile.get("exceptional_reason")
     # Odds are pure-Python (instant) and computed fresh on every view so they
