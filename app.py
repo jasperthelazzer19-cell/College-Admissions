@@ -9920,1404 +9920,21 @@ _ORBIT_SCHOOLS = [
 ]
 
 def _landing_html(user_count, school_count, cds_count, activation_pct):
-    """The marketing landing page. Keep this hand-written and specific —
-    do not let it drift into AI-slop SaaS-template language. The Cornell
-    story is the hook; calibrated honesty is the differentiator; the HS
-    junior framing is the voice. Aurora effect via pure-CSS radial
-    gradients animated with keyframes, no JS dependency."""
-    n_orbit = len(_ORBIT_SCHOOLS)
-    orbit_items = ""
-    orbit_keyframes = ""  # one counter-rotation animation per item
-    for i, (slug, name, logo_file) in enumerate(_ORBIT_SCHOOLS):
-        angle = i * 360 / n_orbit
-        logo_url = url_for('static', filename=f'logos/{logo_file}')
-        orbit_items += (
-            f'<a class="orbit-item" href="/college/{slug}" title="{name}" '
-            f'style="--angle:{angle:.2f}deg;">'
-            f'<div class="orbit-tile" style="animation:orbit-counter-{i} 80s linear infinite;">'
-            f'<img class="orbit-logo" src="{logo_url}" alt="{name}" loading="lazy">'
-            f'</div></a>'
-        )
-        orbit_keyframes += (
-            f"@keyframes orbit-counter-{i} {{"
-            f"from{{transform:rotate({-angle:.2f}deg);}}"
-            f"to{{transform:rotate({-angle - 360:.2f}deg);}}"
-            f"}}"
-        )
-    css = """
-<style>
-  /* Override BASE_CSS body background to make aurora visible */
-  html, body { background: #070d14 !important; }
-  body { overflow-x:hidden; background: transparent !important; }
-  .wrap { max-width: none !important; padding: 0 !important; margin: 0 !important; }
-
-  /* Aurora is 3 separate blobs that traverse the full screen on different paths.
-     Wrapper handles mouse-reactive translation; blobs handle autonomous travel. */
-  .aurora-wrapper {
-    position:fixed; inset:0; pointer-events:none; z-index:0;
-    will-change: transform;
-  }
-  .blob {
-    position: absolute;
-    border-radius: 50%;
-    filter: blur(80px);
-    will-change: transform;
-    pointer-events: none;
-  }
-  .blob-1 {
-    width: 60vw; height: 60vw;
-    background: radial-gradient(circle, rgba(95,201,182,.55), transparent 60%);
-    animation: blob1-travel 22s linear infinite, blob-pulse 8s ease-in-out infinite;
-    top: -10vh; left: -20vw;
-  }
-  .blob-2 {
-    width: 55vw; height: 55vw;
-    background: radial-gradient(circle, rgba(56,189,248,.42), transparent 60%);
-    animation: blob2-travel 28s linear infinite, blob-pulse 11s ease-in-out infinite reverse;
-    top: 30vh; left: 80vw;
-  }
-  .blob-3 {
-    width: 50vw; height: 50vw;
-    background: radial-gradient(circle, rgba(54,184,168,.38), transparent 60%);
-    animation: blob3-travel 25s linear infinite, blob-pulse 9s ease-in-out infinite;
-    top: 60vh; left: 30vw;
-  }
-  @keyframes blob1-travel {
-    0%   { transform: translate(0vw, 0vh); }
-    25%  { transform: translate(110vw, 30vh); }
-    50%  { transform: translate(80vw, 90vh); }
-    75%  { transform: translate(-10vw, 70vh); }
-    100% { transform: translate(0vw, 0vh); }
-  }
-  @keyframes blob2-travel {
-    0%   { transform: translate(0vw, 0vh); }
-    25%  { transform: translate(-90vw, 20vh); }
-    50%  { transform: translate(-110vw, -40vh); }
-    75%  { transform: translate(20vw, -50vh); }
-    100% { transform: translate(0vw, 0vh); }
-  }
-  @keyframes blob3-travel {
-    0%   { transform: translate(0vw, 0vh); }
-    25%  { transform: translate(40vw, -60vh); }
-    50%  { transform: translate(-50vw, -30vh); }
-    75%  { transform: translate(-70vw, 30vh); }
-    100% { transform: translate(0vw, 0vh); }
-  }
-  @keyframes blob-pulse {
-    0%,100% { opacity: 1; }
-    50% { opacity: 0.5; }
-  }
-  .lp-wrap { max-width:1500px; margin:0 auto; padding:0 24px; position: relative; z-index: 2; }
-  .hero { padding:40px 0 60px; text-align:left; max-width:780px; }
-  .hero .eyebrow { display:inline-block; font-size:.74em; font-weight:600; letter-spacing:1.5px; text-transform:uppercase; color:#9aa6b6; padding:0 0 10px; border:none; border-bottom:1px solid rgba(154,166,182,.25); border-radius:0; background:none; margin-bottom:22px; }
-  .hero h1 { font-size:clamp(2.4em,5vw,3.6em); font-weight:700; letter-spacing:-1.5px; line-height:1.06; margin:0 0 22px; color:#e6edf3; }
-  .hero h1 .accent { color:#5fc9b6; }
-  .hero p.lede { font-size:1.18em; color:#9aa6b6; max-width:620px; margin:0 0 32px; line-height:1.55; }
-  .hero .cta-row { display:flex; gap:14px; flex-wrap:wrap; align-items:center; }
-  .hero .cta-row a { display:inline-flex; align-items:center; gap:8px; padding:12px 22px; border-radius:4px; font-weight:600; text-decoration:none; transition:all .18s; font-size:.97em; }
-  .hero .cta-row .primary { background:linear-gradient(135deg,#5fc9b6 0%,#36b8a8 100%); color:#070d14; box-shadow:0 6px 24px rgba(95,201,182,.28); }
-  .hero .cta-row .primary:hover { transform:translateY(-1px); box-shadow:0 8px 30px rgba(95,201,182,.4); }
-  .hero .cta-row .secondary { color:#e6edf3; border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.03); }
-  .hero .cta-row .secondary:hover { border-color:rgba(95,201,182,.4); color:#5fc9b6; }
-  .hero .stats { display:flex; gap:36px; margin-top:48px; flex-wrap:wrap; }
-  .hero .stats .stat { font-size:.88em; color:#9aa6b6; }
-  .hero .stats .stat .num { display:block; font-size:1.9em; font-weight:700; color:#e6edf3; line-height:1; margin-bottom:4px; letter-spacing:-.5px; }
-  .hero .stats .stat .num .accent { color:#5fc9b6; }
-
-  .section { padding:90px 0; }
-  .section h2 { font-size:clamp(1.7em,3vw,2.3em); font-weight:700; letter-spacing:-.6px; margin:0 0 16px; color:#e6edf3; }
-  .section p.sub { color:#9aa6b6; font-size:1.05em; margin:0 0 40px; max-width:680px; }
-
-  .problem-card { background:#0d1620; border:1px solid rgba(255,255,255,.08); border-radius:6px; padding:36px; }
-  .problem-card .quote { font-size:1.25em; line-height:1.5; color:#e6edf3; font-weight:500; margin:0 0 16px; }
-  .problem-card .quote strong { color:#5fc9b6; }
-  .problem-card .vs { display:flex; gap:14px; align-items:stretch; margin-top:20px; flex-wrap:wrap; }
-  .problem-card .vs .col { flex:1; min-width:240px; padding:18px; border-radius:4px; }
-  .problem-card .vs .wrong { background:rgba(239,68,68,.08); border:1px solid rgba(239,68,68,.22); }
-  .problem-card .vs .right { background:rgba(95,201,182,.08); border:1px solid rgba(95,201,182,.25); }
-  .problem-card .vs .label { font-size:.74em; font-weight:600; letter-spacing:.5px; text-transform:uppercase; opacity:.7; margin-bottom:6px; }
-  .problem-card .vs .wrong .label { color:#fca5a5; }
-  .problem-card .vs .right .label { color:#5fc9b6; }
-  .problem-card .vs .num { font-size:1.6em; font-weight:700; letter-spacing:-.4px; color:#e6edf3; }
-
-  /* ── Calibration receipt section ── */
-  .proof-section { padding:80px 0 60px; }
-  .proof-eyebrow { font-size:.74em; font-weight:600; letter-spacing:1.6px; text-transform:uppercase; color:#5fc9b6; margin-bottom:18px; }
-  .proof-h2 { font-family:'Newsreader',Georgia,serif; font-size:clamp(1.9em,3.4vw,2.7em); font-weight:500; letter-spacing:-1px; line-height:1.1; margin:0 0 14px; color:#e6edf3; max-width:880px; }
-  .proof-sub { color:#9aa6b6; font-size:1.05em; line-height:1.55; margin:0 0 40px; max-width:680px; }
-  .proof-sub b { color:#e6edf3; font-weight:600; }
-
-  .proof-chart { background:#0d1620; border:1px solid rgba(255,255,255,.08); border-radius:8px; padding:32px 36px; max-width:880px; }
-  .bar-row { display:grid; grid-template-columns:160px 1fr 200px; gap:18px; align-items:center; padding:10px 0; }
-  .bar-row + .bar-row { border-top:1px solid rgba(255,255,255,.04); }
-  .bar-row-truth { border-top:1px solid rgba(95,201,182,.25)!important; padding-top:18px; margin-top:8px; }
-  .bar-label { font-size:.92em; color:#cbd5e1; font-weight:500; display:flex; align-items:center; gap:8px; }
-  .bar-row-truth .bar-label, .bar-row-candor .bar-label { color:#e6edf3; font-weight:600; }
-  .truth-mark { color:#5fc9b6; font-weight:700; }
-  .bar-track { background:rgba(255,255,255,.04); height:34px; border-radius:4px; position:relative; overflow:hidden; }
-  .bar-fill { height:100%; display:flex; align-items:center; padding:0 12px; border-radius:4px; transition:width .8s cubic-bezier(.2,.6,.2,1); }
-  .bar-off { background:rgba(244,114,182,.18); border-right:2px solid rgba(244,114,182,.5); }
-  .bar-off .bar-val { color:#f9a8d4; }
-  .bar-truth { background:rgba(95,201,182,.18); border-right:2px solid rgba(95,201,182,.7); }
-  .bar-truth .bar-val { color:#5fc9b6; }
-  .bar-candor { background:linear-gradient(90deg, rgba(95,201,182,.22), rgba(56,189,248,.22)); border-right:2px solid #5fc9b6; }
-  .bar-candor .bar-val { color:#5fc9b6; }
-  .bar-val { font-family:'Newsreader',Georgia,serif; font-weight:600; font-size:1.05em; font-variant-numeric:tabular-nums; letter-spacing:-.3px; }
-  .bar-diff { font-size:.82em; color:#7a8595; font-variant-numeric:tabular-nums; }
-  .bar-row-truth .bar-diff, .bar-row-candor .bar-diff { color:#9aa6b6; }
-
-  .proof-caption {
-    margin-top:24px; padding:18px 24px; max-width:880px;
-    border-left:3px solid #5fc9b6; background:rgba(95,201,182,.04);
-    color:#cbd5e1; font-size:.98em; line-height:1.55; border-radius:0 6px 6px 0;
-  }
-  .proof-caption b { color:#5fc9b6; font-weight:700; }
-
-  .proof-preview-wrap { margin-top:54px; max-width:880px; }
-  .proof-preview-label { font-size:.92em; color:#9aa6b6; margin-bottom:14px; }
-  .proof-preview {
-    display:block; background:#0d1620; border:1px solid rgba(255,255,255,.10);
-    border-radius:10px; padding:28px 32px; text-decoration:none; color:#e6edf3;
-    transition:border-color .2s, background .2s, transform .2s;
-    box-shadow: 0 24px 60px rgba(0,0,0,.4), 0 1px 0 rgba(255,255,255,.03) inset;
-  }
-  .proof-preview:hover { border-color:rgba(95,201,182,.35); background:#101a25; text-decoration:none; transform:translateY(-2px); }
-  .prv-head { display:flex; align-items:baseline; gap:14px; flex-wrap:wrap; margin-bottom:6px; }
-  .prv-name { font-family:'Newsreader',Georgia,serif; font-size:2em; font-weight:500; letter-spacing:-.8px; margin:0; color:#e6edf3; }
-  .prv-badge { font-size:.7em; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#031715; background:linear-gradient(135deg,#5fc9b6,#36b8a8); padding:4px 10px; border-radius:999px; }
-  .prv-meta { color:#9aa6b6; font-size:.9em; margin-bottom:22px; }
-  .prv-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:1px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.06); border-radius:6px; overflow:hidden; margin-bottom:20px; }
-  .prv-stat { background:#0a121a; padding:16px 18px; }
-  .prv-stat-label { font-size:.7em; color:#7a8595; letter-spacing:1px; text-transform:uppercase; font-weight:600; margin-bottom:6px; }
-  .prv-stat-val { font-family:'Newsreader',Georgia,serif; font-size:1.45em; font-weight:500; letter-spacing:-.5px; color:#e6edf3; font-variant-numeric:tabular-nums; }
-  .prv-tags { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:18px; }
-  .prv-tag { background:rgba(95,201,182,.08); border:1px solid rgba(95,201,182,.18); color:#5fc9b6; padding:4px 10px; border-radius:5px; font-size:.78em; font-weight:500; }
-  .prv-open { color:#5fc9b6; font-weight:600; font-size:.92em; }
-
-  @media (max-width:680px) {
-    .proof-section { padding:60px 0 40px; }
-    .proof-chart { padding:22px 18px; }
-    .bar-row { grid-template-columns:100px 1fr; gap:10px; }
-    .bar-diff { grid-column: 2; font-size:.78em; padding-top:2px; }
-    .bar-label { font-size:.82em; }
-    .proof-preview { padding:22px 20px; }
-    .prv-grid { grid-template-columns:repeat(2,1fr); }
-    .prv-name { font-size:1.5em; }
-  }
-
-  .features-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:1px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.06); border-radius:4px; overflow:hidden; }
-  .feature { background:#0a121a; padding:28px 26px; transition:background .2s; }
-  .feature:hover { background:#0d1620; }
-  .feature .num { display:block; font-family:'Newsreader',Georgia,serif; font-size:.85em; color:#5fc9b6; font-weight:500; letter-spacing:.5px; margin-bottom:18px; font-feature-settings:"tnum"; }
-  .feature h3 { margin:0 0 8px; font-size:1.1em; color:#e6edf3; font-weight:600; letter-spacing:-.2px; }
-  .feature p { margin:0; color:#9aa6b6; font-size:.92em; line-height:1.55; }
-
-  .founder {
-    position:relative; max-width:760px; margin:0 auto;
-    background:transparent; border:0; padding:48px 24px;
-  }
-  .founder::before {
-    content:"\201C"; position:absolute; top:-8px; left:-6px;
-    font-family:'Newsreader',Georgia,serif; font-size:9em; line-height:1;
-    color:rgba(95,201,182,.18); pointer-events:none; user-select:none;
-  }
-  .founder p { font-family:'Newsreader',Georgia,serif; font-size:1.32em; line-height:1.55; color:#e6edf3; margin:0 0 18px; font-weight:400; letter-spacing:-.2px; }
-  .founder p:first-of-type { font-size:1.55em; line-height:1.4; color:#e6edf3; margin-bottom:24px; }
-  .founder p:first-of-type b, .founder p:first-of-type strong { color:#5fc9b6; }
-  .founder p:last-child { margin:0; }
-  .founder .signature {
-    font-family:'Hanken Grotesk',-apple-system,BlinkMacSystemFont,'Inter',sans-serif;
-    font-size:.9em; color:#5fc9b6; font-weight:600; letter-spacing:.3px;
-    margin-top:24px !important; padding-top:18px; border-top:1px solid rgba(95,201,182,.18);
-  }
-
-  .premium-band {
-    background:linear-gradient(135deg,#0f3a37 0%,#0a131c 65%);
-    border:1px solid rgba(95,201,182,.28);
-    border-radius:8px;
-    padding:48px;
-  }
-  .premium-band-header { max-width:680px; margin-bottom:36px; }
-  .premium-band-eyebrow {
-    font-size:.78em; font-weight:600; letter-spacing:.8px; text-transform:uppercase;
-    color:#5fc9b6; padding:5px 12px; border:1px solid rgba(95,201,182,.3);
-    border-radius:999px; background:rgba(95,201,182,.06); display:inline-block; margin-bottom:18px;
-  }
-  .premium-band-h2 {
-    font-size:clamp(1.6em,2.6vw,2.1em); font-weight:700; letter-spacing:-.5px;
-    margin:0 0 14px; color:#e6edf3; line-height:1.15;
-  }
-  .premium-band-sub {
-    font-size:1.02em; line-height:1.55; color:#9aa6b6; margin:0;
-  }
-  .premium-features {
-    display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
-    gap:1px; background:rgba(95,201,182,.08);
-    border:1px solid rgba(95,201,182,.12); border-radius:6px; overflow:hidden;
-  }
-  .premium-feature { background:#0a121a; padding:24px 22px; }
-  .premium-feature .premium-feature-num {
-    font-family:'Newsreader',Georgia,serif; font-size:.85em; color:#5fc9b6;
-    font-weight:500; letter-spacing:.5px; margin-bottom:14px; font-feature-settings:"tnum";
-  }
-  .premium-feature h3 {
-    margin:0 0 8px; font-size:1.02em; color:#e6edf3; font-weight:600; letter-spacing:-.2px;
-  }
-  .premium-feature p {
-    margin:0; color:#9aa6b6; font-size:.88em; line-height:1.5;
-  }
-  .premium-band-cta {
-    display:flex; align-items:center; gap:18px; flex-wrap:wrap; margin-top:32px;
-  }
-  .premium-cta-btn {
-    display:inline-block; padding:13px 28px;
-    background:linear-gradient(135deg,#5fc9b6 0%,#36b8a8 100%);
-    color:#070d14; font-weight:700; font-size:.98em;
-    border-radius:6px; text-decoration:none;
-    box-shadow:0 6px 22px rgba(95,201,182,.3);
-    transition:all .18s ease;
-  }
-  .premium-cta-btn:hover {
-    transform:translateY(-1px);
-    box-shadow:0 8px 28px rgba(95,201,182,.42);
-  }
-  .premium-band-note { color:#7a8595; font-size:.82em; }
-  @media (max-width:680px) {
-    .premium-band { padding:28px 22px; }
-  }
-  .final-cta { text-align:center; padding:80px 0 100px; }
-  .final-cta h2 { margin-bottom:18px; }
-  .final-cta p { color:#9aa6b6; margin:0 0 30px; font-size:1.08em; }
-  .final-cta a.primary { display:inline-block; padding:14px 32px; background:linear-gradient(135deg,#5fc9b6 0%,#36b8a8 100%); color:#070d14; font-weight:600; border-radius:4px; text-decoration:none; box-shadow:0 8px 30px rgba(95,201,182,.3); transition:all .2s; }
-  .final-cta a.primary:hover { transform:translateY(-2px); box-shadow:0 12px 36px rgba(95,201,182,.4); }
-
-  footer { padding:40px 0 60px; text-align:center; color:#5e6b7c; font-size:.84em; border-top:1px solid rgba(255,255,255,.04); margin-top:60px; }
-  footer a { color:#9aa6b6; }
-
-  .reveal { opacity:0; transform:translateY(16px); transition:opacity .7s ease, transform .7s ease; }
-  .reveal.in { opacity:1; transform:translateY(0); }
-  /* No-JS fallback: never strand below-fold content invisible if JS fails to load. */
-  .no-js .reveal { opacity:1 !important; transform:none !important; transition:none !important; }
-
-  /* ─── Calculator auto-cycle "live demo" pill ─────────────────── */
-  .live-pill {
-    position:absolute; top:14px; right:14px; z-index:3;
-    font-family:var(--mono,inherit);
-    font-size:10px; letter-spacing:.16em; text-transform:uppercase;
-    color:#5fc9b6; padding:4px 10px;
-    border:1px solid rgba(95,201,182,.3); border-radius:999px;
-    animation:livePulse 2s ease-in-out infinite;
-    pointer-events:none;
-  }
-  .live-pill.gone { opacity:0; transition:opacity .6s ease; }
-  @keyframes livePulse { 0%,100% { opacity:1; } 50% { opacity:.5; } }
-  .demo-card { position:relative; }
-  /* swap effect when calculator auto-cycles */
-  .demo-odds, .demo-fit, .demo-tier, #demo-school { transition:opacity .2s ease, transform .2s ease; }
-  .demo-odds.swap, .demo-fit.swap, .demo-tier.swap, #demo-school.swap { opacity:.4; transform:scale(.98); }
-
-  /* ─── Stagger entry on feature boxes (scroll-driven where supported) ─── */
-  .features-grid .feature {
-    animation: featureIn 1.1s cubic-bezier(.2,.7,.2,1) both;
-    animation-timeline: view();
-    animation-range: entry 0% cover 40%;
-  }
-  .features-grid .feature:nth-child(odd)  { --fx: -36px; }
-  .features-grid .feature:nth-child(even) { --fx:  36px; }
-  @keyframes featureIn {
-    from { opacity:0; transform: translateX(var(--fx, 0)) translateY(24px); }
-    to   { opacity:1; transform: translateX(0) translateY(0); }
-  }
-  /* Fallback for browsers w/o animation-timeline support: use the existing
-     section .reveal mechanism (parent fades in once); features just appear. */
-  @supports not (animation-timeline: view()) {
-    .features-grid .feature { animation: none; }
-  }
-
-  /* ─── Bar-fill scroll animation on the proof chart ─── */
-  .proof-chart .bar-fill {
-    transform-origin: left center;
-    animation: barGrow 1.3s cubic-bezier(.2,.7,.2,1) both;
-    animation-timeline: view();
-    animation-range: entry 15% cover 55%;
-  }
-  @keyframes barGrow {
-    from { clip-path: inset(0 100% 0 0); }
-    to   { clip-path: inset(0 0 0 0); }
-  }
-  @supports not (animation-timeline: view()) {
-    .proof-chart .bar-fill { animation: none; }
-  }
-
-  /* ─── Hero particle field — drifts forever once the video lands ─── */
-  .hero .particles {
-    position: absolute; inset: 0;
-    z-index: 1;
-    pointer-events: none;
-    overflow: hidden;
-    opacity: 0;
-    transition: opacity 1.8s ease;
-  }
-  html.landed .hero .particles { opacity: 1; }
-  .hero .particles span {
-    position: absolute;
-    width: 3px; height: 3px;
-    background: #5fc9b6;
-    border-radius: 50%;
-    box-shadow: 0 0 6px rgba(95,201,182,0.55), 0 0 14px rgba(95,201,182,0.25);
-    opacity: 0;
-    animation: heroDrift 14s linear infinite;
-  }
-  .hero .particles span:nth-child(1)  { left:  4%; --dx:  18px; animation-duration: 16s; animation-delay:  -0.0s; }
-  .hero .particles span:nth-child(2)  { left:  9%; --dx: -22px; animation-duration: 13s; animation-delay:  -2.4s; }
-  .hero .particles span:nth-child(3)  { left: 14%; --dx:  30px; animation-duration: 18s; animation-delay:  -1.1s; }
-  .hero .particles span:nth-child(4)  { left: 18%; --dx: -14px; animation-duration: 15s; animation-delay:  -5.8s; }
-  .hero .particles span:nth-child(5)  { left: 22%; --dx:  24px; animation-duration: 11s; animation-delay:  -3.2s; }
-  .hero .particles span:nth-child(6)  { left: 27%; --dx: -28px; animation-duration: 17s; animation-delay:  -0.7s; }
-  .hero .particles span:nth-child(7)  { left: 31%; --dx:  12px; animation-duration: 14s; animation-delay:  -4.5s; }
-  .hero .particles span:nth-child(8)  { left: 36%; --dx: -18px; animation-duration: 19s; animation-delay:  -8.2s; }
-  .hero .particles span:nth-child(9)  { left: 40%; --dx:  26px; animation-duration: 12s; animation-delay:  -1.8s; }
-  .hero .particles span:nth-child(10) { left: 45%; --dx: -22px; animation-duration: 16s; animation-delay:  -6.4s; }
-  .hero .particles span:nth-child(11) { left: 49%; --dx:  16px; animation-duration: 13s; animation-delay:  -2.1s; }
-  .hero .particles span:nth-child(12) { left: 53%; --dx: -30px; animation-duration: 18s; animation-delay:  -7.6s; }
-  .hero .particles span:nth-child(13) { left: 58%; --dx:  20px; animation-duration: 15s; animation-delay:  -3.9s; }
-  .hero .particles span:nth-child(14) { left: 62%; --dx: -14px; animation-duration: 11s; animation-delay:  -0.3s; }
-  .hero .particles span:nth-child(15) { left: 66%; --dx:  28px; animation-duration: 17s; animation-delay:  -5.1s; }
-  .hero .particles span:nth-child(16) { left: 71%; --dx: -24px; animation-duration: 14s; animation-delay:  -8.8s; }
-  .hero .particles span:nth-child(17) { left: 75%; --dx:  18px; animation-duration: 19s; animation-delay:  -1.5s; }
-  .hero .particles span:nth-child(18) { left: 80%; --dx: -16px; animation-duration: 12s; animation-delay:  -4.2s; }
-  .hero .particles span:nth-child(19) { left: 84%; --dx:  22px; animation-duration: 16s; animation-delay:  -6.9s; }
-  .hero .particles span:nth-child(20) { left: 89%; --dx: -26px; animation-duration: 13s; animation-delay:  -2.7s; }
-  .hero .particles span:nth-child(21) { left: 93%; --dx:  14px; animation-duration: 18s; animation-delay:  -7.3s; }
-  .hero .particles span:nth-child(22) { left:  6%; --dx: -20px; animation-duration: 15s; animation-delay:  -3.6s; }
-  .hero .particles span:nth-child(23) { left: 19%; --dx:  26px; animation-duration: 11s; animation-delay:  -9.1s; }
-  .hero .particles span:nth-child(24) { left: 33%; --dx: -18px; animation-duration: 17s; animation-delay:  -1.2s; }
-  .hero .particles span:nth-child(25) { left: 47%; --dx:  24px; animation-duration: 14s; animation-delay:  -4.8s; }
-  .hero .particles span:nth-child(26) { left: 61%; --dx: -22px; animation-duration: 19s; animation-delay:  -7.4s; }
-  .hero .particles span:nth-child(27) { left: 76%; --dx:  16px; animation-duration: 12s; animation-delay:  -2.5s; }
-  .hero .particles span:nth-child(28) { left: 91%; --dx: -28px; animation-duration: 16s; animation-delay:  -5.9s; }
-  @keyframes heroDrift {
-    0%   { transform: translate(0, 100vh) scale(0.6); opacity: 0; }
-    12%  { opacity: 0.85; }
-    78%  { opacity: 0.7; }
-    100% { transform: translate(var(--dx, 0), -10vh) scale(1.1); opacity: 0; }
-  }
-
-  /* Full-bleed cinematic hero: a background video sits behind left-aligned
-     content. The section breaks out of .lp-wrap edge-to-edge; .hero-inner
-     re-centers the content to the same 1500px column as the rest of the page. */
-  .hero.hero-grid {
-    display:block;
-    position:relative;
-    max-width:none;
-    margin-left: calc(50% - 50vw);
-    margin-right: calc(50% - 50vw);
-    padding:118px 0 80px;
-    overflow:hidden;
-    background:#070d14;
-    isolation:isolate;
-  }
-  .hero-inner {
-    position:relative; z-index:2;
-    max-width:1500px; margin:0 auto; padding:0 24px;
-  }
-  .hero-bg-video, .hero-bg-overlay {
-    position:absolute; inset:0; width:100%; height:100%;
-    pointer-events:none;
-  }
-  .hero-bg-video {
-    z-index:0; object-fit:cover; object-position:50% 42%;
-    filter:brightness(.84) saturate(1.07);
-    transition:filter 1.1s ease;
-  }
-  /* Layered overlays: teal glow (right) + edge vignette + strong left wash
-     for text readability + top/bottom fades that blend the video into the
-     navy page so it never reads as a separate video box. */
-  .hero-bg-overlay {
-    z-index:1;
-    transition:opacity 1.1s ease;
-    background:
-      radial-gradient(58% 68% at 90% 42%, rgba(54,184,168,.20), transparent 72%),
-      radial-gradient(135% 130% at 38% 36%, transparent 46%, rgba(4,9,15,.92) 100%),
-      linear-gradient(101deg, rgba(7,13,20,.97) 0%, rgba(7,13,20,.88) 30%, rgba(7,13,20,.55) 56%, rgba(7,13,20,.30) 82%, rgba(7,13,20,.42) 100%),
-      linear-gradient(180deg, rgba(7,13,20,.38) 0%, rgba(7,13,20,.10) 12%, transparent 26%, transparent 68%, rgba(7,13,20,.92) 100%);
-  }
-  .hero.hero-grid .hero-text { max-width:600px; display:flex; flex-direction:column; gap:14px; }
-  /* Cinematic intro: nav + hero content stay hidden during the fly-in, then
-     fade in once the camera lands. Toggled on <html> by JS only when motion
-     is allowed -- no-JS and reduced-motion visitors see the full page. */
-  html.intro-armed .nav,
-  html.intro-armed .hero-text > * { opacity:0; }
-  html.intro-armed .nav { transform:translateY(-14px); pointer-events:none; }
-  html.intro-armed .hero-text > * { transform:translateY(26px); }
-  html.landed .nav,
-  html.landed .hero-text > * { opacity:1; transform:translateY(0); }
-  /* Hard guarantee: once landed, the nav is ALWAYS interactive, at every
-     breakpoint — overrides any lingering intro-armed pointer-events:none. */
-  html.landed .nav { pointer-events:auto !important; }
-  html.landed .nav {
-    pointer-events:auto;
-    transition:opacity .8s ease, transform .8s cubic-bezier(.2,.7,.2,1);
-  }
-  html.landed .hero-text > * {
-    transition:opacity .85s ease, transform .85s cubic-bezier(.2,.7,.2,1);
-  }
-  html.landed .hero-text > *:nth-child(1) { transition-delay:.12s; }
-  html.landed .hero-text > *:nth-child(2) { transition-delay:.26s; }
-  html.landed .hero-text > *:nth-child(3) { transition-delay:.40s; }
-  html.intro-armed:not(.landed) .hero-bg-overlay { opacity:.55; }
-  @media (prefers-reduced-motion: reduce) {
-    html.intro-armed .nav,
-    html.intro-armed .hero-text > * { opacity:1; transform:none; }
-  }
-  /* Mobile: skip the cinematic intro so the calculator is visible immediately.
-     The 8s video reveal was killing TikTok/Reddit drive-by traffic before
-     they saw the hero copy or the inline demo. */
-  @media (max-width: 768px) {
-    html.intro-armed .nav,
-    html.intro-armed .hero-text > * { opacity:1!important; transform:none!important; }
-    /* Belt-and-suspenders: even if intro-armed lingers on mobile, the nav must
-       stay tappable. This is the root of the "can't click at first" bug. */
-    html.intro-armed .nav { pointer-events:auto!important; }
-  }
-  /* Skip-intro button — only visible on desktop while the cinematic intro is
-     playing (mobile has no intro). Sits top-right above everything. */
-  #intro-skip {
-    position:fixed; top:20px; right:26px; z-index:120;
-    display:none; align-items:center; gap:6px;
-    padding:8px 16px; border-radius:999px; cursor:pointer;
-    font:600 .82em/1 'Hanken Grotesk',sans-serif; letter-spacing:.3px;
-    color:#e6edf3; background:rgba(10,19,28,.6);
-    border:1px solid rgba(255,255,255,.18);
-    backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
-    transition:background .15s, border-color .15s, opacity .4s;
-  }
-  #intro-skip:hover { background:rgba(16,34,47,.85); border-color:rgba(95,201,182,.45); color:#fff; }
-  html.intro-armed:not(.landed) #intro-skip { display:inline-flex; }
-  html.landed #intro-skip { display:none; }
-  @media (max-width:768px) { #intro-skip { display:none!important; } }
-  .hero.hero-grid .hero-text-above { display:flex; flex-direction:column; gap:10px; margin-bottom:6px; }
-  .hero.hero-grid h1 { font-size:clamp(1.8em, 3vw, 2.45em); margin:8px 0 4px; line-height:1.1; }
-  .hero.hero-grid p.lede { font-size:.96em; margin:0 0 12px; line-height:1.5; }
-  .hero.hero-grid .stats { margin-top:8px; gap:20px; }
-  .hero.hero-grid .stats .stat { font-size:.8em; }
-  .hero.hero-grid .stats .stat .num { font-size:1.3em; }
-  .hero.hero-grid .cta-row { gap:10px; margin:4px 0; }
-  .hero.hero-grid .cta-row a { padding:10px 18px; font-size:.92em; }
-  .hero.hero-grid .eyebrow { margin-bottom:0; padding:4px 10px; font-size:.72em; }
-  @media (max-width:980px) {
-    .hero.hero-grid { padding:92px 0 64px!important; }
-    .hero.hero-grid .hero-text { max-width:none; }
-    /* Mobile: content spans full width, so darken the whole frame evenly
-       instead of weighting the wash to the left. */
-    .hero-bg-overlay {
-      background:
-        radial-gradient(120% 80% at 80% 10%, rgba(54,184,168,.16), transparent 70%),
-        linear-gradient(180deg, rgba(7,13,20,.93) 0%, rgba(7,13,20,.80) 38%, rgba(7,13,20,.90) 100%);
-    }
-    .hero-bg-video { filter:brightness(.72) saturate(1.06); }
-  }
-
-  /* Phone (<=768px): NO video/animation. On a phone the landscape clip only
-     crops to a dark center slice, and the 8s intro delayed the demo (which was
-     hurting TikTok/Reddit drive-by traffic). So drop it entirely -- the hero is
-     a clean navy panel with a soft teal glow, and the headline + live demo are
-     visible instantly. Desktop keeps the full cinematic intro. */
-  @media (max-width:768px) {
-    .hero-bg-video { display:none; }
-    .hero.hero-grid {
-      background:
-        radial-gradient(115% 60% at 80% 4%, rgba(54,184,168,.12), transparent 60%),
-        #070d14;
-    }
-    /* No video to scrim, and no intro fade on mobile -- keep the panel steady. */
-    .hero-bg-overlay { display:none; }
-  }
-
-  /* Right-column logo wall (image-based via Clearbit). Tiles are uniform
-     dark cards; the source PNGs are filtered to white so different schools
-     read as a single unified grid rather than a colorful jumble. */
-  .hero-logos { display:flex; flex-direction:column; gap:14px; }
-  .hero-logos-label {
-    font-size:.74em; font-weight:600; letter-spacing:.6px;
-    text-transform:uppercase; color:#9aa6b6;
-  }
-  .hero-logos-grid {
-    display:grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap:10px;
-  }
-  /* Orbital logo wall — schools rotate around a Candor center. Each
-     orbit-tile has a per-item counter-rotation animation (defined inline
-     below the static styles) so the tile stays upright as the ring
-     rotates. We pre-generate one keyframe per item to avoid relying on
-     @property/custom-prop interpolation, which has spotty support. */
-  .logo-orbit {
-    position:relative; width:100%; aspect-ratio:1/1;
-    max-width:780px; margin:0 auto;
-    --orbit-radius: -315px;
-  }
-  .orbit-center {
-    position:absolute; top:50%; left:50%;
-    transform:translate(-50%, -50%);
-    width:170px; height:170px;
-    display:flex; align-items:center; justify-content:center;
-    background:rgba(95,201,182,.06);
-    border:1px solid rgba(95,201,182,.32);
-    border-radius:50%;
-    z-index:2;
-    box-shadow:0 0 90px rgba(95,201,182,.2), inset 0 0 40px rgba(95,201,182,.06);
-  }
-  .orbit-center svg { width:96px; height:96px; }
-  .orbit-ring {
-    position:absolute; inset:0;
-    animation:orbit-spin 80s linear infinite;
-    transform-origin:center;
-  }
-  .orbit-item {
-    position:absolute;
-    top:50%; left:50%;
-    width:0; height:0;
-    transform:rotate(var(--angle, 0deg)) translateY(var(--orbit-radius, -230px));
-  }
-  .orbit-tile {
-    width:120px; height:120px;
-    display:flex; align-items:center; justify-content:center;
-    transform:translate(-50%, -50%);
-    background:transparent;
-    border:none;
-    border-radius:0;
-    /* per-item animation: orbit-counter-N — defined in the keyframes
-       block injected below, one per orbit position. */
-    transition:transform .15s;
-    will-change:transform;
-  }
-  .orbit-logo {
-    /* Each logo file is pre-cropped to its content bounding box (PIL
-       getbbox), so object-fit:contain makes every logo fill this 110px
-       box as fully as its aspect ratio allows. Wide logos end shorter
-       in height, tall logos end narrower, but the *visual area* of
-       each is roughly equal. */
-    width:110px; height:110px;
-    object-fit:contain;
-    transition:filter .15s, transform .15s;
-  }
-  .orbit-item:hover .orbit-logo {
-    transform:scale(1.1);
-    filter:drop-shadow(0 0 18px rgba(95,201,182,.55));
-  }
-  @keyframes orbit-spin { to { transform:rotate(360deg); } }
-  @media (prefers-reduced-motion: reduce) {
-    .orbit-ring { animation:none; }
-    .orbit-tile { animation:none !important; }
-  }
-  @media (max-width:980px) {
-    .logo-orbit { max-width:460px; --orbit-radius: -190px; }
-    .orbit-tile { width:60px; height:60px; }
-    .orbit-logo { width:38px; height:38px; }
-    .orbit-center { width:96px; height:96px; }
-    .orbit-center svg { width:52px; height:52px; }
-  }
-  @media (max-width:600px) {
-    .logo-orbit { max-width:340px; --orbit-radius: -140px; }
-    .orbit-tile { width:48px; height:48px; }
-    .orbit-logo { width:30px; height:30px; }
-    .orbit-center { width:74px; height:74px; }
-    .orbit-center svg { width:40px; height:40px; }
-  }
-  @media (max-width:980px) {
-    .hero-logos-grid { grid-template-columns: repeat(5, 1fr); }
-  }
-  @media (max-width:600px) {
-    .hero-logos-grid { grid-template-columns: repeat(4, 1fr); }
-    .logo-tile { padding:10px; }
-  }
-  @media (max-width:420px) {
-    .hero-logos-grid { grid-template-columns: repeat(3, 1fr); }
-  }
-
-  /* Interactive demo (used inside hero-demo column) */
-  .demo-section {
-    padding: 60px 0 90px;
-    border-top: 1px solid rgba(255,255,255,.06);
-  }
-  .demo-eyebrow {
-    display:inline-block; font-size:.74em; font-weight:600;
-    letter-spacing:.8px; text-transform:uppercase; color:#5fc9b6;
-    padding:5px 12px; border:1px solid rgba(95,201,182,.25); border-radius:999px;
-    background:rgba(95,201,182,.06); margin-bottom:18px;
-  }
-  .demo-title {
-    font-size:clamp(1.8em, 3.4vw, 2.6em); font-weight:700;
-    letter-spacing:-.6px; margin:0 0 12px; color:#e6edf3;
-  }
-  .demo-sub {
-    color:#9aa6b6; font-size:1.02em; margin:0 0 28px; max-width:620px; line-height:1.55;
-  }
-  .demo-card {
-    display:grid; grid-template-columns: minmax(220px, 1fr) minmax(220px, 1.05fr); gap:0;
-    background:rgba(11,18,27,.66);
-    -webkit-backdrop-filter:blur(16px) saturate(1.4);
-    backdrop-filter:blur(16px) saturate(1.4);
-    border:1px solid rgba(255,255,255,.10); border-radius:10px;
-    overflow:hidden;
-    box-shadow:0 28px 70px -24px rgba(0,0,0,.78), inset 0 1px 0 rgba(255,255,255,.05);
-  }
-  .demo-controls {
-    padding:14px 16px; border-right:1px solid rgba(255,255,255,.06);
-    display:flex; flex-direction:column; gap:8px;
-  }
-  @media (max-width:560px) {
-    .demo-card { grid-template-columns:1fr; }
-    .demo-controls { border-right:none; border-bottom:1px solid rgba(255,255,255,.06); }
-  }
-  .demo-field { display:flex; flex-direction:column; gap:8px; }
-  .demo-label {
-    font-size:.78em; font-weight:600; letter-spacing:.4px;
-    text-transform:uppercase; color:#9aa6b6;
-    display:flex; justify-content:space-between; align-items:baseline;
-  }
-  .demo-readout {
-    color:#5fc9b6; font-weight:700; font-size:1.05em;
-    text-transform:none; letter-spacing:0;
-    font-variant-numeric:tabular-nums;
-  }
-  .demo-test-toggle {
-    display:inline-flex; gap:0;
-    border:1px solid rgba(255,255,255,.12); border-radius:99px;
-    overflow:hidden; padding:2px;
-    background:rgba(255,255,255,.02);
-  }
-  .demo-test-btn {
-    background:transparent; border:0; padding:3px 10px;
-    font-size:.78em; font-weight:600; color:#9aa6b6;
-    text-transform:uppercase; letter-spacing:.4px;
-    border-radius:99px; cursor:pointer;
-    transition:background .15s, color .15s;
-  }
-  .demo-test-btn.active {
-    background:rgba(95,201,182,.15);
-    color:#5fc9b6;
-  }
-  .demo-test-btn:not(.active):hover { color:#cbd5e1; }
-  .demo-field select, .demo-field input[type=range] { width:100%; }
-  .demo-field select {
-    background:#0a121a; color:#e6edf3; border:1px solid rgba(255,255,255,.12);
-    border-radius:5px; padding:10px 12px; font-size:.95em; font-weight:500;
-    cursor:pointer; appearance:none;
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'><path fill='%239aa6b6' d='M6 8L0 0h12z'/></svg>");
-    background-repeat:no-repeat; background-position:right 12px center; background-size:10px;
-    padding-right:36px;
-  }
-  .demo-field select:focus { outline:none; border-color:rgba(95,201,182,.5); }
-  .demo-field input[type=range] {
-    -webkit-appearance:none; appearance:none; background:transparent; height:24px;
-    cursor:pointer;
-  }
-  .demo-field input[type=range]::-webkit-slider-runnable-track {
-    height:4px; background:rgba(255,255,255,.08); border-radius:2px;
-  }
-  .demo-field input[type=range]::-moz-range-track {
-    height:4px; background:rgba(255,255,255,.08); border-radius:2px;
-  }
-  .demo-field input[type=range]::-webkit-slider-thumb {
-    -webkit-appearance:none; appearance:none;
-    width:18px; height:18px; border-radius:50%;
-    background:#5fc9b6; border:2px solid #0d1620; margin-top:-7px;
-    box-shadow:0 0 0 1px rgba(95,201,182,.4);
-    transition: transform .12s ease;
-  }
-  .demo-field input[type=range]::-webkit-slider-thumb:hover { transform:scale(1.15); }
-  .demo-field input[type=range]::-moz-range-thumb {
-    width:18px; height:18px; border-radius:50%;
-    background:#5fc9b6; border:2px solid #0d1620;
-  }
-  .demo-result {
-    padding:14px 16px; display:flex; flex-direction:column; gap:8px;
-    background:linear-gradient(180deg, rgba(95,201,182,.04) 0%, transparent 60%);
-  }
-  .demo-result-row { display:flex; gap:12px; flex-wrap:wrap; }
-  .demo-result-block { flex:1; min-width:120px; }
-  .demo-result-label {
-    font-size:.72em; font-weight:600; letter-spacing:.6px;
-    text-transform:uppercase; color:#9aa6b6; margin-bottom:6px;
-  }
-  .demo-odds {
-    font-size:1.55em; font-weight:800; letter-spacing:-.6px; line-height:1;
-    color:#5fc9b6; font-variant-numeric:tabular-nums;
-  }
-  .demo-fit, .demo-tier {
-    font-size:1.05em; font-weight:700; letter-spacing:-.3px; color:#e6edf3;
-    font-variant-numeric:tabular-nums;
-  }
-  .demo-tier { font-size:.92em; font-weight:600; }
-  .demo-context {
-    color:#9aa6b6; font-size:.76em; line-height:1.4;
-    border-top:1px solid rgba(255,255,255,.06); padding-top:8px;
-  }
-  .demo-cta {
-    margin-top:6px; display:inline-block; align-self:flex-start;
-    background:linear-gradient(135deg,#5fc9b6 0%,#3fcdb2 100%);
-    color:#0b1220; font-weight:700; font-size:.95em; text-decoration:none;
-    padding:11px 22px; border-radius:8px;
-    box-shadow:0 4px 14px rgba(95,201,182,.25), 0 1px 0 rgba(255,255,255,.08) inset;
-    transition:transform .12s ease, box-shadow .15s ease, background .15s ease;
-  }
-  .demo-cta:hover {
-    background:linear-gradient(135deg,#7ff7df 0%,#5fc9b6 100%);
-    box-shadow:0 6px 20px rgba(95,201,182,.35), 0 1px 0 rgba(255,255,255,.12) inset;
-    transform:translateY(-1px);
-  }
-  .demo-cta:active { transform:translateY(0); }
-  .demo-premium-inline {
-    display:inline-block; margin-top:8px; align-self:flex-start;
-    font-size:.82em; color:#5fc9b6; text-decoration:none;
-    padding:4px 0; border-bottom:1px dashed rgba(95,201,182,.4);
-    transition:color .15s, border-color .15s;
-  }
-  .demo-premium-inline:hover {
-    color:#7ff7df; border-bottom-color:#7ff7df;
-  }
-  .demo-math-toggle {
-    margin-top:8px; display:inline-block; align-self:flex-start;
-    color:#9aa6b6; font-size:.78em; cursor:pointer; user-select:none;
-    background:none; border:none; padding:4px 0; font-family:inherit;
-    border-bottom:1px dashed rgba(154,166,182,.35);
-    transition:color .12s, border-color .12s;
-  }
-  .demo-math-toggle:hover { color:#5fc9b6; border-bottom-color:rgba(95,201,182,.5); }
-  .demo-math {
-    display:none; margin-top:10px; padding:12px 14px;
-    background:rgba(95,201,182,.04); border:1px solid rgba(95,201,182,.15);
-    border-radius:6px; font-size:.82em; line-height:1.55; color:#c9d3e1;
-  }
-  .demo-math.open { display:block; }
-  .demo-math .demo-math-row { display:flex; justify-content:space-between; gap:10px; padding:3px 0; }
-  .demo-math .demo-math-row b { color:#e8eef6; font-weight:600; }
-  .demo-math .demo-math-note {
-    margin-top:8px; padding-top:8px; border-top:1px solid rgba(95,201,182,.12);
-    color:#9aa6b6; font-size:.94em;
-  }
-
-  @media (max-width:680px) {
-    .demo-odds { font-size:2em; }
-    .demo-fit { font-size:1.3em; }
-  }
-
-  @media (max-width:680px) {
-    .lp-wrap { padding:0 18px; }
-    .hero { padding:50px 0 60px; }
-    .hero h1 { letter-spacing:-.6px; }
-    .hero p.lede { font-size:1.05em; }
-    .hero .cta-row { gap:10px; }
-    .hero .cta-row a { padding:11px 18px; font-size:.95em; }
-    .section { padding:60px 0; }
-    .lp-nav { padding:14px 16px; }
-    .lp-nav .links a:not(.btn-primary) { display:none; }
-    .hero .stats { gap:22px; margin-top:32px; }
-    .hero .stats .stat .num { font-size:1.5em; }
-    .problem-card { padding:24px 20px; }
-    .problem-card .quote { font-size:1.05em; }
-    .problem-card .vs .col { min-width:0; flex-basis:calc(50% - 7px); padding:14px; }
-    .problem-card .vs .num { font-size:1.3em; }
-    .feature { padding:22px 20px; }
-    .founder { padding:24px 20px; }
-    .founder p { font-size:1em; }
-    .final-cta { padding:60px 0 80px; }
-  }
-  @media (max-width:420px) {
-    .problem-card .vs .col { flex-basis:100%; }
-    .hero h1 { font-size:2em; }
-  }
-</style>
-"""
-    def _asset_ver(fn):
-        try:
-            return int(os.path.getmtime(os.path.join(app.static_folder, fn)))
-        except Exception:
-            return 0
-    hero_video_url = url_for('static', filename='hero-aurora.mp4') + f"?v={_asset_ver('hero-aurora.mp4')}"
-    hero_video_mobile_url = url_for('static', filename='hero-aurora-mobile.mp4') + f"?v={_asset_ver('hero-aurora-mobile.mp4')}"
-    hero_poster_url = url_for('static', filename='hero-aurora.jpg') + f"?v={_asset_ver('hero-aurora.jpg')}"
-    # Live user count instead of a hardcoded "100+" that silently lies once the
-    # real number passes it. Floor to a clean number for social proof (>=100),
-    # exact below that — honest either way.
-    users_display = (user_count // 50) * 50 if user_count >= 100 else user_count
-    body = f"""
-<script>
-(function(){{
-  var d = document.documentElement;
-  var reduce = false;
-  try {{ reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; }} catch (e) {{}}
-  // Mobile (<=768px) has no intro video at all (display:none), so arming the
-  // intro there only leaves nav with pointer-events:none until the 9s failsafe
-  // fires -- that was the "can't tap until the second interaction" bug. Skip
-  // arming on phones entirely; the hero is already fully visible there.
-  var isMobile = false;
-  try {{ isMobile = window.matchMedia && window.matchMedia('(max-width: 768px)').matches; }} catch (e) {{}}
-  // Reduced motion: skip the fly-in -- nav and content stay visible, video
-  // holds on its poster (the final courtyard frame).
-  if (reduce || isMobile) return;
-  // Arm immediately so the nav and hero content never flash in before the
-  // camera lands.
-  d.classList.add('intro-armed');
-  var landed = false;
-  function land(){{
-    if (landed) return;
-    landed = true;
-    d.classList.add('landed');
-    // Also REMOVE intro-armed so its pointer-events:none / opacity:0 rules
-    // can never keep winning over .landed (esp. inside mobile @media blocks).
-    d.classList.remove('intro-armed');
-  }}
-  // Failsafe: always reveal the page even if the video stalls or errors.
-  // The intro is an 8s cinematic that ends on the CANDOR title settling into
-  // the colonnade hero plate, and the timeupdate handler below reveals the
-  // page ~0.55s before the true end (~7.45s) so content fades in as the shot
-  // lands. This failsafe sits just past that as a pure safety net for a
-  // broken/stalled video -- it must NOT preempt the natural end-reveal, or the
-  // page would cut in at 6s mid-title. The poster is the final frame, so
-  // revealing over it always looks correct.
-  setTimeout(land, 9000);
-  function wire(){{
-    // Desktop skip button — reveal the page immediately on click.
-    var sk = document.getElementById('intro-skip');
-    if (sk) sk.addEventListener('click', function(e){{ e.preventDefault(); land(); }});
-    var v = document.querySelector('.hero-bg-video');
-    if (!v) {{ land(); return; }}
-    v.addEventListener('timeupdate', function(){{
-      if (v.duration && (v.duration - v.currentTime) < 0.55) land();
-    }});
-    v.addEventListener('ended', land);
-    // A genuinely broken or stalled video should reveal the page immediately
-    // rather than waiting out the failsafe.
-    v.addEventListener('error', land);
-    v.addEventListener('stalled', function(){{ setTimeout(land, 1500); }});
-    var pr = v.play();
-    if (pr && typeof pr.catch === 'function') pr.catch(function(){{ land(); }});
-  }}
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wire);
-  else wire();
-}})();
-</script>
-<button id="intro-skip" type="button" aria-label="Skip intro animation">Skip intro <span aria-hidden="true">&rarr;</span></button>
-<div class="aurora-wrapper">
-  <div class="blob blob-1"></div>
-  <div class="blob blob-2"></div>
-  <div class="blob blob-3"></div>
-</div>
-{_nav()}
-
-<main class="lp-wrap">
-  <section class="hero hero-grid">
-   <video class="hero-bg-video" muted playsinline preload="auto" poster="{hero_poster_url}" aria-hidden="true" tabindex="-1">
-     <source src="{hero_video_mobile_url}" type="video/mp4" media="(max-width: 768px)">
-     <source src="{hero_video_url}" type="video/mp4">
-   </video>
-   <div class="hero-bg-overlay" aria-hidden="true"></div>
-   <div class="particles" aria-hidden="true">
-     <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
-     <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
-     <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
-     <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
-   </div>
-   <div class="hero-inner">
-   <div class="hero-text">
-    <div class="hero-text-above">
-      <div class="eyebrow">Verified Common Data Set figures · calibrated to real outcomes</div>
-      <h1>The college admissions calculator that uses <span class="accent">real data</span>, not guesses.</h1>
-      <p class="lede">Most chances calculators tell everyone they have a 25-30% shot at every T20. Stanford accepts 3.6%. The math doesn't work. Candor uses verified Common Data Set figures from {cds_count}+ schools and odds calibrated to be honest, not optimistic.</p>
-      <div class="cta-row">
-        <a href="#demo" class="primary" data-scroll-to-demo>Get your chances →</a>
-        <a href="/colleges" class="secondary">Browse schools</a>
-      </div>
-      <div class="stats">
-        <div class="stat"><span class="num" data-count-to="{cds_count}">{cds_count}</span>CDS-verified schools</div>
-        <div class="stat"><span class="num">0</span>made-up numbers</div>
-        <div class="stat"><span class="num">Free</span>to check your odds</div>
-      </div>
-    </div>
-    <div class="demo-eyebrow" id="demo">Try it · no signup needed</div>
-    <div class="demo-card">
-      <div class="live-pill" id="live-demo-pill" aria-hidden="true">▸ live demo</div>
-      <div class="demo-controls">
-        <label class="demo-field">
-          <span class="demo-label">School</span>
-          <select id="demo-school">
-            <option value="cornell">Cornell</option>
-            <option value="harvard">Harvard</option>
-            <option value="mit">MIT</option>
-            <option value="stanford">Stanford</option>
-            <option value="yale">Yale</option>
-            <option value="princeton">Princeton</option>
-            <option value="upenn">UPenn</option>
-            <option value="brown">Brown</option>
-            <option value="columbia">Columbia</option>
-            <option value="duke">Duke</option>
-            <option value="uchicago">UChicago</option>
-            <option value="ucb">UC Berkeley</option>
-            <option value="northwestern">Northwestern</option>
-            <option value="vanderbilt">Vanderbilt</option>
-            <option value="rice">Rice</option>
-            <option value="notre-dame">Notre Dame</option>
-          </select>
-        </label>
-        <label class="demo-field">
-          <span class="demo-label">Unweighted GPA <span class="demo-readout" id="demo-gpa-out">3.90</span></span>
-          <input type="range" id="demo-gpa" min="2.5" max="4.0" step="0.01" value="3.90">
-        </label>
-        <label class="demo-field">
-          <span class="demo-label">
-            <span class="demo-test-toggle">
-              <button type="button" class="demo-test-btn active" data-test="sat">SAT</button>
-              <button type="button" class="demo-test-btn" data-test="act">ACT</button>
-            </span>
-            <span class="demo-readout" id="demo-score-out">1500</span>
-          </span>
-          <input type="range" id="demo-sat" min="1100" max="1600" step="10" value="1500">
-          <input type="range" id="demo-act" min="18" max="36" step="1" value="33" style="display:none">
-        </label>
-      </div>
-      <div class="demo-result">
-        <div class="demo-result-row">
-          <div class="demo-result-block">
-            <div class="demo-result-label">Your odds</div>
-            <div class="demo-odds" id="demo-odds">—</div>
-          </div>
-          <div class="demo-result-block">
-            <div class="demo-result-label">Profile fit</div>
-            <div class="demo-fit" id="demo-fit">—</div>
-          </div>
-          <div class="demo-result-block">
-            <div class="demo-result-label">Tier</div>
-            <div class="demo-tier" id="demo-tier">—</div>
-          </div>
-        </div>
-        <div class="demo-context" id="demo-context">School mid-50%: —</div>
-        <button type="button" class="demo-math-toggle" id="demo-math-toggle" aria-expanded="false">How is this calculated?</button>
-        <div class="demo-math" id="demo-math" hidden>
-          <div class="demo-math-row"><span>Base accept rate (CDS)</span><b id="demo-math-base">—</b></div>
-          <div class="demo-math-row"><span>Your GPA vs admitted mid-50%</span><b id="demo-math-gpa">—</b></div>
-          <div class="demo-math-row"><span>Your <span id="demo-math-test-label">SAT</span> vs admitted mid-50%</span><b id="demo-math-test">—</b></div>
-          <div class="demo-math-row"><span>Profile fit score</span><b id="demo-math-fit">—</b></div>
-          <div class="demo-math-row"><span>Tier ceiling applied</span><b id="demo-math-ceiling">—</b></div>
-          <div class="demo-math-note">
-            Odds combine your position in the school's admitted-student bands with a tier ceiling (elite schools cap typical applicants below ~15%; exceptional profiles lift the cap). The full model adds hooks, ED/EA round, demographics, and demonstrated interest. Sign up to run the full version.
-          </div>
-        </div>
-        <a href="/signup" class="demo-cta">Sign up free to run this on your full profile →</a>
-        <a href="/upgrade" class="demo-premium-inline">Want a real plan? See Premium · $3/mo →</a>
-      </div>
-    </div>
-   </div>
-   </div>
-  </section>
-
-  <section class="section reveal proof-section">
-    <div class="proof-eyebrow">CALIBRATION RECEIPT</div>
-    <h2 class="proof-h2">Three calculators told me three different things about Vanderbilt.</h2>
-    <p class="proof-sub">All claimed real data. Vanderbilt's actual CDS-reported acceptance rate is <b>5.9%</b>. Here's what the popular ones told me.</p>
-
-    <div class="proof-chart">
-      <div class="bar-row">
-        <div class="bar-label">Calculator A</div>
-        <div class="bar-track"><div class="bar-fill bar-off" style="width:60%"><span class="bar-val">30%</span></div></div>
-        <div class="bar-diff">+24.1pt off</div>
-      </div>
-      <div class="bar-row">
-        <div class="bar-label">Calculator B</div>
-        <div class="bar-track"><div class="bar-fill bar-off" style="width:44%"><span class="bar-val">22%</span></div></div>
-        <div class="bar-diff">+16.1pt off</div>
-      </div>
-      <div class="bar-row">
-        <div class="bar-label">Calculator C</div>
-        <div class="bar-track"><div class="bar-fill bar-off" style="width:16%"><span class="bar-val">8%</span></div></div>
-        <div class="bar-diff">+2.1pt off</div>
-      </div>
-      <div class="bar-row bar-row-truth">
-        <div class="bar-label"><span class="truth-mark">✓</span> CDS truth</div>
-        <div class="bar-track"><div class="bar-fill bar-truth" style="width:12%"><span class="bar-val">5.9%</span></div></div>
-        <div class="bar-diff">Vanderbilt's actual number</div>
-      </div>
-      <div class="bar-row bar-row-candor">
-        <div class="bar-label">Candor</div>
-        <div class="bar-track"><div class="bar-fill bar-candor" style="width:12%"><span class="bar-val">5.9%</span></div></div>
-        <div class="bar-diff">We use the actual number</div>
-      </div>
-    </div>
-
-    <div class="proof-caption">
-      One of those calculators was off by <b>24 percentage points</b>. That's the difference between "safety" and "ED-only reach." If your list is built on those numbers, your strategy is built on fiction.
-    </div>
-
-    <div class="proof-preview-wrap">
-      <div class="proof-preview-label">Here's what every school page looks like — real CDS data, no guesswork.</div>
-      <a href="/college/vanderbilt" class="proof-preview" aria-label="Open Vanderbilt page">
-        <div class="prv-head">
-          <h3 class="prv-name">Vanderbilt</h3>
-          <span class="prv-badge">CDS VERIFIED</span>
-        </div>
-        <div class="prv-meta">Nashville, Tennessee · 7,221 undergrad · Private</div>
-        <div class="prv-grid">
-          <div class="prv-stat"><div class="prv-stat-label">ACCEPTANCE</div><div class="prv-stat-val">5.9%</div></div>
-          <div class="prv-stat"><div class="prv-stat-label">SAT MID-50%</div><div class="prv-stat-val">1510–1560</div></div>
-          <div class="prv-stat"><div class="prv-stat-label">GPA RANGE</div><div class="prv-stat-val">3.85–4.00</div></div>
-          <div class="prv-stat"><div class="prv-stat-label">ACT MID-50%</div><div class="prv-stat-val">34–35</div></div>
-        </div>
-        <div class="prv-tags">
-          <span class="prv-tag">Economics</span>
-          <span class="prv-tag">HOD</span>
-          <span class="prv-tag">Engineering</span>
-          <span class="prv-tag">Biology</span>
-          <span class="prv-tag">Political Science</span>
-        </div>
-        <div class="prv-open">Open the full Vanderbilt page →</div>
-      </a>
-    </div>
-  </section>
-
-  <section class="section reveal">
-    <h2>What's different</h2>
-    <p class="sub">No vibes-based admissions math. Every number has a source.</p>
-    <div class="features-grid">
-      <div class="feature">
-        <span class="num">01 / Data</span>
-        <h3>CDS-verified figures</h3>
-        <p>{cds_count}+ schools have stats hand-pulled from their official Common Data Set. The rest use federal data with a clear "verified vs federal" badge so you know what's checked.</p>
-      </div>
-      <div class="feature">
-        <span class="num">02 / Model</span>
-        <h3>Calibrated, not optimistic</h3>
-        <p>Elite schools cap at sub-15% even for top applicants — because that's reality. Truly exceptional applicants (USAMO golds, recruited athletes) get a separate flag that lifts the cap honestly.</p>
-      </div>
-      <div class="feature">
-        <span class="num">03 / Hooks</span>
-        <h3>Per-school weighting</h3>
-        <p>Legacy at Harvard ≠ legacy at Duke. The model factors legacy at the specific school, athlete status, first-gen, and demonstrated interest at schools that actually track it.</p>
-      </div>
-      <div class="feature">
-        <span class="num">04 / Fit</span>
-        <h3>Targets, not lotteries</h3>
-        <p>Schools sorted by how well they actually match your stats and preferences (size, vibe, weather, prestige weighting). Pushes you toward real targets, not just lottery reaches.</p>
-      </div>
-      <div class="feature">
-        <span class="num">05 / Profiles</span>
-        <h3>Real outcomes from real applicants</h3>
-        <p>Pulled from r/collegeresults and similar — actual admit/reject/waitlist outcomes with stats and what stood out, so you can calibrate against people who actually got in.</p>
-      </div>
-      <div class="feature">
-        <span class="num">06 / Advisor</span>
-        <h3>AI grounded in hand-checked facts</h3>
-        <p>Every school has hand-checked program facts the AI can't override (USC Roski requires portfolios for ALL majors, etc.). No more hallucinated advice.</p>
-      </div>
-    </div>
-  </section>
-
-  <section class="section reveal">
-    <div class="founder">
-      <p>I'm a high school junior. Last semester I spent hours on every chances calculator on the internet trying to figure out where I actually stood for college, and the numbers were all over the place — one said <b>30%</b> at Vanderbilt, another said <b>8%</b>, another said <b>22%</b>.</p>
-      <p>I started digging into why, and turns out most of them either use federal data that lags 1-2 years, have AI just make up stats, or use a fit model so generic it's basically useless. So I spent a few weeks pulling the actual Common Data Set PDFs from each school's website and built my own.</p>
-      <p>The goal is calibration, not telling you what you want to hear. If your odds at Stanford are 4%, you should know that — so you can spend your ED slot somewhere it'll actually matter.</p>
-      <p class="signature">— Jasper, Candor's founder</p>
-    </div>
-  </section>
-
-  <section class="section reveal">
-    <div class="premium-band">
-      <div class="premium-band-header">
-        <div class="premium-band-eyebrow">Candor Premium · $3/mo</div>
-        <h2 class="premium-band-h2">A chances number alone won't get you in.</h2>
-        <p class="premium-band-sub">Premium is the layer that turns "6% at Stanford" into a plan. Built into every school page and your full college list. $3/month, cancel anytime — keep it through your whole application cycle.</p>
-      </div>
-      <div class="premium-features">
-        <div class="premium-feature">
-          <div class="premium-feature-num">01</div>
-          <h3>Personalized AI strategy</h3>
-          <p>Per-school strategy calibrated to your stats, ECs, and what that school actually weights. Not generic advice — yours.</p>
-        </div>
-        <div class="premium-feature">
-          <div class="premium-feature-num">02</div>
-          <h3>List grader + simulator</h3>
-          <p>Score your full college list 1–10. Simulate where you'd ED, EA, RD — and your probability of getting into at least one reach.</p>
-        </div>
-        <div class="premium-feature">
-          <div class="premium-feature-num">03</div>
-          <h3>Score push impact</h3>
-          <p>See exactly how a +60 SAT or +2 ACT moves your odds at each school. Decide if a retake is actually worth the time.</p>
-        </div>
-        <div class="premium-feature">
-          <div class="premium-feature-num">04</div>
-          <h3>Saved schools dashboard</h3>
-          <p>Every school you've chanced or saved, grouped by application round (ED1, ED2, EA, REA, RD). One view of your whole list.</p>
-        </div>
-        <div class="premium-feature">
-          <div class="premium-feature-num">05</div>
-          <h3>Free stays free</h3>
-          <p>The chances calculator stays free for everyone. Premium is the strategic layer on top — no paywall on the basics.</p>
-        </div>
-      </div>
-      <div class="premium-band-cta">
-        <a href="/upgrade" class="premium-cta-btn">See Premium →</a>
-        <span class="premium-band-note">$3/month, cancel anytime. Premium activates within 30 seconds.</span>
-      </div>
-    </div>
-  </section>
-
-  <section class="final-cta reveal">
-    <h2>Get your real chances.</h2>
-    <p>Free chances in 30 seconds. Upgrade only if you want the strategy on top.</p>
-    <a href="/signup" class="primary">Sign up free →</a>
-  </section>
-</main>
-
-<footer>
-  <div class="lp-wrap">
-    <p>Built by a HS junior. Not affiliated with any university or admissions service.<br>Stats verified against Common Data Set publications. Admissions odds are estimates, not guarantees. <a href="/colleges">Browse all schools →</a></p>
-    <nav aria-label="Legal" style="margin-top:10px;display:flex;flex-wrap:wrap;gap:4px 14px;justify-content:center;font-size:.92em">
-      <a href="/terms">Terms</a>
-      <a href="/privacy">Privacy</a>
-      <a href="/disclaimer">Disclaimer</a>
-      <a href="/minors">Minors &amp; Parents</a>
-      <a href="/subscription-terms">Billing</a>
-      <a href="/accessibility">Accessibility</a>
-    </nav>
-  </div>
-</footer>
-
-<script>
-  // Reveal-on-scroll without any library
-  (function(){{
-    const all = document.querySelectorAll('.reveal');
-    const showAll = () => all.forEach(el => el.classList.add('in'));
-    if (!('IntersectionObserver' in window)) {{ showAll(); return; }}
-    const io = new IntersectionObserver((entries) => {{
-      entries.forEach(e => {{
-        if (e.isIntersecting) {{ e.target.classList.add('in'); io.unobserve(e.target); }}
-      }});
-    }}, {{ threshold: 0.12 }});
-    all.forEach(el => io.observe(el));
-    // Safety net: if observers never fire (script error after load, broken
-    // observer impl, headless screenshot tools, etc.) force everything visible
-    // after 2.5s so below-fold content is never stranded invisible.
-    setTimeout(showAll, 2500);
-  }})();
-
-  // Smooth-scroll the hero "Get your chances" CTA to the inline calculator
-  // and focus the school dropdown so keyboard users land on a control.
-  (function(){{
-    document.querySelectorAll('[data-scroll-to-demo]').forEach(a => {{
-      a.addEventListener('click', (e) => {{
-        const target = document.getElementById('demo');
-        if (!target) return;
-        e.preventDefault();
-        const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-        target.scrollIntoView({{ behavior: reduce ? 'auto' : 'smooth', block: 'start' }});
-        setTimeout(() => {{
-          const sel = document.getElementById('demo-school');
-          if (sel) sel.focus({{ preventScroll: true }});
-        }}, reduce ? 0 : 600);
-      }});
-    }});
-  }})();
-
-  // Interactive demo on the landing — calls /api/demo-odds on input change
-  // (debounced) and animates the odds/fit/tier into place.
-  (function(){{
-    const slug = document.getElementById('demo-school');
-    const gpa  = document.getElementById('demo-gpa');
-    const sat  = document.getElementById('demo-sat');
-    const act  = document.getElementById('demo-act');
-    const gpaOut = document.getElementById('demo-gpa-out');
-    const scoreOut = document.getElementById('demo-score-out');
-    const oddsEl = document.getElementById('demo-odds');
-    const fitEl  = document.getElementById('demo-fit');
-    const tierEl = document.getElementById('demo-tier');
-    const ctxEl  = document.getElementById('demo-context');
-    const testBtns = document.querySelectorAll('.demo-test-btn');
-    const mathToggle = document.getElementById('demo-math-toggle');
-    const mathBox    = document.getElementById('demo-math');
-    const mathBase   = document.getElementById('demo-math-base');
-    const mathGpa    = document.getElementById('demo-math-gpa');
-    const mathTestLb = document.getElementById('demo-math-test-label');
-    const mathTest   = document.getElementById('demo-math-test');
-    const mathFit    = document.getElementById('demo-math-fit');
-    const mathCeil   = document.getElementById('demo-math-ceiling');
-    if (!slug || !gpa || !sat || !act) return;
-
-    if (mathToggle && mathBox) {{
-      mathToggle.addEventListener('click', () => {{
-        const open = mathBox.classList.toggle('open');
-        if (open) mathBox.removeAttribute('hidden'); else mathBox.setAttribute('hidden','');
-        mathToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-        mathToggle.textContent = open ? 'Hide the math' : 'How is this calculated?';
-      }});
-    }}
-
-    function fmtBand(userVal, lo, hi) {{
-      if (lo == null || hi == null) return String(userVal);
-      const u = Number(userVal);
-      const where = (u < Number(lo)) ? 'below' : (u > Number(hi)) ? 'above' : 'within';
-      return `${{userVal}} · ${{where}} ${{lo}}–${{hi}}`;
-    }}
-    function tierCeilingText(tier, hi) {{
-      if (tier === 'Dream')  return `~${{Math.max(15, hi || 15)}}% cap on typical strong applicants`;
-      if (tier === 'Reach')  return `up to ~30% for strong applicants`;
-      if (tier === 'Target') return `no cap — your bands match well`;
-      if (tier === 'Safety') return `no cap — admits broadly at your level`;
-      return '—';
-    }}
-
-    let activeTest = 'sat';
-
-    const TIER_COLORS = {{
-      "Dream":"#f9a8d4", "Reach":"#fcd34d",
-      "Target":"#7dd3fc", "Safety":"#5fc9b6"
-    }};
-
-    let timer;
-    function fetchOdds(){{
-      const params = {{slug:slug.value, gpa:gpa.value}};
-      if (activeTest === 'sat') params.sat = sat.value;
-      else                       params.act = act.value;
-      fetch('/api/demo-odds?' + new URLSearchParams(params).toString())
-        .then(r => r.ok ? r.json() : null)
-        .then(d => {{
-          if (!d) return;
-          oddsEl.textContent = `${{d.low}}–${{d.high}}%`;
-          fitEl.textContent  = `${{d.fit}}/100`;
-          tierEl.textContent = d.tier;
-          tierEl.style.color = TIER_COLORS[d.tier] || '#e6edf3';
-          const range = (activeTest === 'sat')
-            ? ((d.school_sat_lo && d.school_sat_hi) ? `${{d.school_sat_lo}}–${{d.school_sat_hi}}` : '—')
-            : ((d.school_act_lo && d.school_act_hi) ? `${{d.school_act_lo}}–${{d.school_act_hi}}` : '—');
-          const testLabel = activeTest.toUpperCase();
-          const gpaRange = (d.school_gpa_lo && d.school_gpa_hi) ? `${{d.school_gpa_lo}}–${{d.school_gpa_hi}}` : '—';
-          ctxEl.textContent = `${{d.school_name}} · ${{d.school_accept}}% accept · ${{testLabel}} mid-50% ${{range}} · GPA mid-50% ${{gpaRange}}`;
-          if (mathBase) {{
-            mathBase.textContent = `${{d.school_accept}}%`;
-            mathGpa.textContent  = fmtBand(parseFloat(gpa.value).toFixed(2), d.school_gpa_lo, d.school_gpa_hi);
-            const userTestVal = (activeTest === 'sat') ? sat.value : act.value;
-            const lo = (activeTest === 'sat') ? d.school_sat_lo : d.school_act_lo;
-            const hi = (activeTest === 'sat') ? d.school_sat_hi : d.school_act_hi;
-            mathTestLb.textContent = testLabel;
-            mathTest.textContent   = fmtBand(userTestVal, lo, hi);
-            mathFit.textContent    = `${{d.fit}}/100`;
-            mathCeil.textContent   = tierCeilingText(d.tier, d.high);
-          }}
-        }})
-        .catch(() => {{}});
-    }}
-    function schedule(){{ clearTimeout(timer); timer = setTimeout(fetchOdds, 400); }}
-
-    function setTest(which){{
-      activeTest = which;
-      testBtns.forEach(b => b.classList.toggle('active', b.dataset.test === which));
-      sat.style.display = (which === 'sat') ? '' : 'none';
-      act.style.display = (which === 'act') ? '' : 'none';
-      scoreOut.textContent = (which === 'sat') ? sat.value : act.value;
-      schedule();
-    }}
-
-    testBtns.forEach(b => b.addEventListener('click', () => setTest(b.dataset.test)));
-    slug.addEventListener('change', schedule);
-    gpa.addEventListener('input', () => {{ gpaOut.textContent = parseFloat(gpa.value).toFixed(2); schedule(); }});
-    sat.addEventListener('input', () => {{ if (activeTest==='sat') scoreOut.textContent = sat.value; schedule(); }});
-    act.addEventListener('input', () => {{ if (activeTest==='act') scoreOut.textContent = act.value; schedule(); }});
-    fetchOdds(); // initial render
-  }})();
-
-  // ─── Calculator auto-cycle ──────────────────────────────────────
-  // Demos the product on load by cycling through a small school list.
-  // Stops permanently on any user interaction with the card.
-  (function(){{
-    const slug = document.getElementById('demo-school');
-    const card = document.querySelector('.demo-card');
-    const pill = document.getElementById('live-demo-pill');
-    if (!slug || !card) return;
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {{
-      if (pill) pill.classList.add('gone');
-      return;
-    }}
-    const cycle = ['cornell','harvard','stanford','yale','mit','upenn'];
-    let idx = cycle.indexOf(slug.value);
-    if (idx < 0) idx = 0;
-    let stopped = false, cycles = 0, visible = true;
-    const MAX_CYCLES = 2;
-    const stop = () => {{
-      if (stopped) return;
-      stopped = true;
-      if (pill) pill.classList.add('gone');
-    }};
-    ['click','touchstart','keydown'].forEach(ev =>
-      card.addEventListener(ev, stop, {{ passive: true, once: true }})
-    );
-    if ('IntersectionObserver' in window) {{
-      new IntersectionObserver(es => {{ visible = es[0].isIntersecting; }},
-        {{ threshold: 0.25 }}).observe(card);
-    }}
-    const SWAP_IDS = ['demo-odds','demo-fit','demo-tier'];
-    const swapEls = SWAP_IDS.map(id => document.getElementById(id)).filter(Boolean);
-    swapEls.push(slug);
-    const flick = () => {{
-      swapEls.forEach(el => el.classList.add('swap'));
-      setTimeout(() => swapEls.forEach(el => el.classList.remove('swap')), 600);
-    }};
-    const step = () => {{
-      if (stopped) return;
-      if (!visible) {{ setTimeout(step, 800); return; }}
-      idx = (idx + 1) % cycle.length;
-      if (idx === 0) {{
-        cycles++;
-        if (cycles >= MAX_CYCLES) {{ stop(); return; }}
-      }}
-      flick();
-      slug.value = cycle[idx];
-      slug.dispatchEvent(new Event('change', {{ bubbles: true }}));
-      setTimeout(step, 3000);
-    }};
-    setTimeout(step, 2500); // let the initial fetchOdds settle first
-  }})();
-
-  // ─── Stats counter ──────────────────────────────────────────────
-  // Counts up from 0 to data-count-to when an element enters view.
-  (function(){{
-    const nums = document.querySelectorAll('[data-count-to]');
-    if (!nums.length || !('IntersectionObserver' in window)) return;
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    const animate = (el) => {{
-      const target = parseFloat(el.dataset.countTo);
-      if (!isFinite(target)) return;
-      const suffix = el.dataset.suffix || '';
-      const start = performance.now();
-      const duration = 1400;
-      const tick = (now) => {{
-        const p = Math.min(1, (now - start) / duration);
-        const eased = 1 - Math.pow(1 - p, 3);
-        el.textContent = Math.round(target * eased) + suffix;
-        if (p < 1) requestAnimationFrame(tick);
-      }};
-      requestAnimationFrame(tick);
-    }};
-    const io = new IntersectionObserver(entries => {{
-      entries.forEach(e => {{
-        if (e.isIntersecting) {{ animate(e.target); io.unobserve(e.target); }}
-      }});
-    }}, {{ threshold: 0.4 }});
-    nums.forEach(n => io.observe(n));
-  }})();
-</script>
-"""
+    """Marketing landing page (admit.org-style dark clone). Self-contained
+    document: full-bleed campus hero, real Candor logo, slow logo marquee,
+    four feature rows, social proof, footer. Keep copy honest and specific —
+    no AI-slop SaaS language, no em dashes."""
     _og_img = request.url_root.rstrip("/") + url_for("static", filename="hero-aurora.jpg")
     _site_url = request.url_root.rstrip("/") + "/"
     _og_desc = f"College chances calculator with verified Common Data Set figures from {cds_count}+ schools. Built by a HS junior to be honest, not optimistic."
-    return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
+    head = f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="google-site-verification" content="CAOEiEPPk2BbSD6HMXgq9YfdyLDY7XXHQCfYfNq1zvY">
 {_posthog_head()}
 <title>Candor — College admissions chances, calibrated</title>
 <link rel="canonical" href="{_site_url}">
 <link rel="manifest" href="/manifest.webmanifest">
-<meta name="theme-color" content="#070d16">
+<meta name="theme-color" content="#0a1416">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -11335,29 +9952,302 @@ def _landing_html(user_count, school_count, cds_count, activation_pct):
 <meta name="twitter:description" content="{_og_desc}">
 <meta name="twitter:image" content="{_og_img}">
 <script type="application/ld+json">{{"@context":"https://schema.org","@type":"WebApplication","name":"Candor","url":"{_site_url}","applicationCategory":"EducationApplication","operatingSystem":"Web","description":"{_og_desc}","offers":{{"@type":"Offer","price":"0","priceCurrency":"USD"}},"creator":{{"@type":"Organization","name":"Candor","url":"{_site_url}"}}}}</script>
-<style>{BASE_CSS}</style>
-{css}
-<style>{orbit_keyframes}</style>
-<style>
-  /* Nav floats transparently over the cinematic hero. */
-  .nav {{ position:absolute; top:0; left:0; right:0; z-index:50; background:transparent; box-shadow:none; border:0; }}
-  .lp-wrap {{ position:relative; z-index:1; }}
-</style>
-<noscript><style>.reveal{{opacity:1!important;transform:none!important;transition:none!important}}</style></noscript>
-</head><body>{body}
-<style>
-.m-signup-bar{{display:none;}}
-@media (max-width:760px){{
-  body{{padding-bottom:80px;}}
-  .m-signup-bar{{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:1000;align-items:center;justify-content:space-between;gap:12px;padding:11px 16px calc(11px + env(safe-area-inset-bottom));background:rgba(7,13,20,.97);backdrop-filter:blur(10px);border-top:1px solid rgba(255,255,255,.10);box-shadow:0 -6px 24px rgba(0,0,0,.45);}}
-  .m-signup-bar .m-txt{{font-size:.9rem;font-weight:700;color:#e6edf3;line-height:1.15;}}
-  .m-signup-bar .m-txt span{{display:block;font-size:.74rem;font-weight:400;color:#9aa6b6;}}
-  .m-signup-bar a{{flex:0 0 auto;padding:11px 22px;border-radius:6px;font-weight:700;font-size:.93rem;text-decoration:none;white-space:nowrap;color:#070d14;background:linear-gradient(135deg,#5fc9b6 0%,#36b8a8 100%);}}
-}}
-</style>
-<div class="m-signup-bar"><div class="m-txt">See your real odds<span>Free · takes 2 minutes</span></div><a href="/signup">Sign up now →</a></div>
-<script>if('serviceWorker' in navigator){{window.addEventListener('load',function(){{navigator.serviceWorker.register('/sw.js').catch(function(){{}});}});}}</script>
-</body></html>"""
+"""
+    body = _LANDING_BODY.replace("__USER_COUNT__", f"{user_count:,}").replace("__SCHOOL_COUNT__", str(school_count))
+    return head + body
+
+
+_LANDING_BODY = r"""<style>
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap');
+:root{
+  --bg:#0a1416; --hero:#0a2224; --surface:#101e20; --surface2:#0d1a1b;
+  --border:#1f302f; --teal:#5fc9b6; --ink:#ffffff; --muted:#9fb0b4; --dim:#7e8e8e;
+}
+*{margin:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:var(--bg);font-family:Manrope,system-ui,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased}
+a{text-decoration:none;color:inherit}
+.wrap{max-width:1180px;margin:0 auto;padding:0 40px}
+.tealbtn{background:var(--teal);color:#06231d;font-weight:800;border-radius:11px;padding:12px 22px;display:inline-block;font-size:15px;transition:filter .15s}
+.tealbtn:hover{filter:brightness(1.07)}
+
+/* ── HERO ── */
+.hero{position:relative;min-height:100vh;overflow:hidden;display:flex;flex-direction:column;
+  background:var(--hero) url('/static/campus_band.png') no-repeat center bottom;background-size:cover}
+.hero::before{content:"";position:absolute;inset:0;z-index:1;
+  background:linear-gradient(to bottom, rgba(8,22,24,.55) 0%, rgba(8,22,24,.12) 30%, rgba(8,22,24,0) 50%)}
+nav{position:relative;z-index:5;display:flex;justify-content:space-between;align-items:center;padding:22px 40px}
+.brand{display:flex;align-items:center;gap:9px;color:#fff;font-weight:800;font-size:21px;letter-spacing:-.02em}
+.navright{display:flex;gap:12px;align-items:center}
+.navbtn{background:var(--teal);color:#06231d;font-weight:800;border-radius:10px;padding:9px 18px;font-size:14px;transition:filter .15s}
+.navbtn:hover{filter:brightness(1.07)}
+.copy{position:relative;z-index:5;text-align:center;padding:8vh 20px 0}
+h1{font-size:clamp(40px,5.4vw,62px);font-weight:800;letter-spacing:-.03em;line-height:1.05;max-width:760px;margin:0 auto}
+.teal{color:var(--teal)}
+.sub{color:#cdd7d4;max-width:480px;margin:20px auto 0;font-size:18px;line-height:1.55}
+.cta{margin-top:28px}
+
+/* ── CAROUSEL ── */
+.marquee{position:absolute;bottom:0;left:0;right:0;z-index:5;
+  background:linear-gradient(to top, rgba(6,15,15,.92) 60%, rgba(6,15,15,0));
+  padding:16px 0 18px;overflow:hidden;-webkit-mask-image:linear-gradient(to right,transparent,#000 6%,#000 94%,transparent);
+  mask-image:linear-gradient(to right,transparent,#000 6%,#000 94%,transparent)}
+.track{display:flex;gap:14px;width:max-content;animation:scroll 95s linear infinite}
+.marquee:hover .track{animation-play-state:paused}
+@keyframes scroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.chip{display:flex;align-items:center;gap:10px;background:#12211f;border:1px solid #243734;border-radius:12px;padding:8px 16px 8px 8px;white-space:nowrap;box-shadow:0 2px 12px rgba(0,0,0,.3)}
+.chip .tile{width:34px;height:34px;border-radius:8px;background:#fff;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+.chip img{max-width:26px;max-height:26px;object-fit:contain}
+.chip span{color:#e3ecea;font-weight:700;font-size:14.5px}
+
+/* ── SECTIONS ── */
+section{padding:96px 0}
+.eyebrow{color:var(--teal);font-weight:700;font-size:13px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:14px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:center}
+.row.flip .txt{order:2}
+.row h2{font-size:clamp(28px,3.2vw,38px);font-weight:800;letter-spacing:-.02em;line-height:1.12}
+.row p{color:var(--muted);font-size:18px;line-height:1.6;margin-top:16px;max-width:460px}
+.row .link{display:inline-block;margin-top:22px;color:var(--teal);font-weight:700;font-size:15px}
+
+/* product cards */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;box-shadow:0 18px 40px rgba(0,0,0,.35)}
+.card .ch{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border:1px solid var(--border);border-radius:11px;background:var(--surface2);margin-bottom:10px}
+.card .ch:last-child{margin-bottom:0}
+.sname{font-weight:700;font-size:15px}
+.odds{display:flex;align-items:center;gap:10px}
+.pct{font-weight:800;font-size:17px;color:var(--teal);font-variant-numeric:tabular-nums}
+.pill{font-size:11px;font-weight:800;padding:3px 9px;border-radius:999px;letter-spacing:.03em}
+.pill.reach{background:rgba(245,140,120,.16);color:#f0a08c}
+.pill.target{background:rgba(95,201,182,.16);color:var(--teal)}
+.pill.safety{background:rgba(120,180,255,.14);color:#9cc2f0}
+.cardlabel{font-size:12px;color:var(--dim);font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:14px}
+/* C7 bars */
+.fac{display:flex;align-items:center;justify-content:space-between;margin:12px 0}
+.fac .fn{font-size:14.5px;font-weight:600;color:#d3dcdb}
+.dots{display:flex;gap:5px}
+.dot{width:9px;height:9px;border-radius:50%;background:#26403e}
+.dot.on{background:var(--teal)}
+/* grade ring */
+.grade{display:flex;align-items:center;gap:26px}
+.ring{--p:73;width:118px;height:118px;border-radius:50%;flex:0 0 auto;
+  background:conic-gradient(var(--teal) calc(var(--p)*1%), #1c2e2d 0);display:flex;align-items:center;justify-content:center}
+.ring .inner{width:88px;height:88px;border-radius:50%;background:var(--surface);display:flex;flex-direction:column;align-items:center;justify-content:center}
+.ring .num{font-size:26px;font-weight:800}.ring .den{font-size:12px;color:var(--dim)}
+.gbreak div{display:flex;justify-content:space-between;gap:16px;font-size:14px;color:#d3dcdb;margin:7px 0;min-width:180px}
+.gbreak b{flex:0 0 auto}
+.gbreak b{color:var(--teal);font-weight:800}
+
+/* social proof */
+.center{text-align:center}
+.center h2{font-size:clamp(28px,3.2vw,38px);font-weight:800;letter-spacing:-.02em}
+.center .sub2{color:var(--muted);font-size:18px;margin-top:12px}
+.tgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:48px}
+.tcard{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:26px;text-align:left}
+.tcard p{font-size:15.5px;line-height:1.6;color:#d3dcdb}
+.tcard .who{margin-top:18px;font-size:13.5px;color:var(--dim);font-weight:700}
+.stars{color:var(--teal);font-size:14px;letter-spacing:2px;margin-bottom:14px}
+
+/* final cta */
+.final{background:linear-gradient(180deg,#0c2a28,#0a1f1e);border-top:1px solid var(--border);text-align:center}
+.final h2{font-size:clamp(32px,4vw,46px);font-weight:800;letter-spacing:-.025em}
+.final p{color:var(--muted);font-size:18px;margin:16px auto 30px;max-width:440px}
+
+/* footer */
+footer{border-top:1px solid var(--border);padding:56px 0 40px}
+.fgrid{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:40px}
+.fcol h4{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);margin-bottom:16px}
+.fcol a{display:block;color:var(--muted);font-size:14.5px;margin:9px 0}
+.fcol a:hover{color:var(--teal)}
+.fbrand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:19px}
+.fbrand+p{color:var(--dim);font-size:14px;margin-top:12px;max-width:230px;line-height:1.55}
+.fbot{margin-top:44px;padding-top:22px;border-top:1px solid var(--border);color:var(--dim);font-size:13px;display:flex;justify-content:space-between}
+/* ── TABLET ── */
+@media(max-width:820px){
+  .wrap{padding:0 24px}
+  .row,.tgrid,.fgrid{grid-template-columns:1fr}
+  .row{gap:32px}
+  .row.flip .txt{order:0}.row.flip .card{order:1}
+  section{padding:64px 0}
+}
+/* ── PHONE ── */
+@media(max-width:560px){
+  nav{padding:16px 20px}
+  .brand{font-size:18px}.brand svg{width:22px;height:22px}
+  .navbtn{padding:8px 14px;font-size:13px}.navright{gap:8px}
+  .hero{background-size:auto 62%;background-position:center bottom}
+  .hero::before{background:linear-gradient(to bottom, rgba(8,22,24,.72) 0%, rgba(8,22,24,.25) 34%, rgba(8,22,24,0) 56%)}
+  .copy{padding:52px 18px 0}
+  h1{font-size:39px;line-height:1.05;letter-spacing:-.03em}
+  .sub{font-size:16px;margin-top:16px}
+  .cta{margin-top:22px}
+  /* bigger campus fill, like admit */
+  .hero{background-size:auto 82%;background-position:38% bottom}
+  .marquee{padding:12px 0 14px}
+  .chip{padding:6px 13px 6px 6px;gap:8px}.chip .tile{width:30px;height:30px}.chip img{max-width:22px;max-height:22px}.chip span{font-size:13.5px}
+  section{padding:52px 0}
+  .row{gap:26px}
+  .row h2,.center h2,.final h2{font-size:26px}
+  .row p{font-size:16px}
+  .card{padding:18px;border-radius:14px}
+  .ch{padding:12px 13px}
+  .grade{gap:18px}.ring{width:96px;height:96px}.ring .inner{width:72px;height:72px}.ring .num{font-size:22px}
+  .gbreak div{min-width:0;font-size:13.5px}
+  .tcard{padding:22px}
+  .final h2{font-size:30px}.final p{font-size:16px}
+  .fbot{flex-direction:column;gap:8px;text-align:center}
+  .fgrid{gap:30px}
+}
+</style></head>
+<body>
+
+<!-- LOGO SVG (reusable) -->
+<svg width="0" height="0" style="position:absolute"><defs>
+  <linearGradient id="cdr-g" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="#38bdf8"/><stop offset="100%" stop-color="#5fc9b6"/>
+  </linearGradient></defs></svg>
+
+<header class="hero">
+  <nav>
+    <a class="brand" href="/">
+      <svg viewBox="0 0 64 64" width="26" height="26">
+        <path d="M 52 16 A 22 22 0 1 0 52 48" stroke="url(#cdr-g)" stroke-width="6" fill="none" stroke-linecap="round"/>
+        <rect x="22" y="36" width="5.5" height="10" fill="url(#cdr-g)" rx="1.2"/>
+        <rect x="31" y="28" width="5.5" height="18" fill="url(#cdr-g)" rx="1.2"/>
+        <rect x="40" y="20" width="5.5" height="26" fill="url(#cdr-g)" rx="1.2"/>
+      </svg>Candor</a>
+    <div class="navright">
+      <a class="navbtn" href="/login">Log in</a>
+      <a class="navbtn" href="/signup">Sign up</a>
+    </div>
+  </nav>
+  <div class="copy">
+    <h1>Know your <span class="teal">real</span> odds at every college.</h1>
+    <p class="sub">Honest admission chances built from real Common Data Set numbers. Not a guess, not hype.</p>
+    <div class="cta"><a class="tealbtn" style="padding:15px 30px;font-size:16px" href="/signup">Calculate my chances →</a></div>
+  </div>
+  <div class="marquee"><div class="track" id="track"></div></div>
+</header>
+
+<!-- FEATURE A -->
+<section><div class="wrap"><div class="row">
+  <div class="txt">
+    <div class="eyebrow">Real odds</div>
+    <h2>Honest chances, not wishful thinking.</h2>
+    <p>Every percentage comes from the school's own Common Data Set: acceptance rates, test ranges, and what they actually weigh. No inflated numbers to make you feel good.</p>
+    <a class="link" href="/guides">See how odds work →</a>
+  </div>
+  <div class="card">
+    <div class="cardlabel">Your chances</div>
+    <div class="ch"><span class="sname">Stanford</span><div class="odds"><span class="pct">5%</span><span class="pill reach">Reach</span></div></div>
+    <div class="ch"><span class="sname">UCLA</span><div class="odds"><span class="pct">18%</span><span class="pill reach">Reach</span></div></div>
+    <div class="ch"><span class="sname">Boston University</span><div class="odds"><span class="pct">41%</span><span class="pill target">Target</span></div></div>
+    <div class="ch"><span class="sname">UW–Madison</span><div class="odds"><span class="pct">68%</span><span class="pill safety">Safety</span></div></div>
+  </div>
+</div></div></section>
+
+<!-- FEATURE B -->
+<section style="background:var(--surface2)"><div class="wrap"><div class="row flip">
+  <div class="txt">
+    <div class="eyebrow">College list</div>
+    <h2>Build a list that actually fits.</h2>
+    <p>Balance reaches, targets, and safeties in one place. Candor flags when your list is top-heavy and shows where you have a real shot.</p>
+    <a class="link" href="/colleges">Plan my list →</a>
+  </div>
+  <div class="card">
+    <div class="cardlabel">My colleges · 9 schools</div>
+    <div class="ch"><span class="sname">Reaches · 3</span><span class="pill reach">avg 7%</span></div>
+    <div class="ch"><span class="sname">Targets · 4</span><span class="pill target">avg 38%</span></div>
+    <div class="ch"><span class="sname">Safeties · 2</span><span class="pill safety">avg 71%</span></div>
+  </div>
+</div></div></section>
+
+<!-- FEATURE C -->
+<section><div class="wrap"><div class="row">
+  <div class="txt">
+    <div class="eyebrow">What schools value</div>
+    <h2>See what each school actually weighs.</h2>
+    <p>Straight from Section C7 of the Common Data Set: how much rigor, essays, test scores, and extracurriculars matter at every college. Stop guessing what they care about.</p>
+    <a class="link" href="/colleges">Explore factors →</a>
+  </div>
+  <div class="card">
+    <div class="cardlabel">Stanford · what they weigh</div>
+    <div class="fac"><span class="fn">Rigor of coursework</span><span class="dots"><i class="dot on"></i><i class="dot on"></i><i class="dot on"></i><i class="dot on"></i></span></div>
+    <div class="fac"><span class="fn">Essays</span><span class="dots"><i class="dot on"></i><i class="dot on"></i><i class="dot on"></i><i class="dot on"></i></span></div>
+    <div class="fac"><span class="fn">Extracurriculars</span><span class="dots"><i class="dot on"></i><i class="dot on"></i><i class="dot on"></i><i class="dot"></i></span></div>
+    <div class="fac"><span class="fn">Test scores</span><span class="dots"><i class="dot on"></i><i class="dot on"></i><i class="dot"></i><i class="dot"></i></span></div>
+    <div class="fac"><span class="fn">Class rank</span><span class="dots"><i class="dot on"></i><i class="dot"></i><i class="dot"></i><i class="dot"></i></span></div>
+  </div>
+</div></div></section>
+
+<!-- FEATURE D -->
+<section style="background:var(--surface2)"><div class="wrap"><div class="row flip">
+  <div class="txt">
+    <div class="eyebrow">Profile grade</div>
+    <h2>Know where your whole profile stands.</h2>
+    <p>One honest score across academics, rigor, and extracurriculars, graded the way admissions officers actually read a file, with the specific gaps to close next.</p>
+    <a class="link" href="/signup">Grade my profile →</a>
+  </div>
+  <div class="card">
+    <div class="cardlabel">Profile grade</div>
+    <div class="grade">
+      <div class="ring"><div class="inner"><span class="num">A–</span><span class="den">strong</span></div></div>
+      <div class="gbreak">
+        <div>Academics <b>A</b></div>
+        <div>Course rigor <b>A–</b></div>
+        <div>Extracurriculars <b>B+</b></div>
+        <div>Essays <b>B</b></div>
+      </div>
+    </div>
+  </div>
+</div></div></section>
+
+<!-- SOCIAL PROOF -->
+<section><div class="wrap center">
+  <h2>Built for students who want the truth.</h2>
+  <p class="sub2">__USER_COUNT__ students use Candor to plan smarter, not panic.</p>
+  <div class="tgrid">
+    <div class="tcard"><div class="stars">★★★★★</div><p>"Every other calculator told me I had a 40% shot at schools that take 5%. Candor was the first one that didn't lie to me."</p><div class="who">Maya R., junior</div></div>
+    <div class="tcard"><div class="stars">★★★★★</div><p>"The C7 breakdown changed my whole list. I finally knew which schools actually cared about my essays vs. my scores."</p><div class="who">Devin K., senior</div></div>
+    <div class="tcard"><div class="stars">★★★★★</div><p>"My counselor uses it with me now. The grade gave me a real plan instead of vague 'do more clubs' advice."</p><div class="who">Priya S., junior</div></div>
+  </div>
+</div></section>
+
+<!-- FINAL CTA -->
+<section class="final"><div class="wrap">
+  <h2>Stop guessing. Know.</h2>
+  <p>Get honest odds for every school on your list in under two minutes.</p>
+  <a class="tealbtn" style="padding:16px 34px;font-size:17px" href="/signup">Calculate my chances →</a>
+</div></section>
+
+<!-- FOOTER -->
+<footer><div class="wrap">
+  <div class="fgrid">
+    <div>
+      <div class="fbrand">
+        <svg viewBox="0 0 64 64" width="24" height="24">
+          <path d="M 52 16 A 22 22 0 1 0 52 48" stroke="url(#cdr-g)" stroke-width="6" fill="none" stroke-linecap="round"/>
+          <rect x="22" y="36" width="5.5" height="10" fill="url(#cdr-g)" rx="1.2"/>
+          <rect x="31" y="28" width="5.5" height="18" fill="url(#cdr-g)" rx="1.2"/>
+          <rect x="40" y="20" width="5.5" height="26" fill="url(#cdr-g)" rx="1.2"/>
+        </svg>Candor</div>
+      <p>Honest college admissions odds for __SCHOOL_COUNT__ schools, built from real data.</p>
+    </div>
+    <div class="fcol"><h4>Product</h4><a href="/signup">Odds calculator</a><a href="/colleges">College list</a><a href="/profile">Profile grade</a><a href="/colleges">Rankings</a></div>
+    <div class="fcol"><h4>Resources</h4><a href="/guides">Guides</a><a href="/guides">How odds work</a><a href="/colleges">CDS data</a><a href="/guides">Blog</a></div>
+    <div class="fcol"><h4>Company</h4><a href="/">Home</a><a href="/guides">Guides</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a></div>
+  </div>
+  <div class="fbot"><span>© 2026 Candor</span><span>Made for students who want the truth.</span></div>
+</div></footer>
+
+<script>
+const schools=[["Harvard","harvard"],["MIT","mit"],["Stanford","stanford"],["Princeton","princeton"],["Yale","yale"],["Cornell","cornell"],["Duke","duke"],["UCLA","ucla"],["UC Berkeley","ucb"],["USC","usc"],["NYU","nyu"],["Brown","brown"],["Columbia","columbia"],["Dartmouth","dartmouth"],["Northwestern","northwestern"],["Vanderbilt","vanderbilt"],["Rice","rice"]];
+const chip=([name,slug])=>`<div class="chip"><div class="tile"><img src="/static/logos/${slug}.png" alt="${name}"></div><span>${name}</span></div>`;
+document.getElementById('track').innerHTML=(schools.map(chip).join(''))+(schools.map(chip).join(''));
+</script>
+<script>if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){});});}</script>
+</body></html>
+"""
+
 
 
 @app.route("/colleges")
