@@ -9616,9 +9616,15 @@ def llms_txt():
 # Anonymous visitor tracking so /admin/stats can show "visitors in the last
 # hour / 24h" — distinct from cumulative signups. cv_id cookie persists for
 # 1 year so a return visitor with cookies on counts as the same person.
-_VISIT_SKIP_PREFIXES = ("/api/", "/static/", "/admin/")
-_VISIT_SKIP_PATHS = {"/favicon.ico", "/robots.txt"}
-_VISIT_SKIP_SUFFIXES = (".css", ".js", ".png", ".jpg", ".svg", ".ico", ".map", ".webp")
+_VISIT_SKIP_PREFIXES = ("/api/", "/static/", "/admin/",
+    # vuln scanners probing for WordPress/php apps, dotfiles, etc. — never real visitors
+    "/wp-", "/wordpress", "/.", "/cgi-bin/", "/vendor/", "/phpmyadmin", "/xmlrpc")
+_VISIT_SKIP_PATHS = {"/favicon.ico", "/robots.txt",
+    # browser/PWA/crawler auto-fetches — not human pageviews
+    "/manifest.webmanifest", "/manifest.json", "/sw.js", "/sitemap.xml"}
+_VISIT_SKIP_SUFFIXES = (".css", ".js", ".png", ".jpg", ".svg", ".ico", ".map", ".webp",
+    # scanner extensions
+    ".php", ".env", ".aspx", ".asp")
 # Declared bots / crawlers / HTTP libraries — never logged, so they're excluded
 # from every traffic metric at the source. (Spoofed-UA scrapers slip past this,
 # but they get filtered out downstream by the 2+ pageview "real visitor" rule.)
