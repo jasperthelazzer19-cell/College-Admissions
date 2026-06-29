@@ -9134,8 +9134,9 @@ def plans_index_html():
         section_html += '</div>'
 
     # Toolbar with strategic actions (premium)
-    toolbar = '''
+    toolbar = f'''
 <div style="display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 8px">
+  <form method="post" action="/plans/recompute" style="display:inline;margin:0">{csrf_input()}<button class="btn btn-light btn-sm" type="submit" style="cursor:pointer" title="Re-run every school's odds with the latest data and model">↻ Recompute all odds</button></form>
   <a class="btn btn-primary btn-sm" href="/plans/strategist">Application strategist</a>
   <a class="btn btn-primary btn-sm" href="/plans/grade">Grade my list</a>
   <a class="btn btn-primary btn-sm" href="/plans/simulate">Simulate admissions</a>
@@ -15632,6 +15633,44 @@ def plans_remove_school(slug):
         conn.execute("DELETE FROM personalized_rounds WHERE user_id=? AND college_slug=?", (uid, slug))
         conn.commit()
     return ("ok", 200)
+
+
+@app.route("/plans/recompute", methods=["POST"])
+@login_required
+def plans_recompute_odds():
+    """Re-run the odds for every school in the user's list against the CURRENT
+    model + data (e.g. after a CDS rate refresh or a formula change), updating
+    the cached saved_chances numbers in place. Pure-Python, no LLM — instant.
+    Preserves any AI narrative bullets (numbers-only update)."""
+    user = current_user()
+    if not bool(user.get("is_paid")):
+        return redirect(url_for("plans_index_page"))
+    uid = user["id"]
+    with db() as conn:
+        slugs = [row["college_slug"] for row in conn.execute(
+            "SELECT college_slug FROM saved_chances WHERE user_id=? "
+            "UNION SELECT college_slug FROM saved_schools WHERE user_id=?",
+            (uid, uid)).fetchall()]
+    n = 0
+    for slug in slugs:
+        school_data = COLLEGES_BY_SLUG.get(slug)
+        if not school_data:
+            continue
+        profile = _chances_profile(uid, slug)   # full profile incl. this school's DI
+        if profile is None:
+            continue
+        merged = merged_school(school_data)
+        fit, components = compute_fit(profile, merged)
+        r = {
+            "tier": assign_tier(merged, fit, profile),
+            "fit": fit,
+            "confidence": confidence_level(profile, components),
+        }
+        r["odds_low"], r["odds_high"] = estimate_odds(merged, fit, profile)
+        _save_chances_row(uid, slug, r, profile=profile)  # numbers only; keeps bullets
+        n += 1
+    flash(f"Recomputed odds for {n} school{'' if n == 1 else 's'} with the latest data.", "success")
+    return redirect(url_for("plans_index_page"))
 
 
 def _gate_premium():
