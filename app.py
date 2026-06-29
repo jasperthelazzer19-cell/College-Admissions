@@ -3143,6 +3143,10 @@ def compute_fit(profile, school):
         # score is effectively expected) keep the full real penalty.
         if delta < 0 and not _is_test_focused_school(school):
             delta = max(delta * 0.45, -7.0)
+        # C7: scale by how much this school considers test scores. At a school
+        # that doesn't consider them, the score neither helps nor hurts (catches
+        # test-not-considered schools beyond the hard-coded test-blind set).
+        delta *= c7_factor_scale(school, "test_scores", "acad")
         score += delta
         components["test"] = round(delta, 1)
     elif test_blind:
@@ -3163,7 +3167,9 @@ def compute_fit(profile, school):
     # folds in leadership, so leadership is no longer a separate add (kept in
     # components at 0 for any downstream readers).
     ec_rating = ec_rating_for_fit(profile)
-    ec_total = _rating_to_fit_delta(ec_rating)
+    # C7: the EC contribution counts only as much as this school weights
+    # extracurriculars/talent (≈zeroed where ECs are "not considered").
+    ec_total = _rating_to_fit_delta(ec_rating) * c7_ec_scale(school)
     score += ec_total
     components["ecs"] = round(ec_total, 1)
     components["leadership"] = 0.0
@@ -3182,14 +3188,19 @@ def compute_fit(profile, school):
             # rigor is negative (e.g., -10 → -2 at tier 1, -1 at tier 3, 0 below)
             penalty_cap = 2 if school.get("tier", 5) <= 2 else (1 if school.get("tier", 5) == 3 else 0)
             rigor_bonus = round(max(-penalty_cap, rigor / 10 * penalty_cap / 2), 1)
+        # C7: scale course-rigor weight by how much this school values rigor of record.
+        rigor_bonus = round(rigor_bonus * c7_factor_scale(school, "rigor_of_record", "acad"), 1)
         score += rigor_bonus
         components["rigor"] = rigor_bonus
     # Legacy is school-specific. Generation count scales the boost: 1 gen = +3,
     # 2 = +4, 3+ = +5. (Marginal returns drop off — research suggests legacy
     # admit boost is largely binary, with a modest extra edge for multi-gen.)
     legacy_gens = legacy_generations_at(profile, school)
-    legacy_bonus = {0:0, 1:3, 2:4}.get(legacy_gens, 5) if legacy_gens else 0
-    hook_total = legacy_bonus + (4 if profile.get("first_gen") else 0) + (5 if profile.get("athlete") else 0)
+    # C7-gated: legacy/first-gen count only as much as this school says it weights
+    # them (e.g. a school marking legacy "not considered" gives no legacy bump).
+    legacy_bonus = ({0:0, 1:3, 2:4}.get(legacy_gens, 5) if legacy_gens else 0) * c7_factor_scale(school, "legacy", "hook")
+    fg_bonus = (4 if profile.get("first_gen") else 0) * c7_factor_scale(school, "first_generation", "hook")
+    hook_total = legacy_bonus + fg_bonus + (5 if profile.get("athlete") else 0)
     score += hook_total
     components["hooks"] = hook_total
     if school["type"] == "public" and profile.get("state") and profile["state"].lower() == school["state"].lower():
@@ -3772,6 +3783,108 @@ def _safety_floor_center(a, fit, school):
     return max(0.0, min(0.97, target * mult))
 
 
+# ─── C7 FACTOR-FIT (CDS Section C7) ───
+# Schools state, per the Common Data Set, how much they weight each admissions
+# factor (very_important / important / considered / not_considered). Rather than
+# bolt a separate multiplier onto the final odds, C7 GATES THE SIGNALS THE ENGINE
+# ALREADY COMPUTES: a school that marks ECs "not considered" shouldn't hand an
+# EC-spike applicant the EC bonus; a school that doesn't consider test scores
+# shouldn't reward (or penalize) a submitted score. So C7 scales each component's
+# contribution by how much that school actually weights the factor.
+#
+# Design (calibration safety):
+#   - 'acad' mode only ever DAMPS (never boosts), so core academics — which
+#     nearly every school marks important/very_important — are unchanged in the
+#     common case and can't inflate. The real effect is zeroing a factor a school
+#     genuinely disclaims (e.g. test scores at a test-not-considered school).
+#   - 'ec'/'hook' modes are centered at 'important' = 1.0 (the typical value), so
+#     they re-weight AROUND today's behavior: a modest lift where a school says
+#     "very important", a real cut where it says "considered", ~killed at
+#     "not considered". Net effect across schools is roughly balanced, not a
+#     systematic up/down drift.
+#   - No grid for the school, or the factor missing → 1.0 (exact prior behavior
+#     for the ~206 schools without a C7 grid).
+# Gentle calibration: the gate's job is the CORRECTNESS case — don't reward a
+# factor a school explicitly does NOT consider (test-blind, ECs not considered,
+# legacy not considered). The mushy middle ("considered"/"important") is left
+# near-neutral so this can't drift the calibration; only "not_considered" bites
+# hard and "very_important" gets a small, capped lift on the discretionary factors.
+_C7_SCALE = {
+    "acad": {"not_considered": 0.0, "considered": 0.92, "important": 1.0, "very_important": 1.0},
+    "ec":   {"not_considered": 0.25, "considered": 0.88, "important": 1.0, "very_important": 1.08},
+    "hook": {"not_considered": 0.0, "considered": 0.80, "important": 1.0, "very_important": 1.05},
+}
+
+def c7_factor_scale(school, factor, mode="ec"):
+    """Weight multiplier for one factor's contribution, from this school's CDS
+    C7 importance. Returns 1.0 (no-op) when no grid/factor. See block comment."""
+    grid = C7_FACTORS.get(school.get("slug"))
+    if not grid:
+        return 1.0
+    imp = grid.get(factor)
+    if not imp:
+        return 1.0
+    return _C7_SCALE.get(mode, _C7_SCALE["ec"]).get(imp, 1.0)
+
+def c7_ec_scale(school):
+    """ECs count if EITHER 'extracurriculars' OR 'talent_ability' is valued —
+    use the more generous of the two so a talent-driven school still rewards a
+    strong activity profile."""
+    return max(c7_factor_scale(school, "extracurriculars", "ec"),
+               c7_factor_scale(school, "talent_ability", "ec"))
+
+
+# Display labels for the C7 factors (used by the "what this school values" card).
+_C7_LABELS = {
+    "rigor_of_record": "Course rigor", "class_rank": "Class rank", "gpa": "GPA",
+    "test_scores": "Test scores", "essay": "Essays", "recommendations": "Recommendations",
+    "interview": "Interview", "extracurriculars": "Extracurriculars", "talent_ability": "Talent / ability",
+    "character": "Character", "first_generation": "First-generation", "legacy": "Legacy",
+    "geographical_residence": "Geography", "state_residency": "State residency",
+    "religious_affiliation": "Religious affiliation", "volunteer_work": "Volunteer work",
+    "work_experience": "Work experience", "level_of_interest": "Demonstrated interest",
+}
+
+def _c7_values_card(school):
+    """Render the school's CDS Section-C7 factor importances as a readable card —
+    what it weighs most, and (honestly) what it says it doesn't consider. Returns
+    '' when we have no C7 grid for the school (so it just doesn't show)."""
+    grid = C7_FACTORS.get((school or {}).get("slug"))
+    if not grid:
+        return ""
+    groups = {"very_important": [], "important": [], "considered": [], "not_considered": []}
+    for f, imp in grid.items():
+        if imp in groups and f in _C7_LABELS:
+            groups[imp].append(_C7_LABELS[f])
+    def chips(items, color, bg):
+        return "".join(
+            f'<span style="display:inline-block;background:{bg};color:{color};font-size:.82em;'
+            f'font-weight:600;padding:4px 10px;border-radius:999px;margin:3px 4px 0 0">{i}</span>'
+            for i in items)
+    rows = ""
+    if groups["very_important"]:
+        rows += ('<div style="margin-top:10px"><div style="font-size:.72em;text-transform:uppercase;'
+                 'letter-spacing:.6px;color:#5fc9b6;font-weight:700">Weighs most heavily</div>'
+                 + chips(groups["very_important"], "#06121a", "#5fc9b6") + '</div>')
+    if groups["important"]:
+        rows += ('<div style="margin-top:10px"><div style="font-size:.72em;text-transform:uppercase;'
+                 'letter-spacing:.6px;color:#7dd3fc;font-weight:700">Important</div>'
+                 + chips(groups["important"], "#bfe9ff", "rgba(125,211,252,.14)") + '</div>')
+    if groups["considered"]:
+        rows += ('<div style="margin-top:10px"><div style="font-size:.72em;text-transform:uppercase;'
+                 'letter-spacing:.6px;color:#9aa6b6;font-weight:700">Considered</div>'
+                 + chips(groups["considered"], "#c9d4e0", "rgba(154,166,182,.12)") + '</div>')
+    if groups["not_considered"]:
+        rows += ('<div style="margin-top:10px"><div style="font-size:.72em;text-transform:uppercase;'
+                 'letter-spacing:.6px;color:#7c8694;font-weight:700">Does not consider</div>'
+                 f'<div class="muted" style="font-size:.86em;margin-top:3px">{", ".join(groups["not_considered"])}</div></div>')
+    return (f'<div class="card" style="margin-top:18px">'
+            f'<h3 style="margin:0 0 2px">What {school.get("name")} weighs in admissions</h3>'
+            f'<div class="muted" style="font-size:.82em;margin-bottom:2px">From {school.get("name")}\'s '
+            f'Common Data Set (Section C7) — the factors they say matter most, and the ones they don\'t.</div>'
+            f'{rows}</div>')
+
+
 def estimate_odds(school, fit, profile):
     """Harsher version. Markets and admissions are noisy; previous curve was
     over-generous in the middle of the fit range. Tighter slope + lower caps
@@ -3857,10 +3970,14 @@ def estimate_odds(school, fit, profile):
     # caps below also need to rise for legacy applicants so the multiplier
     # actually shows up at elite-tier schools (where the cap binds).
     legacy_gens = legacy_generations_at(profile, school)
-    if legacy_gens >= 3:   hook_mult *= 1.25
-    elif legacy_gens == 2: hook_mult *= 1.20
-    elif legacy_gens == 1: hook_mult *= 1.15
-    if profile.get("first_gen"): hook_mult *= 1.10
+    # C7-gated: legacy only boosts as much as THIS school says it weights legacy
+    # (a school marking legacy "not considered" gives no legacy lift).
+    _lg_s = c7_factor_scale(school, "legacy", "hook")
+    if legacy_gens >= 3:   hook_mult *= 1.0 + 0.25 * _lg_s
+    elif legacy_gens == 2: hook_mult *= 1.0 + 0.20 * _lg_s
+    elif legacy_gens == 1: hook_mult *= 1.0 + 0.15 * _lg_s
+    if profile.get("first_gen"):
+        hook_mult *= 1.0 + 0.10 * c7_factor_scale(school, "first_generation", "hook")
     # Demonstrated interest — only at schools that actually track it (private
     # tier 2-3). Public flagships/UCs and tier-1 elites do NOT, so gate on the
     # same rule the card + narrative use (was boosting public tier-2/3 schools).
@@ -3880,7 +3997,9 @@ def estimate_odds(school, fit, profile):
     # scaled by how much THIS school rewards spikes vs. well-roundedness.
     spike_s = spike_for_odds(profile)
     cohesion = max(0.0, min(1.0, (spike_s - 550.0) / 450.0))   # 0 below 550, full at 1000
-    spike_mult = 1.0 + cohesion * 0.10 * spike_receptivity(school)
+    # C7-gated: a cohesive/spiky EC story only helps as much as THIS school
+    # weights extracurriculars/talent (≈killed where ECs are "not considered").
+    spike_mult = 1.0 + cohesion * 0.10 * spike_receptivity(school) * c7_ec_scale(school)
     spike_mult = min(spike_mult, 1.15)
     center = a * fit_mult * hook_mult * spike_mult
     # Per-school calibration dial (takes precedence over the standard elite cap
@@ -7364,6 +7483,7 @@ def chances_html(slug):
   {(lambda _sch, _det: (lambda _sub: render_admissions_breakdown(_sch, _det, personalized_rates=personalize_round_odds(uid, _sch, _det, profile, r['odds_low'], r['odds_high'], sub_school=_sub), scale=(((r.get('odds_low',0)+r.get('odds_high',0))/2.0) / r['accept_rate_pct']) if r.get('accept_rate_pct') else 1.0, sub_school=_sub))(sub_school_for_major(r['slug'], profile.get('major') or '')))(COLLEGES_BY_SLUG.get(r['slug']), admissions_detail(COLLEGES_BY_SLUG.get(r['slug'])))}
   {narrative_html}
 </div>
+{_c7_values_card(school_data)}
 {_render_counterfactual_card(profile, COLLEGES_BY_SLUG.get(r['slug']), r['odds_low'], r['odds_high'])}
 {(_render_di_card(r['slug'], r['school'], profile.get('_di_level','none')) if _tracks_demonstrated_interest(COLLEGES_BY_SLUG.get(r['slug']) or {}, (COLLEGES_BY_SLUG.get(r['slug']) or {}).get('tier', 5)) else '')}
 <details class="card" style="margin-top:18px">
@@ -14969,13 +15089,17 @@ def _grade_cached(uid, profile, compute=False):
     if not compute:
         return None
     g = grade_profile(profile)
-    try:
-        with db() as conn:
-            conn.execute("UPDATE profiles SET grade_json=?, grade_key=? WHERE user_id=?",
-                         (_json2.dumps(g), key, uid))
-            conn.commit()
-    except Exception as e:
-        print(f"grade cache write failed: {e}")
+    # Never cache a fallback grade: a transient Sonnet failure would otherwise get
+    # stored and stick forever (the page reads compute=False), permanently showing
+    # "AI grader unavailable" even after the API recovers. Only persist real grades.
+    if not g.get("_fallback"):
+        try:
+            with db() as conn:
+                conn.execute("UPDATE profiles SET grade_json=?, grade_key=? WHERE user_id=?",
+                             (_json2.dumps(g), key, uid))
+                conn.commit()
+        except Exception as e:
+            print(f"grade cache write failed: {e}")
     return g
 
 
