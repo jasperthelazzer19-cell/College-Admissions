@@ -50,6 +50,68 @@ except ImportError:
     _grade_client = None
 
 
+# ── Self-metered Anthropic cost tracking ──────────────────────────────────
+# We can't read the console's billed totals without an admin key, so we log
+# token usage on every Anthropic call Candor makes and price it ourselves. This
+# captures ONLY Candor's calls (not the outreach work sharing the same org), so
+# it's the right number for "what does Candor cost." Prices are USD per MILLION
+# tokens — Anthropic list prices (Jun 2026); edit here if pricing changes.
+_MODEL_PRICES = {
+    "haiku":  {"in": 1.0,  "out": 5.0},
+    "sonnet": {"in": 3.0,  "out": 15.0},
+    "opus":   {"in": 15.0, "out": 75.0},
+}
+
+def _price_for(model):
+    m = (model or "").lower()
+    for k, v in _MODEL_PRICES.items():
+        if k in m:
+            return v
+    return _MODEL_PRICES["sonnet"]  # unknown model → price at Sonnet (conservative)
+
+def _log_api_cost(resp, model, source):
+    """Record one Anthropic call's token usage + estimated USD cost. Best-effort:
+    never raises into the caller's request path."""
+    try:
+        u = getattr(resp, "usage", None)
+        if not u:
+            return
+        pin = int(getattr(u, "input_tokens", 0) or 0)
+        pout = int(getattr(u, "output_tokens", 0) or 0)
+        cread = int(getattr(u, "cache_read_input_tokens", 0) or 0)
+        cwrite = int(getattr(u, "cache_creation_input_tokens", 0) or 0)
+        pr = _price_for(model)
+        cost = (pin * pr["in"] + pout * pr["out"]
+                + cread * pr["in"] * 0.1 + cwrite * pr["in"] * 1.25) / 1_000_000.0
+        with db() as conn:
+            conn.execute(
+                "INSERT INTO api_cost_log (ts, model, source, input_tokens, output_tokens, "
+                "cache_read_tokens, cache_write_tokens, cost_usd) "
+                "VALUES (CURRENT_TIMESTAMP,?,?,?,?,?,?,?)",
+                (model or "", source, pin, pout, cread, cwrite, cost))
+            conn.commit()
+    except Exception as e:
+        print("api cost log:", e)
+
+def _wrap_cost_logging(client, source):
+    """Monkeypatch a client's messages.create so EVERY call (current + future call
+    sites) is metered, with no per-call-site edits."""
+    if client is None or getattr(client, "_cost_wrapped", False):
+        return client
+    _orig = client.messages.create
+    def _logged(*a, **kw):
+        resp = _orig(*a, **kw)
+        _log_api_cost(resp, kw.get("model"), source)
+        return resp
+    client.messages.create = _logged
+    client._cost_wrapped = True
+    return client
+
+# main client → "feature" spend, grade client → "grading" spend (distinct keys).
+_claude_client = _wrap_cost_logging(_claude_client, "feature")
+_grade_client = _wrap_cost_logging(_grade_client, "grading")
+
+
 # ── Claude Code CLI (Max-subscription) judge ──────────────────────────────
 # When CLAUDE_CLI=1 (set ONLY in the Mac autopilot env), the exceptionality
 # grader runs through `claude -p` on the flat-rate Max plan instead of the API
@@ -4412,6 +4474,18 @@ def init_db():
             UNIQUE(user_id, college_slug),
             FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
         )""")
+        conn.execute("""CREATE TABLE IF NOT EXISTS api_cost_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ts TEXT,
+            model TEXT,
+            source TEXT,
+            input_tokens INTEGER,
+            output_tokens INTEGER,
+            cache_read_tokens INTEGER,
+            cache_write_tokens INTEGER,
+            cost_usd REAL
+        )""")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_api_cost_ts ON api_cost_log(ts)")
         conn.execute("""CREATE TABLE IF NOT EXISTS college_articles (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             college_slug TEXT NOT NULL,
@@ -5942,6 +6016,7 @@ NAV_CONTENT = ('<div class="nav"><a class="brand" href="/admin/stats">' + CANDOR
     '<a href="/content/headtohead">🆚 H2H</a>'
     '<a href="/h2hprofiles/export">👥 A/B</a>'
     '<a href="/content/bestfit">🎯 Best Fit</a>'
+    '<a href="/content/cost">💸 Cost</a>'
     '<span class="sp"></span>'
     '<a href="/colleges?full=1" style="font-size:.82em;opacity:.65">full site</a> '
     '<a href="/logout">Logout</a></div>')
@@ -11786,6 +11861,96 @@ def _content_picker_page(title, heading, sub, mode="link", href_tpl="/chances/{s
         'g.querySelectorAll(".cms-card").forEach(function(c){c.style.display=c.dataset.n.indexOf(q)>-1?"":"none";});});'
         's.focus();})();</script>')
     return _page(body, title=title)
+
+
+@app.route("/content/cost")
+@login_required
+def content_cost():
+    """Candor cost dashboard: self-metered Anthropic API spend (logged per call)
+    + Railway hosting. Creator-only."""
+    if not _is_creator():
+        abort(404)
+    def money(x):
+        return f"${x:,.2f}"
+    with db() as conn:
+        def _sum(where):
+            r = conn.execute(f"SELECT COALESCE(SUM(cost_usd),0) c, COUNT(*) n FROM api_cost_log WHERE {where}").fetchone()
+            return float(r["c"] or 0), int(r["n"] or 0)
+        today_c, today_n = _sum("ts >= date('now')")
+        d7_c, d7_n = _sum("ts >= datetime('now','-7 day')")
+        d30_c, d30_n = _sum("ts >= datetime('now','-30 day')")
+        month_c, month_n = _sum("ts >= date('now','start of month')")
+        by_source = conn.execute(
+            "SELECT source, COALESCE(SUM(cost_usd),0) c, COUNT(*) n FROM api_cost_log "
+            "WHERE ts >= datetime('now','-30 day') GROUP BY source ORDER BY c DESC").fetchall()
+        by_model = conn.execute(
+            "SELECT model, COALESCE(SUM(cost_usd),0) c, COUNT(*) n FROM api_cost_log "
+            "WHERE ts >= datetime('now','-30 day') GROUP BY model ORDER BY c DESC").fetchall()
+        daily = conn.execute(
+            "SELECT date(ts) d, COALESCE(SUM(cost_usd),0) c FROM api_cost_log "
+            "WHERE ts >= datetime('now','-14 day') GROUP BY date(ts) ORDER BY d").fetchall()
+        first = conn.execute("SELECT MIN(ts) m FROM api_cost_log").fetchone()
+    since = (first["m"] or "")[:10] if first and first["m"] else ""
+    since_txt = f" · tracking since {since}" if since else ""
+    railway = float(os.environ.get("RAILWAY_MONTHLY_USD", "5") or 5)
+    api_rate = d30_c  # last 30d actual ≈ monthly run-rate
+    total_rate = api_rate + railway
+
+    def card(label, val, sub):
+        return (f'<div style="background:#0c1521;border:1px solid #1d2a3d;border-radius:12px;padding:14px 16px;flex:1;min-width:130px">'
+                f'<div style="color:#7c8aa0;font-size:12px;text-transform:uppercase;letter-spacing:.04em">{label}</div>'
+                f'<div style="font-size:24px;font-weight:800;color:#e9eef5;margin-top:4px">{val}</div>'
+                f'<div style="color:#7c8aa0;font-size:12px;margin-top:2px">{sub}</div></div>')
+    cards = (card("Today", money(today_c), f"{today_n} call(s)")
+             + card("Last 7 days", money(d7_c), f"{d7_n} calls")
+             + card("Last 30 days", money(d30_c), f"{d30_n} calls")
+             + card("This month", money(month_c), f"{month_n} calls"))
+
+    def row(name, c, n):
+        return (f'<div style="display:flex;justify-content:space-between;padding:7px 0;border-top:1px solid #16202e;font-size:13px">'
+                f'<span style="color:#e9eef5">{name}</span>'
+                f'<span style="color:#7c8aa0">{money(c)} · {n} calls</span></div>')
+    _srcname = {"grading": "Public grading (3-judge panel)", "feature": "Other features"}
+    src_rows = "".join(row(_srcname.get(r["source"], r["source"] or "—"), r["c"], r["n"]) for r in by_source) \
+        or '<div style="color:#7c8aa0;font-size:13px;padding-top:8px">No calls logged yet.</div>'
+    mdl_rows = "".join(row((r["model"] or "—").replace("claude-", "").replace("-20251001", ""), r["c"], r["n"]) for r in by_model) \
+        or '<div style="color:#7c8aa0;font-size:13px;padding-top:8px">No calls logged yet.</div>'
+
+    maxc = max([float(r["c"]) for r in daily], default=0) or 1
+    bars = "".join(
+        f'<div title="{r["d"]}: {money(r["c"])}" style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:3px">'
+        f'<div style="width:70%;background:#5fc9b6;border-radius:3px 3px 0 0;height:{max(2, int(float(r["c"]) / maxc * 90))}px"></div>'
+        f'<div style="color:#7c8aa0;font-size:9px">{r["d"][5:]}</div></div>'
+        for r in daily) or '<div style="color:#7c8aa0;font-size:13px">No data yet.</div>'
+
+    body = (
+        '<div style="max-width:680px;margin:0 auto;padding:24px 16px 80px">'
+        '<h1 style="margin:0 0 4px">💸 Candor cost</h1>'
+        f'<div style="color:#7c8aa0;font-size:13px;margin:0 0 18px">Self-metered from token usage{since_txt}</div>'
+        '<div style="background:#0c1521;border:1px solid #2b3a4f;border-radius:14px;padding:18px 20px;margin:0 0 16px">'
+        '<div style="color:#7c8aa0;font-size:12px;text-transform:uppercase;letter-spacing:.04em">Estimated monthly run-rate</div>'
+        f'<div style="font-size:34px;font-weight:800;color:#5fc9b6;margin:6px 0 2px">{money(total_rate)}/mo</div>'
+        f'<div style="color:#9fb0c3;font-size:13px">API {money(api_rate)} (last 30d) + Railway {money(railway)}</div></div>'
+        f'<div style="display:flex;gap:10px;flex-wrap:wrap;margin:0 0 18px">{cards}</div>'
+        '<div style="background:#0c1521;border:1px solid #1d2a3d;border-radius:12px;padding:14px 16px;margin:0 0 12px">'
+        '<div style="font-weight:800;margin-bottom:2px">API spend by source <span style="color:#7c8aa0;font-weight:400;font-size:12px">· last 30d</span></div>'
+        f'{src_rows}</div>'
+        '<div style="background:#0c1521;border:1px solid #1d2a3d;border-radius:12px;padding:14px 16px;margin:0 0 12px">'
+        '<div style="font-weight:800;margin-bottom:2px">API spend by model <span style="color:#7c8aa0;font-weight:400;font-size:12px">· last 30d</span></div>'
+        f'{mdl_rows}</div>'
+        '<div style="background:#0c1521;border:1px solid #1d2a3d;border-radius:12px;padding:14px 16px;margin:0 0 12px">'
+        '<div style="font-weight:800;margin-bottom:10px">Daily API cost <span style="color:#7c8aa0;font-weight:400;font-size:12px">· last 14d</span></div>'
+        f'<div style="display:flex;align-items:flex-end;gap:4px;height:120px">{bars}</div></div>'
+        '<div style="background:#0c1521;border:1px solid #1d2a3d;border-radius:12px;padding:14px 16px;margin:0 0 12px">'
+        '<div style="font-weight:800;margin-bottom:2px">Railway hosting</div>'
+        f'<div style="color:#9fb0c3;font-size:13px">{money(railway)}/mo — set via the RAILWAY_MONTHLY_USD env var. '
+        '<a href="https://railway.com/account/usage" target="_blank" style="color:#5fc9b6">view actual ↗</a></div></div>'
+        '<div style="color:#7c8aa0;font-size:11.5px;margin-top:14px;line-height:1.5">'
+        'API cost is <b>estimated</b> from logged token usage × Anthropic list prices (Haiku $1/$5, '
+        'Sonnet $3/$15, Opus $15/$75 per Mtok). It counts only Candor\'s own calls (not the shared org key), '
+        'won\'t match the console exactly (caching/discounts), and only includes calls since tracking began.</div>'
+        '</div>')
+    return _page(body, title="Cost · Candor")
 
 
 @app.route("/content/chances")
