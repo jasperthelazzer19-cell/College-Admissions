@@ -40,8 +40,14 @@ try:
     # timeout so a stuck Anthropic response can't tie up a sync Flask worker for
     # the SDK default (~10 min) — the one live user-facing path that calls Claude.
     _claude_client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_KEY", ""), timeout=30.0) if os.environ.get("ANTHROPIC_KEY") else None
+    # Dedicated key for the public exceptionality grader so its spend is tracked
+    # separately from the rest of Candor's Anthropic usage. Falls back to the main
+    # client when GRADING_KEY isn't set, so nothing breaks before it's configured.
+    _grade_client = (anthropic.Anthropic(api_key=os.environ["GRADING_KEY"], timeout=30.0)
+                     if os.environ.get("GRADING_KEY") else _claude_client)
 except ImportError:
     _claude_client = None
+    _grade_client = None
 
 
 # ── Claude Code CLI (Max-subscription) judge ──────────────────────────────
@@ -159,7 +165,7 @@ def _api_grade(profile):
     if early is not None:
         return early
     return _parse_grade(_claude("claude-haiku-4-5-20251001", _GRADE_SYS,
-                                prompt, max_tokens=120, temperature=0.0))
+                                prompt, max_tokens=120, temperature=0.0, client=_grade_client))
 
 
 def _cli_exceptional(profile):
@@ -3471,9 +3477,9 @@ def evaluate_profile_exceptionality(profile):
             raw = _openai_chat(model, system, user_msg, max_tokens=200, temperature=0.4)
             if raw is None:  # no OPENAI_KEY / call failed → fall back to a Claude judge
                 raw = _claude("claude-haiku-4-5-20251001", system, user_msg,
-                              max_tokens=200, temperature=0.4)
+                              max_tokens=200, temperature=0.4, client=_grade_client)
         else:
-            raw = _claude(model, system, user_msg, max_tokens=200, temperature=0.4)
+            raw = _claude(model, system, user_msg, max_tokens=200, temperature=0.4, client=_grade_client)
         if not raw:
             return None
         vote = "EXCEPTIONAL: YES" in raw.upper()
@@ -4096,7 +4102,7 @@ def confidence_level(profile, components):
 
 
 # ─── CLAUDE-POWERED REASONING (with template fallback) ───
-def _claude(model, system, user, max_tokens=400, temperature=1.0):
+def _claude(model, system, user, max_tokens=400, temperature=1.0, client=None):
     # GRADER_FAST=1 (set only by the TikTok autopilot render process) downgrades
     # Sonnet -> Haiku to keep content generation cheap. The live site never sets
     # it, so real users always get the full Sonnet-quality grader.
@@ -4111,13 +4117,14 @@ def _claude(model, system, user, max_tokens=400, temperature=1.0):
         out = _claude_cli(f"{system}\n\n{user}" if system else user, model=model)
         if out:
             return out
-    if not _claude_client: return None
+    cl = client or _claude_client
+    if not cl: return None
     try:
         kw = {"model": model, "max_tokens": max_tokens, "temperature": temperature,
               "messages": [{"role": "user", "content": user}]}
         if system:                       # omit when None — the API rejects system=null
             kw["system"] = system
-        msg = _claude_client.messages.create(**kw)
+        msg = cl.messages.create(**kw)
         return msg.content[0].text
     except Exception as e:
         print(f"Claude error: {e}")
