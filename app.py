@@ -19446,6 +19446,24 @@ def cron_tiktok_pull():
     return jsonify(pulled=_tiktok_pull_all())
 
 
+@app.route("/tiktok/account/<open_id>/rename", methods=["POST"])
+@login_required
+def tiktok_rename_account(open_id):
+    if not _is_creator():
+        abort(404)
+    data = request.get_json(silent=True) or {}
+    name = (data.get("name") or request.form.get("name") or "").strip()
+    if not name:
+        return jsonify(ok=False, error="empty name"), 400
+    name = name[:60]
+    with db() as conn:
+        row = conn.execute("SELECT open_id FROM tiktok_accounts WHERE open_id=?", (open_id,)).fetchone()
+        if not row:
+            return jsonify(ok=False, error="no such account"), 404
+        conn.execute("UPDATE tiktok_accounts SET label=? WHERE open_id=?", (name, open_id))
+    return jsonify(ok=True, label=name)
+
+
 @app.route("/tiktok")
 @login_required
 def tiktok_home():
@@ -19512,8 +19530,11 @@ def tiktok_home():
                 f'<span title="shares">↗ {_m(lp["share_count"])}</span></div>'
                 f'<div style="color:#7c8aa0;font-size:12px;margin-top:6px">Posted {_posted_when(lp["create_time"])} · '
                 f'<a href="{url}" target="_blank" style="color:#5fc9b6">open ↗</a></div></div>')
+        _lbl = a["label"] or a["open_id"]
         cards += (f'<div style="background:#0c1521;border:1px solid #1d2a3d;border-radius:12px;padding:14px;margin:0 0 10px">'
-                  f'<b>{a["label"] or a["open_id"]}</b><br>'
+                  f'<b id="lbl-{a["open_id"]}">{_lbl}</b> '
+                  f'<a href="#" onclick="ttRename(this,\'{a["open_id"]}\');return false" '
+                  f'style="color:#5fc9b6;font-size:12px;text-decoration:none">✎ edit</a><br>'
                   f'<span style="color:#7c8aa0;font-size:13px">{n} posts tracked · {sv:,} total views · '
                   f'last pull {a["last_pull_at"] or "never"}</span>'
                   f'{latest_html}</div>')
@@ -19589,7 +19610,22 @@ def tiktok_home():
             f'<a href="/tiktok/pull" style="{btn};background:#16202e;color:#e9eef5;border:1px solid #2b3a4f">↻ Pull stats now</a>'
             f'{health_html if accts else ""}'
             f'{perf_html}'
-            f'</div>')
+            f'</div>'
+            '<script>'
+            'function ttRename(el,oid){'
+            ' var b=document.getElementById("lbl-"+oid);'
+            ' var cur=b?b.textContent:"";'
+            ' var name=prompt("Rename this account:",cur);'
+            ' if(name===null)return;'
+            ' name=name.trim(); if(!name)return;'
+            ' fetch("/tiktok/account/"+encodeURIComponent(oid)+"/rename",{'
+            '  method:"POST",headers:{"Content-Type":"application/json"},'
+            '  body:JSON.stringify({name:name})})'
+            ' .then(function(r){return r.json()})'
+            ' .then(function(d){if(d.ok){if(b)b.textContent=d.label}else{alert("Rename failed: "+(d.error||"?"))}})'
+            ' .catch(function(){alert("Rename failed")});'
+            '}'
+            '</script>')
     return _page(body, title="TikTok · Candor")
 
 
