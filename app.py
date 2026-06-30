@@ -11871,7 +11871,8 @@ def content_cost():
     if not _is_creator():
         abort(404)
     def money(x):
-        return f"${x:,.2f}"
+        x = float(x or 0)
+        return f"${x:,.4f}" if 0 < x < 1 else f"${x:,.2f}"
     with db() as conn:
         def _sum(where):
             r = conn.execute(f"SELECT COALESCE(SUM(cost_usd),0) c, COUNT(*) n FROM api_cost_log WHERE {where}").fetchone()
