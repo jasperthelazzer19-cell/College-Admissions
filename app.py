@@ -6017,6 +6017,7 @@ NAV_UPGRADE_BTN = (
 NAV_CONTENT = ('<div class="nav"><a class="brand" href="/admin/stats">' + CANDOR_LOGO_SVG + 'Candor · CONTENT</a>'
     '<a href="/tiktok">📡 Monitor</a>'
     '<a href="/content/today">📅 Today</a>'
+    '<a href="/content/manual">✋ Manual</a>'
     '<a href="/content/setprofile">✍️ Set</a>'
     '<a href="/content/profile">🪪 Profile</a>'
     '<a href="/content/chances">🎬 Chances</a>'
@@ -13306,25 +13307,67 @@ def content_bestfit_make():
     return redirect(url_for("content_bestfit", requested=n))
 
 
-@app.route("/content/today")
-@login_required
-def content_today():
-    """Creator-only queue page: released carousels ready to save, newest first."""
-    if not _is_creator():
-        abort(404)
-    with db() as conn:
-        # Today shows ONLY carousels explicitly RELEASED to post. The pending buffer
-        # is the QUEUE for the next batch and never shows here — it stays in reserve
-        # until the Make button / posting slot releases a batch. So when nothing's
-        # released, today is empty (by design).
-        released = list(conn.execute(
-            "SELECT * FROM content_queue WHERE status='released' ORDER BY id DESC").fetchall())
-        pending = conn.execute("SELECT COUNT(*) c FROM content_queue WHERE status='pending'").fetchone()["c"]
-        posted = conn.execute("SELECT COUNT(*) c FROM content_queue WHERE status='posted'").fetchone()["c"]
-        tt_accts = conn.execute("SELECT open_id, label FROM tiktok_accounts ORDER BY connected_at").fetchall()
-    # Account picker on the Posted button, pre-selected to the carousel's assigned
-    # account so attribution is one-tap. Omitted until at least one account is
-    # connected. `assigned` is the display label stored at push time.
+_CONTENT_SAVE_SCRIPT = (
+    '<script>'
+    'async function saveCard(btn){var card=btn.closest(".qcard");if(!card)return;'
+    ' var t=btn.textContent;btn.disabled=true;btn.textContent="Preparing…";'
+    ' try{var els=[].slice.call(card.querySelectorAll(".cslide")),fs=[];'
+    '  for(var i=0;i<els.length;i++){var r=await fetch(els[i].src);var bl=await r.blob();'
+    '   fs.push(new File([bl],"candor-slide-"+(i+1)+".png",{type:"image/png"}));}'
+    '  if(navigator.canShare&&navigator.canShare({files:fs})){await navigator.share({files:fs,title:"Candor carousel"});}'
+    '  else{fs.forEach(function(f){var a=document.createElement("a");a.href=URL.createObjectURL(f);'
+    '   a.download=f.name;document.body.appendChild(a);a.click();a.remove();});}'
+    ' }catch(e){}btn.disabled=false;btn.textContent=t;}'
+    'function _loadImg(src){return new Promise(function(res,rej){var im=new Image();'
+    ' im.crossOrigin="anonymous";im.onload=function(){res(im);};im.onerror=rej;im.src=src;});}'
+    'async function saveCardIG(btn){var card=btn.closest(".qcard");if(!card)return;'
+    ' var t=btn.textContent;btn.disabled=true;btn.textContent="Preparing…";'
+    ' try{var els=[].slice.call(card.querySelectorAll(".cslide")),fs=[],CW=1080,CH=1920;'
+    '  for(var i=0;i<els.length;i++){var im=await _loadImg(els[i].src);'
+    '   var cv=document.createElement("canvas");cv.width=CW;cv.height=CH;var cx=cv.getContext("2d");'
+    '   var sc=document.createElement("canvas");sc.width=im.width;sc.height=im.height;'
+    '   var sx=sc.getContext("2d");sx.drawImage(im,0,0);var px=sx.getImageData(3,3,1,1).data;'
+    '   cx.fillStyle="rgb("+px[0]+","+px[1]+","+px[2]+")";cx.fillRect(0,0,CW,CH);'
+    '   var s=CW/im.width,w=CW,h=im.height*s;if(h>CH){s=CH/im.height;h=CH;w=im.width*s;}'
+    '   cx.drawImage(im,(CW-w)/2,(CH-h)/2,w,h);'
+    '   var bl=await new Promise(function(r){cv.toBlob(r,"image/png");});'
+    '   fs.push(new File([bl],"candor-ig-"+(i+1)+".png",{type:"image/png"}));}'
+    '  if(navigator.canShare&&navigator.canShare({files:fs})){await navigator.share({files:fs,title:"Candor (Instagram)"});}'
+    '  else{fs.forEach(function(f){var a=document.createElement("a");a.href=URL.createObjectURL(f);'
+    '   a.download=f.name;document.body.appendChild(a);a.click();a.remove();});}'
+    ' }catch(e){alert("Instagram save failed — "+e);}btn.disabled=false;btn.textContent=t;}'
+    'function cardAct(form){var card=form.closest(".qcard");'
+    ' fetch(form.action,{method:"POST",body:new FormData(form)}).catch(function(){});'
+    ' if(card){card.style.transition="opacity .15s";card.style.opacity="0";'
+    '  setTimeout(function(){card.remove();},150);} return false;}'
+    'async function sendTikTok(btn,cid){var card=btn.closest(".qcard");'
+    ' var out=card?card.querySelector(".ttresult"):null;btn.disabled=true;'
+    ' btn.textContent="Sending…";if(out)out.textContent="";'
+    ' try{var tok=(document.querySelector("input[name=csrf_token]")||{}).value||"";'
+    '  var r=await fetch("/content/queue/"+cid+"/send-tiktok",{method:"POST",headers:{"X-CSRFToken":tok}});'
+    '  var d=await r.json();'
+    '  if(d.ok){btn.textContent="✓ Sent to TikTok";btn.style.background="#13351f";'
+    '   if(out){out.style.color="#bdf3d0";out.textContent="Draft sent to "+(d.account||"your TikTok")+" — open TikTok → Inbox to post.";}}'
+    '  else{btn.disabled=false;btn.textContent="📲 Send to TikTok (draft)";'
+    '   if(out){out.style.color="#ff9b9b";out.textContent=d.error||"Failed — try again.";}}'
+    ' }catch(e){btn.disabled=false;btn.textContent="📲 Send to TikTok (draft)";'
+    '  if(out){out.style.color="#ff9b9b";out.textContent="Network error.";}}}'
+    '</script>')
+
+
+def _manual_account_labels():
+    """Accounts on the MANUAL track: still generated + released on schedule, but NOT
+    auto-pushed to TikTok (they kept hitting the pending-draft spam cap) — the creator
+    saves/posts them by hand on /content/manual, separate from /content/today.
+    Env-configurable (comma-separated labels), no redeploy needed to change."""
+    raw = os.environ.get("TIKTOK_MANUAL_ACCOUNTS", "@candoradmissions,@candor54")
+    return {s.strip() for s in raw.split(",") if s.strip()}
+
+
+def _render_released_cards(released, tt_accts):
+    """Build the carousel card HTML for a list of released rows. Shared by
+    /content/today and /content/manual so both pages stay identical. Returns a LIST
+    of card HTML strings (empty list if nothing released)."""
     from html import escape as _ae
     _acct_labels = {(a["label"] or a["open_id"]) for a in tt_accts}
 
@@ -13344,7 +13387,6 @@ def content_today():
         if not assigned:
             return ""
         linked = assigned in _acct_labels
-        # numbered placeholder vs a real @username
         shown = assigned if (linked or assigned.startswith("@")) else f"account {assigned}"
         bg, fg, note = (("#13351f", "#bdf3d0", "") if linked
                         else ("#2a2030", "#e8c9ff", " · link soon"))
@@ -13358,7 +13400,6 @@ def content_today():
             f'style="width:100%;border-radius:12px;border:1px solid #1d2a3d;-webkit-touch-callout:default">'
             f'<div style="text-align:center;font-size:12px;color:#7c8aa0;margin-top:4px">Slide {i}</div></div>'
             for i, k in enumerate(_ck, 1))
-        # CTA appended as the LAST slide (part of "Save all slides").
         imgs += (f'<div style="flex:1;min-width:150px"><img class="cslide" src="{_cta_url(r)}" alt="CTA slide" '
                  f'style="width:100%;border-radius:12px;border:1px solid #1d2a3d;-webkit-touch-callout:default">'
                  f'<div style="text-align:center;font-size:12px;color:#7c8aa0;margin-top:4px">Slide {len(_ck)+1} · CTA</div></div>')
@@ -13387,6 +13428,61 @@ def content_today():
             f'<form method="post" action="/content/queue/{r["id"]}/skipped" style="flex:1" onsubmit="return cardAct(this)">{csrf_input()}'
             f'<button style="width:100%;background:#16202e;color:#e9eef5;font-weight:700;border:1px solid #1d2a3d;padding:12px;border-radius:10px">Skip</button></form>'
             f'</div></div>')
+    return cards
+
+
+@app.route("/content/manual")
+@login_required
+def content_manual():
+    """Manual track: released carousels for the MANUAL accounts (kept off the TikTok
+    autopush so they don't hit the pending-draft cap). Same save/post UI as Today,
+    just isolated to these accounts so the creator posts them by hand."""
+    if not _is_creator():
+        abort(404)
+    manual = _manual_account_labels()
+    with db() as conn:
+        released = [r for r in conn.execute(
+            "SELECT * FROM content_queue WHERE status='released' ORDER BY id DESC").fetchall()
+            if (r["assigned_account"] or "") in manual]
+        tt_accts = conn.execute("SELECT open_id, label FROM tiktok_accounts ORDER BY connected_at").fetchall()
+    cards = _render_released_cards(released, tt_accts)
+    if not cards:
+        cards = ['<div style="color:#7c8aa0;text-align:center;padding:40px 0">Nothing released for the manual '
+                 'accounts yet. Carousels for ' + ", ".join(sorted(manual)) + ' land here on schedule (8 / 12 / 3 / 6 / 9) '
+                 '— NOT auto-pushed, so post them by hand from here.</div>']
+    note = ('<div style="background:#2a2030;border:1px solid #5a3a6a;color:#e8c9ff;border-radius:12px;'
+            'padding:12px 14px;margin:0 0 16px;font-weight:600;font-size:14px">✋ Manual track — '
+            f'{", ".join(sorted(manual))}. These are generated on schedule but NOT auto-sent to TikTok '
+            '(they kept hitting TikTok\'s pending-draft limit). Save/post each one yourself here.</div>')
+    body = (f'<div style="max-width:720px;margin:0 auto;padding:16px 12px 80px">'
+            f'<h1 style="margin:0 0 4px">✋ Manual</h1>'
+            f'<div style="color:#7c8aa0;font-size:14px;margin:0 0 14px">{len(released)} to post by hand · '
+            f'<a href="/content/today" style="color:#5fc9b6">← back to Today</a></div>'
+            + note + "".join(cards) + '</div>' + _CONTENT_SAVE_SCRIPT + _HASHTAG_JS)
+    return _page(body, title="Content · Manual")
+
+
+@app.route("/content/today")
+@login_required
+def content_today():
+    """Creator-only queue page: released carousels ready to save, newest first.
+    Excludes the MANUAL-track accounts — those live on /content/manual."""
+    if not _is_creator():
+        abort(404)
+    manual = _manual_account_labels()
+    with db() as conn:
+        # Today shows ONLY carousels explicitly RELEASED to post. The pending buffer
+        # is the QUEUE for the next batch and never shows here — it stays in reserve
+        # until the Make button / posting slot releases a batch. So when nothing's
+        # released, today is empty (by design). Manual-track accounts are filtered
+        # out — they show on /content/manual and are never auto-pushed.
+        released = [r for r in conn.execute(
+            "SELECT * FROM content_queue WHERE status='released' ORDER BY id DESC").fetchall()
+            if (r["assigned_account"] or "") not in manual]
+        pending = conn.execute("SELECT COUNT(*) c FROM content_queue WHERE status='pending'").fetchone()["c"]
+        posted = conn.execute("SELECT COUNT(*) c FROM content_queue WHERE status='posted'").fetchone()["c"]
+        tt_accts = conn.execute("SELECT open_id, label FROM tiktok_accounts ORDER BY connected_at").fetchall()
+    cards = _render_released_cards(released, tt_accts)
     if not cards:
         cards.append('<div style="color:#7c8aa0;text-align:center;padding:40px 0">No carousels released yet. '
                      'The generator fills the queue; releases land here at 8 / 12 / 3 / 6 / 9.</div>')
@@ -13447,60 +13543,7 @@ def content_today():
         f'padding:13px;border-radius:11px;font-size:15px;cursor:pointer">⚡ Make a set — one per account ({_active_n})</button>'
         f'<div style="color:#5d6b80;font-size:11px;margin:8px 0 0;text-align:center">picking any school/format generates fresh from the queue</div></form>'
         '</div>')
-    save_script = (
-        '<script>'
-        'async function saveCard(btn){var card=btn.closest(".qcard");if(!card)return;'
-        ' var t=btn.textContent;btn.disabled=true;btn.textContent="Preparing…";'
-        ' try{var els=[].slice.call(card.querySelectorAll(".cslide")),fs=[];'
-        '  for(var i=0;i<els.length;i++){var r=await fetch(els[i].src);var bl=await r.blob();'
-        '   fs.push(new File([bl],"candor-slide-"+(i+1)+".png",{type:"image/png"}));}'
-        '  if(navigator.canShare&&navigator.canShare({files:fs})){await navigator.share({files:fs,title:"Candor carousel"});}'
-        '  else{fs.forEach(function(f){var a=document.createElement("a");a.href=URL.createObjectURL(f);'
-        '   a.download=f.name;document.body.appendChild(a);a.click();a.remove();});}'
-        ' }catch(e){}btn.disabled=false;btn.textContent=t;}'
-        # Instagram: pad each 2:3 slide onto a 9:16 (1080x1920) canvas so it drops
-        # straight into a Reel/Story. Background = the slide's own corner color, so
-        # solid-bg slides extend cleanly; content stays full-width, centered.
-        'function _loadImg(src){return new Promise(function(res,rej){var im=new Image();'
-        ' im.crossOrigin="anonymous";im.onload=function(){res(im);};im.onerror=rej;im.src=src;});}'
-        'async function saveCardIG(btn){var card=btn.closest(".qcard");if(!card)return;'
-        ' var t=btn.textContent;btn.disabled=true;btn.textContent="Preparing…";'
-        ' try{var els=[].slice.call(card.querySelectorAll(".cslide")),fs=[],CW=1080,CH=1920;'
-        '  for(var i=0;i<els.length;i++){var im=await _loadImg(els[i].src);'
-        '   var cv=document.createElement("canvas");cv.width=CW;cv.height=CH;var cx=cv.getContext("2d");'
-        '   var sc=document.createElement("canvas");sc.width=im.width;sc.height=im.height;'
-        '   var sx=sc.getContext("2d");sx.drawImage(im,0,0);var px=sx.getImageData(3,3,1,1).data;'
-        '   cx.fillStyle="rgb("+px[0]+","+px[1]+","+px[2]+")";cx.fillRect(0,0,CW,CH);'
-        '   var s=CW/im.width,w=CW,h=im.height*s;if(h>CH){s=CH/im.height;h=CH;w=im.width*s;}'
-        '   cx.drawImage(im,(CW-w)/2,(CH-h)/2,w,h);'
-        '   var bl=await new Promise(function(r){cv.toBlob(r,"image/png");});'
-        '   fs.push(new File([bl],"candor-ig-"+(i+1)+".png",{type:"image/png"}));}'
-        '  if(navigator.canShare&&navigator.canShare({files:fs})){await navigator.share({files:fs,title:"Candor (Instagram)"});}'
-        '  else{fs.forEach(function(f){var a=document.createElement("a");a.href=URL.createObjectURL(f);'
-        '   a.download=f.name;document.body.appendChild(a);a.click();a.remove();});}'
-        ' }catch(e){alert("Instagram save failed — "+e);}btn.disabled=false;btn.textContent=t;}'
-        # Posted/Skip: mark it server-side via fetch and remove ONLY that card in
-        # place — no full reload, so the next queued carousel doesn\'t jump up and
-        # look like a new one was generated.
-        'function cardAct(form){var card=form.closest(".qcard");'
-        ' fetch(form.action,{method:"POST",body:new FormData(form)}).catch(function(){});'
-        ' if(card){card.style.transition="opacity .15s";card.style.opacity="0";'
-        '  setTimeout(function(){card.remove();},150);} return false;}'
-        # Send to TikTok: push this carousel to a connected account's TikTok inbox as
-        # a draft (Content Posting API) and show the result inline — no save/upload.
-        'async function sendTikTok(btn,cid){var card=btn.closest(".qcard");'
-        ' var out=card?card.querySelector(".ttresult"):null;btn.disabled=true;'
-        ' btn.textContent="Sending…";if(out)out.textContent="";'
-        ' try{var tok=(document.querySelector("input[name=csrf_token]")||{}).value||"";'
-        '  var r=await fetch("/content/queue/"+cid+"/send-tiktok",{method:"POST",headers:{"X-CSRFToken":tok}});'
-        '  var d=await r.json();'
-        '  if(d.ok){btn.textContent="✓ Sent to TikTok";btn.style.background="#13351f";'
-        '   if(out){out.style.color="#bdf3d0";out.textContent="Draft sent to "+(d.account||"your TikTok")+" — open TikTok → Inbox to post.";}}'
-        '  else{btn.disabled=false;btn.textContent="📲 Send to TikTok (draft)";'
-        '   if(out){out.style.color="#ff9b9b";out.textContent=d.error||"Failed — try again.";}}'
-        ' }catch(e){btn.disabled=false;btn.textContent="📲 Send to TikTok (draft)";'
-        '  if(out){out.style.color="#ff9b9b";out.textContent="Network error.";}}}'
-        '</script>')
+    save_script = _CONTENT_SAVE_SCRIPT
     body = (f'<div style="max-width:720px;margin:0 auto;padding:16px 12px 80px">'
             + f'<h1 style="margin:0 0 4px">📅 Today</h1>'
             + f'<div style="color:#7c8aa0;font-size:14px;margin:0 0 18px">{len(cards)} to post · {pending} in queue for next batch · {posted} posted · tap “Save all slides” to save a carousel to Photos</div>'
@@ -19344,12 +19387,18 @@ def _tiktok_autopost_ids(ids):
     if not ids:
         return
     direct = os.environ.get("TIKTOK_AUTOPOST_DIRECT") == "1"   # Stage 2, post-audit
+    manual = _manual_account_labels()                          # never auto-push these
     for cid in ids:
         try:
             with db() as conn:
                 r = conn.execute("SELECT * FROM content_queue WHERE id=?", (cid,)).fetchone()
                 if not r or r["tt_publish_id"]:
                     continue                          # gone, or already pushed
+            if (r["assigned_account"] or "") in manual:
+                # MANUAL track: still released to /content/manual, but never auto-pushed
+                # to TikTok (kept hitting the pending-draft spam cap). Post it by hand.
+                print(f" * autopost cid {cid}: {r['assigned_account']} on manual track — skip", flush=True)
+                continue
                 acct = conn.execute("SELECT * FROM tiktok_accounts WHERE label=?",
                                     (r["assigned_account"],)).fetchone()
             if not acct or not acct["open_id"]:
