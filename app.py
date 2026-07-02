@@ -93,13 +93,43 @@ def _log_api_cost(resp, model, source):
     except Exception as e:
         print("api cost log:", e)
 
-def _wrap_cost_logging(client, source):
+def _wrap_cost_logging(client, source, cli_route=False):
     """Monkeypatch a client's messages.create so EVERY call (current + future call
-    sites) is metered, with no per-call-site edits."""
+    sites) is metered, with no per-call-site edits.
+
+    cli_route=True: when USE_MAX_CLI=1 (the Mac content autopilot ONLY — Railway never
+    sets it), route the call through `claude -p` on the flat-rate Max plan instead of
+    the metered API, so the factory's copy/generation feature calls are FREE. Falls
+    back to the API on any CLI failure, so nothing breaks. Live Railway users never
+    set USE_MAX_CLI, so they always hit the API exactly as before. Grading is wrapped
+    WITHOUT cli_route, so it is completely unaffected."""
     if client is None or getattr(client, "_cost_wrapped", False):
         return client
     _orig = client.messages.create
     def _logged(*a, **kw):
+        if cli_route and os.environ.get("USE_MAX_CLI") == "1":
+            try:
+                sys_p = kw.get("system") or ""
+                parts = []
+                for m in (kw.get("messages") or []):
+                    ct = m.get("content")
+                    if isinstance(ct, str):
+                        parts.append(ct)
+                    elif isinstance(ct, list):
+                        parts.append(" ".join(b.get("text", "") for b in ct if isinstance(b, dict)))
+                user_p = "\n\n".join(p for p in parts if p)
+                out = _claude_cli(f"{sys_p}\n\n{user_p}".strip() if sys_p else user_p,
+                                  model=kw.get("model"))
+                if out:
+                    import types as _t
+                    return _t.SimpleNamespace(
+                        content=[_t.SimpleNamespace(text=out, type="text")],
+                        usage=_t.SimpleNamespace(input_tokens=0, output_tokens=0,
+                                                 cache_read_input_tokens=0,
+                                                 cache_creation_input_tokens=0),
+                        stop_reason="end_turn", model=kw.get("model"))
+            except Exception as e:
+                print("cli-route fallback -> API:", e)
         resp = _orig(*a, **kw)
         _log_api_cost(resp, kw.get("model"), source)
         return resp
@@ -108,7 +138,9 @@ def _wrap_cost_logging(client, source):
     return client
 
 # main client → "feature" spend, grade client → "grading" spend (distinct keys).
-_claude_client = _wrap_cost_logging(_claude_client, "feature")
+# Feature client gets cli_route: on the Mac autopilot (USE_MAX_CLI=1) its calls run
+# FREE via claude -p; on Railway (no USE_MAX_CLI) they hit the API exactly as before.
+_claude_client = _wrap_cost_logging(_claude_client, "feature", cli_route=True)
 _grade_client = _wrap_cost_logging(_grade_client, "grading")
 
 
