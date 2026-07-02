@@ -18635,12 +18635,11 @@ TIKTOK_AUTH_URL = "https://www.tiktok.com/v2/auth/authorize/"
 TIKTOK_TOKEN_URL = "https://open.tiktokapis.com/v2/oauth/token/"
 TIKTOK_USERINFO_URL = "https://open.tiktokapis.com/v2/user/info/"
 TIKTOK_VIDEO_LIST_URL = "https://open.tiktokapis.com/v2/video/list/"
-# Stage 1 only requests video.upload (draft/inbox posting). video.publish is NOT
-# requested here because it isn't enabled on the app (Direct Post is off, pending
-# the content-posting audit) — requesting a disabled scope makes TikTok reject the
-# WHOLE auth with invalid_scope. Add video.publish back here only once Direct Post
-# is enabled in the portal (Stage 2).
-TIKTOK_SCOPES = "user.info.basic,video.list,video.upload"
+# Stage 2: Direct Post is now enabled on the SANDBOX app in the TikTok portal, so
+# video.publish is requestable and included here — needed for DIRECT_POST (sandbox
+# forces SELF_ONLY/private). video.upload stays for the draft/inbox path. Accounts
+# must be re-authed to pick up video.publish; until then autopost falls back to draft.
+TIKTOK_SCOPES = "user.info.basic,video.list,video.upload,video.publish"
 _TT_VIDEO_FIELDS = "id,create_time,share_url,video_description,view_count,like_count,comment_count,share_count"
 
 
