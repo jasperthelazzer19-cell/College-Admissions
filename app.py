@@ -430,6 +430,19 @@ def _is_safe_path(p):
         and not p.startswith("/\\") and "\n" not in p and "\r" not in p
 
 
+def _client_ip():
+    """Best-effort real client IP for rate-limiting. Behind Railway's proxy the
+    trustworthy value is the RIGHTMOST X-Forwarded-For hop — proxies append, so a
+    client that prepends fake IPs only pollutes the left. Taking [0] let anyone
+    mint a fresh rate-limit key per request via a spoofed header."""
+    xff = request.headers.get("X-Forwarded-For")
+    if xff:
+        parts = [h.strip() for h in xff.split(",") if h.strip()]
+        if parts:
+            return parts[-1]
+    return request.remote_addr or "?"
+
+
 def _normalize_state(s):
     """Canonicalize a user-entered state to the full name used in school data.
     Accepts 'NC', 'N.C.', 'north carolina', etc. Leaves unrecognized input as-is
@@ -1153,7 +1166,7 @@ def _render_counterfactual_card(profile, school, current_low, current_high):
             f"Raise SAT from {sat} to {target_sat} (+50)",
             new_low, new_high
         ))
-    elif act is not None and act < school["act_75"]:
+    elif act is not None and school.get("act_75") is not None and act < school["act_75"]:
         target_act = min(36, act + 2)
         new_low, new_high = counterfactual_lift(profile, school, act=target_act)
         scenarios.append((
@@ -1617,15 +1630,15 @@ def personalize_round_odds(user_id, school, detail, profile, user_low_pct, user_
 
     # Build a compact profile summary for the prompt
     parts = []
-    if profile.get("gpa"): parts.append(f"GPA: {profile.get('gpa')} ({profile.get('gpa_scale','4.0')})")
+    if profile.get("uw_gpa"): parts.append(f"GPA: {profile.get('uw_gpa')} (UW 4.0)")
     if profile.get("sat"): parts.append(f"SAT: {profile.get('sat')}")
     if profile.get("act"): parts.append(f"ACT: {profile.get('act')}")
-    if profile.get("rigor"): parts.append(f"Rigor: {profile.get('rigor')}")
+    if profile.get("self_rigor"): parts.append(f"Rigor: {profile.get('self_rigor')}")
     # NOTE: race is intentionally NOT fed to the odds model. Post-SFFA it is not
     # a usable admissions factor, and the model would only confabulate a delta.
     if profile.get("first_gen"): parts.append("First-gen")
     if profile.get("state"): parts.append(f"State: {profile.get('state')}")
-    if profile.get("intended_major"): parts.append(f"Major: {profile.get('intended_major')}")
+    if profile.get("major"): parts.append(f"Major: {profile.get('major')}")
     if profile.get("is_exceptional"): parts.append("EXCEPTIONAL APPLICANT (top 1-2% nationally)")
     legacies = profile.get("legacy_schools") or []
     # Profile stores legacy_schools as a comma-separated string; older code
@@ -1635,16 +1648,13 @@ def personalize_round_odds(user_id, school, detail, profile, user_low_pct, user_
         legacies = [s.strip() for s in legacies.split(",") if s.strip()]
     if legacies:
         # Also tell Claude this user IS a legacy at the target school if it
-        # matches — so the round rates reflect that boost specifically.
-        target_match = any(
-            l.lower() in (school.get("name") or "").lower()
-            or (school.get("slug") or "").lower() in l.lower()
-            for l in legacies
-        )
-        if target_match:
+        # matches — so the round rates reflect that boost specifically. Use the
+        # alias-aware matcher (not naive substring, which flagged "Penn" as
+        # legacy at Penn State and "MIT" at Smith).
+        if legacy_generations_at(profile, school) > 0:
             parts.append(f"LEGACY AT THIS SCHOOL — apply legacy boost (typically 2-5x baseline at top schools)")
         parts.append(f"Legacy at: {', '.join(legacies)}")
-    ecs = profile.get("extracurriculars") or ""
+    ecs = profile.get("ecs") or ""
     if isinstance(ecs, list): ecs = "; ".join(ecs)
     if ecs:
         parts.append(f"ECs: {str(ecs)[:400]}")
@@ -3649,21 +3659,21 @@ def counterfactual_lift(profile, school, *, gpa=None, sat=None, act=None,
 
 # Schools that reward a focused "spike" (deep, aligned, one-thing-extremely-well)
 # more than well-roundedness, and schools that lean the other way (value
-# breadth / leadership / civic profile). Matched against the school name.
-_SPIKE_HIGH = ("mit", "caltech", "chicago", "carnegie mellon", "harvey mudd",
-               "olin", "georgia tech", "stanford", "cooper union", "worcester polytechnic",
-               "rensselaer", "rose-hulman")
-_SPIKE_LOW = ("princeton", "dartmouth", "williams", "amherst", "naval academy",
-              "military academy", "west point", "air force academy", "holy cross",
-              "davidson", "washington and lee")
+# breadth / leadership / civic profile). Matched by exact slug — name substring
+# matching false-matched "olin" in "Carolina" and "chicago" in "Loyola Chicago".
+_SPIKE_HIGH = {"mit", "caltech", "uchicago", "cmu", "harvey-mudd",
+               "olin", "gatech", "stanford", "cooper", "wpi",
+               "rpi", "rose-hulman"}
+_SPIKE_LOW = {"princeton", "dartmouth", "williams", "amherst",
+              "holy-cross", "davidson", "wlu"}
 
 def spike_receptivity(school):
     """How much a school rewards a focused spike vs. well-roundedness. >1 = spike-
     friendly (MIT/Caltech/UChicago), <1 = breadth/leadership-leaning (HYP-ish,
     service academies, some LACs). Centered at 1.0."""
-    name = (school.get("name") or "").lower()
-    if any(k in name for k in _SPIKE_HIGH): return 1.35
-    if any(k in name for k in _SPIKE_LOW): return 0.90
+    slug = (school.get("slug") or "").lower()
+    if slug in _SPIKE_HIGH: return 1.35
+    if slug in _SPIKE_LOW: return 0.90
     return 1.0
 
 
@@ -4955,7 +4965,7 @@ def init_db():
         conn.execute("CREATE INDEX IF NOT EXISTS idx_interest_ts ON interest_signups(ts)")
         # Content Autopilot queue (Jun 2026). The Mac generator (Claude Code on
         # Max = free) pre-renders full TikTok carousels and pushes them here; the
-        # /cron/content-release trigger releases one per slot (8/12/3/7:30) and
+        # /cron/content-release trigger releases one per slot (8/12/3/6/9) and
         # the creator-only /content/today page serves them ready to save. Images
         # are stored as base64 data URLs so they survive Railway's ephemeral FS.
         conn.execute("""CREATE TABLE IF NOT EXISTS content_queue (
@@ -6255,7 +6265,7 @@ def colleges_html():
 </div>
 <form method="get" action="/colleges" class="card" style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end">
   <div style="flex:1;min-width:180px"><label style="margin-top:0">Search</label>
-    <input name="q" value="{q}" placeholder="Name or state"></div>
+    <input name="q" value="{_esc(q, quote=True)}" placeholder="Name or state"></div>
   <div style="min-width:140px"><label style="margin-top:0">State</label>
     <select name="state"><option value="">All</option>{state_options}</select></div>
   <div style="min-width:140px"><label style="margin-top:0">Type</label>
@@ -7970,7 +7980,12 @@ def school_improve_html(slug):
         elif "REA" in rates and rates.get("REA", 0) >= rates.get("RD", 0) * 1.3:
             rec = "REA"; rec_reason = f"REA is non-binding but signals interest. REA rate ({round(rates['REA']*100,1)}%) beats RD ({round(rates.get('RD',0)*100,1)}%) without locking you in."
         elif "EA" in rates:
-            rec = "EA"; rec_reason = f"EA gives you an early decision without a binding commitment. Same or slightly better odds than RD."
+            rec = "EA"
+            _ea = rates.get("EA", 0); _rd = rates.get("RD", 0)
+            if _rd and _ea < _rd:
+                rec_reason = f"EA gives you a non-binding early answer, but note EA odds here ({round(_ea*100,1)}%) run below RD ({round(_rd*100,1)}%) — apply EA for the early result, not an odds boost."
+            else:
+                rec_reason = f"EA gives you an early decision without a binding commitment. Same or slightly better odds than RD."
         elif "ED2" in rates and rates.get("ED2", 0) >= rates.get("RD", 0) * 1.3:
             rec = "ED2"; rec_reason = f"If you don't get into your ED1 school, ED2 here ({round(rates['ED2']*100,1)}%) gives you another binding boost over RD ({round(rates.get('RD',0)*100,1)}%)."
         else:
@@ -9454,6 +9469,10 @@ def chat_send(conversation_id, user_message, kind, profile, school=None):
     add_message(conversation_id, "user", user_message)
     history = get_messages(conversation_id, limit=MAX_CHAT_HISTORY * 2)
     msgs = [{"role": m["role"], "content": m["content"]} for m in history[-MAX_CHAT_HISTORY:]]
+    # Anthropic requires the first message to be role=user; the window can start
+    # on an assistant turn once a conversation goes past MAX_CHAT_HISTORY.
+    while msgs and msgs[0]["role"] != "user":
+        msgs.pop(0)
     if not _claude_client:
         reply = "AI chat is unavailable right now (no API key configured). The improve guide and ranking lists still work — try those for self-serve advice."
     else:
@@ -9646,7 +9665,7 @@ def _rate_limit_scrapers():
         parts = p.split("/")
         slug = parts[2] if len(parts) > 2 else ""
         if slug:
-            ip = request.headers.get("X-Forwarded-For", request.remote_addr or "?").split(",")[0].strip()
+            ip = _client_ip()
             now = time.time()
             dq = _COLLEGE_RATE.setdefault(ip, deque())
             while dq and now - dq[0][0] > 300:  # 5-min window
@@ -12540,8 +12559,11 @@ def bestfit_result():
     # same school it used for the cover color/hashtags), so the cover and this reveal
     # can never show two different schools. Must be a real, scored school.
     forced = (request.args.get("win") or "").strip()
-    if forced and forced in COLLEGES_BY_SLUG and any(s == forced for s, _ in scored):
-        win_slug = forced
+    if forced and forced in COLLEGES_BY_SLUG:
+        for s, sc in scored:
+            if s == forced:
+                win_slug, win_score = s, sc   # move the score with the winner, not scored[0]'s
+                break
     merged = merged_school(COLLEGES_BY_SLUG[win_slug])
     short, color = _school_brand(win_slug, merged.get("name"))
     logo = INST_LOGOS.get(win_slug) or SCHOOL_LOGOS.get(win_slug)
@@ -12551,7 +12573,8 @@ def bestfit_result():
                if verdict in ("match", "neutral")][:5]
     if not reasons:                                  # fallback to the stated wants
         reasons = candor_fit.traits_from_prefs(prefs)
-    runners = ", ".join(_school_brand(s, COLLEGES_BY_SLUG[s].get("name"))[0] for s, _ in scored[1:4])
+    runners = ", ".join(_school_brand(s, COLLEGES_BY_SLUG[s].get("name"))[0]
+                        for s, _ in [x for x in scored if x[0] != win_slug][:3])  # top 3, excluding the winner (matters when &win= forces a non-top pick)
     logo_img = (f'<img src="{logo}" style="height:230px;max-width:78%;object-fit:contain;'
                 f'display:block;margin:6px auto 2px">' if logo else "")
     reason_lis = "".join(f"<li>{esc(r)}</li>" for r in reasons)
@@ -12575,7 +12598,7 @@ def bestfit_result():
 # ─── CONTENT AUTOPILOT ────────────────────────────────────────────────────
 # The Mac generator (Claude Code on Max = free) pre-renders carousels and POSTs
 # them to /content/queue/push. A scheduler hits /cron/content-release at each
-# posting slot (8/12/3/7:30) to release one + email the link. /content/today is
+# posting slot (8/12/3/6/9) to release one + email the link. /content/today is
 # the creator-only page that serves released carousels ready to save.
 CONTENT_SLOTS = ["08:00", "12:00", "15:00", "18:00", "21:00"]  # 5x/day (2026-06 test, was 4x: 8/12/3/7:30)
 
@@ -12767,7 +12790,7 @@ def content_school_demand():
 @app.route("/cron/content-release", methods=["GET", "POST"])
 @_csrf_exempt
 def cron_content_release():
-    """Release the next queued carousel for a posting slot. Hit at 8/12/3/7:30:
+    """Release the next queued carousel for a posting slot. Hit at 8/12/3/6/9:
     /cron/content-release?key=CRON_KEY&slot=08:00 . Releases one pending carousel
     and emails the creator a link to /content/today."""
     if not _autopilot_authed():
@@ -13366,7 +13389,7 @@ def content_today():
             f'</div></div>')
     if not cards:
         cards.append('<div style="color:#7c8aa0;text-align:center;padding:40px 0">No carousels released yet. '
-                     'The generator fills the queue; releases land here at 8 / 12 / 3 / 7:30.</div>')
+                     'The generator fills the queue; releases land here at 8 / 12 / 3 / 6 / 9.</div>')
     try:
         _rqn = max(1, min(8, int(request.args.get("requested") or 0)))
     except ValueError:
@@ -13844,6 +13867,13 @@ def chances_narrative(slug):
     school_data = COLLEGES_BY_SLUG.get(slug)
     if not school_data:
         return ("", 204)
+    # Paywall: don't run the paid AI narrative for a metered user who's out of
+    # free calcs. A legit lazy-load fires within CALC_DEBOUNCE_S of the chances
+    # page's own _log_calc_run, so the meter's debounce returns not-blocked here;
+    # only a direct-hit bypass (no recent page view) trips this.
+    _blocked, _u, _l = _calc_meter(current_user(), slug)
+    if _blocked:
+        return ("", 204)
     merged = merged_school(school_data)
     fit, components = compute_fit(profile, merged)
     tier = assign_tier(merged, fit, profile)
@@ -13909,7 +13939,7 @@ def go_link(slug):
     if not target:
         abort(404)
     try:
-        ip = (request.headers.get("X-Forwarded-For") or request.remote_addr or "").split(",")[0].strip()
+        ip = _client_ip()
         with db() as conn:
             conn.execute("INSERT INTO link_clicks (slug, ip, user_agent) VALUES (?,?,?)",
                          (slug, ip, (request.headers.get("User-Agent") or "")[:300]))
@@ -13950,7 +13980,7 @@ def api_demo_odds():
     estimate from (slug, gpa, sat) — a stripped subset of the real model
     just for marketing/preview. Rate-limited per IP."""
     from collections import deque
-    ip = request.headers.get("X-Forwarded-For", request.remote_addr or "?").split(",")[0].strip()
+    ip = _client_ip()
     now = time.time()
     dq = _DEMO_RATE.setdefault(ip, deque())
     while dq and now - dq[0] > 60:
@@ -14018,9 +14048,14 @@ def api_college_articles(slug):
     arts = fetch_articles(slug)
     if not arts:
         return jsonify({"html": '<p class="muted">No recent articles found.</p>'})
+    from html import escape as _esc
     items = ""
     for a in arts:
-        items += f"""<div style="margin-bottom:10px"><a href="{a['url']}" target="_blank" rel="noopener" style="font-weight:600">{a['title']}</a><div class="muted" style="font-size:.78em">{a.get('source','')} · {a.get('published','')}</div></div>"""
+        _url = _esc(str(a.get('url', '')), quote=True)
+        _title = _esc(str(a.get('title', '')))
+        _src = _esc(str(a.get('source', '')))
+        _pub = _esc(str(a.get('published', '')))
+        items += f"""<div style="margin-bottom:10px"><a href="{_url}" target="_blank" rel="noopener" style="font-weight:600">{_title}</a><div class="muted" style="font-size:.78em">{_src} · {_pub}</div></div>"""
     return jsonify({"html": items})
 
 
@@ -14028,6 +14063,9 @@ def api_college_articles(slug):
 @login_required
 def school_plan_page(slug):
     if slug in COLLEGES_BY_SLUG:
+        _blocked, _used, _limit = _calc_meter(current_user(), slug)
+        if _blocked:
+            return _calc_paywall_html(_used, _limit)
         _log_calc_run(slug, current_user()["id"])
     return school_plan_html(slug)
 
@@ -14616,7 +14654,9 @@ def save_school(slug):
             (user["id"], slug)
         )
         conn.commit()
-    nxt = request.form.get("next") or request.referrer or url_for("college_detail_page", slug=slug)
+    nxt = request.form.get("next")
+    if not _is_safe_path(nxt):
+        nxt = url_for("college_detail_page", slug=slug)
     return redirect(nxt)
 
 
@@ -14663,7 +14703,9 @@ def unsave_school(slug):
             (user["id"], slug)
         )
         conn.commit()
-    nxt = request.form.get("next") or request.referrer or url_for("college_detail_page", slug=slug)
+    nxt = request.form.get("next")
+    if not _is_safe_path(nxt):
+        nxt = url_for("college_detail_page", slug=slug)
     return redirect(nxt)
 
 
@@ -14676,7 +14718,7 @@ def api_interest():
     no email sent — pure lead capture that seeds the outcome-network email
     list. Per-IP rate-limited to stop drive-by abuse."""
     from collections import deque
-    ip = request.headers.get("X-Forwarded-For", request.remote_addr or "?").split(",")[0].strip()
+    ip = _client_ip()
     now = time.time()
     dq = _DEMO_RATE.setdefault(f"interest:{ip}", deque())
     while dq and now - dq[0] > 3600:
@@ -14685,7 +14727,8 @@ def api_interest():
         return jsonify({"error": "Too many submissions. Try again in an hour."}), 429
     dq.append(now)
 
-    email = (request.form.get("email") or request.json.get("email") if request.is_json else request.form.get("email") or "").strip().lower()
+    _json = request.get_json(silent=True) if request.is_json else None
+    email = str(request.form.get("email") or (_json or {}).get("email") or "").strip().lower()
     slug = (request.form.get("slug") or "").strip().lower() or None
     source = (request.form.get("source") or "college_detail").strip()[:64]
     if not email or not _EMAIL_RE.match(email) or len(email) > 254:
@@ -14867,6 +14910,7 @@ def grade_user_list(uid):
             items.append({"slug": slug, "tier": None, "odds": None,
                           "round": r["application_round"], "tier_source":"missing"})
             continue
+        c = merged_school(c)   # use CDS-corrected data so grades match the chances page
         try:
             fit, _ = compute_fit(profile, c)
             tier = assign_tier(c, fit, profile)
@@ -15030,7 +15074,7 @@ def recommend_schools_to_add(uid, limit=9):
             (uid, uid)
         ).fetchall()
     saved = {r["college_slug"] for r in rows}
-    saved_colleges = [COLLEGES_BY_SLUG[s] for s in saved if s in COLLEGES_BY_SLUG]
+    saved_colleges = [merged_school(COLLEGES_BY_SLUG[s]) for s in saved if s in COLLEGES_BY_SLUG]
     if not saved_colleges:
         return {"gap": [], "similar": [], "list_n": 0, "missing": [], "empty": True}
 
@@ -15060,6 +15104,7 @@ def recommend_schools_to_add(uid, limit=9):
     cands = []
     for c in COLLEGES:
         if c["slug"] in saved: continue
+        c = merged_school(c)   # CDS-corrected data so candidate tiers/odds match the chances page
         try:
             fit, _ = compute_fit(profile, c)
             tier = assign_tier(c, fit, profile)
@@ -15252,6 +15297,7 @@ def plans_add_explain(slug):
     c = COLLEGES_BY_SLUG.get(slug)
     if not c:
         return jsonify({"error": "Unknown school"}), 404
+    c = merged_school(c)   # CDS-corrected data so the AI explanation matches the chances page
     profile = get_profile(user["id"]) or {}
     try:
         fit, _ = compute_fit(profile, c)
@@ -16428,6 +16474,8 @@ def plans_compute_all():
     """Run analyze_school for every school in the user's My Colleges that
     doesn't currently have saved_chances. Lets users repopulate the
     simulator after a profile update wiped the cache."""
+    gate = _gate_premium()
+    if gate: return gate
     uid = current_user()["id"]
     p = get_profile(uid)
     if not p:
@@ -17988,10 +18036,11 @@ def admin_visitors():
     engaged = sum(1 for r in visitors if r["n"] >= 2)
     single = total - engaged
     auth = sum(1 for r in visitors if r["user_id"])
+    from html import escape as _esc
     rows_html = ""
     for r in visitors[:60]:
         auth_pill = '<span style="color:var(--teal)">AUTH</span>' if r["user_id"] else '<span class="muted">anon</span>'
-        paths_short = (r["paths"] or "")[:120]
+        paths_short = _esc((r["paths"] or "")[:120])
         rows_html += (
             f'<div style="display:flex;gap:14px;padding:6px 0;border-top:1px solid var(--border);font-size:.84em;font-family:monospace">'
             f'<span style="width:90px">{r["visitor_id"][:14]}</span>'
@@ -18001,11 +18050,11 @@ def admin_visitors():
             f'</div>'
         )
     sp_html = "".join(
-        f'<div style="display:flex;justify-content:space-between;font-size:.85em;padding:3px 0"><span>{r["path"]}</span><span class="muted">{r["n"]}</span></div>'
+        f'<div style="display:flex;justify-content:space-between;font-size:.85em;padding:3px 0"><span>{_esc(r["path"] or "")}</span><span class="muted">{r["n"]}</span></div>'
         for r in single_paths
     )
     ep_html = "".join(
-        f'<div style="display:flex;justify-content:space-between;font-size:.85em;padding:3px 0"><span>{r["path"]}</span><span class="muted">{r["n"]}</span></div>'
+        f'<div style="display:flex;justify-content:space-between;font-size:.85em;padding:3px 0"><span>{_esc(r["path"] or "")}</span><span class="muted">{r["n"]}</span></div>'
         for r in engaged_paths
     )
     return _page(f"""

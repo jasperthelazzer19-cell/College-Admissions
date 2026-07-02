@@ -664,7 +664,7 @@ SPORTS_TIER_BY_SLUG = {
     "uw":"strong","uoregon":"strong","cu-boulder":"strong","arizona":"strong","asu":"strong",
     "syracuse":"strong","vanderbilt":"medium","notre-dame":"strong","wake-forest":"strong",
     "miami":"strong","villanova":"strong","gatech":"strong","uconn":"strong","dartmouth":"medium",
-    "uky":"strong","tulane":"medium","ku":"strong","unl":"strong","gwu":"medium",
+    "uky":"strong","tulane":"medium","ku":"strong","unl":"strong",
     # Low sports
     "mit":"low","caltech":"low","cmu":"low","jhu":"low","uchicago":"low","cooper":"low",
     "berklee":"low","juilliard":"low","parsons":"low","pratt":"low","saic":"low","risd":"low",
@@ -736,9 +736,9 @@ ADMISSIONS_DETAIL = {
     "wake-forest": {"rounds": ['ED', 'ED2', 'RD'], "rates": {"ED": 0.4500, "ED2": 0.3000, "RD": 0.1900}},
     "bc": {"rounds": ['ED', 'ED2', 'RD'], "rates": {"ED": 0.3340, "ED2": 0.2440, "RD": 0.1380}},
     "tulane": {"rounds": ['ED', 'EA', 'RD'], "rates": {"ED": 0.4200, "EA": 0.1100, "RD": 0.0800}},
-    "villanova": {"rounds": ['EA', 'ED1', 'ED2', 'RD'], "rates": {"EA": 0.2770, "ED": 0.5425, "ED2": 0.5000, "RD": 0.1800}},  # ED combined 54.25% (CDS 2024-25), EA 27.7% (Class 2030, official), overall 27.4%. ED2/RD est. (only combined ED published).
+    "villanova": {"rounds": ['EA', 'ED', 'ED2', 'RD'], "rates": {"EA": 0.2770, "ED": 0.5425, "ED2": 0.5000, "RD": 0.1800}},  # ED combined 54.25% (CDS 2024-25), EA 27.7% (Class 2030, official), overall 27.4%. ED2/RD est. (only combined ED published).
     "lehigh": {"rounds": ['ED', 'ED2', 'RD'], "rates": {"ED": 0.5210, "ED2": 0.3790, "RD": 0.2900}},
-    "case": {"rounds": ['ED1', 'ED2', 'EA', 'RD'], "rates": {"ED": 0.2498, "ED2": 0.2200, "EA": 0.2300, "RD": 0.3560}},  # Class of 2029: combined ED 25%, RD 35.6% (RD>ED is real for CWRU), overall 35.3%. EA est. (discontinued from public reporting); ED2 est.
+    "case": {"rounds": ['ED', 'ED2', 'EA', 'RD'], "rates": {"ED": 0.2498, "ED2": 0.2200, "EA": 0.2300, "RD": 0.3560}},  # Class of 2029: combined ED 25%, RD 35.6% (RD>ED is real for CWRU), overall 35.3%. EA est. (discontinued from public reporting); ED2 est.
     "northeastern": {"rounds": ['ED', 'ED2', 'EA', 'RD'], "rates": {"ED": 0.4305, "ED2": 0.3800, "EA": 0.1000, "RD": 0.0380}},  # CDS 2024-25: combined ED 43%, RD ~3.8% (calculated; was wrongly 2.5%), overall ~5.6%. ED2/EA est. (NEU publishes ED only).
     "bu": {"rounds": ['ED', 'ED2', 'RD'], "rates": {"ED": 0.3100, "ED2": 0.2260, "RD": 0.0800}},
     "miami": {"rounds": ['ED', 'ED2', 'EA', 'RD'], "rates": {"ED": 0.4300, "ED2": 0.3000, "EA": 0.2000, "RD": 0.1900}},
@@ -831,7 +831,7 @@ ADMISSIONS_DETAIL = {
     "conn-college": {"rounds": ['ED', 'ED2', 'RD'], "rates": {"ED": 0.4110, "ED2": 0.3700, "RD": 0.3450}},  # CDS 2024-25: combined ED 41.1%, overall 37%. ED2/RD est. (only combined ED published).
     "skidmore": {"rounds": ['ED', 'ED2', 'RD'], "rates": {"ED": 0.4550, "ED2": 0.3310, "RD": 0.1950}},
     "macalester": {"rounds": ['ED', 'ED2', 'EA', 'RD'], "rates": {"ED": 0.4500, "ED2": 0.3300, "EA": 0.2900, "RD": 0.2500}},
-    "reed": {"rounds": ['ED1', 'ED2', 'EA', 'RD'], "rates": {"ED": 0.4800, "ED2": 0.4200, "EA": 0.2700, "RD": 0.2500}},  # Overall 29.2% (Class 2029, official). Reed publishes no round rates ("ED ~2x more likely") — all est.
+    "reed": {"rounds": ['ED', 'ED2', 'EA', 'RD'], "rates": {"ED": 0.4800, "ED2": 0.4200, "EA": 0.2700, "RD": 0.2500}},  # Overall 29.2% (Class 2029, official). Reed publishes no round rates ("ED ~2x more likely") — all est.
     "grinnell": {"rounds": ['ED', 'ED2', 'RD'], "rates": {"ED": 0.3760, "ED2": 0.2740, "RD": 0.1270}},
     "kenyon": {"rounds": ['ED', 'ED2', 'RD'], "rates": {"ED": 0.4800, "ED2": 0.3800, "RD": 0.2600}},
     "oberlin": {"rounds": ['ED', 'ED2', 'RD'], "rates": {"ED": 0.4500, "ED2": 0.4000, "RD": 0.3000}},  # Class of 2029 overall 34% (official). Oberlin offers NO EA (removed phantom round). Round rates not published — ED1/ED2/RD est.
@@ -843,8 +843,8 @@ ADMISSIONS_DETAIL = {
     "oxy": {"rounds": ['ED', 'ED2', 'EA', 'RD'], "rates": {"ED": 0.5000, "ED2": 0.3500, "EA": 0.3050, "RD": 0.2600}},
     "wesleyan": {"rounds": ['ED', 'ED2', 'RD'], "rates": {"ED": 0.4200, "ED2": 0.3000, "RD": 0.1400}},
     "bucknell": {"rounds": ['ED', 'ED2', 'RD'], "rates": {"ED": 0.6100, "ED2": 0.4440, "RD": 0.2580}},
-    "rpi": {"rounds": ['ED1', 'ED2', 'EA', 'RD'], "rates": {"ED": 0.5800, "ED2": 0.5200, "EA": 0.6600, "RD": 0.6500}},  # Overall 67% (Class 2029); combined ED ~58% (Class 2028). RPI publishes no round split — ED1/ED2/EA est.
-    "wpi": {"rounds": ['ED1', 'ED2', 'EA', 'RD'], "rates": {"ED": 0.7560, "ED2": 0.6800, "EA": 0.6890, "RD": 0.5500}},  # ED1/EA from prior data; ED2/RD est. (WPI publishes no full round split).
+    "rpi": {"rounds": ['ED', 'ED2', 'EA', 'RD'], "rates": {"ED": 0.5800, "ED2": 0.5200, "EA": 0.6600, "RD": 0.6500}},  # Overall 67% (Class 2029); combined ED ~58% (Class 2028). RPI publishes no round split — ED1/ED2/EA est.
+    "wpi": {"rounds": ['ED', 'ED2', 'EA', 'RD'], "rates": {"ED": 0.7560, "ED2": 0.6800, "EA": 0.6890, "RD": 0.5500}},  # ED1/EA from prior data; ED2/RD est. (WPI publishes no full round split).
     "rose-hulman": {"rounds": ['EA', 'RD'], "rates": {"EA": 0.7300, "RD": 0.7000}},
     "olin": {"rounds": ['RD'], "rates": {"RD": 0.1400}},
     "stevens": {"rounds": ['ED', 'ED2', 'EA', 'RD'], "rates": {"ED": 0.6600, "ED2": 0.5400, "EA": 0.4800, "RD": 0.4200}},
@@ -857,7 +857,7 @@ ADMISSIONS_DETAIL = {
     "risd": {"rounds": ['ED', 'RD'], "rates": {"ED": 0.3000, "RD": 0.1700}},
     "saic": {"rounds": ['EA', 'RD'], "rates": {"EA": 0.7300, "RD": 0.6900}},
     "babson": {"rounds": ['ED', 'ED2', 'EA', 'RD'], "rates": {"ED": 0.2750, "ED2": 0.2750, "EA": 0.2080, "RD": 0.1570}},
-    "bentley": {"rounds": ['ED1', 'ED2', 'EA', 'RD'], "rates": {"ED": 0.6100, "ED2": 0.5500, "EA": 0.6100, "RD": 0.4400}},  # ED1/EA/RD from prior data; ED2 est. below ED1.
+    "bentley": {"rounds": ['ED', 'ED2', 'EA', 'RD'], "rates": {"ED": 0.6100, "ED2": 0.5500, "EA": 0.6100, "RD": 0.4400}},  # ED1/EA/RD from prior data; ED2 est. below ED1.
     "pepperdine": {"rounds": ['ED', 'EA', 'RD'], "rates": {"ED": 0.7000, "EA": 0.6700, "RD": 0.6290}},  # Pepperdine offers NO ED2 (removed phantom rounds). Overall ~67% (Class 2029). Round rates not published — ED/EA est.
     "scu": {"rounds": ['ED', 'ED2', 'EA', 'RD'], "rates": {"ED": 0.6200, "ED2": 0.5500, "EA": 0.5000, "RD": 0.4900}},
     "lmu": {"rounds": ['ED', 'ED2', 'EA', 'RD'], "rates": {"ED": 0.5800, "ED2": 0.5000, "EA": 0.4600, "RD": 0.4300}},
@@ -932,6 +932,10 @@ TEST_BLIND_SCHOOLS = {
     # UW (Seattle): permanently dropped the test requirement and reviewers do NOT
     # see submitted scores (admit.washington.edu) — functionally test-blind.
     "uw",
+    # California State University system is test-blind (same policy as the UCs):
+    # scores are not considered even if submitted.
+    "sjsu", "sdsu", "csulb", "calpoly-slo", "calpoly-pomona",
+    "csu-la", "csu-fullerton", "sf-state",
 }
 
 PORTFOLIO_GATEKEEPER_SCHOOLS = {
@@ -1441,7 +1445,7 @@ SCHOOL_TAGS = {
     "missou": ["greek_strong","sports_strong","college_town","large"],
     "iu": ["greek_strong","sports_strong","college_town","large"],
     "msu": ["greek_strong","sports_strong","cold","college_town","large"],
-    "ohio-state": ["sports_strong","cold","urban","large"],
+    "osu": ["sports_strong","cold","urban","large"],
     "psu": ["sports_strong","cold","college_town","large"],
     "penn-state": ["greek_strong","sports_strong","cold","college_town","large"],
     "wisc": ["greek_strong","sports_strong","cold","urban","large"],
@@ -1565,25 +1569,25 @@ RANKINGS = [
         "slug": "best-overall",
         "title": "Best Overall Universities",
         "blurb": "Top US national universities, ordered to match US News 2026 reference rankings (released Fall 2025).",
-        "order": ["princeton","mit","harvard","stanford","yale","caltech","duke","jhu","northwestern","upenn","cornell","brown","uchicago","columbia","ucla","ucb","dartmouth","notre-dame","vanderbilt","rice","washu","cmu","umich","emory","uva","gatech","unc","usc","georgetown","cmu","nyu","tufts","wake-forest","case","bc","tulane","villanova","ut-austin","wisc","lehigh","umd","wm","uf","brandeis","northeastern","gwu","stevens","miami","fordham","american","bu","binghamton","pitt","clemson","umn","uw","udel","gmu","temple","drexel","ohio-state","penn-state","msu","sc","sdsu","fsu","auburn","purdue","uconn","rutgers","vt","unh","uoregon","uvm"],
+        "order": ["princeton","mit","harvard","stanford","yale","caltech","duke","jhu","northwestern","upenn","cornell","brown","uchicago","columbia","ucla","ucb","dartmouth","notre-dame","vanderbilt","rice","washu","cmu","umich","emory","uva","gatech","unc","usc","georgetown","nyu","tufts","wake-forest","case","bc","tulane","villanova","ut-austin","wisc","lehigh","umd","wm","uf","brandeis","northeastern","gwu","stevens","miami","fordham","american","bu","binghamton","pitt","clemson","umn","uw","udel","gmu","temple","drexel","osu","penn-state","msu","sc","sdsu","fsu","auburn","purdue","uconn","rutgers","vt","unh","uoregon","uvm"],
     },
     {
         "slug": "best-business",
         "title": "Best Undergraduate Business",
         "blurb": "US News 2024 undergraduate business ranking. Wharton remains #1; the top 15 are mostly unchanged year-over-year aside from UVA McIntire pushing higher.",
-        "order": ["upenn","mit","ucb","umich","nyu","uva","cmu","ut-austin","cornell","unc","iu","washu","notre-dame","usc","georgetown","emory","ucla","bc","wisc","uf","penn-state","ohio-state","umn","tamu","umd","villanova","wake-forest","babson","bentley","tcu","uw","sjsu","sc","fsu","auburn","uga","scu","american","fordham","gwu","drexel","temple","lmu"],
+        "order": ["upenn","mit","ucb","umich","nyu","uva","cmu","ut-austin","cornell","unc","iu","washu","notre-dame","usc","georgetown","emory","ucla","bc","wisc","uf","penn-state","osu","umn","tamu","umd","villanova","wake-forest","babson","bentley","tcu","uw","sjsu","sc","fsu","auburn","uga","scu","american","fordham","gwu","drexel","temple","lmu"],
     },
     {
         "slug": "best-engineering",
         "title": "Best Engineering",
         "blurb": "US News 2024 undergraduate engineering ranking. Top entries are extremely competitive — and CS at most of these schools is even harder than overall engineering admission.",
-        "order": ["mit","stanford","ucb","caltech","cmu","gatech","umich","uiuc","cornell","purdue","princeton","columbia","ut-austin","ucla","northwestern","wisc","jhu","umd","upenn","case","duke","northeastern","vt","penn-state","rice","uw","ncsu","tamu","ucsd","rpi","usc","wpi","stevens","harvey-mudd","cooper","olin","calpoly-slo","drexel","tufts","dartmouth","uconn","clemson","lehigh","binghamton","umn","ohio-state","brown","harvard","yale"],
+        "order": ["mit","stanford","ucb","caltech","cmu","gatech","umich","uiuc","cornell","purdue","princeton","columbia","ut-austin","ucla","northwestern","wisc","jhu","umd","upenn","case","duke","northeastern","vt","penn-state","rice","uw","ncsu","tamu","ucsd","rpi","usc","wpi","stevens","harvey-mudd","cooper","olin","calpoly-slo","drexel","tufts","dartmouth","uconn","clemson","lehigh","binghamton","umn","osu","brown","harvard","yale"],
     },
     {
         "slug": "best-cs",
         "title": "Best Computer Science",
         "blurb": "US News 2024 undergraduate CS ranking. Most top schools have separate (much lower) admit rates for direct CS admission than the university overall.",
-        "order": ["mit","stanford","cmu","ucb","cornell","uiuc","gatech","uw","princeton","ut-austin","caltech","ucla","umich","ucsd","wisc","columbia","umd","upenn","harvard","brown","duke","jhu","yale","uchicago","rice","usc","nyu","vt","northwestern","northeastern","case","umn","ohio-state","scu","stony-brook","stevens","drexel","wpi","rpi","binghamton","gmu","rutgers","udel","tufts","penn-state","uconn","sc","calpoly-slo","sjsu"],
+        "order": ["mit","stanford","cmu","ucb","cornell","uiuc","gatech","uw","princeton","ut-austin","caltech","ucla","umich","ucsd","wisc","columbia","umd","upenn","harvard","brown","duke","jhu","yale","uchicago","rice","usc","nyu","vt","northwestern","northeastern","case","umn","osu","scu","stony-brook","stevens","drexel","wpi","rpi","binghamton","gmu","rutgers","udel","tufts","penn-state","uconn","sc","calpoly-slo","sjsu"],
     },
     {
         "slug": "best-liberal-arts",
@@ -1601,13 +1605,13 @@ RANKINGS = [
         "slug": "best-public",
         "title": "Best Public Universities",
         "blurb": "US News 2026 top public universities. The 2024-2026 methodology updates significantly boosted public flagships in the overall ranking too.",
-        "order": ["ucla","ucb","umich","uva","unc","gatech","ut-austin","wisc","uf","uiuc","umd","wm","uw","osu","penn-state","uga","tamu","vt","pitt","msu","rutgers","umn","clemson","binghamton","stony-brook","calpoly-slo","sdsu","auburn","uconn","sc","udel","cu-boulder","ohio-state","temple","gmu","csulb","sjsu","missou","unl","iowa-state","uiowa","ku","unh","uvm","utk","uoregon","alabama","fsu","arizona","asu","lsu","utah","uky","uh","umaine","hawaii"],
+        "order": ["ucla","ucb","umich","uva","unc","gatech","ut-austin","wisc","uf","uiuc","umd","wm","uw","osu","penn-state","uga","tamu","vt","pitt","msu","rutgers","umn","clemson","binghamton","stony-brook","calpoly-slo","sdsu","auburn","uconn","sc","udel","cu-boulder","temple","gmu","csulb","sjsu","missou","unl","iowa-state","uiowa","ku","unh","uvm","utk","uoregon","alabama","fsu","arizona","asu","lsu","utah","uky","uh","umaine","hawaii"],
     },
     {
         "slug": "best-value",
         "title": "Best Value (Strong Outcomes, Low Cost)",
         "blurb": "Strong academics under ~$25K sticker. State flagships dominate; in-state students get the best deal.",
-        "order": ["uf","unc","gatech","wm","ucb","ucla","umich","uva","wisc","ut-austin","umd","uw","uiuc","fsu","sdsu","calpoly-slo","clemson","uga","penn-state","vt","stony-brook","binghamton","udel","msu","ohio-state","sc","alabama","auburn","tamu","lsu","sjsu","csulb","gmu","temple","unh","uvm","iowa-state","uiowa","unl","ku","missou","umn","cu-boulder","utah","arizona","asu"],
+        "order": ["uf","unc","gatech","wm","ucb","ucla","umich","uva","wisc","ut-austin","umd","uw","uiuc","fsu","sdsu","calpoly-slo","clemson","uga","penn-state","vt","stony-brook","binghamton","udel","msu","osu","sc","alabama","auburn","tamu","lsu","sjsu","csulb","gmu","temple","unh","uvm","iowa-state","uiowa","unl","ku","missou","umn","cu-boulder","utah","arizona","asu"],
     },
     {
         "slug": "best-earnings",
@@ -2007,7 +2011,7 @@ UC_SLUGS = {
     "ucb","ucla","ucsd","uci","ucsb","ucsc","ucr","ucdavis","ucmerced",
     # California State University (same a-g formula as UCs)
     "csulb","csu-la","csu-fullerton",
-    "sdsu","sjsu","sfsu",
+    "sdsu","sjsu","sf-state",
     "calpoly-slo","calpoly-pomona",
 }
 
@@ -2033,7 +2037,7 @@ _LEGACY_ALIASES = {
     "bc": "bc", "boston college": "bc",
     "bu": "bu", "boston university": "bu",
     "case": "case", "case western": "case",
-    "wash u": "wustl", "washu": "wustl", "wustl": "wustl", "washington university": "wustl",
+    "wash u": "washu", "washu": "washu", "wustl": "washu", "washington university": "washu",
 }
 
 AP_PICKER_GROUPS = [
