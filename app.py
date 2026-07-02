@@ -5126,6 +5126,10 @@ def init_db():
             conn.execute("ALTER TABLE batch_requests ADD COLUMN no_send INTEGER DEFAULT 0")
         except sqlite3.OperationalError:
             pass
+        try:   # no_account=1 → make these WITHOUT assigning to any TikTok account (generic pool)
+            conn.execute("ALTER TABLE batch_requests ADD COLUMN no_account INTEGER DEFAULT 0")
+        except sqlite3.OperationalError:
+            pass
         # A manual "Make a set" cancels the day's next auto-drop so we don't double-post.
         # Each (day, slot) here is skipped by the server-side release scheduler.
         conn.execute("""CREATE TABLE IF NOT EXISTS batch_skips (
@@ -12969,20 +12973,34 @@ def content_request_batch():
     # Marked NOSEND so the autopost sweep skips them; the per-card "Send to TikTok"
     # button still works if the creator decides to post one by hand.
     no_send = 1 if request.form.get("no_send") else 0
+    # "no account" — make these NOT tied to any TikTok account (a generic pool the
+    # creator can post anywhere by hand). Never auto-pushed (no target account).
+    no_account = 1 if request.form.get("no_account") else 0
 
     # NOTHING picked -> serve from the pre-made buffer queue. Instant, costs nothing,
     # works with the Mac off (Railway just flips DB rows). Generate only the shortfall.
     if not any_picked:
         with db() as conn:
-            rows = _release_one_per_account(conn, "make", limit=n)   # one per account, up to n
+            if no_account:
+                # release any n pending and strip their account -> generic, unassigned
+                prows = conn.execute("SELECT id FROM content_queue WHERE status='pending' "
+                                     "AND IFNULL(assigned_account,'') != 'bestfit' "
+                                     "ORDER BY id ASC LIMIT ?", (n,)).fetchall()
+                rows = [r["id"] for r in prows]
+                if rows:
+                    conn.execute("UPDATE content_queue SET status='released', slot='make', "
+                                 "assigned_account=NULL, released_at=CURRENT_TIMESTAMP "
+                                 "WHERE id IN (%s)" % ",".join("?" * len(rows)), rows)
+            else:
+                rows = _release_one_per_account(conn, "make", limit=n)   # one per account, up to n
             if no_send and rows:
                 conn.execute("UPDATE content_queue SET tt_post_status='NOSEND' WHERE id IN (%s)"
                              % ",".join("?" * len(rows)), rows)
             short = n - len(rows)
             if short > 0 and not conn.execute(
                     "SELECT id FROM batch_requests WHERE claimed_at IS NULL LIMIT 1").fetchone():
-                conn.execute("INSERT INTO batch_requests (count, slugs, no_send) VALUES (?, ?, ?)",
-                             (short, None, no_send))
+                conn.execute("INSERT INTO batch_requests (count, slugs, no_send, no_account) VALUES (?, ?, ?, ?)",
+                             (short, None, no_send, no_account))
             conn.commit()
         return redirect(url_for("content_today", requested=n))
 
@@ -12991,8 +13009,8 @@ def content_request_batch():
     # kind = the chosen format, or 'normal' for the auto rotation).
     with db() as conn:
         for s, f in pairs:
-            conn.execute("INSERT INTO batch_requests (count, slugs, kind, no_send) VALUES (1, ?, ?, ?)",
-                         (s, f or "normal", no_send))
+            conn.execute("INSERT INTO batch_requests (count, slugs, kind, no_send, no_account) VALUES (1, ?, ?, ?, ?)",
+                         (s, f or "normal", no_send, no_account))
         conn.commit()
     # Optionally replace the day's next scheduled auto-drop so we don't double-post
     # (creator ticks the box on the set form; default on).
@@ -13040,7 +13058,10 @@ def content_batch_pending():
     if not _autopilot_authed():
         return ("unauthorized", 401)
     with db() as conn:
-        r = conn.execute("SELECT id, count, slugs, kind FROM batch_requests WHERE claimed_at IS NULL ORDER BY id ASC LIMIT 1").fetchone()
+        # Leave no_send / no_account batches for the Railway render worker, which
+        # applies those flags correctly; the Mac only claims plain batches.
+        r = conn.execute("SELECT id, count, slugs, kind FROM batch_requests WHERE claimed_at IS NULL "
+                         "AND IFNULL(no_send,0)=0 AND IFNULL(no_account,0)=0 ORDER BY id ASC LIMIT 1").fetchone()
     if not r:
         return jsonify(pending=False)
     return jsonify(pending=True, id=r["id"], count=r["count"], slugs=r["slugs"] or "",
@@ -13697,6 +13718,9 @@ def content_today():
         f'<label style="display:flex;align-items:center;gap:8px;color:#e8c9ff;font-size:13px;margin:2px 0 10px;cursor:pointer">'
         f'<input type="checkbox" name="no_send" value="1" style="width:16px;height:16px;accent-color:#b06fe0">'
         f'🚫 don\'t send to TikTok — just make them (post by hand)</label>'
+        f'<label style="display:flex;align-items:center;gap:8px;color:#b8d0ff;font-size:13px;margin:2px 0 10px;cursor:pointer">'
+        f'<input type="checkbox" name="no_account" value="1" style="width:16px;height:16px;accent-color:#5f9de0">'
+        f'👤 no account — make a generic set not tied to any account</label>'
         f'<button style="width:100%;background:#5fc9b6;color:#06121a;font-weight:800;border:0;'
         f'padding:13px;border-radius:11px;font-size:15px;cursor:pointer">⚡ Make a set — one per account ({_active_n})</button>'
         f'<div style="color:#5d6b80;font-size:11px;margin:8px 0 0;text-align:center">picking any school/format generates fresh from the queue</div></form>'
@@ -20086,7 +20110,7 @@ def tiktok_home():
 # on the Mac; this only consumes the on-demand button queue.
 def _render_consume_one(factory):
     with db() as conn:
-        row = conn.execute("SELECT id, count, slugs, kind, no_send FROM batch_requests "
+        row = conn.execute("SELECT id, count, slugs, kind, no_send, no_account FROM batch_requests "
                            "WHERE claimed_at IS NULL ORDER BY id ASC LIMIT 1").fetchone()
         if not row:
             return
@@ -20142,6 +20166,10 @@ def _render_consume_one(factory):
             _nosend = 1 if (row["no_send"] or 0) else 0
         except (KeyError, IndexError):
             _nosend = 0
+        try:
+            _noacct = 1 if (row["no_account"] or 0) else 0
+        except (KeyError, IndexError):
+            _noacct = 0
         with db() as conn:
             conn.execute(
                 "UPDATE content_queue SET status='released', slot='make', "
@@ -20149,6 +20177,9 @@ def _render_consume_one(factory):
                 % ",".join("?" * len(made_ids)), made_ids)
             if _nosend:
                 conn.execute("UPDATE content_queue SET tt_post_status='NOSEND' WHERE id IN (%s)"
+                             % ",".join("?" * len(made_ids)), made_ids)
+            if _noacct:
+                conn.execute("UPDATE content_queue SET assigned_account=NULL WHERE id IN (%s)"
                              % ",".join("?" * len(made_ids)), made_ids)
             conn.commit()
     print(f" * render worker: batch {row['id']} -> {made}/{n} carousels made+released", flush=True)
