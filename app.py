@@ -13694,10 +13694,11 @@ def content_today():
         f'<label style="display:flex;align-items:center;gap:8px;color:#9fb0c6;font-size:13px;margin:2px 0 8px;cursor:pointer">'
         f'<input type="checkbox" name="cancel_next" value="1" checked style="width:16px;height:16px;accent-color:#5fc9b6">'
         f'cancel the next scheduled drop (avoid double-posting)</label>'
-        f'<button type="submit" name="no_send" value="" style="width:100%;background:#5fc9b6;color:#06121a;font-weight:800;border:0;'
-        f'padding:13px;border-radius:11px;font-size:15px;cursor:pointer">⚡ Make a set &amp; send — one per account ({_active_n})</button>'
-        f'<button type="submit" name="no_send" value="1" style="width:100%;background:transparent;color:#e8c9ff;font-weight:800;'
-        f'border:2px solid #b06fe0;padding:11px;border-radius:11px;font-size:15px;cursor:pointer;margin-top:9px">🚫 Make but DON\'T send (post by hand)</button>'
+        f'<label style="display:flex;align-items:center;gap:8px;color:#e8c9ff;font-size:13px;margin:2px 0 10px;cursor:pointer">'
+        f'<input type="checkbox" name="no_send" value="1" style="width:16px;height:16px;accent-color:#b06fe0">'
+        f'🚫 don\'t send to TikTok — just make them (post by hand)</label>'
+        f'<button style="width:100%;background:#5fc9b6;color:#06121a;font-weight:800;border:0;'
+        f'padding:13px;border-radius:11px;font-size:15px;cursor:pointer">⚡ Make a set — one per account ({_active_n})</button>'
         f'<div style="color:#5d6b80;font-size:11px;margin:8px 0 0;text-align:center">picking any school/format generates fresh from the queue</div></form>'
         '</div>')
     save_script = _CONTENT_SAVE_SCRIPT
