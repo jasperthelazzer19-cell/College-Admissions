@@ -5044,6 +5044,10 @@ def init_db():
             conn.execute("ALTER TABLE batch_requests ADD COLUMN kind TEXT DEFAULT 'normal'")
         except sqlite3.OperationalError:
             pass
+        try:   # no_send=1 → make these but DON'T auto-push to TikTok (creator posts by hand)
+            conn.execute("ALTER TABLE batch_requests ADD COLUMN no_send INTEGER DEFAULT 0")
+        except sqlite3.OperationalError:
+            pass
         # A manual "Make a set" cancels the day's next auto-drop so we don't double-post.
         # Each (day, slot) here is skipped by the server-side release scheduler.
         conn.execute("""CREATE TABLE IF NOT EXISTS batch_skips (
@@ -12883,16 +12887,24 @@ def content_request_batch():
                 f if f in VALID_FMTS else None)
     pairs = [_slot(i) for i in range(n)]
     any_picked = any(s or f for s, f in pairs)
+    # "don't send" — make/release these for review but never auto-push to TikTok.
+    # Marked NOSEND so the autopost sweep skips them; the per-card "Send to TikTok"
+    # button still works if the creator decides to post one by hand.
+    no_send = 1 if request.form.get("no_send") else 0
 
     # NOTHING picked -> serve from the pre-made buffer queue. Instant, costs nothing,
     # works with the Mac off (Railway just flips DB rows). Generate only the shortfall.
     if not any_picked:
         with db() as conn:
             rows = _release_one_per_account(conn, "make", limit=n)   # one per account, up to n
+            if no_send and rows:
+                conn.execute("UPDATE content_queue SET tt_post_status='NOSEND' WHERE id IN (%s)"
+                             % ",".join("?" * len(rows)), rows)
             short = n - len(rows)
             if short > 0 and not conn.execute(
                     "SELECT id FROM batch_requests WHERE claimed_at IS NULL LIMIT 1").fetchone():
-                conn.execute("INSERT INTO batch_requests (count, slugs) VALUES (?, ?)", (short, None))
+                conn.execute("INSERT INTO batch_requests (count, slugs, no_send) VALUES (?, ?, ?)",
+                             (short, None, no_send))
             conn.commit()
         return redirect(url_for("content_today", requested=n))
 
@@ -12901,8 +12913,8 @@ def content_request_batch():
     # kind = the chosen format, or 'normal' for the auto rotation).
     with db() as conn:
         for s, f in pairs:
-            conn.execute("INSERT INTO batch_requests (count, slugs, kind) VALUES (1, ?, ?)",
-                         (s, f or "normal"))
+            conn.execute("INSERT INTO batch_requests (count, slugs, kind, no_send) VALUES (1, ?, ?, ?)",
+                         (s, f or "normal", no_send))
         conn.commit()
     # Optionally replace the day's next scheduled auto-drop so we don't double-post
     # (creator ticks the box on the set form; default on).
@@ -13568,9 +13580,12 @@ def content_today():
         f'<input type="hidden" name="count" value="auto">'
         f'<div style="font-weight:800;font-size:12px;color:#7c8aa0;margin:0 0 8px;letter-spacing:.4px">ONE PER ACCOUNT — SCHOOL + FORMAT EACH (BLANK = AUTO)</div>'
         f'{selset}'
-        f'<label style="display:flex;align-items:center;gap:8px;color:#9fb0c6;font-size:13px;margin:2px 0 10px;cursor:pointer">'
+        f'<label style="display:flex;align-items:center;gap:8px;color:#9fb0c6;font-size:13px;margin:2px 0 8px;cursor:pointer">'
         f'<input type="checkbox" name="cancel_next" value="1" checked style="width:16px;height:16px;accent-color:#5fc9b6">'
         f'cancel the next scheduled drop (avoid double-posting)</label>'
+        f'<label style="display:flex;align-items:center;gap:8px;color:#e8c9ff;font-size:13px;margin:2px 0 10px;cursor:pointer">'
+        f'<input type="checkbox" name="no_send" value="1" style="width:16px;height:16px;accent-color:#b06fe0">'
+        f'🚫 don\'t send to TikTok — just make them (post by hand)</label>'
         f'<button style="width:100%;background:#5fc9b6;color:#06121a;font-weight:800;border:0;'
         f'padding:13px;border-radius:11px;font-size:15px;cursor:pointer">⚡ Make a set — one per account ({_active_n})</button>'
         f'<div style="color:#5d6b80;font-size:11px;margin:8px 0 0;text-align:center">picking any school/format generates fresh from the queue</div></form>'
@@ -19426,6 +19441,8 @@ def _tiktok_autopost_ids(ids):
                 r = conn.execute("SELECT * FROM content_queue WHERE id=?", (cid,)).fetchone()
                 if not r or r["tt_publish_id"]:
                     continue                          # gone, or already pushed
+                if (r["tt_post_status"] or "") == "NOSEND":
+                    continue                          # 'don't send' — held back from auto-push
                 if (r["assigned_account"] or "") in manual:
                     # MANUAL track: still released to /content/manual, but never
                     # auto-pushed to TikTok (kept hitting the pending-draft spam cap).
@@ -19483,6 +19500,7 @@ def _retry_failed_posts(max_attempts=5):
         rows = conn.execute(
             "SELECT id, tt_post_status FROM content_queue "
             "WHERE status='released' AND tt_publish_id IS NULL AND released_at >= ? "
+            "AND COALESCE(tt_post_status,'') != 'NOSEND' "   # 'don't send' — never auto-push
             "ORDER BY released_at", (cutoff,)).fetchall()
     ids = []
     for r in rows:
@@ -19957,7 +19975,7 @@ def tiktok_home():
 # on the Mac; this only consumes the on-demand button queue.
 def _render_consume_one(factory):
     with db() as conn:
-        row = conn.execute("SELECT id, count, slugs, kind FROM batch_requests "
+        row = conn.execute("SELECT id, count, slugs, kind, no_send FROM batch_requests "
                            "WHERE claimed_at IS NULL ORDER BY id ASC LIMIT 1").fetchone()
         if not row:
             return
@@ -20007,11 +20025,20 @@ def _render_consume_one(factory):
     # where "the format picker doesn't work"). make_one already pushed them as
     # 'pending'; flip those exact rows to 'released'.
     if made_ids:
+        # no_send batch: mark NOSEND so the autopost sweep skips them (creator posts
+        # by hand). Column may be absent on very old rows -> default 0.
+        try:
+            _nosend = 1 if (row["no_send"] or 0) else 0
+        except (KeyError, IndexError):
+            _nosend = 0
         with db() as conn:
             conn.execute(
                 "UPDATE content_queue SET status='released', slot='make', "
                 "released_at=CURRENT_TIMESTAMP WHERE id IN (%s) AND status='pending'"
                 % ",".join("?" * len(made_ids)), made_ids)
+            if _nosend:
+                conn.execute("UPDATE content_queue SET tt_post_status='NOSEND' WHERE id IN (%s)"
+                             % ",".join("?" * len(made_ids)), made_ids)
             conn.commit()
     print(f" * render worker: batch {row['id']} -> {made}/{n} carousels made+released", flush=True)
 
