@@ -19685,6 +19685,21 @@ def tiktok_rename_account(open_id):
     return jsonify(ok=True, label=name)
 
 
+@app.route("/tiktok/account/<open_id>/disconnect", methods=["POST"])
+@login_required
+def tiktok_disconnect_account(open_id):
+    """Remove a connected TikTok account from Candor. Does NOT revoke on TikTok's
+    side — the owner re-authorizes via /tiktok/connect to reconnect."""
+    if not _is_creator():
+        abort(404)
+    with db() as conn:
+        row = conn.execute("SELECT open_id, label FROM tiktok_accounts WHERE open_id=?", (open_id,)).fetchone()
+        if not row:
+            return jsonify(ok=False, error="no such account"), 404
+        conn.execute("DELETE FROM tiktok_accounts WHERE open_id=?", (open_id,))
+    return jsonify(ok=True, removed=row["label"] or open_id)
+
+
 @app.route("/tiktok")
 @login_required
 def tiktok_home():
