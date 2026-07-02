@@ -19426,11 +19426,11 @@ def _tiktok_autopost_ids(ids):
                 r = conn.execute("SELECT * FROM content_queue WHERE id=?", (cid,)).fetchone()
                 if not r or r["tt_publish_id"]:
                     continue                          # gone, or already pushed
-            if (r["assigned_account"] or "") in manual:
-                # MANUAL track: still released to /content/manual, but never auto-pushed
-                # to TikTok (kept hitting the pending-draft spam cap). Post it by hand.
-                print(f" * autopost cid {cid}: {r['assigned_account']} on manual track — skip", flush=True)
-                continue
+                if (r["assigned_account"] or "") in manual:
+                    # MANUAL track: still released to /content/manual, but never
+                    # auto-pushed to TikTok (kept hitting the pending-draft spam cap).
+                    print(f" * autopost cid {cid}: {r['assigned_account']} on manual track — skip", flush=True)
+                    continue
                 acct = conn.execute("SELECT * FROM tiktok_accounts WHERE label=?",
                                     (r["assigned_account"],)).fetchone()
             if not acct or not acct["open_id"]:
