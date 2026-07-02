@@ -12991,13 +12991,28 @@ def content_batch_claim():
 # carousels get their own CTA ("Want the right school for you?") instead.
 _CTA_SLIDE_URL = "/static/cta_slide.png"
 _CTA_SLIDE_BESTFIT_URL = "/static/cta_slide_bestfit.png"
+# Rotate the closing CTA slide across these picked variants so posts don't all end on
+# the same frame (a duplicate-content signal that throttles reach). Seeded by carousel
+# id → stable per carousel, and the on-page preview always matches what actually posts.
+_CTA_ROTATION = ["cta_slide_1.png", "cta_slide_2.png", "cta_slide_3.png",
+                 "cta_slide_4.png", "cta_slide_7.png", "cta_slide_8.png"]
+
+
+def _cta_file(cid, slide3_type=None):
+    """Filename of the CTA slide for a carousel. Best-fit keeps its own; everything
+    else rotates deterministically across _CTA_ROTATION by carousel id."""
+    if slide3_type == "bestfit":
+        return "cta_slide_bestfit.png"
+    try:
+        return _CTA_ROTATION[int(cid or 0) % len(_CTA_ROTATION)]
+    except Exception:
+        return _CTA_ROTATION[0]
 
 
 def _cta_url(r):
-    """Best-fit carousels end with the best-fit CTA; everything else gets the
-    standard 'want your own odds?' CTA."""
+    """Rotating closing CTA (best-fit carousels keep their own)."""
     try:
-        return _CTA_SLIDE_BESTFIT_URL if (r and r["slide3_type"] == "bestfit") else _CTA_SLIDE_URL
+        return "/static/" + _cta_file(r["id"], r["slide3_type"])
     except Exception:
         return _CTA_SLIDE_URL
 
@@ -13153,15 +13168,14 @@ def content_slide_jpg(cid, piece):
     import base64 as _b64, io as _io
     from PIL import Image as _Img
     if piece == "cta":
-        # Best-fit carousels end with the best-fit CTA; everything else the standard one.
-        ctafile = "cta_slide.png"
+        # Best-fit keeps its own CTA; everything else rotates across the picked
+        # variants (by carousel id) so posts don't all end on the same frame.
         try:
             with db() as conn:
                 _r = conn.execute("SELECT slide3_type FROM content_queue WHERE id=?", (cid,)).fetchone()
-            if _r and _r["slide3_type"] == "bestfit":
-                ctafile = "cta_slide_bestfit.png"
+            ctafile = _cta_file(cid, _r["slide3_type"] if _r else None)
         except Exception:
-            pass
+            ctafile = "cta_slide.png"
         try:
             with open(os.path.join(app.static_folder, ctafile), "rb") as f:
                 raw = f.read()
