@@ -13038,7 +13038,26 @@ def _carousel_hashtags(r):
             for t in (t1, t2):
                 if len(t) > 1 and t not in tags:
                     tags.append(t)
-    for t in ("#collegeadmissions", "#collegeapps", "#fyp", "#dreamschool", "#collegetok"):
+    # Evergreen fill — VARY per carousel (seeded by id, so the displayed tags always
+    # match what gets posted) instead of the same 5 every time. Identical hashtag sets
+    # across hundreds of posts read as duplicate/spam to TikTok and throttle reach; a
+    # rotating subset from a larger pool diversifies every caption. #fyp is kept as a
+    # near-always anchor; the rest rotate.
+    import random as _rnd
+    _pool = ["#collegeadmissions", "#collegeapps", "#dreamschool", "#collegetok",
+             "#college", "#collegeadvice", "#admissions", "#classof2026", "#classof2027",
+             "#highschool", "#senioryear", "#collegebound", "#gettingintocollege",
+             "#collegeprep", "#applyingtocollege", "#collegedecision", "#studytok",
+             "#collegeessay", "#futurecollegestudent", "#collegelife", "#collegetips"]
+    try:
+        _seed = int(r["id"] or 0)
+    except Exception:
+        _seed = 0
+    _rng = _rnd.Random(_seed)
+    if _seed % 4 != 0 and "#fyp" not in tags and len(tags) < 5:   # #fyp most posts, not all
+        tags.append("#fyp")
+    _rng.shuffle(_pool)
+    for t in _pool:
         if len(tags) >= 5:
             break
         if t not in tags:
