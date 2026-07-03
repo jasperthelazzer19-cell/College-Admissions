@@ -350,7 +350,10 @@ def make_compare(dry=False):
     tmp = "/tmp/cren_factory"; os.makedirs(tmp, exist_ok=True)
     s1 = _shot(f"{tmp}/c1.png", f"{LOCAL_URL}/title-compare/export?rkey={CRON_KEY}&clean=1&slugs={','.join(comp)}")
     s2 = _shot(f"{tmp}/c2.png", f"{LOCAL_URL}/profile-neutral/export?rkey={CRON_KEY}&clean=1")
-    s3 = _shot(f"{tmp}/c3.png", f"{LOCAL_URL}/compare/export?rkey={CRON_KEY}&clean=1&slugs={','.join(comp)}", verify=False)
+    # static=True: pre-fetch the HTML (90s timeout) and screenshot the static
+    # file — the live-URL capture blanked whenever the route outlasted Chrome's
+    # ~6s virtual-time budget (the July blank-compare-slide bug).
+    s3 = _shot(f"{tmp}/c3.png", f"{LOCAL_URL}/compare/export?rkey={CRON_KEY}&clean=1&slugs={','.join(comp)}", static=True)
     shorts = ", ".join(app._school_brand(s, app.COLLEGES_BY_SLUG[s].get('name'))[0] for s in comp)
     payload = dict(school_slug=slug, school_name=f"Compare: {shorts}", accent=accent,
                    title_text=f"THIS STUDENT APPLIED TO {shorts}", title_formula="compare",
@@ -371,7 +374,7 @@ def make_h2h(dry=False, slug=None):
     s1 = _title_png(slug, lines, [short])
     s2 = _shot(f"{tmp}/h2.png", f"{LOCAL_URL}/profile/{slug}/export?rkey={CRON_KEY}&clean=1&uid=181&label=STUDENT%20A")
     s3 = _shot(f"{tmp}/h3.png", f"{LOCAL_URL}/profile/{slug}/export?rkey={CRON_KEY}&clean=1&uid=38&label=STUDENT%20B")
-    s4 = _shot(f"{tmp}/h4.png", f"{LOCAL_URL}/headtohead/{slug}/export?rkey={CRON_KEY}&clean=1", verify=False)
+    s4 = _shot(f"{tmp}/h4.png", f"{LOCAL_URL}/headtohead/{slug}/export?rkey={CRON_KEY}&clean=1", static=True)
     payload = dict(school_slug=slug, school_name=f"H2H: {gA['name']}", accent=accent,
                    title_text=" ".join(lines), title_formula="h2h", slide3_type="h2h",
                    profile_json=json.dumps(gA["profile"]), odds_text="", grade_text="",
