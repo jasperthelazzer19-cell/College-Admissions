@@ -10080,6 +10080,23 @@ def _log_page_visit():
     except Exception:
         pass  # logging must never break a request
 
+@app.before_request
+def _slow_req_start():
+    request._t0 = time.time()
+
+
+@app.after_request
+def _slow_req_log(response):
+    # Log any request slower than 800ms so "why was the calc slow" is always
+    # answerable from Railway logs instead of guesswork.
+    t0 = getattr(request, "_t0", None)
+    if t0 is not None:
+        ms = (time.time() - t0) * 1000
+        if ms > 800:
+            print(f" * SLOW {ms:.0f}ms {request.method} {request.path}", flush=True)
+    return response
+
+
 @app.after_request
 def _set_visitor_cookie(response):
     new_vid = getattr(request, "_new_cv_id", None)
