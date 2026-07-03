@@ -6189,8 +6189,7 @@ NAV_UPGRADE_BTN = (
 NAV_CONTENT = ('<div class="nav"><a class="brand" href="/admin/stats">' + CANDOR_LOGO_SVG + 'Candor · CONTENT</a>'
     '<a href="/tiktok">📡 Monitor</a>'
     '<a href="/content/today">📅 Today</a>'
-    '<a href="/content/manual">✋ Manual</a>'
-    '<a href="/content/setprofile">✍️ Set</a>'
+        '<a href="/content/setprofile">✍️ Set</a>'
     '<a href="/content/profile">🪪 Profile</a>'
     '<a href="/content/chances">🎬 Chances</a>'
     '<a href="/grade/export">📊 Grade</a>'
@@ -13653,7 +13652,7 @@ _CONTENT_SAVE_SCRIPT = (
 def _manual_account_labels():
     """Accounts on the MANUAL track: still generated + released on schedule, but NOT
     auto-pushed to TikTok (they kept hitting the pending-draft spam cap) — the creator
-    saves/posts them by hand on /content/manual, separate from /content/today.
+    saves/posts them by hand from /content/today (manual tab removed 2026-07).
     Env-configurable (comma-separated labels), no redeploy needed to change."""
     raw = os.environ.get("TIKTOK_MANUAL_ACCOUNTS", "@candoradmissions,@candor54")
     return {s.strip() for s in raw.split(",") if s.strip()}
@@ -13661,7 +13660,7 @@ def _manual_account_labels():
 
 def _render_released_cards(released, tt_accts):
     """Build the carousel card HTML for a list of released rows. Shared by
-    /content/today and /content/manual so both pages stay identical. Returns a LIST
+    /content/today. Returns a LIST
     of card HTML strings (empty list if nothing released)."""
     from html import escape as _ae
     _acct_labels = {(a["label"] or a["open_id"]) for a in tt_accts}
@@ -13732,53 +13731,28 @@ def _render_released_cards(released, tt_accts):
 @app.route("/content/manual")
 @login_required
 def content_manual():
-    """Manual track: released carousels for the MANUAL accounts (kept off the TikTok
-    autopush so they don't hit the pending-draft cap). Same save/post UI as Today,
-    just isolated to these accounts so the creator posts them by hand."""
-    if not _is_creator():
-        abort(404)
-    manual = _manual_account_labels()
-    with db() as conn:
-        released = [r for r in conn.execute(
-            "SELECT id, status, slot, school_slug, school_name, title_text, slide3_type, odds_text, grade_text, meta, assigned_account, posted_account, tt_publish_id, tt_post_status, released_at, (img1 IS NOT NULL) has1, (img2 IS NOT NULL) has2, (img3 IS NOT NULL) has3, (img4 IS NOT NULL) has4 FROM content_queue WHERE status='released' ORDER BY id DESC").fetchall()
-            if (r["assigned_account"] or "") in manual
-            and (r["tt_post_status"] or "") != "NOSEND"]   # no-send batches show on Today instead
-        tt_accts = conn.execute("SELECT open_id, label FROM tiktok_accounts ORDER BY connected_at").fetchall()
-    cards = _render_released_cards(released, tt_accts)
-    if not cards:
-        cards = ['<div style="color:#7c8aa0;text-align:center;padding:40px 0">Nothing released for the manual '
-                 'accounts yet. Carousels for ' + ", ".join(sorted(manual)) + ' land here on schedule (8 / 12 / 3 / 6 / 9) '
-                 '— NOT auto-pushed, so post them by hand from here.</div>']
-    note = ('<div style="background:#2a2030;border:1px solid #5a3a6a;color:#e8c9ff;border-radius:12px;'
-            'padding:12px 14px;margin:0 0 16px;font-weight:600;font-size:14px">✋ Manual track — '
-            f'{", ".join(sorted(manual))}. These are generated on schedule but NOT auto-sent to TikTok '
-            '(they kept hitting TikTok\'s pending-draft limit). Save/post each one yourself here.</div>')
-    body = (f'<div style="max-width:720px;margin:0 auto;padding:16px 12px 80px">'
-            f'<h1 style="margin:0 0 4px">✋ Manual</h1>'
-            f'<div style="color:#7c8aa0;font-size:14px;margin:0 0 14px">{len(released)} to post by hand · '
-            f'<a href="/content/today" style="color:#5fc9b6">← back to Today</a></div>'
-            + note + "".join(cards) + '</div>' + _CONTENT_SAVE_SCRIPT + _HASHTAG_JS)
-    return _page(body, title="Content · Manual")
+    """Manual tab removed 2026-07 — everything shows on /content/today now
+    (the no-auto-push rule for TIKTOK_MANUAL_ACCOUNTS lives on in the autopost
+    sweep; this stub just catches old bookmarks)."""
+    return redirect(url_for("content_today"))
 
 
 @app.route("/content/today")
 @login_required
 def content_today():
     """Creator-only queue page: released carousels ready to save, newest first.
-    Excludes the MANUAL-track accounts — those live on /content/manual."""
+    Shows every released carousel (manual-account ones included)."""
     if not _is_creator():
         abort(404)
-    manual = _manual_account_labels()
     with db() as conn:
         # Today shows ONLY carousels explicitly RELEASED to post. The pending buffer
         # is the QUEUE for the next batch and never shows here — it stays in reserve
         # until the Make button / posting slot releases a batch. So when nothing's
-        # released, today is empty (by design). Manual-track accounts are filtered
-        # out — they show on /content/manual and are never auto-pushed.
+        # released, today is empty (by design). Accounts on TIKTOK_MANUAL_ACCOUNTS
+        # are still never auto-pushed — their cards just live here too now.
         released = [r for r in conn.execute(
             "SELECT id, status, slot, school_slug, school_name, title_text, slide3_type, odds_text, grade_text, meta, assigned_account, posted_account, tt_publish_id, tt_post_status, released_at, (img1 IS NOT NULL) has1, (img2 IS NOT NULL) has2, (img3 IS NOT NULL) has3, (img4 IS NOT NULL) has4 FROM content_queue WHERE status='released' ORDER BY id DESC").fetchall()
-            if (r["assigned_account"] or "") not in manual
-            or (r["tt_post_status"] or "") == "NOSEND"]   # no-send batches all land on Today
+            ]   # every released carousel shows here (manual tab removed 2026-07)
         pending = conn.execute("SELECT COUNT(*) c FROM content_queue WHERE status='pending'").fetchone()["c"]
         posted = conn.execute("SELECT COUNT(*) c FROM content_queue WHERE status='posted'").fetchone()["c"]
         tt_accts = conn.execute("SELECT open_id, label FROM tiktok_accounts ORDER BY connected_at").fetchall()
@@ -19703,7 +19677,7 @@ def _tiktok_autopost_ids(ids):
                 if (r["tt_post_status"] or "") == "NOSEND":
                     continue                          # 'don't send' — held back from auto-push
                 if (r["assigned_account"] or "") in manual:
-                    # MANUAL track: still released to /content/manual, but never
+                    # MANUAL track: still released (shows on /content/today), never
                     # auto-pushed to TikTok (kept hitting the pending-draft spam cap).
                     print(f" * autopost cid {cid}: {r['assigned_account']} on manual track — skip", flush=True)
                     continue
