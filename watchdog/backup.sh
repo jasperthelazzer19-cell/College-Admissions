@@ -1,28 +1,30 @@
 #!/bin/zsh
-# Nightly Candor DB backup: prod sqlite -> ~/CandorBackups, keep 14.
-# Container has no sqlite3 CLI — dump via python3 iterdump.
+# Nightly Candor DB backup -> ~/CandorBackups (keep 14).
+# The prod DB is ~1.3GB but 96% is regenerable carousel slide images in
+# content_queue; we snapshot, NULL any >50KB text column in content_queue
+# (keeps queue metadata), VACUUM, and dump the rest (~tens of MB).
+setopt null_glob
 set -a; source "$HOME/.candor_autopilot.env" 2>/dev/null; set +a
 export PATH="/usr/local/bin:/opt/homebrew/bin:$PATH"
 cd "$HOME/college-tool"
 STAMP=$(date +%Y%m%d-%H%M)
 OUT="$HOME/CandorBackups/college-$STAMP.sql.gz"
-railway ssh 'python3 -c "
-import sqlite3, sys
-c = sqlite3.connect(\"/app/data/college.db\")
-for line in c.iterdump():
-    sys.stdout.write(line + \"\n\")
-" | gzip | base64' 2>/dev/null | grep -E '^[A-Za-z0-9+/=]+$' | base64 -d > "$OUT"
+PYB64="aW1wb3J0IHNxbGl0ZTMsIHN5cwpzcmMgPSBzcWxpdGUzLmNvbm5lY3QoIi9hcHAvZGF0YS9jb2xsZWdlLmRiIikKZHN0ID0gc3FsaXRlMy5jb25uZWN0KCIvdG1wL2NhbmRvcl9iay5kYiIpCnNyYy5iYWNrdXAoZHN0KQpzcmMuY2xvc2UoKQpjb2xzID0gW3JbMV0gZm9yIHIgaW4gZHN0LmV4ZWN1dGUoIlBSQUdNQSB0YWJsZV9pbmZvKGNvbnRlbnRfcXVldWUpIildCmZvciBjb2wgaW4gY29sczoKICAgIHRyeToKICAgICAgICBteCA9IGRzdC5leGVjdXRlKGYnU0VMRUNUIE1BWChMRU5HVEgoIntjb2x9IikpIEZST00gY29udGVudF9xdWV1ZScpLmZldGNob25lKClbMF0gb3IgMAogICAgICAgIGlmIG14ID4gNTAwMDA6CiAgICAgICAgICAgIGRzdC5leGVjdXRlKGYnVVBEQVRFIGNvbnRlbnRfcXVldWUgU0VUICJ7Y29sfSI9TlVMTCcpCiAgICBleGNlcHQgRXhjZXB0aW9uOgogICAgICAgIHBhc3MKZHN0LmNvbW1pdCgpCmRzdC5leGVjdXRlKCJWQUNVVU0iKQpmb3IgbGluZSBpbiBkc3QuaXRlcmR1bXAoKToKICAgIHN5cy5zdGRvdXQud3JpdGUobGluZSArICJcbiIpCg=="
+railway ssh "echo $PYB64 | base64 -d | python3 | gzip | base64" 2>/dev/null \
+  | grep -E '^[A-Za-z0-9+/=]+$' | base64 -d > "$OUT"
+railway ssh "rm -f /tmp/candor_bk.db" >/dev/null 2>&1
 SIZE=$(stat -f%z "$OUT" 2>/dev/null || echo 0)
 if [ "$SIZE" -gt 300000 ] && gzip -t "$OUT" 2>/dev/null \
-   && gunzip -c "$OUT" | head -50 | grep -q "CREATE TABLE"; then
+   && gunzip -c "$OUT" 2>/dev/null | head -80 | grep -q "CREATE TABLE"; then
   echo "$(date) backup ok: $OUT ($(du -h "$OUT" | cut -f1))" >> "$HOME/CandorBackups/backup.log"
 else
-  echo "$(date) BACKUP FAILED (size=$SIZE)" >> "$HOME/CandorBackups/backup.log"
+  echo "$(date) BACKUP FAILED (size=$SIZE) — kept as $OUT.bad" >> "$HOME/CandorBackups/backup.log"
+  mv -f "$OUT" "$OUT.bad" 2>/dev/null
   osascript -e "tell application \"Messages\"
  set svc to 1st service whose service type = iMessage
  set b to buddy \"$PHONE\" of svc
- send \"⚠️ Candor nightly DB backup FAILED (size=$SIZE bytes) — check ~/CandorBackups/backup.log\" to b
+ send \"⚠️ Candor nightly DB backup FAILED (size=$SIZE) — see ~/CandorBackups/backup.log\" to b
 end tell" 2>/dev/null
-  rm -f "$OUT"
 fi
-ls -t "$HOME/CandorBackups"/college-*.sql.gz 2>/dev/null | tail -n +15 | xargs rm -f 2>/dev/null
+KEEP=($(ls -t "$HOME/CandorBackups"/college-*.sql.gz 2>/dev/null | tail -n +15))
+[ ${#KEEP[@]} -gt 0 ] && rm -f "${KEEP[@]}"
