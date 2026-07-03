@@ -23,3 +23,9 @@ auto_content/.post_state.json
 auto_content/.h2h_state.json
 auto_content/.render.lock
 .claude/worktrees/
+
+# watchdog runtime artifacts
+watchdog/repo/
+watchdog/state.json
+watchdog/incidents.log
+watchdog/*.log
