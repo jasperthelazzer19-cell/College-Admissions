@@ -20513,6 +20513,19 @@ def _release_due_batches():
             if already:
                 continue                          # this slot already released today
             ids = _release_one_per_account(conn, slot)   # one per active account
+            # Shortfall backfill: if the buffer couldn't cover every live account
+            # (e.g. heavy Make usage drained it), enqueue a render request for the
+            # missing count so the slot still goes out ~minutes later instead of
+            # silently under-delivering (the 3pm-slot-sent-1 incident, 2026-07-03).
+            try:
+                live_n = len(_live_account_labels(conn))
+                short = max(0, live_n - len(ids))
+                if short and not conn.execute(
+                        "SELECT id FROM batch_requests WHERE claimed_at IS NULL LIMIT 1").fetchone():
+                    conn.execute("INSERT INTO batch_requests (count, slugs) VALUES (?, NULL)", (short,))
+                    print(f" * slot {slot}: buffer short {short} — queued render backfill", flush=True)
+            except Exception as e:
+                print(f" * slot backfill enqueue failed: {e}", flush=True)
             conn.commit()
             if ids:
                 print(f" * auto-released {len(ids)} (one per account) for slot {slot} (local {hhmm})", flush=True)
