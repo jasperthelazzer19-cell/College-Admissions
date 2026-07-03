@@ -388,7 +388,7 @@ def _pick_bestfit_seed():
     recent = set(_post_state().get("recent", [])[-RECENT_NOREPEAT:])
     cand = [s for s in pool if s not in recent] or pool
     dem = _demand()
-    base = {s: max(dem.get(s, 0) + SCHOOL_WEIGHT_BASELINE, _floor(s)) for s in cand}
+    base = {s: max(dem.get(s, 0) + SCHOOL_WEIGHT_BASELINE, _floor(s)) ** DEMAND_GAMMA for s in cand}
     return random.choices(list(base), weights=list(base.values()))[0]
 
 
@@ -533,6 +533,9 @@ def _blend(base, perf, lo=0.4, hi=2.0):
 # ── school selection: weight by real user demand + cap repeats per day ─────
 SCHOOL_DAILY_CAP = int(os.environ.get("SCHOOL_DAILY_CAP", "2"))  # max same-school per day (single/grade/glowup/h2h; compare excluded)
 SCHOOL_WEIGHT_BASELINE = 2          # so low/no-demand schools still get some airtime
+# Demand curve steepness: weight = (demand+baseline or floor) ** DEMAND_GAMMA.
+# 1.0 = linear (old). >1 = most-calculated schools dominate harder. 1.4 = moderate.
+DEMAND_GAMMA = float(os.environ.get("DEMAND_GAMMA", "1.4"))
 ICONIC_FLOOR = 45                   # iconic/household-name schools get AT LEAST this
 # selection weight regardless of calc volume — so BC (4 calcs), Notre Dame (7),
 # Georgetown etc. still post regularly, since they pop on TikTok by name alone.
@@ -542,7 +545,7 @@ ICONIC_SCHOOLS = {
     "stanford","mit","caltech","duke","northwestern","uchicago","jhu","vanderbilt",
     "rice","washu","emory","notre-dame","georgetown","bc","tufts","nyu","usc","cmu","bu",
     "ucla","ucb","umich","uva","unc","gatech","ut-austin","ucsd","wisc","uf",
-    "williams","amherst","swarthmore",
+    "williams","amherst",
     # added 2026-06-16 (recommended batch 1)
     "northeastern","miami","wake-forest","tulane","villanova",
     # big publics that already had logos (instant-add)
@@ -634,7 +637,7 @@ def _pick_school(respect_cap=True, avoid_recent=True):
     dem = _demand()
     # demand+baseline, but mega/iconic schools never fall below their floor so the
     # household names stay in heavy rotation regardless of raw calc volume.
-    base = {s: max(dem.get(s, 0) + SCHOOL_WEIGHT_BASELINE, _floor(s)) for s in pool}
+    base = {s: max(dem.get(s, 0) + SCHOOL_WEIGHT_BASELINE, _floor(s)) ** DEMAND_GAMMA for s in pool}
     # Nudge toward schools whose carousels actually perform on TikTok (clamped so a
     # viral school gets more airtime without starving the long tail).
     weighted = _blend(base, _tt_perf("school_slug"))
@@ -666,7 +669,7 @@ def make_one(dry=False, slug=None, slide3=None, ctype=None, count_toward_cap=Tru
     count_toward_cap=False decouples this carousel from the SCHEDULED daily cap:
     it neither respects nor increments the per-day counts. Used by the on-demand
     'Make N' button so a manual batch (e.g. late at night) never eats into — or
-    gets suppressed by — the scheduled 8/12/3/7:30 slots."""
+    gets suppressed by — the scheduled 8/12/3/6/9 slots."""
     explicit = bool(slug)
     if ctype is None:
         if slug:
