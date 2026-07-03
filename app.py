@@ -13741,7 +13741,8 @@ def content_manual():
     with db() as conn:
         released = [r for r in conn.execute(
             "SELECT id, status, slot, school_slug, school_name, title_text, slide3_type, odds_text, grade_text, meta, assigned_account, posted_account, tt_publish_id, tt_post_status, released_at, (img1 IS NOT NULL) has1, (img2 IS NOT NULL) has2, (img3 IS NOT NULL) has3, (img4 IS NOT NULL) has4 FROM content_queue WHERE status='released' ORDER BY id DESC").fetchall()
-            if (r["assigned_account"] or "") in manual]
+            if (r["assigned_account"] or "") in manual
+            and (r["tt_post_status"] or "") != "NOSEND"]   # no-send batches show on Today instead
         tt_accts = conn.execute("SELECT open_id, label FROM tiktok_accounts ORDER BY connected_at").fetchall()
     cards = _render_released_cards(released, tt_accts)
     if not cards:
@@ -13776,7 +13777,8 @@ def content_today():
         # out — they show on /content/manual and are never auto-pushed.
         released = [r for r in conn.execute(
             "SELECT id, status, slot, school_slug, school_name, title_text, slide3_type, odds_text, grade_text, meta, assigned_account, posted_account, tt_publish_id, tt_post_status, released_at, (img1 IS NOT NULL) has1, (img2 IS NOT NULL) has2, (img3 IS NOT NULL) has3, (img4 IS NOT NULL) has4 FROM content_queue WHERE status='released' ORDER BY id DESC").fetchall()
-            if (r["assigned_account"] or "") not in manual]
+            if (r["assigned_account"] or "") not in manual
+            or (r["tt_post_status"] or "") == "NOSEND"]   # no-send batches all land on Today
         pending = conn.execute("SELECT COUNT(*) c FROM content_queue WHERE status='pending'").fetchone()["c"]
         posted = conn.execute("SELECT COUNT(*) c FROM content_queue WHERE status='posted'").fetchone()["c"]
         tt_accts = conn.execute("SELECT open_id, label FROM tiktok_accounts ORDER BY connected_at").fetchall()
