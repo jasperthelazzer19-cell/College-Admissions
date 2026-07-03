@@ -29,3 +29,4 @@ watchdog/repo/
 watchdog/state.json
 watchdog/incidents.log
 watchdog/*.log
+slides/

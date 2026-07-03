@@ -329,6 +329,37 @@ def _date_context():
 
 # ─── CONFIG ───────────────────────────────────────────────
 DB_PATH    = os.environ.get("DB_PATH", os.path.join(os.path.dirname(os.path.abspath(__file__)), "college.db"))
+
+# ── Carousel slide storage ──────────────────────────────────────────────────
+# Slides used to live INSIDE content_queue as base64 data-URLs, which bloated
+# the DB to 1.3GB and made every content query/UPDATE drag multi-MB rows
+# (glitchy /content pages, 8s "Posted" clicks). They now live as PNG files
+# next to the DB (the Railway volume); the img1..img4 columns hold the tiny
+# marker 'file'. Legacy data-URL values still read fine everywhere.
+_SLIDES_DIR = os.path.join(os.path.dirname(DB_PATH) or ".", "slides")
+
+def _slide_disk_path(cid, n):
+    return os.path.join(_SLIDES_DIR, f"{cid}-{n}.png")
+
+def _store_slide(cid, n, dataurl):
+    """Persist one slide (data URL or raw b64) to disk; returns the DB marker."""
+    import base64 as _b64
+    os.makedirs(_SLIDES_DIR, exist_ok=True)
+    b64 = dataurl.split(",", 1)[1] if dataurl.startswith("data:") else dataurl
+    with open(_slide_disk_path(cid, n), "wb") as f:
+        f.write(_b64.b64decode(b64))
+    return "file"
+
+def _load_slide_bytes(cid, n, dbval):
+    """Raw PNG bytes for a slide: disk-backed ('file') or legacy data-URL."""
+    import base64 as _b64
+    if dbval == "file":
+        with open(_slide_disk_path(cid, n), "rb") as f:
+            return f.read()
+    if isinstance(dbval, str) and dbval.startswith("data:"):
+        return _b64.b64decode(dbval.split(",", 1)[1])
+    return _b64.b64decode(dbval)
+
 NEWSAPI_KEY = os.environ.get("NEWSAPI_KEY", "")
 SCORECARD_KEY = os.environ.get("SCORECARD_KEY", "")
 SECRET_KEY = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
@@ -12977,6 +13008,8 @@ def content_queue_push():
             assigned = "bestfit"
         else:
             assigned = _assign_content_account(conn, d.get("school_slug"), d.get("slide3_type"))
+        # Slides go to DISK (see _store_slide); the img columns keep only a tiny
+        # 'file' marker so content_queue rows stay bytes, not megabytes.
         cur = conn.execute(
             """INSERT INTO content_queue
                (school_slug, school_name, accent, title_text, title_formula, slide3_type,
@@ -12985,12 +13018,25 @@ def content_queue_push():
             (d.get("school_slug"), d.get("school_name"), d.get("accent"),
              d.get("title_text"), d.get("title_formula"), d.get("slide3_type"),
              d.get("profile_json"), d.get("odds_text"), d.get("grade_text"),
-             d.get("img1"), d.get("img2"), d.get("img3"), d.get("img4"),
+             None, None, None, None,
              json.dumps(d.get("meta")) if d.get("meta") is not None else None,
              assigned))
+        cid = cur.lastrowid
+        markers = {}
+        for n in (1, 2, 3, 4):
+            v = d.get(f"img{n}")
+            if v:
+                try:
+                    markers[f"img{n}"] = _store_slide(cid, n, v)
+                except Exception as e:
+                    print(f"slide store failed cid={cid} n={n}: {e}", flush=True)
+                    markers[f"img{n}"] = v          # fall back to inline (legacy)
+        if markers:
+            conn.execute(f"UPDATE content_queue SET {', '.join(f'{k}=?' for k in markers)} WHERE id=?",
+                         (*markers.values(), cid))
         conn.commit()
         pending = conn.execute("SELECT COUNT(*) c FROM content_queue WHERE status='pending'").fetchone()["c"]
-    return jsonify(ok=True, id=cur.lastrowid, pending=pending, assigned_account=assigned)
+    return jsonify(ok=True, id=cid, pending=pending, assigned_account=assigned)
 
 
 @app.route("/content/queue/status")
@@ -13327,17 +13373,21 @@ def content_view_one(cid):
     if not (_is_creator() or _autopilot_authed()):
         abort(404)
     with db() as conn:
-        r = conn.execute("SELECT * FROM content_queue WHERE id=?", (cid,)).fetchone()
+        r = conn.execute("SELECT id, school_slug, school_name, title_text, slide3_type, odds_text, "
+                         "grade_text, meta, assigned_account, "
+                         "(img1 IS NOT NULL) has1, (img2 IS NOT NULL) has2, "
+                         "(img3 IS NOT NULL) has3, (img4 IS NOT NULL) has4 "
+                         "FROM content_queue WHERE id=?", (cid,)).fetchone()
     if not r:
         abort(404)
     sub = r["odds_text"] or r["grade_text"] or ""
-    _keys = [k for k in ("img1", "img2", "img3", "img4") if r[k]]
+    _ns = [n for n, k in enumerate(("has1", "has2", "has3", "has4"), 1) if r[k]]
     imgs = "".join(
-        f'<img class="cslide" data-slide="{i}" src="{r[k]}" alt="slide {i}" style="width:100%;max-width:500px;border-radius:14px;'
+        f'<img class="cslide" data-slide="{i}" src="/content/slide/{cid}/{n}.jpg" alt="slide {i}" style="width:100%;max-width:500px;border-radius:14px;'
         f'margin:0 0 16px;-webkit-touch-callout:default;display:block;margin-left:auto;margin-right:auto">'
-        for i, k in enumerate(_keys, 1))
+        for i, n in enumerate(_ns, 1))
     # CTA is the LAST slide of every carousel (and part of "Save all slides").
-    _cta_i = len(_keys) + 1
+    _cta_i = len(_ns) + 1
     imgs += (f'<img class="cslide" data-slide="{_cta_i}" src="{_cta_url(r)}" alt="slide {_cta_i}" '
              f'style="width:100%;max-width:500px;border-radius:14px;margin:0 0 16px;-webkit-touch-callout:default;'
              f'display:block;margin-left:auto;margin-right:auto">')
@@ -13406,10 +13456,10 @@ def content_slide_jpg(cid, piece):
             r = conn.execute(f"SELECT img{n} AS img FROM content_queue WHERE id=?", (cid,)).fetchone()
         if not r or not r["img"]:
             abort(404)
-        data = r["img"]
-        if isinstance(data, str) and data.startswith("data:"):
-            data = data.split(",", 1)[1]
-        raw = _b64.b64decode(data)
+        try:
+            raw = _load_slide_bytes(cid, n, r["img"])
+        except FileNotFoundError:
+            abort(404)
     try:
         im = _Img.open(_io.BytesIO(raw)).convert("RGB")
         # TikTok photo spec is 1080x1920 (9:16) max — our slides render at ~2048x3072
