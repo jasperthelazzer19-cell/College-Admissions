@@ -20477,6 +20477,61 @@ def _release_scheduler_loop():
         _t.sleep(30)
 
 
+def _self_watchdog_loop():
+    """24/7 in-container health check (SELF_WATCHDOG=1 on Railway): every 2 min
+    hit the key public routes through the real edge (candoradmit.com). A route
+    must fail two consecutive rounds to alert. Emails on incident open + on
+    recovery (Resend, already configured), throttled to one alert/hour. This
+    catches app-level 500s while the Mac watchdog sleeps; the Mac side still
+    owns fixing. If all of Railway dies this dies too — that's what an
+    external monitor is for."""
+    import time as _t
+    base = os.environ.get("SELF_WATCHDOG_BASE", "https://candoradmit.com")
+    routes = ["/", "/colleges", "/college/stanford", "/rankings", "/login",
+              "/guides", "/healthz"]
+    _t.sleep(120)                      # let the deploy settle before judging
+    pending, incident_open, last_mail = {}, False, 0.0
+    while True:
+        failing = {}
+        for p in routes:
+            ok = False
+            for attempt in (1, 2):
+                try:
+                    r = requests.get(base + p, timeout=25,
+                                     headers={"User-Agent": "candor-selfwatch"})
+                    if r.status_code < 500:
+                        ok = True
+                        break
+                except Exception:
+                    pass
+                _t.sleep(3)
+            if not ok:
+                failing[p] = True
+        confirmed = [p for p in failing if p in pending]
+        pending = failing
+        now = _t.time()
+        if confirmed and not incident_open and now - last_mail > 3600:
+            incident_open = True
+            last_mail = now
+            try:
+                _send_email(CANCEL_EMAIL, "🚨 Candor self-watchdog: routes failing",
+                            f"<p>Failing right now: <b>{', '.join(confirmed)}</b></p>"
+                            f"<p>Detected from inside Railway — app-level failure, not infra. "
+                            f"The Mac watchdog will auto-fix when awake, or check "
+                            f"Railway logs for the traceback.</p>")
+                print(f" * self-watchdog ALERT: {confirmed}", flush=True)
+            except Exception as e:
+                print(f" * self-watchdog email failed: {e}", flush=True)
+        elif not failing and incident_open:
+            incident_open = False
+            try:
+                _send_email(CANCEL_EMAIL, "✅ Candor self-watchdog: recovered",
+                            "<p>All routes healthy again.</p>")
+            except Exception:
+                pass
+        _t.sleep(120)
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5050))
     print(f" * Candor — running on http://127.0.0.1:{port}", flush=True)
@@ -20486,4 +20541,8 @@ if __name__ == "__main__":
         import threading as _th
         _th.Thread(target=_render_worker_loop, daemon=True).start()
         _th.Thread(target=_release_scheduler_loop, daemon=True).start()
+    if os.environ.get("SELF_WATCHDOG") == "1":
+        import threading as _th2
+        _th2.Thread(target=_self_watchdog_loop, daemon=True).start()
+        print(" * self-watchdog: live (2-min route checks)", flush=True)
     app.run(host="0.0.0.0", port=port, threaded=True, debug=os.environ.get("DEBUG") == "1")
