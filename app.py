@@ -6680,17 +6680,20 @@ def college_detail_html(slug):
     # personal question the averages can't.
     acc_pct = round(c['accept'] * 100, 1)
     def _stat_box(label, val, color="var(--text)"):
-        fs = "1.08em" if len(str(val)) > 9 else "1.45em"
-        return (f'<div style="flex:1 1 140px;min-width:130px;border:1px solid var(--border);border-radius:10px;'
-                f'padding:10px 12px;background:rgba(255,255,255,.02)">'
-                f'<div style="font-size:.68em;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:700">{label}</div>'
-                f'<div style="font-size:{fs};font-weight:800;color:{color};margin-top:2px">{val}</div></div>')
+        fs = "1em" if len(str(val)) > 9 else "1.28em"
+        return (f'<div style="flex:1 1 108px;min-width:104px;border:1px solid var(--border);border-radius:10px;'
+                f'padding:9px 11px;background:rgba(255,255,255,.02)">'
+                f'<div style="font-size:.62em;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);font-weight:700;white-space:nowrap">{label}</div>'
+                f'<div style="font-size:{fs};font-weight:800;color:{color};margin-top:2px;white-space:nowrap">{val}</div></div>')
     _sat_txt = "Test-blind" if is_test_blind(c) else f"{c['sat_25']}–{c['sat_75']}"
     _act_txt = "Test-blind" if is_test_blind(c) else f"{c['act_25']}–{c['act_75']}"
     stat_strip = (_stat_box("Acceptance rate", f"{acc_pct}%", "#2b6cff")
                   + _stat_box("GPA mid-50%", f"{c['gpa_lo']}–{c['gpa_hi']}")
                   + _stat_box("SAT mid-50%", _sat_txt)
                   + _stat_box("ACT mid-50%", _act_txt))
+    _earn = median_earnings_10yr(c)
+    if _earn:
+        stat_strip += _stat_box("Median earnings (10yr)", f"${_earn//1000}K", "#5fc9b6")
     hook_line = (f"{acc_pct}% is the average applicant's shot. Your odds depend on your GPA, "
                  f"scores, and hooks. See where you actually stand.")
     _rounds_html = render_admissions_breakdown(c, admissions_detail(c))
@@ -6732,9 +6735,6 @@ def college_detail_html(slug):
     </div>
     {round_side}
   </div>
-</div>
-<div class="grid">
-  {_render_earnings_card(c)}
 </div>
 {_match_card(c)}
 {_scattergram_block(c, user)}
