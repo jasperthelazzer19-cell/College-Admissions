@@ -5099,6 +5099,14 @@ def init_db():
             sent_at TEXT DEFAULT CURRENT_TIMESTAMP,
             UNIQUE(user_id, college_slug, milestone)
         )""")
+        # JS-verified human visits: written by the /api/beacon the browser fires
+        # on page load. Crawlers with spoofed browser UAs don't run JS, so this
+        # is the honest visitor count (admin 1h/24h numbers read THIS).
+        conn.execute("""CREATE TABLE IF NOT EXISTS human_visits (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ts TEXT DEFAULT CURRENT_TIMESTAMP,
+            visitor_id TEXT, user_id INTEGER, path TEXT)""")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_human_visits_ts ON human_visits(ts)")
         # Anonymous page-view log — feeds /admin/stats "visitors in last hour /
         # 24h" cards. Cookie-based visitor_id so the same browser counts as
         # one across sessions even before signup.
@@ -6433,7 +6441,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',function(){navig
 {favicon}{pwa_head}
 {social_meta}
 {csrf_meta}{_posthog_head()}<title>{title}</title><style>{BASE_CSS}</style></head>
-<body>{_nav()}<div class="wrap">{_flash()}{body_html}</div>{footer}{pwa_script}</body></html>"""
+<body>{_nav()}<div class="wrap">{_flash()}{body_html}</div>{footer}{pwa_script}<script>try{{navigator.sendBeacon("/api/beacon",location.pathname)}}catch(e){{}}</script></body></html>"""
 
 
 # ─── PAGE BUILDERS ────────────────────────────────────────
@@ -10112,6 +10120,31 @@ def _log_page_visit():
     except Exception:
         pass  # logging must never break a request
 
+@app.route("/api/beacon", methods=["POST"])
+@_csrf_exempt
+def api_beacon():
+    """One tiny POST per human pageview (sendBeacon in the page shell). Bots
+    with fake browser UAs don't execute JS, so rows here = real people."""
+    ua = request.headers.get("User-Agent", "")
+    if not ua or _BOT_UA_RE.search(ua):
+        return ("", 204)
+    p = (request.get_data(as_text=True) or "/")[:200]
+    if (p in _VISIT_SKIP_PATHS or any(p.startswith(x) for x in _VISIT_SKIP_PREFIXES)
+            or p.endswith(_VISIT_SKIP_SUFFIXES)):
+        return ("", 204)
+    vid = request.cookies.get("cv_id")
+    if not vid:
+        return ("", 204)
+    try:
+        with db() as conn:
+            conn.execute("INSERT INTO human_visits(visitor_id, user_id, path) VALUES(?,?,?)",
+                         (vid, session.get("user_id"), p))
+            conn.commit()
+    except Exception:
+        pass
+    return ("", 204)
+
+
 @app.before_request
 def _slow_req_start():
     request._t0 = time.time()
@@ -10681,6 +10714,7 @@ const chip=([name,slug])=>`<div class="chip"><div class="tile"><img src="/static
 document.getElementById('track').innerHTML=(schools.map(chip).join(''))+(schools.map(chip).join(''));
 </script>
 <script>if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){});});}</script>
+<script>try{navigator.sendBeacon("/api/beacon",location.pathname)}catch(e){}</script>
 </body></html>
 """
 
@@ -18676,14 +18710,16 @@ def admin_stats():
         # UTC (SQLite CURRENT_TIMESTAMP), and datetime('now','-1 hour') is
         # also UTC, so the math doesn't need a TZ offset.
         try:
+            # JS-beacon counts: only browsers that executed our script — spoofed-UA
+            # crawlers (the GPA-page scrapers) can't inflate these.
             visitors_1h = conn.execute(
-                f"SELECT COUNT(DISTINCT visitor_id) c FROM page_visits WHERE ts >= datetime('now','-1 hour') AND {_REAL_VISITOR_SQL}"
+                "SELECT COUNT(DISTINCT visitor_id) c FROM human_visits WHERE ts >= datetime('now','-1 hour')"
             ).fetchone()["c"]
             visitors_24h = conn.execute(
-                f"SELECT COUNT(DISTINCT visitor_id) c FROM page_visits WHERE ts >= datetime('now','-24 hours') AND {_REAL_VISITOR_SQL}"
+                "SELECT COUNT(DISTINCT visitor_id) c FROM human_visits WHERE ts >= datetime('now','-24 hours')"
             ).fetchone()["c"]
             pageviews_24h = conn.execute(
-                f"SELECT COUNT(*) c FROM page_visits WHERE ts >= datetime('now','-24 hours') AND {_REAL_VISITOR_SQL}"
+                "SELECT COUNT(*) c FROM human_visits WHERE ts >= datetime('now','-24 hours')"
             ).fetchone()["c"]
             # Visitors we newly drop as same-UA scraper clusters (would've counted
             # as 'real' under the old 2+-only rule) — shown so the filter is visible.
