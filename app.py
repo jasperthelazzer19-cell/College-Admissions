@@ -13355,7 +13355,7 @@ def content_view_one(cid):
         ' try{'
         '  var els=[].slice.call(document.querySelectorAll(".cslide")),fs=[];'
         '  for(var i=0;i<els.length;i++){var r=await fetch(els[i].src);var bl=await r.blob();'
-        '   fs.push(new File([bl],"candor-slide-"+(i+1)+".png",{type:"image/png"}));}'
+        '   fs.push(new File([bl],"candor-slide-"+(i+1)+".jpg",{type:bl.type||"image/jpeg"}));}'
         '  if(navigator.canShare&&navigator.canShare({files:fs})){'
         '   await navigator.share({files:fs,title:"Candor carousel"});'
         '  }else{fs.forEach(function(f){var a=document.createElement("a");'
@@ -13456,7 +13456,7 @@ _CONTENT_SAVE_JS = (
     ' var t=btn.textContent;btn.disabled=true;btn.textContent="Preparing…";'
     ' try{var els=[].slice.call(card.querySelectorAll(".cslide")),fs=[];'
     '  for(var i=0;i<els.length;i++){var r=await fetch(els[i].src);var bl=await r.blob();'
-    '   fs.push(new File([bl],"candor-slide-"+(i+1)+".png",{type:"image/png"}));}'
+    '   fs.push(new File([bl],"candor-slide-"+(i+1)+".jpg",{type:bl.type||"image/jpeg"}));}'
     '  if(navigator.canShare&&navigator.canShare({files:fs})){await navigator.share({files:fs,title:"Candor carousel"});}'
     '  else{fs.forEach(function(f){var a=document.createElement("a");a.href=URL.createObjectURL(f);'
     '   a.download=f.name;document.body.appendChild(a);a.click();a.remove();});}'
@@ -13505,12 +13505,15 @@ def content_bestfit():
         queued = conn.execute("SELECT COUNT(*) c FROM batch_requests WHERE kind='bestfit' AND claimed_at IS NULL").fetchone()["c"]
     cards = []
     for r in rows:
-        _ck = [k for k in ("img1", "img2", "img3", "img4") if r[k]]
+        # Slides are served by the lightweight /content/slide JPEG route (lazy-
+        # loaded) instead of inlining multi-MB data-URLs — the old way made
+        # /content/today a 68MB page (5s tab switches).
+        _ck = [n for n, k in enumerate(("has1", "has2", "has3", "has4"), 1) if r[k]]
         imgs = "".join(
-            f'<div style="flex:1;min-width:150px"><img class="cslide" src="{r[k]}" alt="slide {i}" '
+            f'<div style="flex:1;min-width:150px"><img class="cslide" loading="lazy" src="/content/slide/{r["id"]}/{n}.jpg" alt="slide {i}" '
             f'style="width:100%;border-radius:12px;border:1px solid #1d2a3d;-webkit-touch-callout:default">'
             f'<div style="text-align:center;font-size:12px;color:#7c8aa0;margin-top:4px">Slide {i}</div></div>'
-            for i, k in enumerate(_ck, 1))
+            for i, n in enumerate(_ck, 1))
         imgs += (f'<div style="flex:1;min-width:150px"><img class="cslide" src="{_cta_url(r)}" alt="CTA slide" '
                  f'style="width:100%;border-radius:12px;border:1px solid #1d2a3d;-webkit-touch-callout:default">'
                  f'<div style="text-align:center;font-size:12px;color:#7c8aa0;margin-top:4px">Slide {len(_ck)+1} · CTA</div></div>')
@@ -13605,7 +13608,7 @@ _CONTENT_SAVE_SCRIPT = (
     ' var t=btn.textContent;btn.disabled=true;btn.textContent="Preparing…";'
     ' try{var els=[].slice.call(card.querySelectorAll(".cslide")),fs=[];'
     '  for(var i=0;i<els.length;i++){var r=await fetch(els[i].src);var bl=await r.blob();'
-    '   fs.push(new File([bl],"candor-slide-"+(i+1)+".png",{type:"image/png"}));}'
+    '   fs.push(new File([bl],"candor-slide-"+(i+1)+".jpg",{type:bl.type||"image/jpeg"}));}'
     '  if(navigator.canShare&&navigator.canShare({files:fs})){await navigator.share({files:fs,title:"Candor carousel"});}'
     '  else{fs.forEach(function(f){var a=document.createElement("a");a.href=URL.createObjectURL(f);'
     '   a.download=f.name;document.body.appendChild(a);a.click();a.remove();});}'
@@ -13686,12 +13689,15 @@ def _render_released_cards(released, tt_accts):
                 f'padding:5px 10px;font-weight:700;font-size:13px;margin:0 0 10px">📲 Post to: {_ae(shown)}{note}</div>')
     cards = []
     for r in released:
-        _ck = [k for k in ("img1", "img2", "img3", "img4") if r[k]]
+        # Slides are served by the lightweight /content/slide JPEG route (lazy-
+        # loaded) instead of inlining multi-MB data-URLs — the old way made
+        # /content/today a 68MB page (5s tab switches).
+        _ck = [n for n, k in enumerate(("has1", "has2", "has3", "has4"), 1) if r[k]]
         imgs = "".join(
-            f'<div style="flex:1;min-width:150px"><img class="cslide" src="{r[k]}" alt="slide {i}" '
+            f'<div style="flex:1;min-width:150px"><img class="cslide" loading="lazy" src="/content/slide/{r["id"]}/{n}.jpg" alt="slide {i}" '
             f'style="width:100%;border-radius:12px;border:1px solid #1d2a3d;-webkit-touch-callout:default">'
             f'<div style="text-align:center;font-size:12px;color:#7c8aa0;margin-top:4px">Slide {i}</div></div>'
-            for i, k in enumerate(_ck, 1))
+            for i, n in enumerate(_ck, 1))
         imgs += (f'<div style="flex:1;min-width:150px"><img class="cslide" src="{_cta_url(r)}" alt="CTA slide" '
                  f'style="width:100%;border-radius:12px;border:1px solid #1d2a3d;-webkit-touch-callout:default">'
                  f'<div style="text-align:center;font-size:12px;color:#7c8aa0;margin-top:4px">Slide {len(_ck)+1} · CTA</div></div>')
@@ -13734,7 +13740,7 @@ def content_manual():
     manual = _manual_account_labels()
     with db() as conn:
         released = [r for r in conn.execute(
-            "SELECT * FROM content_queue WHERE status='released' ORDER BY id DESC").fetchall()
+            "SELECT id, status, slot, school_slug, school_name, title_text, slide3_type, odds_text, grade_text, meta, assigned_account, posted_account, tt_publish_id, tt_post_status, released_at, (img1 IS NOT NULL) has1, (img2 IS NOT NULL) has2, (img3 IS NOT NULL) has3, (img4 IS NOT NULL) has4 FROM content_queue WHERE status='released' ORDER BY id DESC").fetchall()
             if (r["assigned_account"] or "") in manual]
         tt_accts = conn.execute("SELECT open_id, label FROM tiktok_accounts ORDER BY connected_at").fetchall()
     cards = _render_released_cards(released, tt_accts)
@@ -13769,7 +13775,7 @@ def content_today():
         # released, today is empty (by design). Manual-track accounts are filtered
         # out — they show on /content/manual and are never auto-pushed.
         released = [r for r in conn.execute(
-            "SELECT * FROM content_queue WHERE status='released' ORDER BY id DESC").fetchall()
+            "SELECT id, status, slot, school_slug, school_name, title_text, slide3_type, odds_text, grade_text, meta, assigned_account, posted_account, tt_publish_id, tt_post_status, released_at, (img1 IS NOT NULL) has1, (img2 IS NOT NULL) has2, (img3 IS NOT NULL) has3, (img4 IS NOT NULL) has4 FROM content_queue WHERE status='released' ORDER BY id DESC").fetchall()
             if (r["assigned_account"] or "") not in manual]
         pending = conn.execute("SELECT COUNT(*) c FROM content_queue WHERE status='pending'").fetchone()["c"]
         posted = conn.execute("SELECT COUNT(*) c FROM content_queue WHERE status='posted'").fetchone()["c"]
