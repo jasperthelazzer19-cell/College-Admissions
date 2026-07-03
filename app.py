@@ -69,6 +69,22 @@ def _price_for(model):
             return v
     return _MODEL_PRICES["sonnet"]  # unknown model → price at Sonnet (conservative)
 
+def _calling_feature():
+    """Walk the stack to find which app function actually made the API call, so
+    the cost log can attribute spend per feature (get_school_summary, chat_send,
+    etc.) with no per-call-site edits. Skips the logging/wrapper frames."""
+    import inspect
+    skip = {"_calling_feature", "_log_api_cost", "_logged", "_wrap_cost_logging", "_claude_cli"}
+    try:
+        for fr in inspect.stack()[1:12]:
+            fn = fr.function
+            if fn not in skip and not fn.startswith("<"):
+                return fn
+    except Exception:
+        pass
+    return None
+
+
 def _log_api_cost(resp, model, source):
     """Record one Anthropic call's token usage + estimated USD cost. Best-effort:
     never raises into the caller's request path."""
@@ -83,12 +99,13 @@ def _log_api_cost(resp, model, source):
         pr = _price_for(model)
         cost = (pin * pr["in"] + pout * pr["out"]
                 + cread * pr["in"] * 0.1 + cwrite * pr["in"] * 1.25) / 1_000_000.0
+        detail = _calling_feature()
         with db() as conn:
             conn.execute(
                 "INSERT INTO api_cost_log (ts, model, source, input_tokens, output_tokens, "
-                "cache_read_tokens, cache_write_tokens, cost_usd) "
-                "VALUES (CURRENT_TIMESTAMP,?,?,?,?,?,?,?)",
-                (model or "", source, pin, pout, cread, cwrite, cost))
+                "cache_read_tokens, cache_write_tokens, cost_usd, detail) "
+                "VALUES (CURRENT_TIMESTAMP,?,?,?,?,?,?,?,?)",
+                (model or "", source, pin, pout, cread, cwrite, cost, detail))
             conn.commit()
     except Exception as e:
         print("api cost log:", e)
@@ -4606,6 +4623,10 @@ def init_db():
             cost_usd REAL
         )""")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_api_cost_ts ON api_cost_log(ts)")
+        try:   # per-feature label (which function made the call) for cost attribution
+            conn.execute("ALTER TABLE api_cost_log ADD COLUMN detail TEXT")
+        except sqlite3.OperationalError:
+            pass
         conn.execute("""CREATE TABLE IF NOT EXISTS college_articles (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             college_slug TEXT NOT NULL,
