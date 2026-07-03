@@ -6130,8 +6130,8 @@ def fetch_articles(college_slug):
 
 
 NAV = """<div class="nav"><a class="brand" href="/">""" + CANDOR_LOGO_SVG + """Candor</a>
-__UPGRADE_CTA__<a href="/rankings/my-fit">★ My Fit</a>
-<a href="/colleges">Browse</a>
+__UPGRADE_CTA__<a href="/colleges" style="color:#5fc9b6">Chances</a>
+<a href="/rankings/my-fit">★ My Fit</a>
 <a href="/rankings">Rankings</a>
 <a href="/guides">Guides</a>
 <a href="/grade">Profile Grade</a>
@@ -6401,7 +6401,7 @@ def colleges_html():
     state_options = "".join(f'<option value="{s}" {"selected" if s==state else ""}>{s}</option>' for s in STATES)
     return _page(f"""
 <div class="bar">
-  <h1 style="margin:0">Browse colleges</h1>
+  <h1 style="margin:0">Get your chances</h1>
   <span class="muted">{len(rows)} of {len(COLLEGES)}</span>
 </div>
 <form method="get" action="/colleges" class="card" style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end">
@@ -6415,7 +6415,7 @@ def colleges_html():
   <a class="btn btn-light" href="/colleges">Reset</a>
 </form>
 <div class="grid">{cards or '<div class="card" style="text-align:center;padding:32px"><h3 style="margin:0 0 8px">No schools match these filters</h3><p class="muted">Try clearing one or two filters — too narrow a combo (e.g. small + rural + STEM) sometimes returns zero.</p><a class="btn btn-primary" href="/colleges" style="margin-top:10px">Reset filters</a></div>'}</div>
-""", title="Browse colleges — Candor")
+""", title="Get Your Chances — Candor")
 
 
 def _match_card(c):
@@ -6456,7 +6456,7 @@ def _match_card(c):
             color = {"match":"#1d6c2a","mismatch":"#9a1d1d","neutral":"#666"}[verdict]
             rows += f'<div style="display:flex;justify-content:space-between;padding:6px 0;border-top:1px solid #f0f0f0;font-size:.92em"><span><span style="color:{color};font-weight:700;margin-right:6px">{icon}</span>{label}</span><span class="muted" style="font-size:.85em">{txt}</span></div>'
     score_color = "#1d6c2a" if overall >= 80 else ("#8a4a00" if overall >= 60 else "#9a1d1d")
-    breakdown = (f'<div class="muted" style="font-size:.78em;margin:6px 0 8px">'
+    breakdown = (f'<div class="muted" style="font-size:.78em;margin:6px 0 8px;overflow-wrap:anywhere">'
                  f'admit realism {parts["admit_realism"]}/100 · '
                  f'prefs {parts["pref"]}/100 · '
                  f'academic {parts["academic"]}/100'
@@ -6674,59 +6674,82 @@ def college_detail_html(slug):
         f'<script type="application/ld+json">{_json.dumps(s)}</script>' for s in _ld)
     gpa_links = " · ".join(
         f'<a href="/college/{slug}/gpa/{s:.1f}">{s:.1f} GPA</a>' for s in _GPA_SCENARIOS)
+    # ── Conversion-first layout helpers (2026-07 redesign) ──
+    # Compact stat strip: the four numbers people google, scannable in one row,
+    # instead of five half-empty cards. The calculator CTA then answers the
+    # personal question the averages can't.
+    acc_pct = round(c['accept'] * 100, 1)
+    def _stat_box(label, val, color="var(--text)"):
+        fs = "1.08em" if len(str(val)) > 9 else "1.45em"
+        return (f'<div style="flex:1 1 140px;min-width:130px;border:1px solid var(--border);border-radius:10px;'
+                f'padding:10px 12px;background:rgba(255,255,255,.02)">'
+                f'<div style="font-size:.68em;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:700">{label}</div>'
+                f'<div style="font-size:{fs};font-weight:800;color:{color};margin-top:2px">{val}</div></div>')
+    _sat_txt = "Test-blind" if is_test_blind(c) else f"{c['sat_25']}–{c['sat_75']}"
+    _act_txt = "Test-blind" if is_test_blind(c) else f"{c['act_25']}–{c['act_75']}"
+    stat_strip = (_stat_box("Acceptance rate", f"{acc_pct}%", "#2b6cff")
+                  + _stat_box("GPA mid-50%", f"{c['gpa_lo']}–{c['gpa_hi']}")
+                  + _stat_box("SAT mid-50%", _sat_txt)
+                  + _stat_box("ACT mid-50%", _act_txt))
+    hook_line = (f"{acc_pct}% is the average applicant's shot. Your odds depend on your GPA, "
+                 f"scores, and hooks. See where you actually stand.")
+    _rounds_html = render_admissions_breakdown(c, admissions_detail(c))
+    _subs_html = _render_sub_school_block(c['slug'], highlight_keywords=user_major)
+    # Right-hand column of the hero: acceptance-by-round (Candor's differentiator,
+    # visible before the fold). Omitted entirely when a school has no round data.
+    round_side = ""
+    if _rounds_html or _subs_html:
+        round_side = ('<div style="flex:1 1 280px;min-width:250px;border:1px solid var(--border);border-radius:10px;padding:12px 14px;background:rgba(255,255,255,.02)">'
+                      '<div style="font-weight:700">Acceptance by round</div>'
+                      '<div class="muted" style="font-size:.78em">same school, very different odds by round</div>'
+                      + _rounds_html + _subs_html + '</div>')
     return _page(f"""
 {_ldjson}
 <div class="bar"><a href="/colleges">&larr; back to browse</a></div>
 <div class="card">
   <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;align-items:flex-start">
-    <div>
-      <h1 style="margin:0 0 4px">{c['name']} Acceptance Rate &amp; Chances {verified_badge}</h1>
+    <div style="min-width:0;flex:1 1 320px">
+      <h1 style="margin:0 0 4px;overflow-wrap:anywhere">{c['name']} Acceptance Rate &amp; Chances {verified_badge}</h1>
       <div class="muted">{city_state(c)} ({region_of(c)}) · {c['size']:,} undergrads · ~{avg_class_size_estimate(c)} avg class size · {sf_ratio(c)}:1 student-faculty · ${c['tuition']:,}/yr sticker</div>
     </div>
     <div>{type_pill} {tier_pill}</div>
   </div>
-  <div id="summary-block" style="margin:14px 0 6px;color:var(--text-2)">{c['desc']}<div class="muted" style="font-size:.82em;margin-top:4px"><i>Loading extended overview…</i></div></div>
-  <div class="tag-list">{majors_tags}</div>
-  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
-    <a class="btn btn-primary" href="/college/{c['slug']}/plan">★ Calculate my chances</a>
-    <a class="btn btn-light" href="/chances/{c['slug']}">Chances only</a>
-    <a class="btn btn-light" href="/college/{c['slug']}/requirements">Requirements</a>
-    <a class="btn btn-light" href="/college/{c['slug']}/improve">Improve guide</a>
-    <a class="btn btn-light" href="/college/{c['slug']}/profiles">Real profiles & essays</a>
-    {save_btn}
+  <div style="display:flex;flex-wrap:wrap;gap:10px;margin:16px 0 6px">{stat_strip}</div>
+  <div class="muted" style="font-size:.72em">CDS-based estimates from recent admissions cycles. Verify on the school's official site.</div>
+  <div style="display:flex;flex-wrap:wrap;gap:18px;align-items:stretch;margin-top:14px">
+    <div style="flex:1.4 1 340px;min-width:300px;display:flex;flex-direction:column;justify-content:flex-end">
+      <div style="margin:0 0 10px;font-size:1.04em;color:var(--text-2)">{hook_line}</div>
+      <a class="btn btn-primary" href="/college/{c['slug']}/plan" style="display:block;width:100%;box-sizing:border-box;text-align:center;font-size:clamp(1.02em,3.2vw,1.25em);font-weight:800;padding:14px 16px;margin:0 0 6px;border-radius:12px">★ Calculate my chances</a>
+      <div class="muted" style="text-align:center;font-size:.8em;margin:0 0 12px">Free · takes ~2 minutes · 700+ students on Candor</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <a class="btn btn-light" href="/chances/{c['slug']}">Chances only</a>
+        <a class="btn btn-light" href="/college/{c['slug']}/requirements">Requirements</a>
+        <a class="btn btn-light" href="/college/{c['slug']}/improve">Improve guide</a>
+        <a class="btn btn-light" href="/college/{c['slug']}/profiles">Real profiles & essays</a>
+        {save_btn}
+      </div>
+      <div style="margin-top:12px;font-size:.85em;color:var(--muted)">Chances by GPA: {gpa_links}</div>
+    </div>
+    {round_side}
   </div>
-  <div style="margin-top:12px;font-size:.85em;color:var(--muted)">Chances by GPA: {gpa_links}</div>
 </div>
-<p class="muted" style="font-size:.78em;margin:14px 0 6px">Stats below are CDS-based estimates from recent admissions cycles. Verify on the school's official site before making application decisions.</p>
 <div class="grid">
-  <div class="card">
-    <h3 style="margin-top:0">Acceptance rate</h3>
-    <div class="odds" style="color:#2b6cff">{round(c['accept']*100,1)}%</div>
-    <div class="muted" style="font-size:.82em">most recent reported cycle</div>
-    {render_admissions_breakdown(c, admissions_detail(c))}
-    {_render_sub_school_block(c['slug'], highlight_keywords=user_major)}
-  </div>
-  <div class="card">
-    <h3 style="margin-top:0">GPA range</h3>
-    <div class="odds">{c['gpa_lo']}–{c['gpa_hi']}</div>
-    <div class="muted" style="font-size:.82em">middle 50% of admitted students (unweighted)</div>
-  </div>
-  <div class="card">
-    <h3 style="margin-top:0">SAT mid-50%</h3>
-    <div class="odds" style="font-size:{('1.4em' if is_test_blind(c) else 'inherit')}">{('Test-blind' if is_test_blind(c) else f"{c['sat_25']}–{c['sat_75']}")}</div>
-    <div class="muted" style="font-size:.82em">{('does not consider SAT/ACT' if is_test_blind(c) else 'middle 50% admitted SAT score')}</div>
-  </div>
-  <div class="card">
-    <h3 style="margin-top:0">ACT mid-50%</h3>
-    <div class="odds" style="font-size:{('1.4em' if is_test_blind(c) else 'inherit')}">{('Test-blind' if is_test_blind(c) else f"{c['act_25']}–{c['act_75']}")}</div>
-    <div class="muted" style="font-size:.82em">{('does not consider SAT/ACT' if is_test_blind(c) else 'middle 50% admitted ACT score')}</div>
-  </div>
   {_render_earnings_card(c)}
 </div>
-{_render_career_outcomes(c)}
-{_scattergram_block(c, user)}
-{render_school_feeders(c)}
 {_match_card(c)}
+{_scattergram_block(c, user)}
+{_render_career_outcomes(c)}
+{render_school_feeders(c)}
+<div class="card">
+  <h3 style="margin-top:0">About {c['name']}</h3>
+  <div id="summary-block" style="color:var(--text-2)">{c['desc']}<div class="muted" style="font-size:.82em;margin-top:4px"><i>Loading extended overview…</i></div></div>
+  <div class="tag-list" style="margin-top:12px">{majors_tags}</div>
+</div>
+<div class="card" style="text-align:center;padding:24px 18px">
+  <div style="font-size:1.12em;font-weight:700;margin-bottom:10px">Ready to see your real chances at {c['name']}?</div>
+  <a class="btn btn-primary" href="/college/{c['slug']}/plan" style="font-weight:800;padding:12px 28px">★ Calculate my chances</a>
+  <div class="muted" style="font-size:.78em;margin-top:8px">Free · personalized to your profile</div>
+</div>
 <div class="card">
   <h3 style="margin-top:0">Quick facts</h3>
   <div id="facts-block"><i class="muted">Loading…</i></div>
@@ -9150,7 +9173,7 @@ def school_plan_html(slug):
             color = {"match":"#1d6c2a","mismatch":"#9a1d1d","neutral":"#666"}[verdict]
             match_rows += f'<div style="display:flex;justify-content:space-between;padding:6px 0;border-top:1px solid #f0f0f0;font-size:.92em"><span><span style="color:{color};font-weight:700;margin-right:6px">{icon}</span>{label}</span><span class="muted" style="font-size:.85em">{txt}</span></div>'
     score_color = "#1d6c2a" if overall >= 80 else ("#8a4a00" if overall >= 60 else "#9a1d1d")
-    breakdown = (f'<div class="muted" style="font-size:.78em;margin:6px 0 8px">'
+    breakdown = (f'<div class="muted" style="font-size:.78em;margin:6px 0 8px;overflow-wrap:anywhere">'
                  f'admit realism {parts["admit_realism"]}/100 · '
                  f'prefs {parts["pref"]}/100 · '
                  f'academic {parts["academic"]}/100</div>')
