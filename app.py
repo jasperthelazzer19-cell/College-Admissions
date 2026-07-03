@@ -19786,6 +19786,27 @@ def _tiktok_perf_rows(group_sql, label_sql):
         return []
 
 
+# Content format v2 cutover: rotating hashtags (c2e354a) + rotating CTA slide
+# (afcd700) both deployed 2026-07-02 ~2:30pm PT (21:30 UTC). Posts posted on/after
+# this carry the new anti-duplication format. Used to A/B old vs new by view count.
+_CONTENT_V2_CUTOVER_UTC = "2026-07-02 21:30:00"
+
+def _tiktok_cutover_compare():
+    """Avg views for posts BEFORE vs ON/AFTER the content-v2 cutover, so the diff
+    from the new hashtags + CTA rotation is visible as post data matures."""
+    try:
+        with db() as conn:
+            rows = conn.execute(
+                "SELECT CASE WHEN c.posted_at >= ? THEN 'after' ELSE 'before' END era, "
+                "COUNT(*) n, AVG(p.view_count) av, AVG(p.like_count) al "
+                "FROM content_queue c JOIN tiktok_posts p ON p.carousel_id = c.id "
+                "WHERE p.view_count IS NOT NULL AND c.posted_at IS NOT NULL "
+                "GROUP BY era", (_CONTENT_V2_CUTOVER_UTC,)).fetchall()
+        return {r["era"]: (r["n"], r["av"] or 0, r["al"] or 0) for r in rows}
+    except Exception:
+        return {}
+
+
 # Shadowban heuristic: a TikTok shadowban shows up as a sharp, sustained reach
 # collapse. TikTok's initial FYP push happens within hours, so a video stuck low
 # after ~12h is already a signal — we EVALUATE from 12h (not 3 days), re-check it
@@ -20060,6 +20081,27 @@ def tiktok_home():
     else:
         perf_html = ('<p style="color:#7c8aa0;font-size:13px;margin:18px 0 0">No posts attributed yet — '
                      'mark carousels <b>✓ Posted</b> (pick the account) and stats roll up here after the next pull.</p>')
+    # ── Content v2 cutover A/B: new hashtags + rotating CTA (started Jul 2, 2:30pm PT)
+    cmp = _tiktok_cutover_compare()
+    bn, bav, _ = cmp.get("before", (0, 0, 0))
+    an, aav, _ = cmp.get("after", (0, 0, 0))
+    def _era(lbl, n, av, accent):
+        return (f'<div style="flex:1;background:#0c1521;border:1px solid #1d2a3d;border-radius:12px;padding:14px">'
+                f'<div style="color:#7c8aa0;font-size:12px;font-weight:700;margin:0 0 4px">{lbl}</div>'
+                f'<div style="font-size:24px;font-weight:800;color:{accent}">{int(av):,}<span style="font-size:13px;color:#7c8aa0;font-weight:600"> avg views</span></div>'
+                f'<div style="color:#5d6b80;font-size:12px;margin-top:2px">{n} post(s)</div></div>')
+    delta = ""
+    if bn and an and bav > 0:
+        pct = round((aav - bav) / bav * 100)
+        dc = "#5fc9b6" if pct >= 0 else "#f3a5a5"
+        delta = f'<div style="text-align:center;color:{dc};font-weight:800;font-size:15px;margin:10px 0 0">{"+" if pct>=0 else ""}{pct}% vs before</div>'
+    cutover_html = (
+        '<h2 style="margin:24px 0 6px;font-size:18px">🆕 New format A/B</h2>'
+        '<div style="color:#7c8aa0;font-size:12px;margin:0 0 10px">Rotating hashtags + rotating CTA slide, '
+        'started <b>Jul 2, 2:30pm PT</b> (anti-duplicate-throttle). Compares avg views of posts before vs after. '
+        '<i>New posts need a few days of view data before this is meaningful.</i></div>'
+        f'<div style="display:flex;gap:10px">{_era("Before (old format)", bn, bav, "#9fb0c6")}'
+        f'{_era("After (new format)", an, aav, "#5fc9b6")}</div>{delta}')
     # ── Shadowban check: per-account reach-collapse heuristic over mature videos.
     health = tiktok_account_health()
     _hstyle = {"healthy": ("#13351f", "#bdf3d0", "✅ healthy"),
@@ -20101,6 +20143,7 @@ def tiktok_home():
             f'<a href="/tiktok/pull" style="{btn};background:#16202e;color:#e9eef5;border:1px solid #2b3a4f">↻ Pull stats now</a>'
             f'{health_html if accts else ""}'
             f'{perf_html}'
+            f'{cutover_html}'
             f'</div>'
             '<script>'
             'function ttRename(el,oid){'
