@@ -29,6 +29,7 @@ import hashlib
 import hmac
 from datetime import datetime, timedelta
 from functools import wraps
+from html import escape as _esc   # module-level so every render fn has it (fixes /colleges 500)
 
 import requests
 from flask import Flask, render_template_string, request, redirect, url_for, session, flash, jsonify, abort, Response
