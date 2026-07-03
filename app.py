@@ -10019,6 +10019,8 @@ _BOT_UA_RE = re.compile(
     r"claude-user|chatgpt-user|oai-searchbot|perplexity|meta-externalagent|"
     r"cohere|anthropic|google-extended|gemini|diffbot|youbot|imagesift|"
     r"monitor|preview|fetch|scan|"
+    # Our own health checkers (Mac watchdog + Railway self-watchdog):
+    r"candor-watchdog|candor-selfwatch|"
     # Jasper's own Otto agent pings the content-queue status endpoint — its UA is
     # literally "otto"; word-bounded so it can't match a real browser string.
     r"\botto\b", re.I)
