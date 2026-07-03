@@ -11305,9 +11305,13 @@ def profile_page():
                 get_or_evaluate_exceptionality(uid, fresh_profile)
             except Exception as e:
                 print(f"exceptionality eval on save failed: {e}")
-        flash("Profile saved.", "success")
+        flash("Profile saved — pick a school to see your chances.", "success")
         nxt = session.pop("next_url", None)
         if nxt: return redirect(nxt)
+        # No specific destination -> send them to Chances (school picker) instead
+        # of dumping them back on the form. This was the activation dead-end:
+        # 55 metered users completed a profile and never ran a single calc.
+        return redirect("/colleges")
     return profile_html()
 
 
