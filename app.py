@@ -12338,12 +12338,16 @@ SCHOOL_LOGOS = {"akron": "/static/logos/akron.png", "alabama": "/static/logos/al
 # athletic logos look wrong for academic schools (MIT was a beaver). Profile
 # slides prefer these; landing/chances keep SCHOOL_LOGOS.
 INST_LOGOS = {"amherst": "/static/logos_inst/amherst.png", "bc": "/static/logos_inst/bc.png", "brown": "/static/logos_inst/brown.png", "bu": "/static/logos_inst/bu.png", "caltech": "/static/logos_inst/caltech.png", "cmu": "/static/logos_inst/cmu.png", "columbia": "/static/logos_inst/columbia.png", "cornell": "/static/logos_inst/cornell.png", "dartmouth": "/static/logos_inst/dartmouth.png", "duke": "/static/logos_inst/duke.png", "emory": "/static/logos_inst/emory.png", "gatech": "/static/logos_inst/gatech.png", "georgetown": "/static/logos_inst/georgetown.png", "harvard": "/static/logos_inst/harvard.png", "jhu": "/static/logos_inst/jhu.png", "miami": "/static/logos_inst/miami.png", "mit": "/static/logos_inst/mit.png", "northeastern": "/static/logos_inst/northeastern.png", "northwestern": "/static/logos_inst/northwestern.png", "notre-dame": "/static/logos_inst/notre-dame.png", "nyu": "/static/logos_inst/nyu.png", "princeton": "/static/logos_inst/princeton.png", "purdue": "/static/logos_inst/purdue.png", "rice": "/static/logos_inst/rice.png", "rutgers": "/static/logos_inst/rutgers.png", "stanford": "/static/logos_inst/stanford.png", "swarthmore": "/static/logos_inst/swarthmore.png", "tufts": "/static/logos_inst/tufts.png", "tulane": "/static/logos_inst/tulane.png", "ucb": "/static/logos_inst/ucb.png", "uchicago": "/static/logos_inst/uchicago.png", "ucla": "/static/logos_inst/ucla.png", "ucsd": "/static/logos_inst/ucsd.png", "uf": "/static/logos_inst/uf.png", "uiuc": "/static/logos_inst/uiuc.png", "umd": "/static/logos_inst/umd.png", "umich": "/static/logos_inst/umich.png", "unc": "/static/logos_inst/unc.png", "upenn": "/static/logos_inst/upenn.png", "usc": "/static/logos_inst/usc.png", "ut-austin": "/static/logos_inst/ut-austin.png", "uva": "/static/logos_inst/uva.png", "uw": "/static/logos_inst/uw.png", "vanderbilt": "/static/logos_inst/vanderbilt.png", "villanova": "/static/logos_inst/villanova.png", "wake-forest": "/static/logos_inst/wake-forest.png", "washu": "/static/logos_inst/washu.png", "williams": "/static/logos_inst/williams.png", "wisc": "/static/logos_inst/wisc.png", "yale": "/static/logos_inst/yale.png"}
-# Activated into the content pool 2026-07-02 (batch 1). These use the general
-# /static/logos set (rougher than logos_inst) — eyeball the title slides and
-# regenerate any that look bad. Adding a slug here puts it in the content rotation.
-INST_LOGOS.update({_s: f"/static/logos/{_s}.png" for _s in (
+# Activated into the content pool 2026-07-02 (batch 1). Prefer the crisp
+# logos_inst/<slug>.png when it exists (creator dropping in official marks),
+# else fall back to the general /static/logos set. Adding a slug here puts it
+# in the content rotation.
+INST_LOGOS.update({_s: (
+    f"/static/logos_inst/{_s}.png"
+    if os.path.exists(os.path.join(app.root_path, "static", "logos_inst", f"{_s}.png"))
+    else f"/static/logos/{_s}.png") for _s in (
     "auburn", "osu", "penn-state", "fsu", "tamu", "clemson", "uga", "utk",
-    "uoregon", "cu-boulder", "pitt", "iu", "ucdavis", "uci", "ucr", "ucsb",
+    "uoregon", "cu-boulder", "pitt", "iu", "ucdavis", "uci", "ucsb",
     "calpoly-slo", "sdsu", "fordham", "syracuse", "tcu", "smu", "pepperdine",
     "scu", "lmu", "lehigh", "gonzaga", "howard")})
 
