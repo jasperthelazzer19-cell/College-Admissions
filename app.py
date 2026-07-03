@@ -3749,6 +3749,38 @@ def get_or_evaluate_exceptionality(user_id, profile):
     return is_exc, reason
 
 
+# ── Background exceptionality eval ─────────────────────────────────────────
+# Profile save kicks the 3-judge panel off in a background thread so saving is
+# instant instead of blocking 3-8s on the LLM judges. If the user reaches a
+# calc BEFORE the panel finishes, the calc waits for the fresh verdict (never
+# uses a stale one, never double-runs the judges). Verdicts/odds themselves
+# are unchanged — only WHEN the wait happens moves.
+import threading as _exc_threading
+_exc_inflight = {}                       # uid -> Event for the newest in-flight eval
+_exc_inflight_lock = _exc_threading.Lock()
+
+
+def _kick_exceptionality_async(uid):
+    """Run get_or_evaluate_exceptionality(uid) in a daemon thread. A newer kick
+    for the same uid supersedes the old dict entry (last save wins)."""
+    ev = _exc_threading.Event()
+    with _exc_inflight_lock:
+        _exc_inflight[uid] = ev
+    def _run():
+        try:
+            p = get_profile(uid)         # fresh row, read inside the thread
+            if p:
+                get_or_evaluate_exceptionality(uid, p)   # persists the verdict
+        except Exception as e:
+            print(f"async exceptionality eval failed for uid {uid}: {e}", flush=True)
+        finally:
+            ev.set()
+            with _exc_inflight_lock:
+                if _exc_inflight.get(uid) is ev:
+                    _exc_inflight.pop(uid, None)
+    _exc_threading.Thread(target=_run, daemon=True).start()
+
+
 def counterfactual_lift(profile, school, *, gpa=None, sat=None, act=None,
                         ec_boost=0, hook_athlete=False, hook_legacy_at=None,
                         is_exceptional=False):
@@ -7567,6 +7599,13 @@ def _chances_profile(uid, slug):
     p = get_profile(uid)
     if not p:
         return None
+    # If a background judge run (kicked by profile save) is still in flight,
+    # wait for the fresh verdict rather than using a stale one or re-running
+    # the panel. 25s cap so a hung API call can't hang the page.
+    ev = _exc_inflight.get(uid)
+    if ev is not None:
+        ev.wait(timeout=25)
+        p = get_profile(uid) or p        # re-read: the eval persisted to the row
     # Lazy exceptional-applicant eval (cached after first call).
     is_exc, exc_reason = get_or_evaluate_exceptionality(uid, p)
     profile = dict(p)  # every saved column: ec_rating, spike_score, self_rigor, ibs, ...
@@ -11298,13 +11337,10 @@ def profile_page():
             # Force re-evaluation by clearing the eval timestamp.
             conn.execute("UPDATE profiles SET exceptional_evaluated_at=NULL WHERE user_id=?", (uid,))
             conn.commit()
-        # Trigger evaluation now (lazily — uses cache if it ran less than 30d ago)
-        fresh_profile = get_profile(uid)
-        if fresh_profile:
-            try:
-                get_or_evaluate_exceptionality(uid, fresh_profile)
-            except Exception as e:
-                print(f"exceptionality eval on save failed: {e}")
+        # Kick the 3-judge re-grade in the BACKGROUND so the save returns
+        # instantly. Any calc that arrives before the panel finishes waits for
+        # the fresh verdict inside _chances_profile (no stale odds, no re-run).
+        _kick_exceptionality_async(uid)
         flash("Profile saved — pick a school to see your chances.", "success")
         nxt = session.pop("next_url", None)
         if nxt: return redirect(nxt)
