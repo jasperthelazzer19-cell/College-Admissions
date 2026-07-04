@@ -7737,6 +7737,10 @@ def _chances_narrative_block(slug, r, ready):
 # NEVER metered: premium subscribers (is_paid), grandfathered users (unlimited),
 # and logged-out visitors (they have no saved calc history to meter anyway).
 FREE_CALC_LIMIT = 5
+# Test-dummy accounts: each time one of these hits the wall, the paywall renders
+# normally and then the meter resets to 0 (calc_runs wiped) so the capped-user
+# experience can be retested end-to-end without SQL surgery.
+TEST_METER_RESET_EMAILS = {"jasperlasser@gmail.com"}
 
 def _calc_meter(user, slug=None):
     """Return (blocked, used, limit) for the given user.
@@ -7788,6 +7792,12 @@ def _calc_paywall_html(used, limit, slug=None, user=None):
             unlocked = (f'<div style="max-width:560px;margin:18px auto 0;text-align:center">'
                         f'<div class="muted" style="font-size:.82em;margin-bottom:8px">'
                         f'Your unlocked schools — always free to re-check:</div>{chips}</div>')
+        # Test-dummy reset: the wall above rendered with the real capped state;
+        # now zero the meter so the next calc starts a fresh 5-school cycle.
+        if (user.get("email") or "").strip().lower() in TEST_METER_RESET_EMAILS:
+            with db() as conn:
+                conn.execute("DELETE FROM calc_runs WHERE user_id=?", (user["id"],))
+                conn.commit()
     back = (f'<div class="bar" style="max-width:560px;margin:0 auto">'
             f'<a href="/college/{slug}">&larr; back to {school_name}</a></div>') if school_name else ""
     head = (f"Your {school_name} odds are ready" if school_name
