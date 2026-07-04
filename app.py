@@ -13646,6 +13646,35 @@ def content_queue_action(cid, action):
     return redirect(url_for("content_today"))
 
 
+@app.route("/content/release-nosend", methods=["POST"])
+@login_required
+def content_release_nosend():
+    """Creator taps 'Let N out (no send)' on /content/today: flip the N oldest
+    PENDING buffer carousels to released so they show on Today for manual
+    download, WITHOUT any TikTok push and WITHOUT touching the scheduled slots.
+    Built for the bulk-schedule-by-hand workflow (generate a big buffer, then
+    pull it out in batches to schedule natively)."""
+    if not _is_creator():
+        abort(404)
+    try:
+        n = max(1, min(100, int(request.form.get("count") or 10)))
+    except ValueError:
+        n = 10
+    with db() as conn:
+        ids = [r["id"] for r in conn.execute(
+            "SELECT id FROM content_queue WHERE status='pending' ORDER BY id ASC LIMIT ?",
+            (n,)).fetchall()]
+        if ids:
+            qs = ",".join("?" * len(ids))
+            # slot='manual' distinguishes these from scheduled/make releases; no
+            # account reassignment, no tt push — purely surfaced for hand-saving.
+            conn.execute(f"UPDATE content_queue SET status='released', slot='manual', "
+                         f"released_at=CURRENT_TIMESTAMP WHERE id IN ({qs}) AND status='pending'", ids)
+            conn.commit()
+    flash(f"Released {len(ids)} carousel{'' if len(ids)==1 else 's'} to Today (no send).", "success")
+    return redirect(url_for("content_today"))
+
+
 _CONTENT_SAVE_JS = (
     '<script>'
     'async function saveCard(btn){var card=btn.closest(".qcard");if(!card)return;'
@@ -14019,7 +14048,17 @@ def content_today():
         f'<button style="width:100%;background:#5fc9b6;color:#06121a;font-weight:800;border:0;'
         f'padding:13px;border-radius:11px;font-size:15px;cursor:pointer">⚡ Make a set — one per account ({_active_n})</button>'
         f'<div style="color:#5d6b80;font-size:11px;margin:8px 0 0;text-align:center">picking any school/format generates fresh from the queue</div></form>'
-        '</div>')
+        '</div>'
+        # Pull a batch out of the buffer to Today WITHOUT sending — for scheduling
+        # posts by hand. Count editable; defaults to 10.
+        f'<form method="post" action="/content/release-nosend" style="display:flex;gap:8px;align-items:center;'
+        f'margin:0 0 18px;background:#0c1521;border:1px solid #1d2a3d;border-radius:14px;padding:12px 14px">{csrf_input()}'
+        f'<span style="font-weight:800;font-size:12px;color:#7c8aa0;letter-spacing:.4px;flex:1">'
+        f'📤 PULL FROM QUEUE — NO SEND ({pending} in queue)</span>'
+        f'<input type="number" name="count" value="10" min="1" max="100" '
+        f'style="width:64px;padding:9px;border-radius:9px;background:#0a1320;color:#e9eef5;border:1px solid #2b3a4f;font-size:14px;text-align:center">'
+        f'<button style="background:#b06fe0;color:#120a1a;font-weight:800;border:0;'
+        f'padding:11px 16px;border-radius:11px;font-size:14px;cursor:pointer;white-space:nowrap">Let out (no send)</button></form>')
     save_script = _CONTENT_SAVE_SCRIPT
     body = (f'<div style="max-width:720px;margin:0 auto;padding:16px 12px 80px">'
             + f'<h1 style="margin:0 0 4px">📅 Today</h1>'
