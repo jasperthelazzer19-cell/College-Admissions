@@ -13981,11 +13981,48 @@ def content_manual():
     return redirect(url_for("content_today"))
 
 
+def _order_carousels(rows, school_window=5):
+    """Order carousels for the creator's feed under two rules:
+      1. the same school never repeats within `school_window` (default 5) videos, and
+      2. the same slide3_type doesn't sit back-to-back.
+    Greedy pick each slot: prefer a candidate that satisfies BOTH (school spacing
+    ranked first since it's the hard rule), then format variety, then drain the
+    largest remaining format bucket to keep things balanced. Falls back to the
+    least-bad candidate if nothing satisfies everything (rare, only near the tail).
+    Order within ties stays newest-first."""
+    from collections import deque, Counter
+    pool = list(rows)
+    out, last_fmt = [], None
+    recent = deque(maxlen=school_window)   # school keys of the last N placed
+
+    def skey(r):
+        return (r["school_slug"] or r["school_name"] or "").strip().lower()
+
+    while pool:
+        fmt_left = Counter((r["slide3_type"] or "other") for r in pool)
+
+        def score(i):
+            r = pool[i]
+            f = r["slide3_type"] or "other"
+            ok_school = 1 if (not skey(r) or skey(r) not in recent) else 0
+            ok_fmt = 1 if f != last_fmt else 0
+            return (ok_school, ok_fmt, fmt_left[f])   # tuple compare: school first
+
+        best = max(range(len(pool)), key=score)
+        r = pool.pop(best)
+        out.append(r)
+        last_fmt = r["slide3_type"] or "other"
+        if skey(r):
+            recent.append(skey(r))
+    return out
+
+
 @app.route("/content/today")
 @login_required
 def content_today():
-    """Creator-only queue page: released carousels ready to save, newest first.
-    Shows every released carousel (manual-account ones included)."""
+    """Creator-only queue page: released carousels ready to save. Formats are
+    interleaved (no same-format runs), and an optional ?acct= filter lets the
+    creator work one account at a time."""
     if not _is_creator():
         abort(404)
     with db() as conn:
@@ -14000,6 +14037,32 @@ def content_today():
         pending = conn.execute("SELECT COUNT(*) c FROM content_queue WHERE status='pending'").fetchone()["c"]
         posted = conn.execute("SELECT COUNT(*) c FROM content_queue WHERE status='posted'").fetchone()["c"]
         tt_accts = conn.execute("SELECT open_id, label FROM tiktok_accounts ORDER BY connected_at").fetchall()
+    # Per-account counts (over the full released set) for the filter chips.
+    from collections import Counter as _Counter
+    from html import escape as _esc_a
+    _acct_counts = _Counter((r["assigned_account"] or "—") for r in released)
+    # ?acct= filter: work one account at a time. Blank / "all" = everything.
+    _sel_acct = (request.args.get("acct") or "").strip()
+    if _sel_acct and _sel_acct.lower() != "all":
+        released = [r for r in released if (r["assigned_account"] or "—") == _sel_acct]
+    # Order so the same school never repeats within 5 videos and formats don't
+    # sit back-to-back.
+    released = _order_carousels(released, school_window=5)
+    # Filter chips.
+    def _chip(label, count, val, active):
+        bg = "#5fc9b6" if active else "#16202e"
+        fg = "#06121a" if active else "#e9eef5"
+        bd = "#5fc9b6" if active else "#2b3a4f"
+        return (f'<a href="/content/today{("?acct=" + _esc_a(val, quote=True)) if val else ""}" '
+                f'style="text-decoration:none;background:{bg};color:{fg};border:1px solid {bd};'
+                f'font-weight:700;font-size:13px;padding:8px 12px;border-radius:999px;white-space:nowrap">'
+                f'{_esc_a(label)} · {count}</a>')
+    _total_rel = sum(_acct_counts.values())
+    _chips = [_chip("All accounts", _total_rel, "", not _sel_acct or _sel_acct.lower() == "all")]
+    for _lab, _n in sorted(_acct_counts.items(), key=lambda x: (-x[1], x[0])):
+        _chips.append(_chip(_lab, _n, _lab, _sel_acct == _lab))
+    acct_filter_html = ('<div style="display:flex;gap:8px;overflow-x:auto;padding:2px 0 10px;margin:0 0 8px">'
+                        + "".join(_chips) + '</div>') if _total_rel else ""
     cards = _render_released_cards(released, tt_accts)
     if not cards:
         cards.append('<div style="color:#7c8aa0;text-align:center;padding:40px 0">No carousels released yet. '
@@ -14080,7 +14143,8 @@ def content_today():
     save_script = _CONTENT_SAVE_SCRIPT
     body = (f'<div style="max-width:720px;margin:0 auto;padding:16px 12px 80px">'
             + f'<h1 style="margin:0 0 4px">📅 Today</h1>'
-            + f'<div style="color:#7c8aa0;font-size:14px;margin:0 0 18px">{len(cards)} to post · {pending} in queue for next batch · {posted} posted · tap “Save all slides” to save a carousel to Photos</div>'
+            + f'<div style="color:#7c8aa0;font-size:14px;margin:0 0 12px">{len(cards)} to post · {pending} in queue for next batch · {posted} posted · tap “Save all slides” to save a carousel to Photos</div>'
+            + acct_filter_html
             + banner + make_btn
             + "".join(cards) + '</div>' + save_script + _HASHTAG_JS)
     return _page(body, title="Content · Today")
