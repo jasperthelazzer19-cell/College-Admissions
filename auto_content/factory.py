@@ -19,6 +19,8 @@ Env:
 Usage: python3 auto_content/factory.py [--n N] [--dry]
 """
 import os, sys, time, json, base64, random, subprocess, tempfile, urllib.request, urllib.error, urllib.parse
+import threading
+from concurrent.futures import ThreadPoolExecutor
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -70,7 +72,10 @@ def _shot(out_path, url, verify=True, static=False):
     html = None
     if verify or static:
         try:
-            resp = urllib.request.urlopen(url, timeout=90)
+            # 180s: the reveal routes (chances/grade/glowup) warm-fetch runs the
+            # bullets/grade LLM once via the Max CLI, which can take >90s. A short
+            # timeout here was silently failing chances slides (the staple format).
+            resp = urllib.request.urlopen(url, timeout=180)
             final = resp.geturl()
             html = resp.read().decode("utf-8", "ignore")
         except Exception as e:
@@ -106,29 +111,31 @@ def _shot(out_path, url, verify=True, static=False):
         return "data:image/png;base64," + base64.b64encode(f.read()).decode()
 
 
-def render_slides(slug, slide3, lines, stats_cover=False):
+def render_slides(slug, slide3, lines, stats_cover=False, uid=181):
     """All 3 slides as PNG data URLs, rendered FREE via headless Chrome against the
     local Candor app. Slide 1 = HTML title (per-line fill + HD cached logo),
     slides 2 & 3 = the Candor profile + chances/grade exports. stats_cover renders
-    slide 1 as the 'Can I get into X?' + stats-on-cover layout instead."""
-    tmp = "/tmp/cren_factory"; os.makedirs(tmp, exist_ok=True)
+    slide 1 as the 'Can I get into X?' + stats-on-cover layout instead.
+    uid = which demo profile the slides show (parallel workers use their own
+    uid so concurrent generations can't overwrite each other's profile)."""
+    tmp = tempfile.mkdtemp(prefix="cren_")
     hook = urllib.parse.quote("\n".join(lines))
     _stats = "&stats=1" if stats_cover else ""
     s1 = _shot(f"{tmp}/s1.png", f"{LOCAL_URL}/title/export?rkey={CRON_KEY}&clean=1&slug={slug}&hook={hook}{_stats}")
-    s2 = _shot(f"{tmp}/s2.png", f"{LOCAL_URL}/profile/{slug}/export?rkey={CRON_KEY}&clean=1")
-    s3routes = {"grade": "/grade/export", "glowup": f"/glowup/{slug}/export",
-                "chances": f"/chances/{slug}/export"}
+    s2 = _shot(f"{tmp}/s2.png", f"{LOCAL_URL}/profile/{slug}/export?rkey={CRON_KEY}&clean=1&uid={uid}")
+    s3routes = {"grade": f"/grade/export?uid={uid}", "glowup": f"/glowup/{slug}/export?uid={uid}",
+                "chances": f"/chances/{slug}/export?uid={uid}"}
     s3path = s3routes.get(slide3, s3routes["chances"])
     # verify=True warm-fetches the reveal route FIRST (60s timeout), which runs the
     # bullets LLM once and memoizes it (app._bullet_memo). The screenshot then hits
     # the cached route and renders instantly — fixes the black slide-3 that happened
     # when a slow (Max-CLI) bullets gen outlasted the screenshot's 12s timeout.
     # Generation is free now, so the old "don't double-fire the LLM" reason is moot.
-    s3 = _shot(f"{tmp}/s3.png", f"{LOCAL_URL}{s3path}?rkey={CRON_KEY}&clean=1", static=True)
+    s3 = _shot(f"{tmp}/s3.png", f"{LOCAL_URL}{s3path}&rkey={CRON_KEY}&clean=1", static=True)
     return s1, s2, s3
 
 
-def odds_grade_text(slug, profile, want_grade=True):
+def odds_grade_text(slug, profile, want_grade=True, uid=181):
     odds, grade, low, high, gnum = "", "", None, None, None
     try:
         merged = app.merged_school(app.COLLEGES_BY_SLUG[slug])
@@ -139,7 +146,7 @@ def odds_grade_text(slug, profile, want_grade=True):
         print("odds:", e)
     if want_grade:   # only compute the /100 grade when the slide actually shows it
         try:
-            g = app._grade_cached(181, profile, compute=True)
+            g = app._grade_cached(uid, profile, compute=True)
             gnum = max(1, min(100, round(g['overall'] / 10)))
             grade = f"{gnum}/100"
         except Exception as e:
@@ -263,7 +270,7 @@ def _title_png(slug, lines, accent_words, nologo=False, bg=None, fg=None):
     extra = "&nologo=1" if nologo else ""
     if bg: extra += "&bg=" + urllib.parse.quote(bg)
     if fg: extra += "&fg=" + urllib.parse.quote(fg)
-    return _shot("/tmp/cren_factory/t.png",
+    return _shot(os.path.join(tempfile.mkdtemp(prefix="cren_t_"), "t.png"),
                  f"{LOCAL_URL}/title/export?rkey={CRON_KEY}&clean=1&slug={slug}&hook={hook}{extra}")
 
 
@@ -284,7 +291,7 @@ def _finish(payload, dry, label):
     return cid, payload["school_name"]
 
 
-def make_single(dry=False, slug=None, slide3=None):
+def make_single(dry=False, slug=None, slide3=None, uid=181):
     slug = slug if slug in SCHOOLS else (_pick_school(respect_cap=False) or random.choice(SCHOOLS))
     # Pick the reveal type up front (unless text-to-make requested one) and steer
     # the hook to match — chances stays the staple, grade + glow-up get real
@@ -293,10 +300,10 @@ def make_single(dry=False, slug=None, slide3=None):
         w = _blend({"chances": 5, "grade": 3, "glowup": 2}, _tt_perf())
         keys = list(w)
         slide3 = random.choices(keys, weights=[w[k] for k in keys])[0]
-    g = gen_profile.generate(slug, want_slide3=slide3)   # profile -> 181 + matching hook
+    g = gen_profile.generate(slug, uid=uid, want_slide3=slide3)   # profile -> worker uid + matching hook
     g["slide3"] = slide3
     odds, grade, low, high, gnum = odds_grade_text(slug, g["profile"],
-                                                   want_grade=(g["slide3"] == "grade"))
+                                                   want_grade=(g["slide3"] == "grade"), uid=uid)
     short, accent = app._school_brand(slug, g["name"])
     lines, accent_words = g["lines"], g["accent_words"]
     title_formula = "llm"
@@ -311,7 +318,7 @@ def make_single(dry=False, slug=None, slide3=None):
             lines, accent_words = nt
             title_formula = "numeric"
     marked = mark_accents(lines, accent_words)
-    s1, s2, s3 = render_slides(slug, g["slide3"], marked)
+    s1, s2, s3 = render_slides(slug, g["slide3"], marked, uid=uid)
     hook = " ".join(lines)
     payload = dict(school_slug=slug, school_name=g["name"], accent=accent, title_text=hook,
                    title_formula=title_formula, slide3_type=g["slide3"], profile_json=json.dumps(g["profile"]),
@@ -347,7 +354,7 @@ def make_compare(dry=False):
     g = gen_profile.generate(slug)          # profile -> 181
     odds, _, _, _, _ = odds_grade_text(slug, g["profile"], want_grade=False)
     accent = app._school_brand(slug, g["name"])[1]
-    tmp = "/tmp/cren_factory"; os.makedirs(tmp, exist_ok=True)
+    tmp = tempfile.mkdtemp(prefix="cren_")
     s1 = _shot(f"{tmp}/c1.png", f"{LOCAL_URL}/title-compare/export?rkey={CRON_KEY}&clean=1&slugs={','.join(comp)}")
     s2 = _shot(f"{tmp}/c2.png", f"{LOCAL_URL}/profile-neutral/export?rkey={CRON_KEY}&clean=1")
     # static=True: pre-fetch the HTML (90s timeout) and screenshot the static
@@ -370,7 +377,7 @@ def make_h2h(dry=False, slug=None):
     gen_profile.generate(slug, uid=38)         # student B
     short, accent = app._school_brand(slug, gA["name"])
     lines = ["WHICH STUDENT", "GETS INTO", f"{short}?"]
-    tmp = "/tmp/cren_factory"; os.makedirs(tmp, exist_ok=True)
+    tmp = tempfile.mkdtemp(prefix="cren_")
     s1 = _title_png(slug, lines, [short])
     s2 = _shot(f"{tmp}/h2.png", f"{LOCAL_URL}/profile/{slug}/export?rkey={CRON_KEY}&clean=1&uid=181&label=STUDENT%20A")
     s3 = _shot(f"{tmp}/h3.png", f"{LOCAL_URL}/profile/{slug}/export?rkey={CRON_KEY}&clean=1&uid=38&label=STUDENT%20B")
@@ -428,7 +435,7 @@ def make_bestfit(dry=False, slug=None, variant=None):
     _push_recent(slug)
     sch = app.COLLEGES_BY_SLUG[slug]
     short, accent = app._school_brand(slug, sch.get("name"))
-    tmp = "/tmp/cren_factory"; os.makedirs(tmp, exist_ok=True)
+    tmp = tempfile.mkdtemp(prefix="cren_")
     pq = urllib.parse.urlencode(prefs)        # prefs -> /bestfit/result reveal page
     # win=slug pins the reveal to exactly the school we used for the cover, so they're
     # always the same school even if the prefs round-trip drifts.
@@ -594,6 +601,10 @@ def _post_state():
 
 
 def _bump_school(slug):
+    with _state_lock:
+        return _bump_school_unlocked(slug)
+
+def _bump_school_unlocked(slug):
     d = _post_state()
     d["counts"][slug] = d["counts"].get(slug, 0) + 1
     try:
@@ -603,6 +614,10 @@ def _bump_school(slug):
 
 
 def _push_recent(slug):
+    with _state_lock:
+        return _push_recent_unlocked(slug)
+
+def _push_recent_unlocked(slug):
     """Record the just-picked school so the next RECENT_NOREPEAT picks avoid it."""
     d = _post_state()
     rec = [s for s in d.get("recent", []) if s != slug]
@@ -663,7 +678,10 @@ def resolve_format(fmt):
     }.get((fmt or "").strip().lower(), (None, None))
 
 
-def make_one(dry=False, slug=None, slide3=None, ctype=None, count_toward_cap=True):
+_serial_lock = threading.Lock()     # compare/h2h/bestfit share fixed demo uids (181/38)
+_state_lock = threading.Lock()      # guards .post_state.json read-modify-write
+
+def make_one(dry=False, slug=None, slide3=None, ctype=None, count_toward_cap=True, uid=181):
     """Dispatcher. Explicit slug (text-to-make) -> single, uncapped. Otherwise
     rotate formats; for the per-school formats (single/h2h) pick the school
     weighted by real demand and never post the same school more than
@@ -694,12 +712,14 @@ def make_one(dry=False, slug=None, slide3=None, ctype=None, count_toward_cap=Tru
             if ctype == "h2h" and count_toward_cap and _h2h_today() >= H2H_DAILY_CAP:
                 ctype = random.choice(["single", "compare"])
     if ctype == "compare":
-        return make_compare(dry)
+        with _serial_lock:
+            return make_compare(dry)
     # NOTE: 'bestfit' is intentionally NOT in the auto rotation — it's a separate
     # test angle for a dedicated account. Reachable only via explicit ctype
     # (make_bestfit_batch.py renders them straight to a folder, no queue push).
     if ctype == "bestfit":          # lifestyle/fit angle — picks its own school
-        return make_bestfit(dry)
+        with _serial_lock:
+            return make_bestfit(dry)
     # single / h2h target ONE school — weight by demand, respect the daily cap
     # (scheduled posts only; manual batches pass count_toward_cap=False)
     if not explicit:
@@ -709,9 +729,10 @@ def make_one(dry=False, slug=None, slide3=None, ctype=None, count_toward_cap=Tru
     if ctype == "h2h":
         if count_toward_cap:
             _bump_h2h()
-        res = make_h2h(dry, slug=slug)
+        with _serial_lock:
+            res = make_h2h(dry, slug=slug)
     else:
-        res = make_single(dry, slug, slide3)
+        res = make_single(dry, slug, slide3, uid=uid)
     if not explicit and res and res[0] and count_toward_cap:   # count scheduled auto-posts toward the cap
         _bump_school(slug)
     return res
@@ -816,14 +837,30 @@ def _run_session(dry, n_force, slot_count):
             pending = buffer_pending()
             need = max(0, BUFFER_TARGET - pending)
             print(f"buffer: {pending} pending, target {BUFFER_TARGET} -> making {need}")
+        # PARALLEL_GEN>1: generate with a worker pool. Each worker owns a demo
+        # uid so concurrent generations never overwrite each other's profile
+        # mid-render; compare/h2h/bestfit serialize internally (_serial_lock).
+        workers = max(1, min(6, int(os.environ.get("PARALLEL_GEN", "1"))))
+        uid_pool = [181, 9101, 9102, 9103, 9104, 9105][:workers]
         ok = 0
-        for i in range(need):
-            try:
-                cid, _ = make_one(dry=dry)
-                if cid:
-                    ok += 1
-            except Exception as e:
-                print(f"  carousel {i} failed: {e}")
+        if workers == 1:
+            for i in range(need):
+                try:
+                    cid, _ = make_one(dry=dry)
+                    if cid:
+                        ok += 1
+                except Exception as e:
+                    print(f"  carousel {i} failed: {e}")
+        else:
+            def _task(i):
+                try:
+                    cid, _ = make_one(dry=dry, uid=uid_pool[i % workers])
+                    return 1 if cid else 0
+                except Exception as e:
+                    print(f"  carousel {i} failed: {e}")
+                    return 0
+            with ThreadPoolExecutor(max_workers=workers) as ex:
+                ok = sum(ex.map(_task, range(need)))
         print(f"done: {ok}/{need}")
         # Nudge the creator that fresh slides are queued (no links — they post
         # from /content/today). Only when we actually topped up.
