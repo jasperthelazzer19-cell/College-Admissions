@@ -387,6 +387,11 @@ STRIPE_PAYMENT_LINK_ANNUAL = os.environ.get("STRIPE_PAYMENT_LINK_ANNUAL", "")
 # only the numbers shown in copy; Stripe is the source of truth for what's charged.
 PREMIUM_MONTHLY_PRICE = int(os.environ.get("PREMIUM_MONTHLY_PRICE", "3"))
 PREMIUM_ANNUAL_PRICE  = int(os.environ.get("PREMIUM_ANNUAL_PRICE", "20"))
+# Free-trial days on the MONTHLY Stripe payment link. 0 = no trial: all
+# trial wording stays hidden, so this must only be set (in Railway env) once
+# the Stripe link actually has the trial — otherwise the copy would promise a
+# trial that checkout doesn't honor.
+PREMIUM_TRIAL_DAYS = int(os.environ.get("PREMIUM_TRIAL_DAYS", "0") or 0)
 STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
 # Stripe no-code customer/billing portal login link (Settings → Billing →
 # Customer portal → share link). Lets a subscriber manage/cancel via Stripe's
@@ -7725,60 +7730,87 @@ def _chances_narrative_block(slug, r, ready):
 
 # ── Metered free tier ─────────────────────────────────────────────────────
 # New users (signed up after the meter shipped) get FREE_CALC_LIMIT free odds
-# calculations. Rapid re-requests within CALC_DEBOUNCE_S seconds collapse into a
-# single calculation (so a page refresh / quick re-render doesn't burn one).
+# calculations, counted as DISTINCT SCHOOLS. A school you already calculated is
+# always free to re-view — the meter only gates calculating a NEW school once
+# the limit is reached (a capped user locked out of results they already
+# "spent" calcs on reads as bait-and-switch and killed sessions at the wall).
 # NEVER metered: premium subscribers (is_paid), grandfathered users (unlimited),
 # and logged-out visitors (they have no saved calc history to meter anyway).
 FREE_CALC_LIMIT = 5
-CALC_DEBOUNCE_S = 5
 
 def _calc_meter(user, slug=None):
     """Return (blocked, used, limit) for the given user.
 
-    `used` is the number of distinct calculations so far, where any calc_runs
-    within CALC_DEBOUNCE_S seconds of each other count as one. `blocked` is True
-    only when a metered user has used up the free limit AND the current request
-    starts a *new* calculation (not a rapid re-request of the last one)."""
+    `used` is the number of distinct schools this user has calculated. `blocked`
+    is True only when a metered user is at the limit AND `slug` is a school not
+    already in their calculated set."""
     # Premium and grandfathered-unlimited users are never metered.
     if not user or user.get("is_paid") or user.get("unlimited"):
         return (False, 0, FREE_CALC_LIMIT)
-    from datetime import datetime
     with db() as conn:
         rows = conn.execute(
-            "SELECT ts FROM calc_runs WHERE user_id=? ORDER BY ts", (user["id"],)
+            "SELECT DISTINCT college_slug FROM calc_runs WHERE user_id=?", (user["id"],)
         ).fetchall()
-    def _parse(t):
-        try: return datetime.strptime((t or "")[:19], "%Y-%m-%d %H:%M:%S")
-        except Exception: return None
-    used, last = 0, None
-    for r in rows:
-        t = _parse(r["ts"])
-        if t is None: continue
-        if last is None or (t - last).total_seconds() > CALC_DEBOUNCE_S:
-            used += 1
-        last = t
-    # Is this request a rapid re-request of the most recent calc? Then it's free
-    # (same calculation) regardless of the limit.
-    if last is not None and (datetime.utcnow() - last).total_seconds() <= CALC_DEBOUNCE_S:
+    seen = {r["college_slug"] for r in rows}
+    used = len(seen)
+    if slug and slug in seen:
         return (False, used, FREE_CALC_LIMIT)
-    # Otherwise this request would start a new calculation.
     return (used >= FREE_CALC_LIMIT, used, FREE_CALC_LIMIT)
 
 
-def _calc_paywall_html(used, limit):
-    """Shown when a metered free user tries calculation #(limit+1)."""
+def _calc_paywall_html(used, limit, slug=None, user=None):
+    """Shown when a metered free user tries to calculate a NEW school past the
+    limit. Not a dead end: it mimics the plan page they clicked (school name +
+    a blurred locked odds range, placeholder glyphs so nothing real leaks into
+    the HTML) and links back to the schools they already calculated, which stay
+    free to re-view."""
+    school = COLLEGES_BY_SLUG.get(slug) if slug else None
+    school_name = school["name"] if school else None
+    if PREMIUM_TRIAL_DAYS:
+        cta_txt = f"Start your {PREMIUM_TRIAL_DAYS}-day free trial →"
+        cta_sub = (f"Free for {PREMIUM_TRIAL_DAYS} days, then ${PREMIUM_MONTHLY_PRICE}/mo. "
+                   f"Cancel anytime during the trial and pay nothing.")
+    else:
+        cta_txt = f"Go Premium — ${PREMIUM_MONTHLY_PRICE}/mo →"
+        cta_sub = "Cancel anytime."
+    # Schools they already calculated — keep a capped user inside the product
+    # instead of stranding them on a wall.
+    unlocked = ""
+    if user:
+        with db() as conn:
+            rows = conn.execute("SELECT DISTINCT college_slug FROM calc_runs WHERE user_id=?",
+                                (user["id"],)).fetchall()
+        chips = "".join(
+            f'<a href="/college/{r["college_slug"]}/plan" class="btn btn-light btn-sm" '
+            f'style="margin:0 6px 8px 0">{COLLEGES_BY_SLUG[r["college_slug"]]["name"]}</a>'
+            for r in rows if r["college_slug"] in COLLEGES_BY_SLUG)
+        if chips:
+            unlocked = (f'<div style="max-width:560px;margin:18px auto 0;text-align:center">'
+                        f'<div class="muted" style="font-size:.82em;margin-bottom:8px">'
+                        f'Your unlocked schools — always free to re-check:</div>{chips}</div>')
+    back = (f'<div class="bar" style="max-width:560px;margin:0 auto">'
+            f'<a href="/college/{slug}">&larr; back to {school_name}</a></div>') if school_name else ""
+    head = (f"Your {school_name} odds are ready" if school_name
+            else f"You've used your {limit} free calculations")
     return _page(f"""
-<div class="card" style="max-width:560px;margin:8vh auto;text-align:center;
+{back}
+<div class="card" style="max-width:560px;margin:3vh auto 0;text-align:center;
      background:linear-gradient(135deg,#0f3a37 0%,#0a131c 100%);
-     border:1px solid rgba(95,201,182,.3);padding:40px 32px">
-  <div style="font-size:.78em;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#5fc9b6;margin-bottom:10px">Candor Premium · $3/mo</div>
-  <h1 style="margin:0 0 12px;font-size:1.7em">You've used your {limit} free calculations</h1>
-  <p class="muted" style="font-size:1.02em;line-height:1.6;margin:0 0 24px">
-    Keep going with unlimited honest odds for every school on your list, plus the
-    full profile grade, what-each-school-values breakdown, and list strategy.</p>
-  <a class="btn btn-primary" href="/upgrade" style="font-size:1.05em;padding:13px 30px">Go Premium — $3/mo →</a>
-  <p class="muted" style="font-size:.82em;margin:18px 0 0">Already subscribed? <a href="/login">Log in</a>.</p>
+     border:1px solid rgba(95,201,182,.3);padding:34px 32px 30px">
+  <div style="font-size:.78em;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#5fc9b6;margin-bottom:10px">Candor Premium</div>
+  <h1 style="margin:0 0 6px;font-size:1.6em">{head}</h1>
+  <p class="muted" style="margin:0 0 14px">You've used your {limit} free school calculations.</p>
+  <div style="position:relative;display:inline-block;padding:4px 26px;margin:0 0 18px" aria-label="Odds locked — Premium required">
+    <span aria-hidden="true" style="font-size:2.9em;font-weight:800;letter-spacing:-1px;filter:blur(14px);user-select:none">??–??%</span>
+    <span aria-hidden="true" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:1.5em">🔒</span>
+  </div>
+  <p class="muted" style="font-size:.98em;line-height:1.6;margin:0 0 22px">
+    Unlimited honest odds for every school on your list, plus the full profile
+    grade, what-each-school-values breakdown, and list strategy.</p>
+  <a class="btn btn-primary" href="/upgrade" style="font-size:1.05em;padding:13px 30px">{cta_txt}</a>
+  <p class="muted" style="font-size:.82em;margin:12px 0 0">{cta_sub}</p>
 </div>
+{unlocked}
 """, title="Unlock unlimited odds — Candor")
 
 
@@ -7794,7 +7826,7 @@ def chances_html(slug):
     # Metered free tier: block calculation #(limit+1) for new free users.
     _blocked, _used, _limit = _calc_meter(current_user(), slug)
     if _blocked:
-        return _calc_paywall_html(_used, _limit)
+        return _calc_paywall_html(_used, _limit, slug=slug, user=current_user())
     _log_calc_run(slug, uid)
     exc_reason = profile.get("exceptional_reason")
     # Odds are pure-Python (instant) and computed fresh on every view so they
@@ -11823,7 +11855,8 @@ def chances_export(slug):
     if not (_is_creator() or _has_render_key()):
         abort(404)
     _cu = current_user()
-    uid = _cu["id"] if _cu else 181
+    # ?uid= lets the parallel factory render per-worker demo profiles.
+    uid = request.args.get("uid", type=int) or (_cu["id"] if _cu else 181)
     profile = _chances_profile(uid, slug)
     if profile is None:
         return redirect(url_for("profile_page"))
@@ -11896,7 +11929,7 @@ def grade_export():
     if not (_is_creator() or _has_render_key()):
         abort(404)
     _cu = current_user()
-    uid = _cu["id"] if _cu else 181
+    uid = request.args.get("uid", type=int) or (_cu["id"] if _cu else 181)
     profile = get_profile(uid)
     if not profile:
         return redirect(url_for("profile_page"))
@@ -12303,7 +12336,8 @@ def glowup_export(slug):
     if not sch:
         abort(404)
     merged = merged_school(sch)
-    profile = _chances_profile(181, slug)
+    _uid = request.args.get("uid", type=int) or 181
+    profile = _chances_profile(_uid, slug)
     if profile is None:
         return redirect(url_for("profile_page"))
     # ladder of cumulative improvements
@@ -14472,7 +14506,7 @@ def school_plan_page(slug):
     if slug in COLLEGES_BY_SLUG:
         _blocked, _used, _limit = _calc_meter(current_user(), slug)
         if _blocked:
-            return _calc_paywall_html(_used, _limit)
+            return _calc_paywall_html(_used, _limit, slug=slug, user=current_user())
         _log_calc_run(slug, current_user()["id"])
     return school_plan_html(slug)
 
@@ -17962,6 +17996,20 @@ def upgrade_page():
 
     price_m = PREMIUM_MONTHLY_PRICE
     price_a = PREMIUM_ANNUAL_PRICE
+    # Trial wording only renders once PREMIUM_TRIAL_DAYS is set in env, i.e.
+    # once the Stripe payment link actually carries the trial.
+    if PREMIUM_TRIAL_DAYS:
+        monthly_btn = (f"Start {PREMIUM_TRIAL_DAYS}-day free trial — then ${price_m}/mo →" if user
+                       else f"Sign up to start your {PREMIUM_TRIAL_DAYS}-day free trial →")
+        trial_terms = (f"<b>Free trial.</b> The monthly plan starts with a {PREMIUM_TRIAL_DAYS}-day "
+                       f"free trial — your card is only charged when the trial ends, and canceling "
+                       f"before then costs nothing. ")
+        monthly_sub = f"First {PREMIUM_TRIAL_DAYS} days free · cancel anytime"
+    else:
+        monthly_btn = (f"Subscribe — ${price_m}/mo →" if user
+                       else f"Sign up to subscribe — ${price_m}/mo →")
+        trial_terms = ""
+        monthly_sub = "Cancel anytime"
     benefits = _premium_benefits_html()
     bundle = _premium_comparison_html()
     trust = _trust_signals_html()
@@ -17983,7 +18031,7 @@ def upgrade_page():
             <input type="radio" name="plan" value="monthly" checked style="accent-color:var(--teal)">
           </div>
           <div style="font-size:1.7em;font-weight:800;letter-spacing:-1px;margin-top:4px">${price_m}<span style="font-size:.5em;font-weight:600;color:var(--text-2)">/mo</span></div>
-          <div class="muted" style="font-size:.8em">Cancel anytime</div>
+          <div class="muted" style="font-size:.8em">{monthly_sub}</div>
         </label>
         <label data-plan="annual" style="cursor:pointer;border:2px solid var(--border-strong);border-radius:12px;padding:15px 16px;position:relative;transition:border-color .12s">
           <div style="position:absolute;top:-10px;right:12px;background:var(--accent-grad);color:#031715;font-size:.66em;font-weight:800;letter-spacing:.5px;padding:3px 9px;border-radius:999px">SAVE {save_pct}%</div>
@@ -17995,11 +18043,10 @@ def upgrade_page():
           <div class="muted" style="font-size:.8em">Just {eff_str}/mo, billed once</div>
         </label>
       </div>"""
-        cta_label = "Sign up to subscribe" if not user else "Subscribe monthly"
         cta_label_annual = "Sign up to subscribe" if not user else "Subscribe yearly"
         cta_block = f"""
       {plan_picker}
-      <a id="cta-monthly" href="{monthly_href}"{checkout_onclick} class="btn btn-primary" style="display:block;text-align:center;font-size:1.02em;padding:13px 28px;margin-top:12px">{cta_label} — ${price_m}/mo →</a>
+      <a id="cta-monthly" href="{monthly_href}"{checkout_onclick} class="btn btn-primary" style="display:block;text-align:center;font-size:1.02em;padding:13px 28px;margin-top:12px">{monthly_btn}</a>
       <a id="cta-annual" href="{annual_href}"{checkout_onclick_annual} class="btn btn-primary" style="display:none;text-align:center;font-size:1.02em;padding:13px 28px;margin-top:12px">{cta_label_annual} — ${price_a}/yr →</a>
       <script>
       (function(){{
@@ -18026,19 +18073,18 @@ def upgrade_page():
         price_hero = (f'<span style="font-size:2.4em;font-weight:700;letter-spacing:-1px;background:var(--accent-grad);'
                       f'-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent">${price_m}</span>'
                       f'<span class="muted">/month — or ${price_a}/year and save {save_pct}%. Cancel anytime.</span>')
-        renew_terms = (f"<b>Recurring subscription.</b> Monthly is <b>US ${price_m}.00/month</b>; yearly is "
+        renew_terms = (f"{trial_terms}<b>Recurring subscription.</b> Monthly is <b>US ${price_m}.00/month</b>; yearly is "
                        f"<b>US ${price_a}.00/year</b>. Whichever you pick <b>auto-renews</b> at that price until you "
                        f"cancel. Cancel anytime to stop future charges — you keep access through the period you "
                        f"already paid for. See our <a href=\"/subscription-terms\">Subscription &amp; Refund Terms</a>.")
     else:
-        cta_label = "Sign up to subscribe" if not user else "Subscribe"
         cta_block = (f'<a href="{monthly_href}"{checkout_onclick} class="btn btn-primary" '
                      f'style="display:block;text-align:center;font-size:1.02em;padding:13px 28px;margin-top:8px">'
-                     f'{cta_label} — ${price_m}/mo →</a>')
+                     f'{monthly_btn}</a>')
         price_hero = (f'<span style="font-size:2.4em;font-weight:700;letter-spacing:-1px;background:var(--accent-grad);'
                       f'-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent">${price_m}</span>'
                       f'<span class="muted">/month · cancel anytime, use it through your whole app cycle</span>')
-        renew_terms = (f"<b>Recurring subscription.</b> By subscribing you authorize Candor to charge your payment "
+        renew_terms = (f"{trial_terms}<b>Recurring subscription.</b> By subscribing you authorize Candor to charge your payment "
                        f"method <b>US ${price_m}.00 every month</b> until you cancel. It <b>auto-renews monthly</b>; "
                        f"cancel anytime to stop future charges (you keep access through the period you paid for). "
                        f"See our <a href=\"/subscription-terms\">Subscription &amp; Refund Terms</a>.")
