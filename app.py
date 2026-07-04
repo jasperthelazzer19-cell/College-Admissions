@@ -9954,8 +9954,12 @@ app.secret_key = SECRET_KEY
 # url, sitemap and robots/llms URL point to http and split our ranking signals.
 # ProxyFix honors Railway's X-Forwarded-Proto so request.scheme/url_root are
 # https, fixing all of those at once. SEO 2026-06.
+# x_for=1: also trust the rightmost X-Forwarded-For hop so request.remote_addr is
+# the REAL client IP (Railway is a single proxy). Without it remote_addr was the
+# shared proxy IP, so flask-limiter's per-IP 200/hr cap was effectively GLOBAL
+# across all visitors — one burst 429'd everyone. Now the limit is truly per-user.
 from werkzeug.middleware.proxy_fix import ProxyFix
-app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
 # Secure session cookies. In production we use SameSite=None so the
 # session rides along when the app is embedded in the Framer iframe
@@ -10340,6 +10344,19 @@ except Exception:
     _LIMITER_ON = False
     limiter = None
     print("flask-limiter not available; rate limiting disabled")
+
+
+def _limiter_exempt(f):
+    """Exempt a view from the per-IP rate limit (no-op if the limiter is off).
+    For image/content-serving routes where one page or one 'Save all slides'
+    legitimately fires dozens of requests — the 200/hr default was returning 429
+    HTML that browsers saved as 'corrupted' images."""
+    if _LIMITER_ON and limiter is not None:
+        try:
+            return limiter.exempt(f)
+        except Exception as _e:
+            print("limiter exempt failed:", _e)
+    return f
 
 
 def csrf_input():
@@ -13568,6 +13585,7 @@ def content_view_one(cid):
 
 
 @app.route("/content/slide/<int:cid>/<piece>.jpg")
+@_limiter_exempt
 def content_slide_jpg(cid, piece):
     """Public JPEG for one carousel slide (piece = 1..4) or the CTA (piece='cta'),
     used by TikTok's Content Posting API PULL_FROM_URL fetcher. NO auth/query
