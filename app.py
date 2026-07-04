@@ -61,6 +61,10 @@ _MODEL_PRICES = {
     "haiku":  {"in": 1.0,  "out": 5.0},
     "sonnet": {"in": 3.0,  "out": 15.0},
     "opus":   {"in": 15.0, "out": 75.0},
+    # OpenAI (FEATURE_LLM=openai routing). gpt-5-mini before gpt-5: substring match.
+    "gpt-5-mini": {"in": 0.25, "out": 2.0},
+    "gpt-5":      {"in": 1.25, "out": 10.0},
+    "gpt-4.1-mini": {"in": 0.4, "out": 1.6},
 }
 
 def _price_for(model):
@@ -149,11 +153,76 @@ def _wrap_cost_logging(client, source, cli_route=False):
             except Exception as e:
                 print("cli-route fallback -> API:", e)
         resp = _orig(*a, **kw)
-        _log_api_cost(resp, kw.get("model"), source)
+        # Attribute cost to the model that actually answered (the OpenAI shim
+        # substitutes its own model regardless of the claude-* name passed in).
+        _log_api_cost(resp, getattr(resp, "model", None) or kw.get("model"), source)
         return resp
     client.messages.create = _logged
     client._cost_wrapped = True
     return client
+
+# ── OpenAI routing for FEATURE calls ───────────────────────────────────────
+# FEATURE_LLM=openai (+ OPENAI_API_KEY) reroutes the main feature client to
+# OpenAI chat completions — gpt-5-mini runs the narrative/copy calls that
+# dominate Candor's API bill at ~1/5 the price of Haiku. GRADING IS UNTOUCHED:
+# _grade_client was already bound above and stays on the Anthropic grading key.
+# The shim speaks the anthropic messages.create shape (content[0].text + usage),
+# so no call sites change; unset FEATURE_LLM in Railway env to revert instantly.
+OPENAI_FEATURE_MODEL = os.environ.get("OPENAI_FEATURE_MODEL", "gpt-5-mini")
+_NO_EMDASH_RULE = ("\n\nStyle rule: never use em dashes (—) in any output; "
+                   "use commas, periods, or hyphens instead.")
+
+class _OpenAIFeatureShim:
+    """anthropic-client-shaped adapter over POST /v1/chat/completions."""
+    class _Msgs:
+        def __init__(self, key): self._key = key
+        def create(self, model=None, max_tokens=1024, system=None, messages=None,
+                   temperature=None, **_ignored):
+            import types as _t
+            sys_txt = ""
+            if system:
+                sys_txt = system if isinstance(system, str) else " ".join(
+                    b.get("text", "") for b in system if isinstance(b, dict))
+            conv = [{"role": "system", "content": (sys_txt + _NO_EMDASH_RULE).strip()}]
+            for m in (messages or []):
+                ct = m.get("content")
+                if isinstance(ct, list):
+                    ct = " ".join(b.get("text", "") for b in ct if isinstance(b, dict))
+                conv.append({"role": m.get("role", "user"), "content": ct or ""})
+            om = OPENAI_FEATURE_MODEL
+            body = {"model": om, "messages": conv}
+            if om.startswith(("gpt-5", "o")):
+                # Reasoning models: minimal effort (these are copy tasks, and
+                # reasoning tokens count against the completion cap), and no
+                # max_tokens/temperature — they reject both.
+                body["max_completion_tokens"] = max(int(max_tokens or 1024), 1024)
+                body["reasoning_effort"] = "minimal"
+            else:
+                body["max_tokens"] = max_tokens
+                if temperature is not None:
+                    body["temperature"] = temperature
+            r = requests.post("https://api.openai.com/v1/chat/completions",
+                              headers={"Authorization": f"Bearer {self._key}"},
+                              json=body, timeout=30)
+            r.raise_for_status()
+            d = r.json()
+            text = ((d.get("choices") or [{}])[0].get("message") or {}).get("content") or ""
+            text = text.replace(" — ", " - ").replace("—", "-")
+            u = d.get("usage") or {}
+            cached = int((u.get("prompt_tokens_details") or {}).get("cached_tokens") or 0)
+            return _t.SimpleNamespace(
+                content=[_t.SimpleNamespace(text=text, type="text")],
+                usage=_t.SimpleNamespace(
+                    input_tokens=int(u.get("prompt_tokens") or 0) - cached,
+                    output_tokens=int(u.get("completion_tokens") or 0),
+                    cache_read_input_tokens=cached,
+                    cache_creation_input_tokens=0),
+                stop_reason="end_turn", model=d.get("model") or om)
+    def __init__(self, key):
+        self.messages = self._Msgs(key)
+
+if os.environ.get("FEATURE_LLM", "").lower() == "openai" and os.environ.get("OPENAI_API_KEY"):
+    _claude_client = _OpenAIFeatureShim(os.environ["OPENAI_API_KEY"])
 
 # main client → "feature" spend, grade client → "grading" spend (distinct keys).
 # Feature client gets cli_route: on the Mac autopilot (USE_MAX_CLI=1) its calls run
