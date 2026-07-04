@@ -47,11 +47,15 @@ def main():
     n = int(sys.argv[sys.argv.index("--n") + 1]) if "--n" in sys.argv else 180
     workers = int(sys.argv[sys.argv.index("--workers") + 1]) if "--workers" in sys.argv else 4
     workers = max(1, min(6, workers))
-    # Refuse to run without the Max CLI, or this bulk run would silently bill the
-    # API key for every one of the N carousels.
-    if os.environ.get("USE_MAX_CLI") != "1":
-        _log("REFUSING: USE_MAX_CLI!=1 — would bill the API. Source ~/.candor_autopilot.env first.")
+    # Normally refuse to run without the Max CLI (would silently bill the API).
+    # --api is the EXPLICIT opt-in for a paid, faster run (LLM via API instead of
+    # claude -p). Jasper approves the cost per-run; the guard stays for accidents.
+    api_mode = "--api" in sys.argv
+    if os.environ.get("USE_MAX_CLI") != "1" and not api_mode:
+        _log("REFUSING: USE_MAX_CLI!=1 and no --api — would bill the API unintentionally.")
         sys.exit(1)
+    if api_mode:
+        _log(f"API MODE (paid): LLM via {'gpt-5-mini' if os.environ.get('FEATURE_LLM')=='openai' else 'anthropic API'}")
     if not os.environ.get("CRON_KEY"):
         _log("REFUSING: CRON_KEY not set."); sys.exit(1)
 

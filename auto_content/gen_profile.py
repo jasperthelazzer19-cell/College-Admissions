@@ -245,11 +245,37 @@ Return ONLY strict JSON:
 
 
 def _normalize_list_field(v):
-    """ECs/awards/leadership must be ONE PER LINE for the profile slide. The model
-    sometimes returns them semicolon-joined on one line — split those out."""
-    import re
-    parts = re.split(r"[\n;|]+", str(v or ""))   # split on newline, semicolon, OR pipe
-    return "\n".join(p.strip(" -•\t") for p in parts if p.strip())
+    """ECs/awards/leadership must be ONE PER LINE for the profile slide. Models
+    return these in different shapes: haiku gives newline/semicolon-joined text,
+    gpt-5-mini gives a JSON/Python array (['a','b']) — which the old splitter left
+    intact, so the raw `['a', 'b']` literal rendered on the slide. Handle a real
+    list, an array-literal STRING, and the joined-text case; commas are NOT a
+    separator (items legitimately contain them, e.g. 'SWE Intern, Series B')."""
+    import re, ast
+    if v is None:
+        return ""
+    items = None
+    if isinstance(v, (list, tuple)):
+        items = [str(x) for x in v]
+    else:
+        s = str(v).strip()
+        if s.startswith("[") and s.endswith("]"):   # array-literal string from gpt-5-mini
+            try:
+                parsed = ast.literal_eval(s)
+                if isinstance(parsed, (list, tuple)):
+                    items = [str(x) for x in parsed]
+            except (ValueError, SyntaxError):
+                items = None
+        if items is None:
+            items = re.split(r"[\n;|]+", s)          # haiku's joined-text shape
+    # Strip a leading enumerator ("1. ", "2) ") gpt-5-mini adds, plus bullet/quote
+    # chars, so items render as clean bullets like haiku's.
+    out = []
+    for p in items:
+        p = re.sub(r"^\s*\d+[.)]\s*", "", str(p)).strip(" -•\t\"'")
+        if p:
+            out.append(p)
+    return "\n".join(out)
 
 
 def _ensure_user(uid):
