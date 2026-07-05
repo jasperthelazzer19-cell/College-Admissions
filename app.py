@@ -4429,6 +4429,158 @@ def estimate_odds(school, fit, profile):
     return low, high
 
 
+# ─── ODDS ENGINE V2 — grade-anchored, rank-based (flag-gated, OFF by default) ──
+# Philosophy differs from v1's fit-curve: rank the profile's *LLM grade* within
+# the graded user population, then map that percentile to odds through the real
+# published accept rate. Two properties by construction:
+#   • P50 (a median applicant) == the school's actual accept rate  → externally
+#     anchored to reality, not a hand-tuned curve.
+#   • Per-school CDS C7 factor importance re-weights the 5 grade components, so a
+#     score only counts where that school says it counts.
+# Reuses v1's accept-rate anchoring (sub-school / residency / international) and
+# legacy verbatim so those never regress. Activated only when ODDS_ENGINE=v2;
+# returns None (→ caller uses v1) whenever a profile has no cached grade, so it
+# can never break an ungraded calc.
+_V2_COMPS = ["academics", "testing", "rigor", "extracurriculars", "narrative_hooks"]
+_V2_C7MAP = {"academics": "gpa", "testing": "test_scores", "rigor": "rigor_of_record",
+             "extracurriculars": "extracurriculars", "narrative_hooks": "essay"}
+_V2_W = {"very_important": 1.0, "important": 0.6, "considered": 0.3, "not_considered": 0.0}
+_V2_NARR_WEIGHT_CAP = 0.6   # narrative is the noisiest graded component: cap its leverage
+_V2_POP = None              # lazily-loaded population of graded component vectors
+_V2_DIST_CACHE = {}         # per-school sorted strength distribution (memoized)
+
+
+def _v2_population():
+    global _V2_POP
+    if _V2_POP is None:
+        _V2_POP = []
+        try:
+            import json as _j
+            with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "odds_v2_pop.json")) as f:
+                _V2_POP = _j.load(f).get("vectors", [])
+        except Exception as e:
+            print(f"v2 population load failed: {e}")
+            _V2_POP = []
+    return _V2_POP
+
+
+def _v2_weights(school):
+    """Per-school component weights from CDS C7 (floored at 0.2 so no factor is
+    ever zeroed — 'some at a minimum' — and narrative capped so one noisy grade
+    can't dominate)."""
+    grid = C7_FACTORS.get((school or {}).get("slug")) or {}
+    w = {}
+    for c in _V2_COMPS:
+        base = _V2_W.get(grid.get(_V2_C7MAP[c], "considered"), 0.3) if grid else 0.2
+        w[c] = max(0.2, base)
+    w["narrative_hooks"] = min(w["narrative_hooks"], _V2_NARR_WEIGHT_CAP)
+    return w
+
+
+def _v2_clean_dims(dims):
+    """Narrative sanity-floor for the known grader bug where a strong profile
+    gets a near-zero narrative. If narrative < 35% of the mean of the other four
+    components, treat it as noise and lift it to 70% of that mean. Only lifts."""
+    d = dict(dims)
+    others = [d[c] for c in _V2_COMPS if c != "narrative_hooks"]
+    m = sum(others) / len(others) if others else 0.0
+    if d.get("narrative_hooks", 0) < 0.35 * m:
+        d["narrative_hooks"] = 0.7 * m
+    return d
+
+
+def _v2_strength(dims, w):
+    return sum(dims[c] * w[c] for c in _V2_COMPS) / (sum(w.values()) or 1)
+
+
+def _v2_percentile(school, strength, w):
+    slug = (school or {}).get("slug") or "?"
+    xs = _V2_DIST_CACHE.get(slug)
+    if xs is None:
+        xs = sorted(_v2_strength(dict(zip(_V2_COMPS, v)), w) for v in _v2_population())
+        _V2_DIST_CACHE[slug] = xs
+    if not xs:
+        return 0.5
+    import bisect as _b
+    return _b.bisect_left(xs, strength) / len(xs)
+
+
+def _v2_grade_dims(profile):
+    """Pull the cached LLM grade's 5 component scores (0-1000). Returns None when
+    there's no valid cached grade → caller falls back to v1."""
+    import json as _j
+    raw = profile.get("grade_json")
+    if not raw:
+        return None
+    try:
+        g = _j.loads(raw) if isinstance(raw, str) else raw
+    except Exception:
+        return None
+    dims = (g or {}).get("dimensions") or {}
+    out = {}
+    for c in _V2_COMPS:
+        v = dims.get(c)
+        s = v.get("score") if isinstance(v, dict) else v
+        if s is None:
+            if c == "narrative_hooks":     # fallback grades omit narrative — synthesize below
+                out[c] = None
+                continue
+            return None
+        out[c] = float(s)
+    if out.get("narrative_hooks") is None:
+        oth = [out[c] for c in _V2_COMPS if c != "narrative_hooks" and out.get(c) is not None]
+        out["narrative_hooks"] = (sum(oth) / len(oth)) * 0.7 if oth else 500.0
+    return out
+
+
+def estimate_odds_v2(school, profile):
+    """Rank-anchored odds. Returns (low, high) like estimate_odds, or None to
+    signal 'no cached grade → use v1'."""
+    dims = _v2_grade_dims(profile)
+    if dims is None:
+        return None
+    # accept-rate anchor: identical to v1 (sub-school → residency → international)
+    a = school["accept"]
+    sub = sub_school_for_major(school.get("slug"), profile.get("major") or "")
+    if sub and sub.get("accept"):
+        a = sub["accept"]
+    a = _residency_adjust_accept(school, a, profile)
+    intl_pct = _international_pct(school)
+    if profile.get("is_international"):
+        a = a * 0.65
+    else:
+        boost = 1.0 / max(0.5, 1 - intl_pct * 0.65)
+        a = min(1.0, a * min(boost, 1.08))
+    a = max(0.005, min(0.98, a))
+    # rank the profile in the graded population, C7-weighted for THIS school
+    w = _v2_weights(school)
+    dims = _v2_clean_dims(dims)
+    P = _v2_percentile(school, _v2_strength(dims, w), w)
+    # core curve: P50 == accept rate; graduated spike steepens for national-tier
+    # ECs (continuous ec_exceptional_strength, 0-1 — the same signal v1 uses, so
+    # there is no binary cliff).
+    scale = 1.0 + 0.4 * ec_exceptional_strength(profile)
+    center = a ** (1.0 - (P - 0.5) * scale)
+    # legacy: school-specific + C7-gated (mirrors v1's hook multiplier exactly)
+    lg = c7_factor_scale(school, "legacy", "hook")
+    gens = legacy_generations_at(profile, school)
+    if gens >= 3:   center *= 1.0 + 0.25 * lg
+    elif gens == 2: center *= 1.0 + 0.20 * lg
+    elif gens == 1: center *= 1.0 + 0.15 * lg
+    if profile.get("first_gen"):
+        center *= 1.0 + 0.10 * c7_factor_scale(school, "first_generation", "hook")
+    center = max(0.005, min(0.97, center))
+    # spread (uncertainty band): reuse v1's logic verbatim so the ranges match
+    if center < 0.10:   spread = max(0.03, center * 0.38)
+    elif center < 0.30: spread = max(0.04, center * 0.24)
+    elif center < 0.60: spread = max(0.05, center * 0.16)
+    else:               spread = max(0.05, min(0.12, center * 0.13))
+    low = max(1, int(round((center - spread / 2) * 100)))
+    high = min(95, int(round((center + spread / 2) * 100)))
+    if high <= low:
+        high = low + 3
+    return low, high
+
 
 def confidence_level(profile, components):
     have_test = profile.get("sat") or profile.get("act")
@@ -4676,7 +4828,16 @@ def analyze_school(profile, slug):
     school = merged_school(raw)
     fit, components = compute_fit(profile, school)
     tier = assign_tier(school, fit, profile)
-    low, high = estimate_odds(school, fit, profile)
+    # Odds engine v2 (grade-anchored, rank-based) is flag-gated and OFF by
+    # default. It returns None for any profile without a cached LLM grade, in
+    # which case we fall straight back to v1 — so an ungraded calc is never broken.
+    low = high = None
+    if os.environ.get("ODDS_ENGINE") == "v2":
+        _v2 = estimate_odds_v2(school, profile)
+        if _v2 is not None:
+            low, high = _v2
+    if low is None:
+        low, high = estimate_odds(school, fit, profile)
     bullets = generate_bullets(profile, school, fit, components, tier, (low, high))
     return {
         "school": school["name"], "slug": school["slug"],
