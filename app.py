@@ -6302,6 +6302,7 @@ NAV_UPGRADE_BTN = (
 NAV_CONTENT = ('<div class="nav"><a class="brand" href="/admin/stats">' + CANDOR_LOGO_SVG + 'Candor · CONTENT</a>'
     '<a href="/tiktok">📡 Monitor</a>'
     '<a href="/content/today">📅 Today</a>'
+    '<a href="/content/slots">🕐 Slots</a>'
         '<a href="/content/setprofile">✍️ Set</a>'
     '<a href="/content/profile">🪪 Profile</a>'
     '<a href="/content/chances">🎬 Chances</a>'
@@ -14031,11 +14032,14 @@ def content_today():
         # until the Make button / posting slot releases a batch. So when nothing's
         # released, today is empty (by design). Accounts on TIKTOK_MANUAL_ACCOUNTS
         # are still never auto-pushed — their cards just live here too now.
+        _slotset = tuple(CONTENT_SLOTS)
         released = [r for r in conn.execute(
-            "SELECT id, status, slot, school_slug, school_name, title_text, slide3_type, odds_text, grade_text, meta, assigned_account, posted_account, tt_publish_id, tt_post_status, released_at, (img1 IS NOT NULL) has1, (img2 IS NOT NULL) has2, (img3 IS NOT NULL) has3, (img4 IS NOT NULL) has4 FROM content_queue WHERE status='released' AND tt_publish_id IS NULL ORDER BY id DESC").fetchall()
-            ]   # Today shows released carousels that HAVEN'T gone out yet. Once a
-                # carousel is sent to TikTok in its slot (tt_publish_id set), it drops
-                # off Today so the page stays a clean not-yet-sent queue.
+            "SELECT id, status, slot, school_slug, school_name, title_text, slide3_type, odds_text, grade_text, meta, assigned_account, posted_account, tt_publish_id, tt_post_status, released_at, (img1 IS NOT NULL) has1, (img2 IS NOT NULL) has2, (img3 IS NOT NULL) has3, (img4 IS NOT NULL) has4 "
+            "FROM content_queue WHERE status='released' AND tt_publish_id IS NULL "
+            f"AND (slot IS NULL OR slot NOT IN ({','.join('?'*len(_slotset))})) ORDER BY id DESC", _slotset).fetchall()
+            ]   # Today = manual / on-demand releases only. Carousels released BY a
+                # scheduled slot (slot in CONTENT_SLOTS) live on /content/slots, never
+                # here; and anything already sent (tt_publish_id) drops off too.
         pending = conn.execute("SELECT COUNT(*) c FROM content_queue WHERE status='pending'").fetchone()["c"]
         posted = conn.execute("SELECT COUNT(*) c FROM content_queue WHERE status='posted'").fetchone()["c"]
         tt_accts = conn.execute("SELECT open_id, label FROM tiktok_accounts ORDER BY connected_at").fetchall()
@@ -14150,6 +14154,51 @@ def content_today():
             + banner + make_btn
             + "".join(cards) + '</div>' + save_script + _HASHTAG_JS)
     return _page(body, title="Content · Today")
+
+
+@app.route("/content/slots")
+@login_required
+def content_slots():
+    """Scheduled-slot queue: carousels released by the 8/12/3/6/9 posting slots.
+    Kept separate from /content/today, which is manual/on-demand releases only.
+    Grouped by slot time so the creator sees what's going out in each slot."""
+    if not _is_creator():
+        abort(404)
+    from collections import OrderedDict
+    with db() as conn:
+        _slots = tuple(CONTENT_SLOTS)
+        rows = [r for r in conn.execute(
+            "SELECT id, status, slot, school_slug, school_name, title_text, slide3_type, odds_text, grade_text, meta, assigned_account, posted_account, tt_publish_id, tt_post_status, released_at, (img1 IS NOT NULL) has1, (img2 IS NOT NULL) has2, (img3 IS NOT NULL) has3, (img4 IS NOT NULL) has4 "
+            f"FROM content_queue WHERE status='released' AND slot IN ({','.join('?'*len(_slots))}) "
+            "ORDER BY slot ASC, id DESC", _slots).fetchall()]
+        tt_accts = conn.execute("SELECT open_id, label FROM tiktok_accounts ORDER BY connected_at").fetchall()
+    groups = OrderedDict((s, []) for s in CONTENT_SLOTS)
+    for r in rows:
+        groups.setdefault(r["slot"], []).append(r)
+
+    def _slot_label(s):
+        try:
+            h, m = s.split(":"); h = int(h)
+            return f"{h % 12 or 12}:{m} {'AM' if h < 12 else 'PM'}"
+        except Exception:
+            return s
+    parts = ['<div style="max-width:720px;margin:0 auto;padding:16px 12px 80px">',
+             '<h1 style="margin:0 0 4px">🕐 Slots</h1>',
+             f'<div style="color:#7c8aa0;font-size:14px;margin:0 0 6px">{len(rows)} released into the scheduled '
+             f'slots (8 / 12 / 3 / 6 / 9). Manual content is on '
+             f'<a href="/content/today" style="color:#5fc9b6">📅 Today</a>.</div>']
+    for s, rs in groups.items():
+        if not rs:
+            continue
+        parts.append(f'<div style="font-weight:800;color:#5fc9b6;font-size:15px;margin:20px 0 8px;'
+                     f'letter-spacing:.3px">🕐 {_slot_label(s)} — {len(rs)}</div>')
+        parts.extend(_render_released_cards(rs, tt_accts))
+    if not rows:
+        parts.append('<div style="color:#7c8aa0;text-align:center;padding:40px 0">'
+                     'No carousels in the slots right now — the scheduler releases them at 8 / 12 / 3 / 6 / 9.</div>')
+    parts.append('</div>')
+    body = "".join(parts) + _CONTENT_SAVE_SCRIPT + _HASHTAG_JS
+    return _page(body, title="Content · Slots")
 
 
 @app.route("/content/profile")
