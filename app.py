@@ -14032,8 +14032,10 @@ def content_today():
         # released, today is empty (by design). Accounts on TIKTOK_MANUAL_ACCOUNTS
         # are still never auto-pushed — their cards just live here too now.
         released = [r for r in conn.execute(
-            "SELECT id, status, slot, school_slug, school_name, title_text, slide3_type, odds_text, grade_text, meta, assigned_account, posted_account, tt_publish_id, tt_post_status, released_at, (img1 IS NOT NULL) has1, (img2 IS NOT NULL) has2, (img3 IS NOT NULL) has3, (img4 IS NOT NULL) has4 FROM content_queue WHERE status='released' ORDER BY id DESC").fetchall()
-            ]   # every released carousel shows here (manual tab removed 2026-07)
+            "SELECT id, status, slot, school_slug, school_name, title_text, slide3_type, odds_text, grade_text, meta, assigned_account, posted_account, tt_publish_id, tt_post_status, released_at, (img1 IS NOT NULL) has1, (img2 IS NOT NULL) has2, (img3 IS NOT NULL) has3, (img4 IS NOT NULL) has4 FROM content_queue WHERE status='released' AND tt_publish_id IS NULL ORDER BY id DESC").fetchall()
+            ]   # Today shows released carousels that HAVEN'T gone out yet. Once a
+                # carousel is sent to TikTok in its slot (tt_publish_id set), it drops
+                # off Today so the page stays a clean not-yet-sent queue.
         pending = conn.execute("SELECT COUNT(*) c FROM content_queue WHERE status='pending'").fetchone()["c"]
         posted = conn.execute("SELECT COUNT(*) c FROM content_queue WHERE status='posted'").fetchone()["c"]
         tt_accts = conn.execute("SELECT open_id, label FROM tiktok_accounts ORDER BY connected_at").fetchall()
