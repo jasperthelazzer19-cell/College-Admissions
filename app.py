@@ -4505,28 +4505,47 @@ def _v2_percentile(school, strength, w):
     return _b.bisect_left(xs, strength) / len(xs)
 
 
-def _v2_grade_dims(profile):
-    """Pull the cached LLM grade's 5 component scores (0-1000). Returns None when
-    there's no valid cached grade → caller falls back to v1."""
-    import json as _j
-    raw = profile.get("grade_json")
-    if not raw:
-        return None
-    try:
-        g = _j.loads(raw) if isinstance(raw, str) else raw
-    except Exception:
-        return None
+def _v2_dims_from_grade(g):
+    """Extract the 5 component scores (0-1000) from a grade dict, or None if a
+    HARD (non-narrative) component is missing. Narrative may legitimately be
+    absent (deterministic grades omit it) → left as None for the caller to fill."""
     dims = (g or {}).get("dimensions") or {}
     out = {}
     for c in _V2_COMPS:
         v = dims.get(c)
         s = v.get("score") if isinstance(v, dict) else v
         if s is None:
-            if c == "narrative_hooks":     # fallback grades omit narrative — synthesize below
+            if c == "narrative_hooks":
                 out[c] = None
                 continue
             return None
         out[c] = float(s)
+    return out
+
+
+def _v2_grade_dims(profile):
+    """5 component scores (0-1000) for v2's ranking. Prefers the cached LLM grade
+    (sharper, real narrative). When that's absent/incomplete, falls back to the
+    DETERMINISTIC grade — GPA/test/rigor are pure math and EC reuses the council's
+    ec_rating, all already on file — so v2 covers EVERY profile at ZERO API cost.
+    Narrative (the one component a formula can't judge) is synthesized from the
+    others. Returns None only if even the deterministic grade can't be built (→ v1)."""
+    import json as _j
+    out = None
+    raw = profile.get("grade_json")
+    if raw:
+        try:
+            g = _j.loads(raw) if isinstance(raw, str) else raw
+            out = _v2_dims_from_grade(g)
+        except Exception:
+            out = None
+    if out is None:      # no valid LLM grade → deterministic grade (free: stats + council EC)
+        try:
+            out = _v2_dims_from_grade(_grade_profile_fallback(profile))
+        except Exception:
+            return None
+    if out is None:
+        return None
     if out.get("narrative_hooks") is None:
         oth = [out[c] for c in _V2_COMPS if c != "narrative_hooks" and out.get(c) is not None]
         out["narrative_hooks"] = (sum(oth) / len(oth)) * 0.7 if oth else 500.0
