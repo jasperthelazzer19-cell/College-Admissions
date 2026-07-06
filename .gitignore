@@ -30,3 +30,8 @@ watchdog/state.json
 watchdog/incidents.log
 watchdog/*.log
 slides/
+*.bak-*
+*.log
+auto_content/*.log
+ed_bias_*
+per_school_ed_bias.csv
