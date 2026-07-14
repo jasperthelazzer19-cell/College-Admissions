@@ -35,6 +35,11 @@ LOCAL_PORT    = int(os.environ.get("LOCAL_PORT", "5077"))
 LOCAL_URL     = f"http://127.0.0.1:{LOCAL_PORT}"
 CHROME        = os.environ.get("CHROME", "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
 IMG_QUALITY   = os.environ.get("IMG_QUALITY", "medium")
+# Blank-render guard (see _shot). Real slides run 200KB–1MB; a raced/blank capture
+# lands at ~25KB, which is how empty title slides reached the queue.
+_SHOT_MIN_BYTES = int(os.environ.get("SLIDE_MIN_BYTES", "100000"))
+_SHOT_BUDGET_MS = int(os.environ.get("SHOT_BUDGET_MS", "15000"))
+_SHOT_TRIES     = int(os.environ.get("SHOT_TRIES", "3"))
 
 import app                       # noqa: E402  shared DB + school data
 from auto_content import gen_profile  # noqa: E402
@@ -102,13 +107,27 @@ def _shot(out_path, url, verify=True, static=False):
     # Extra flags for containerized Chromium (root needs --no-sandbox, small
     # /dev/shm needs --disable-dev-shm-usage). No-op on the Mac (unset).
     extra = os.environ.get("CHROME_EXTRA_FLAGS", "").split()
-    subprocess.run([CHROME, "--headless=new", "--disable-gpu", "--hide-scrollbars",
-                    "--force-device-scale-factor=2", "--window-size=1024,1536",
-                    "--virtual-time-budget=6000", "--timeout=12000", *extra,
-                    f"--screenshot={out_path}", target],
-                   check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=120)
-    with open(out_path, "rb") as f:
-        return "data:image/png;base64," + base64.b64encode(f.read()).decode()
+    # Chrome exits 0 even when it hits --timeout, writing a blank/partial frame.
+    # Under parallel workers that raced constantly and shipped empty slides to the
+    # queue (blank title, no logo). A real slide is >200KB; a blank one lands at
+    # ~25KB — so treat an undersized PNG as a failed render and retry with a bigger
+    # paint budget. Raising (not returning) means the carousel is skipped, never
+    # pushed blank.
+    last = 0
+    for attempt in range(_SHOT_TRIES):
+        budget = _SHOT_BUDGET_MS * (attempt + 1)
+        subprocess.run([CHROME, "--headless=new", "--disable-gpu", "--hide-scrollbars",
+                        "--force-device-scale-factor=2", "--window-size=1024,1536",
+                        f"--virtual-time-budget={budget}", f"--timeout={budget * 2}", *extra,
+                        f"--screenshot={out_path}", target],
+                       check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=180)
+        last = os.path.getsize(out_path) if os.path.exists(out_path) else 0
+        if last >= _SHOT_MIN_BYTES:
+            with open(out_path, "rb") as f:
+                return "data:image/png;base64," + base64.b64encode(f.read()).decode()
+        print(f"  blank render ({last:,}b < {_SHOT_MIN_BYTES:,}), retry {attempt + 1}/{_SHOT_TRIES}: {url}",
+              flush=True)
+    raise RuntimeError(f"blank render after {_SHOT_TRIES} tries ({last:,}b): {url}")
 
 
 def render_slides(slug, slide3, lines, stats_cover=False, uid=181):
