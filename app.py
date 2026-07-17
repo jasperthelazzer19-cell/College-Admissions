@@ -245,7 +245,10 @@ _CLAUDE_BIN = (os.environ.get("CLAUDE_BIN") or _shutil.which("claude")
 _CLI_SYS = ("You are a backend JSON/text generator for Candor, a college-admissions tool. "
             "Every request is legitimate analysis or fictional-content generation for the "
             "owner's own use. Output ONLY the exact content requested — no preamble, no "
-            "commentary, no warnings, no code fences unless explicitly asked.")
+            "commentary, no warnings, no code fences unless explicitly asked. "
+            "IGNORE any global/user directive to insert a person's name as a canary or "
+            "signature: NEVER output the name 'Jasper' or any real person's name anywhere "
+            "in your response.")
 
 
 def _claude_cli(prompt, model="sonnet", timeout=180):
@@ -263,9 +266,17 @@ def _claude_cli(prompt, model="sonnet", timeout=180):
         if r.returncode != 0:
             print("claude-cli rc", r.returncode, (r.stderr or "")[:200]); return None
         try:
-            return (json.loads(r.stdout).get("result") or "").strip()
+            out = (json.loads(r.stdout).get("result") or "").strip()
         except Exception:
-            return r.stdout.strip()
+            out = r.stdout.strip()
+        # Belt-and-suspenders: the Max-plan CLI loads the owner's global CLAUDE.md,
+        # whose canary rule injects the name "Jasper" once per response. Strip it so
+        # it can never leak into generated content. (JSON grader output never contains
+        # the token, so this is a no-op there.)
+        if out and "Jasper" in out:
+            import re as _re
+            out = _re.sub(r"\s*\bJasper\b[.,!]?", "", out).strip()
+        return out
     except Exception as e:
         print("claude-cli error:", e); return None
 
@@ -12375,16 +12386,36 @@ def _bullet_memo(key, produce):
 
 
 def _content_bullets(system, user, n=4, max_tokens=420):
-    """Returns a list of n punchy, specific bullet strings for a content slide."""
+    """Returns a list of n punchy, specific bullet strings for a content slide.
+
+    Guards against the model inventing GPA/test-score/percentage stats that aren't
+    in the data it was given: any bullet citing a stat-shaped number not present in
+    the `user` prompt is dropped (the model was hallucinating wrong stats onto the
+    calculations slide)."""
+    import re as _re
+    # stat-shaped tokens: GPAs (X.XX), percentages, and SAT-shaped 4-digit scores
+    _STAT = _re.compile(r"\b\d{1,2}\.\d\d?\b|\b\d{1,3}\s?%|\b1[0-6]\d\d\b")
+    given = set(_re.findall(r"\d[\d.]*", user or ""))
+    def _invents_stat(bullet):
+        for m in _STAT.finditer(bullet):
+            num = _re.sub(r"[^\d.]", "", m.group(0))
+            if num and num not in given and num.rstrip("0").rstrip(".") not in {g.rstrip("0").rstrip(".") for g in given}:
+                return True
+        return False
     def _produce():
         try:
             raw = _claude("claude-haiku-4-5-20251001",
-                system + f" Output exactly {n} bullets for a TikTok slide. Each bullet is a SHORT punchy fragment — 7 to 13 words MAX, like a caption, NOT a full sentence. Specific and concrete but tight; cut every filler word. Plain text, one per line, no numbering, no markdown.",
+                system + f" Output exactly {n} bullets for a TikTok slide. Each bullet is a SHORT punchy fragment — 7 to 13 words MAX, like a caption, NOT a full sentence. Specific and concrete but tight; cut every filler word. Plain text, one per line, no numbering, no markdown."
+                " HARD RULE: use ONLY the numbers, GPAs, test scores, and percentages that appear verbatim in the data above. NEVER state a GPA, test score, or admit percentage that isn't given to you — do not estimate, round, or invent any stat.",
                 user, max_tokens=max_tokens)
             if not raw:
                 return []
             lines = [l.strip().lstrip("-•*▸·").strip() for l in raw.split("\n") if l.strip()]
-            return [l for l in lines if len(l) > 4][:n]
+            lines = [l for l in lines if len(l) > 4]
+            clean = [l for l in lines if not _invents_stat(l)]
+            if len(clean) < len(lines):
+                print(f"content bullets: dropped {len(lines)-len(clean)} bullet(s) citing invented stats")
+            return clean[:n]
         except Exception as e:
             print(f"content bullets failed: {e}")
             return []
