@@ -586,7 +586,10 @@ MEGA_SCHOOLS = {
     "harvard","stanford","mit","yale","princeton","columbia","upenn","brown",
     "cornell","dartmouth","umich","nyu","usc","ucla","ucb","duke","northwestern","uchicago",
 }
-MEGA_FLOOR = int(os.environ.get("MEGA_FLOOR", "110"))   # vs ICONIC_FLOOR 45
+MEGA_FLOOR = int(os.environ.get("MEGA_FLOOR", "150"))   # vs ICONIC_FLOOR 45
+# Bumped 110->150 (Jul 2026): the 992-post audit showed big-name schools dominate the
+# 600+ view band and obscure schools cluster at the bottom, so lean harder into the
+# household names. Revert via MEGA_FLOOR=110 if the feed feels too Ivy-heavy.
 # Don't repeat a school within the last N picks (across ALL accounts) so the feed
 # stays varied. Applies to the headline/anchor school of every carousel.
 RECENT_NOREPEAT = int(os.environ.get("RECENT_NOREPEAT", "6"))
@@ -881,10 +884,9 @@ def _run_session(dry, n_force, slot_count):
             with ThreadPoolExecutor(max_workers=workers) as ex:
                 ok = sum(ex.map(_task, range(need)))
         print(f"done: {ok}/{need}")
-        # Nudge the creator that fresh slides are queued (no links — they post
-        # from /content/today). Only when we actually topped up.
-        if ok > 0 and not dry:
-            text_reminder(ok, buffer_pending())
+        # Buffer top-up runs quietly now — the creator asked to stop the hourly
+        # "slides are ready" nudge. A separate per-slot "time to post" text
+        # (com.candor.postreminder, fired at 8/12/3/6/9) handles the nudging.
     finally:
         stop_local_server()
 

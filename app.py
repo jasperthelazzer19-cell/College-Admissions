@@ -13631,22 +13631,33 @@ def _carousel_hashtags(r):
             for t in (t1, t2):
                 if len(t) > 1 and t not in tags:
                     tags.append(t)
-    # Evergreen fill — VARY per carousel (seeded by id, so the displayed tags always
-    # match what gets posted) instead of the same 5 every time. Identical hashtag sets
-    # across hundreds of posts read as duplicate/spam to TikTok and throttle reach; a
-    # rotating subset from a larger pool diversifies every caption. #fyp is kept as a
-    # near-always anchor; the rest rotate.
+    # Evergreen fill. AUDIT (Jul 2026, 992 posts): the 600+ view band tagged specific
+    # prestige schools + #dreamschool/#ivyleague/#collegeadmissions; the sub-300 dud band
+    # was dominated by generic process tags (#classof2027, #collegeprep, #applyingtocollege,
+    # #highschool, #futurecollegestudent, #collegebound). Those were in the old fill pool and
+    # every post grabbed 2-3, dragging the whole account down. Pool is now ONLY proven
+    # performers; the generic-process tags are cut. #ivyleague (top tag, 748 avg) is added
+    # when the post actually features an Ivy/elite school.
     import random as _rnd
-    _pool = ["#collegeadmissions", "#collegeapps", "#dreamschool", "#collegetok",
-             "#college", "#collegeadvice", "#admissions", "#classof2026", "#classof2027",
-             "#highschool", "#senioryear", "#collegebound", "#gettingintocollege",
-             "#collegeprep", "#applyingtocollege", "#collegedecision", "#studytok",
-             "#collegeessay", "#futurecollegestudent", "#collegelife", "#collegetips"]
+    _pool = ["#collegeadmissions", "#dreamschool", "#collegeapps",
+             "#collegeadvice", "#collegetok", "#college"]
+    # Prestige tag only when it's truthful — an Ivy or a sub-12% admit school in the post.
+    _slugs = comp if comp else ([r["school_slug"]] if r["school_slug"] else [])
+    _IVY = {"harvard", "yale", "princeton", "columbia", "penn", "upenn", "brown",
+            "dartmouth", "cornell"}
+    _elite = False
+    for _s in _slugs:
+        _cs = COLLEGES_BY_SLUG.get(_s) or {}
+        if _s in _IVY or (_cs.get("accept") is not None and _cs["accept"] < 0.12):
+            _elite = True
+            break
     try:
         _seed = int(r["id"] or 0)
     except Exception:
         _seed = 0
     _rng = _rnd.Random(_seed)
+    if _elite and "#ivyleague" not in tags and len(tags) < 5:
+        tags.append("#ivyleague")
     if _seed % 4 != 0 and "#fyp" not in tags and len(tags) < 5:   # #fyp most posts, not all
         tags.append("#fyp")
     _rng.shuffle(_pool)
