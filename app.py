@@ -5462,6 +5462,10 @@ def init_db():
             conn.execute("ALTER TABLE content_queue ADD COLUMN img4 TEXT")
         except sqlite3.OperationalError:
             pass
+        try:   # priority: higher releases first (jump the queue for a timed batch)
+            conn.execute("ALTER TABLE content_queue ADD COLUMN priority INTEGER DEFAULT 0")
+        except sqlite3.OperationalError:
+            pass
         # "Make a batch now" button on /content/today. The button inserts a row
         # here; the Mac text-listen daemon polls /content/batch-pending, claims
         # it, renders the carousels, and texts the links — same path as the text
@@ -13455,7 +13459,7 @@ def cron_content_release():
         return ("unauthorized", 401)
     slot = request.args.get("slot", "")
     with db() as conn:
-        row = conn.execute("SELECT * FROM content_queue WHERE status='pending' ORDER BY id ASC LIMIT 1").fetchone()
+        row = conn.execute("SELECT * FROM content_queue WHERE status='pending' ORDER BY priority DESC, id ASC LIMIT 1").fetchone()
         if not row:
             return ("queue empty — nothing to release", 200)
         conn.execute("UPDATE content_queue SET status='released', slot=?, released_at=CURRENT_TIMESTAMP WHERE id=?",
