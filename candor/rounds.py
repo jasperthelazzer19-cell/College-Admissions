@@ -42,9 +42,15 @@ def _rs_school_mult(slug, pub, rc, b, reg):
         return 1+(pr-1)*cf
     return _RS_FALLBACK.get(rc,1.3)
 
-def deterministic_round_odds(school, detail, rd_frac):
+_RS_EARLY = ("ED", "ED1", "ED2", "REA")   # rounds where legacy concentrates
+
+def deterministic_round_odds(school, detail, rd_frac, ed_legacy_or=1.0):
     """Split an overall chance (rd_frac = personalized midpoint, EC-inclusive)
-    across a school's rounds using calibrated per-school multipliers. No API call."""
+    across a school's rounds using calibrated per-school multipliers. No API call.
+
+    ed_legacy_or > 1.0: at ED-only-legacy schools the legacy boost is applied here,
+    to the Early round(s) only (as an odds-ratio), NOT to the overall RD anchor —
+    because at those schools legacy helps in ED and is ~0 in Regular."""
     rounds=detail.get("rounds") or []
     pub=detail.get("rates") or {}
     if not rounds or rd_frac is None or rd_frac<=0: return None
@@ -56,7 +62,11 @@ def deterministic_round_odds(school, detail, rd_frac):
         if rc=="RD": continue
         m=_rs_school_mult(school.get("slug",""), pub, rc, b, reg)
         m_eff=1.0+(m-1.0)*(1.0-rd)                 # headroom damping
-        out[rc]=min(0.95, rd*m_eff)
+        v=min(0.95, rd*m_eff)
+        if ed_legacy_or>1.0 and rc in _RS_EARLY:   # legacy boost, Early rounds only
+            o=(v/(1-v))*ed_legacy_or
+            v=min(0.95, o/(1+o))
+        out[rc]=v
     if "ED2" in out:
         top=max([out.get("ED",0), out.get("ED1",0)])
         if top: out["ED2"]=min(out["ED2"], top)

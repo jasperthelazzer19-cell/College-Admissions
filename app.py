@@ -1798,7 +1798,10 @@ def personalize_round_odds(user_id, school, detail, profile, user_low_pct, user_
     # odds_low/high midpoint anchor upstream; this only distributes it across
     # rounds via calibrated per-school multipliers. ROUND_SPLIT_MODE=llm reverts.
     if os.environ.get("ROUND_SPLIT_MODE","") != "llm":
-        _det = deterministic_round_odds(school, detail, (user_low_pct + user_high_pct) / 200.0)
+        # ED-only-legacy schools: legacy boost lives in the Early round, applied in the
+        # split (the overall odds intentionally excluded it upstream).
+        _ed_or = _legacy_odds_ratio(school, profile) if _legacy_ed_only(school) else 1.0
+        _det = deterministic_round_odds(school, detail, (user_low_pct + user_high_pct) / 200.0, ed_legacy_or=_ed_or)
         if _det:
             try:
                 with db() as conn:
@@ -4181,6 +4184,66 @@ def _c7_values_card(school):
             f'{rows}</div>')
 
 
+# ── Legacy calibration (per-school odds-ratios, from published legacy admit-rate
+# research; see the Jul-2026 top-100 audit). Applied as an ODDS-RATIO at the end of
+# both odds engines so caps don't eat it and it can never exceed 100%. Data-driven
+# multipliers REPLACE the old flat 1.15-1.25x, which massively under-weighted legacy
+# (Harvard is ~4.5x, not 1.25x). Banned/ended schools are forced to 1.0 regardless of
+# stale CDS C7 data. For ED-only schools the boost lives in the Early round (applied in
+# the round-split), not the overall RD anchor.
+_LEGACY_MULT = {
+    "harvard": 4.5, "princeton": 4.0, "georgetown": 3.0, "yale": 3.0, "notre-dame": 3.0,
+    "duke": 3.0, "colgate": 2.8, "upenn": 2.75, "dartmouth": 2.5, "cornell": 2.5,
+    "brown": 2.5, "columbia": 2.5, "swarthmore": 2.5, "wlu": 2.5, "bowdoin": 2.2,
+    "villanova": 2.2, "vanderbilt": 2.0, "northwestern": 2.0, "bc": 2.0, "emory": 2.0,
+    "tufts": 2.0, "uchicago": 2.0, "williams": 2.0, "tulane": 1.8, "wake-forest": 1.8,
+    "bucknell": 1.8, "oberlin": 1.8, "smith": 1.6, "barnard": 1.5, "wellesley": 1.5,
+    "colorado-college": 1.5, "vassar": 1.5, "bates": 1.4, "unc": 1.3,
+}
+# Legacy boost is concentrated in the Early round and ~0 in RD at these schools.
+_LEGACY_ED_ONLY = {"duke", "cornell", "upenn", "vanderbilt", "dartmouth", "notre-dame", "tulane"}
+# Legally banned (CA AB1780 / VA law) or voluntarily ended / never had it. Force 1.0x
+# even though stale C7 data may still mark them "considered".
+_LEGACY_BANNED = {"stanford", "usc", "uva", "mit", "cmc", "grinnell", "bryn-mawr", "oxy"}
+
+
+def _legacy_odds_ratio(school, profile):
+    """Per-applicant legacy odds-ratio at THIS school (1.0 = no boost)."""
+    slug = (school or {}).get("slug")
+    if not slug or slug in _LEGACY_BANNED:
+        return 1.0
+    gens = legacy_generations_at(profile, school)
+    if gens <= 0:
+        return 1.0
+    base = _LEGACY_MULT.get(slug)
+    if base is None:                       # unresearched but C7 says it weights legacy
+        c7 = (C7_FACTORS.get(slug) or {}).get("legacy")
+        if c7 == "important":   base = 1.8
+        elif c7 == "considered": base = 1.5
+        else: return 1.0
+    if gens >= 3:   base *= 1.25           # multi-generational: modest extra
+    elif gens == 2: base *= 1.15
+    return base
+
+
+def _legacy_ed_only(school):
+    return (school or {}).get("slug") in _LEGACY_ED_ONLY
+
+
+def _apply_odds_ratio_pct(low, high, OR):
+    """Apply an odds-ratio to an integer-percent (low, high) band."""
+    if OR <= 1.0:
+        return low, high
+    def bump(pct):
+        p = max(0.001, min(0.999, pct / 100.0))
+        o = (p / (1 - p)) * OR
+        return int(round((o / (1 + o)) * 100))
+    nl, nh = bump(low), bump(high)
+    if nh <= nl:
+        nh = nl + 3
+    return max(1, nl), min(97, nh)
+
+
 def estimate_odds(school, fit, profile):
     """Harsher version. Markets and admissions are noisy; previous curve was
     over-generous in the middle of the fit range. Tighter slope + lower caps
@@ -4265,13 +4328,7 @@ def estimate_odds(school, fit, profile):
     # 1.25x) were way under-calibrated for this. Lift them — but the
     # caps below also need to rise for legacy applicants so the multiplier
     # actually shows up at elite-tier schools (where the cap binds).
-    legacy_gens = legacy_generations_at(profile, school)
-    # C7-gated: legacy only boosts as much as THIS school says it weights legacy
-    # (a school marking legacy "not considered" gives no legacy lift).
-    _lg_s = c7_factor_scale(school, "legacy", "hook")
-    if legacy_gens >= 3:   hook_mult *= 1.0 + 0.25 * _lg_s
-    elif legacy_gens == 2: hook_mult *= 1.0 + 0.20 * _lg_s
-    elif legacy_gens == 1: hook_mult *= 1.0 + 0.15 * _lg_s
+    # legacy applied as an odds-ratio at the return (below), not here — see _LEGACY_MULT.
     if profile.get("first_gen"):
         hook_mult *= 1.0 + 0.10 * c7_factor_scale(school, "first_generation", "hook")
     # Demonstrated interest — only at schools that actually track it (private
@@ -4379,6 +4436,9 @@ def estimate_odds(school, fit, profile):
     low = max(1, int(round((center - spread / 2) * 100)))
     high = min(95, int(round((center + spread / 2) * 100)))
     if high <= low: high = low + 3
+    # legacy odds-ratio — overall boost (ED-only schools skip; applied in round-split).
+    if not _legacy_ed_only(school):
+        low, high = _apply_odds_ratio_pct(low, high, _legacy_odds_ratio(school, profile))
     return low, high
 
 
@@ -4533,12 +4593,8 @@ def estimate_odds_v2(school, profile):
     # there is no binary cliff).
     scale = 1.0 + 0.4 * ec_exceptional_strength(profile)
     center = a ** (1.0 - (P - 0.5) * scale)
-    # legacy: school-specific + C7-gated (mirrors v1's hook multiplier exactly)
-    lg = c7_factor_scale(school, "legacy", "hook")
-    gens = legacy_generations_at(profile, school)
-    if gens >= 3:   center *= 1.0 + 0.25 * lg
-    elif gens == 2: center *= 1.0 + 0.20 * lg
-    elif gens == 1: center *= 1.0 + 0.15 * lg
+    # legacy is applied as an odds-ratio at the return (below) so caps don't eat it;
+    # ED-only schools get it in the round-split instead. first-gen stays here.
     if profile.get("first_gen"):
         center *= 1.0 + 0.10 * c7_factor_scale(school, "first_generation", "hook")
     center = max(0.005, min(0.97, center))
@@ -4551,6 +4607,10 @@ def estimate_odds_v2(school, profile):
     high = min(95, int(round((center + spread / 2) * 100)))
     if high <= low:
         high = low + 3
+    # legacy odds-ratio — overall (RD-anchored) boost. ED-only schools skip here and
+    # get the boost concentrated in the Early round via the round-split instead.
+    if not _legacy_ed_only(school):
+        low, high = _apply_odds_ratio_pct(low, high, _legacy_odds_ratio(school, profile))
     return low, high
 
 
