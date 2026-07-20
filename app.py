@@ -20170,10 +20170,42 @@ def _carousel_image_urls(r):
     return urls
 
 
+# Rotating caption lead-ins. Mix of three engagement mechanics the Jul-2026 audit
+# said we're missing: (a) DEBATE hooks -> drive comments (public signal the algorithm
+# amplifies; our comment-rate was 0.04%), (b) STATS CTAs -> turn viewers into
+# participants, (c) LINK-IN-BIO funnels -> pure self-serve user acquisition, zero manual
+# work. Seeded by carousel id so it varies per post (identical captions throttle reach)
+# but stays deterministic. NOTE: "comment"/"link in bio" scale with no manual work and
+# help reach; the "DM me" variant converts but is invisible to the algorithm and creates
+# reply work — so it's only 1 of the rotation, not the default.
+_CAPTION_HOOKS = [
+    "Do you agree with these odds? 👀",
+    "Run your own odds free — link in bio 🔗",
+    "Comment your stats and see if you'd get in 👇",
+    "Be honest… did we get this right? 👇",
+    "Think the odds are wrong? Check yours — link in bio",
+    "Would YOU have gotten in? Drop your stats 👇",
+    "Your real chances might surprise you — try it, link in bio",
+    "DM me your stats and I'll run your real odds",
+]
+
+
+def _caption_hook(r):
+    import random as _rnd
+    try:
+        seed = int(r["id"] or 0)
+    except Exception:
+        seed = 0
+    return _rnd.Random(seed * 7 + 3).choice(_CAPTION_HOOKS)
+
+
 def _tiktok_post_caption(r):
-    """Caption = the same 5 hashtags shown under the carousel (his manual habit is
-    to copy that block), kept well under TikTok's limit."""
-    return " ".join(_carousel_hashtags(r))[:990]
+    """Caption = an engagement/CTA hook + the same 5 hashtags shown under the carousel.
+    The hook drives comments and signups (the audit found our engagement was near-dead
+    and passive captions were capping reach). Kept well under TikTok's limit."""
+    hook = _caption_hook(r)
+    tags = " ".join(_carousel_hashtags(r))
+    return f"{hook}\n\n{tags}"[:990]
 
 
 def _tiktok_post_photos(acct, image_urls, caption, direct=False, privacy="SELF_ONLY"):
