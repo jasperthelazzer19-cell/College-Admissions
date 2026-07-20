@@ -13307,7 +13307,7 @@ def _release_one_per_account(conn, slot, limit=None):
             break
         row = conn.execute(
             "SELECT id FROM content_queue WHERE status='pending' AND assigned_account=? "
-            "ORDER BY id ASC LIMIT 1", (lab,)).fetchone()
+            "ORDER BY priority DESC, id ASC LIMIT 1", (lab,)).fetchone()
         if not row:
             # No pending for this account — reassign a spare from an over-covered one
             # so 'one per account' actually covers it (fixes the 6-on-one-account bug).
@@ -13909,7 +13909,7 @@ def content_release_nosend():
         n = 10
     with db() as conn:
         ids = [r["id"] for r in conn.execute(
-            "SELECT id FROM content_queue WHERE status='pending' ORDER BY id ASC LIMIT ?",
+            "SELECT id FROM content_queue WHERE status='pending' ORDER BY priority DESC, id ASC LIMIT ?",
             (n,)).fetchall()]
         if ids:
             qs = ",".join("?" * len(ids))
