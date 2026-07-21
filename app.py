@@ -13295,19 +13295,53 @@ def _live_account_labels(conn):
     return [r["label"] for r in roster]
 
 
+_RIGGED_SQL = "(title_formula LIKE 'hottake%' OR title_formula LIKE 'legacy-hottake%' OR title_formula LIKE 'daily-rigged%')"
+
+
+def _rigged_slot_today(label, labels=None):
+    """Which of today's slots this account serves its RIGGED/hot-take carousel at.
+    Rank-based (account's position in the roster + day) so the rigged posts fan
+    EVENLY across the day's slots — max one per slot until slots wrap — and the
+    whole pattern rotates daily. Falls back to a per-label hash without a roster."""
+    import datetime as _dt
+    day = _dt.date.today().toordinal()
+    if labels and label in labels:
+        seed = sorted(labels).index(label) + day
+    else:
+        seed = sum(ord(ch) for ch in (label or "")) + day
+    return CONTENT_SLOTS[seed % len(CONTENT_SLOTS)]
+
+
 def _release_one_per_account(conn, slot, limit=None):
     """Release ONE pending carousel per active account — never N for one account and
     0 for another. If an account has no pending of its OWN (the buffer skewed onto
     another account, e.g. a newer account hogged the rotation), STEAL a spare from an
     over-loaded account (>=2 pending) and reassign it, so the set truly spreads to
-    every account. `limit` caps how many accounts get one. Returns released row ids."""
+    every account. `limit` caps how many accounts get one. Returns released row ids.
+
+    RIGGED sprinkle: hot-take carousels only release at the account's per-day rigged
+    slot (see _rigged_slot_today) so the daily rigged posts spread across slots.
+    Manual pushes at priority>=100 still jump the line at ANY slot."""
     ids = []
-    for lab in _live_account_labels(conn):
+    _labs = _live_account_labels(conn)
+    for lab in _labs:
         if limit is not None and len(ids) >= limit:
             break
         row = conn.execute(
             "SELECT id FROM content_queue WHERE status='pending' AND assigned_account=? "
-            "ORDER BY priority DESC, id ASC LIMIT 1", (lab,)).fetchone()
+            "AND priority>=100 ORDER BY priority DESC, id ASC LIMIT 1", (lab,)).fetchone()
+        if not row and slot == _rigged_slot_today(lab, _labs):
+            row = conn.execute(
+                "SELECT id FROM content_queue WHERE status='pending' AND assigned_account=? "
+                "AND " + _RIGGED_SQL + " ORDER BY priority DESC, id ASC LIMIT 1", (lab,)).fetchone()
+        if not row:
+            row = conn.execute(
+                "SELECT id FROM content_queue WHERE status='pending' AND assigned_account=? "
+                "AND NOT " + _RIGGED_SQL + " ORDER BY priority DESC, id ASC LIMIT 1", (lab,)).fetchone()
+        if not row:
+            row = conn.execute(
+                "SELECT id FROM content_queue WHERE status='pending' AND assigned_account=? "
+                "ORDER BY priority DESC, id ASC LIMIT 1", (lab,)).fetchone()
         if not row:
             # No pending for this account — reassign a spare from an over-covered one
             # so 'one per account' actually covers it (fixes the 6-on-one-account bug).
@@ -13392,17 +13426,21 @@ def content_queue_push():
             assigned = _assign_content_account(conn, d.get("school_slug"), d.get("slide3_type"))
         # Slides go to DISK (see _store_slide); the img columns keep only a tiny
         # 'file' marker so content_queue rows stay bytes, not megabytes.
+        try:
+            _prio = max(0, min(99, int(d.get("priority") or 0)))   # 100+ reserved for manual jumps
+        except Exception:
+            _prio = 0
         cur = conn.execute(
             """INSERT INTO content_queue
                (school_slug, school_name, accent, title_text, title_formula, slide3_type,
-                profile_json, odds_text, grade_text, img1, img2, img3, img4, meta, assigned_account)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                profile_json, odds_text, grade_text, img1, img2, img3, img4, meta, assigned_account, priority)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (d.get("school_slug"), d.get("school_name"), d.get("accent"),
              d.get("title_text"), d.get("title_formula"), d.get("slide3_type"),
              d.get("profile_json"), d.get("odds_text"), d.get("grade_text"),
              None, None, None, None,
              json.dumps(d.get("meta")) if d.get("meta") is not None else None,
-             assigned))
+             assigned, _prio))
         cid = cur.lastrowid
         markers = {}
         for n in (1, 2, 3, 4):
@@ -13419,6 +13457,20 @@ def content_queue_push():
         conn.commit()
         pending = conn.execute("SELECT COUNT(*) c FROM content_queue WHERE status='pending'").fetchone()["c"]
     return jsonify(ok=True, id=cid, pending=pending, assigned_account=assigned)
+
+
+@app.route("/content/queue/recent-rigged")
+def content_queue_recent_rigged():
+    """Slugs used by any rigged/hot-take carousel in the last N days — the Mac's
+    daily-rigged generator calls this to avoid repeating schools."""
+    if not _autopilot_authed():
+        return ("unauthorized", 401)
+    days = max(1, min(30, int(request.args.get("days", 5) or 5)))
+    with db() as conn:
+        rows = conn.execute(
+            "SELECT DISTINCT school_slug FROM content_queue WHERE " + _RIGGED_SQL +
+            " AND created_at >= datetime('now', ?)", (f"-{days} days",)).fetchall()
+    return jsonify(slugs=[r["school_slug"] for r in rows if r["school_slug"]])
 
 
 @app.route("/content/queue/status")
