@@ -13003,27 +13003,51 @@ def headtohead_export(slug):
 # (curated + sourced by hand) rather than query params, so a malformed or
 # hand-edited URL can't put an unsourced number on a published slide.
 _CELEBS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "auto_content", "celebs.json")
-_celebs_cache = None
+# HYPOTHETICAL track: same "CAN <PERSON> GET INTO <SCHOOL>?" cover, but the person
+# never attended that school, so there is no then/now admit rate to anchor on.
+# What anchors it instead is their REAL, public achievement — that string is the
+# only person-specific thing the engine ever sees. The GPA/SAT in this file are
+# invented, and every slide that shows them has to say so in the entry's own
+# academic_note wording. Separate file, separate cache, separate route: the two
+# tracks make different claims and must never silently share an entry.
+_CELEBS_HYPO_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "auto_content", "celebs_hypothetical.json")
+_celebs_cache = {}
+CELEB_TRACKS = ("factual", "hypo")
 
 
-def celeb_entries():
-    """[{id,name,slug,...}] from auto_content/celebs.json, cached per process.
+def _celeb_track(t):
+    """Normalize a track name. Anything unrecognized falls back to the FACTUAL
+    track, which is the conservative one — a typo'd ?track= can never promote a
+    made-up stat onto a slide that claims to be sourced."""
+    return "hypo" if (t or "").strip().lower() in ("hypo", "hypothetical") else "factual"
+
+
+def celeb_entries(track="factual"):
+    """[{id,name,slug,...}] for one track, cached per process.
     Entries whose school slug we don't actually have are dropped here rather
-    than at render time, so the generator and the route agree on the pool."""
-    global _celebs_cache
-    if _celebs_cache is None:
+    than at render time, so the generator and the route agree on the pool.
+
+    Both file shapes are accepted: celebs.json is a bare list, the hypothetical
+    roster is {"_doc": [...], "celebs": [...]} because its accuracy rule needs to
+    live next to the data it governs."""
+    track = _celeb_track(track)
+    if track not in _celebs_cache:
+        path = _CELEBS_HYPO_PATH if track == "hypo" else _CELEBS_PATH
         try:
-            with open(_CELEBS_PATH, encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 raw = json.load(f)
         except Exception as e:
-            print(f"celebs.json load failed: {e}")
+            print(f"{os.path.basename(path)} load failed: {e}")
             raw = []
-        _celebs_cache = [c for c in raw if c.get("slug") in COLLEGES_BY_SLUG]
-    return _celebs_cache
+        if isinstance(raw, dict):
+            raw = raw.get("celebs") or []
+        _celebs_cache[track] = [c for c in raw if c.get("slug") in COLLEGES_BY_SLUG]
+    return _celebs_cache[track]
 
 
-def celeb_by_id(cid):
-    for c in celeb_entries():
+def celeb_by_id(cid, track="factual"):
+    for c in celeb_entries(track):
         if c.get("id") == cid:
             return c
     return None
@@ -13122,6 +13146,68 @@ def celeb_export():
     <div class="rt-h" style="margin-top:auto;padding-top:26px;font-size:22px;line-height:1.45">
       Admit rates only. We don&rsquo;t know anyone&rsquo;s grades or scores &mdash; and neither does anyone else.<br>
       {src}
+    </div>
+  </div>
+  <div class="foot"><span class="lock">&#128274;</span>candoradmit.com</div>
+</div>'''
+    page = _tiktok_page(card, c["slug"], _esc(merged["name"]), clean=request.args.get("clean") == "1")
+    return Response(page, mimetype="text/html")
+
+
+@app.route("/celeb-hypo/export")
+@login_required
+def celeb_hypo_export():
+    """Setup slide (slide 2) for the HYPOTHETICAL track: the real résumé on the
+    left of the argument, the invented transcript on the right, both labelled.
+
+    This slide is where the viewer understands the question — world-class at one
+    thing, ordinary grades — so it is also where the accuracy line has to be
+    unmissable. Two separate blocks, not one merged "profile": the achievements
+    are sourced public fact and the academics are made up, and putting them in
+    one list would launder the second into looking like the first.
+
+    NO LLM anywhere in here (unlike /celeb/export, which generates bullets). The
+    only text on the slide comes from the roster file, which is exactly the
+    property that makes it safe: nothing can hallucinate a stat about a real,
+    identifiable person if nothing is generating text."""
+    if not (_is_creator() or _has_render_key()):
+        abort(404)
+    from html import escape as _esc
+    c = celeb_by_id(request.args.get("id", ""), "hypo")
+    if not c:
+        abort(404)
+    merged = merged_school(COLLEGES_BY_SLUG[c["slug"]])
+    short = _school_brand(c["slug"], merged["name"])[0]
+    accept = round(merged["accept"] * 100, 1)
+    # achievement is newline-separated, same convention as a profile's ecs field
+    # (and it IS fed to the engine through ecs), so the slide and the engine are
+    # reading the same lines in the same order.
+    lines = [x.strip() for x in (c.get("achievement") or "").split("\n") if x.strip()]
+    ach_html = "".join(
+        f'<li style="font-size:31px;line-height:1.45;margin:0 0 12px;font-weight:700">{_esc(x)}</li>'
+        for x in lines)
+    awards = (c.get("awards") or "").strip()
+    awards_html = (f'<div style="font-size:28px;line-height:1.4;color:#9aa6b6;font-weight:700;'
+                   f'margin:14px 0 0">{_esc(awards)}</div>' if awards else "")
+    # The hypothetical stamp uses the entry's OWN academic_note wording rather
+    # than a template built from gpa/sat — the roster author wrote the sentence
+    # that has to appear, so the slide can't drift from it.
+    note = (c.get("academic_note") or "").strip()
+    card = f'''<div id="card" class="full compare">
+  <div class="pill-top"><span class="line"></span><span class="pill">CANDOR &mdash; THE SETUP:</span><span class="line r"></span></div>
+  <div class="title">Best in the world at one thing.</div>
+  <div class="meta">{_esc(short)} accepts {accept}% of applicants.</div>
+  <div class="ccard">
+    <div class="rt-h" style="margin:0 0 10px">What {_esc(c["name"])} actually has (real, public)</div>
+    <ul style="list-style:disc;margin:0;padding-left:32px;color:#dfe7f0">{ach_html}</ul>
+    {awards_html}
+    <div style="margin:30px 0 0;padding:20px 22px;border:4px solid #f9a8d4;border-radius:14px">
+      <div style="font-size:26px;letter-spacing:2px;font-weight:800;color:#f9a8d4;text-transform:uppercase;margin:0 0 8px">Made up for this scenario</div>
+      <div style="font-size:33px;line-height:1.35;font-weight:800;color:#fff">{_esc(note)}</div>
+    </div>
+    <div class="rt-h" style="margin-top:auto;padding-top:26px;font-size:22px;line-height:1.45">
+      The achievements above are real and public. The grades are invented &mdash; we
+      don&rsquo;t know anyone&rsquo;s transcript. Candor scores what&rsquo;s on this slide, nothing else.
     </div>
   </div>
   <div class="foot"><span class="lock">&#128274;</span>candoradmit.com</div>
@@ -13378,12 +13464,18 @@ def _celeb_title_body(slug, sch, hook, photo_url):
 @login_required
 def title_celeb_export():
     """Celebrity slide-1: 'CAN <PERSON> GET INTO <SCHOOL>?' + photo/logo band.
-    /title-celeb/export?id=<celeb id>. Like /celeb/export it takes only the id
-    and reads the name and school from celebs.json — the copy is a question, so
-    the slide asserts nothing about anyone's record."""
+    /title-celeb/export?id=<celeb id>[&track=hypo]. Like /celeb/export it takes
+    only the id and reads the name and school from the roster — the copy is a
+    question, so the slide asserts nothing about anyone's record.
+
+    Both tracks share this route and this LAYOUT deliberately. The cover makes
+    the identical claim either way (none — it asks), and the factual track's
+    "did they get into their own alma mater" and the hypothetical track's "could
+    they get into a school they never attended" are the same sentence on screen.
+    Only ?track= changes, which picks the roster the id is looked up in."""
     if not (_is_creator() or _has_render_key()):
         abort(404)
-    c = celeb_by_id(request.args.get("id", ""))
+    c = celeb_by_id(request.args.get("id", ""), request.args.get("track"))
     if not c:
         abort(404)
     slug = c["slug"]
