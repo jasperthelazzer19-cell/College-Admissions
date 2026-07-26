@@ -103,11 +103,80 @@ _TITLE_FAMILIES = {
         "WHAT WOULD | GET THIS KID | OVER THE LINE | AT {S}?   (accent: {S})",
     ],
 }
+
+# ═══ ARM A TITLE FAMILIES — hook A/B test (see app.HOOK_AB_ARMS) ═══════════
+# Everything in _TITLE_FAMILIES above is one idea wearing 60 outfits: "guess this
+# applicant's odds / rate this applicant". It's a lookup the viewer never asked
+# for, and it gives them nothing to say — which is exactly what the 2026-07-26
+# audit found (0.13 comments per post across 693 attributed posts).
+#
+# These are built on different mechanics on purpose:
+#   STANCE      — the slide states a position instead of asking a question, so the
+#                 viewer's first instinct is to argue rather than to scroll
+#   CALLOUT     — aims at the VIEWER's own application, not the fictional applicant
+#   COUNTER     — contradicts something the college-advice internet repeats
+#   STAKES      — a decision with a cost attached (round choice, time left)
+#   DEFINITION  — "this is what X actually looks like", which is save-bait
+# Every claim here is one Candor can back with its own engine, so we're not
+# writing checks the reveal slide can't cash:
+#   - the round-split multipliers are a real, calibrated per-school table, so
+#     "applying early moves this more than your SAT does" is a thing we compute
+#   - the glow-up slide computes real before/after deltas, so "the one change
+#     that moved the number" is literal
+#   - the grader returns a weakest-dimension, so "the weak part isn't the one
+#     you'd guess" is grounded, not a tease
+# NOTE: still NO numbers/percentages in a title. The reveal is a later slide, and
+# a number in the hook both spoils the swipe and is an LLM guess, not the real value.
+_TITLE_FAMILIES_A = {
+    "chances": [
+        "THIS PROFILE IS | STRONGER THAN | YOU THINK | FOR {S}   (accent: STRONGER, {S})",
+        "THE COMMENTS SAID | NO SHOT AT {S}. | THE NUMBERS | DISAGREE   (accent: {S}, DISAGREE)",
+        "APPLYING TO {S} | EARLY MOVES THIS | MORE THAN | YOUR SAT DOES   (accent: EARLY, {S})",
+        "SAME PROFILE. | ONE ROUND EARLIER. | COMPLETELY | DIFFERENT {S} | ANSWER   (accent: {S})",
+        "THIS IS WHAT A | REAL {S} | TARGET | ACTUALLY | LOOKS LIKE   (accent: {S}, REAL)",
+        "MOST OF YOU | OVERRATE YOUR | {S} | CHANCES   (accent: OVERRATE, {S})",
+        "STOP CALLING {S} | A TARGET   (accent: {S}, STOP)",
+        "IF THIS KID | GETS REJECTED | FROM {S}, | IT ISN'T | THE GPA   (accent: {S})",
+        "PEOPLE KEEP | TELLING THIS KID | TO DROP {S}   (accent: {S}, DROP)",
+        "THE STAT EVERYONE | BRAGS ABOUT | BARELY MOVES | {S}   (accent: BARELY, {S})",
+        "NOBODY WANTS | TO HEAR WHAT | {S} | ACTUALLY | REWARDS   (accent: {S})",
+        "YOUR REACH LIST | AND THIS KID'S | ARE THE | SAME LIST   (accent: REACH LIST)",
+    ],
+    "grade": [
+        "THE WEAKEST PART | OF THIS PROFILE | ISN'T THE ONE | YOU'D GUESS   (accent: WEAKEST)",
+        "THIS APPLICATION | HAS A PROBLEM | NOBODY IN | THE COMMENTS | WILL NAME   (accent: PROBLEM)",
+        "EVERY {S} | APPLICANT | MAKES THIS | SAME MISTAKE   (accent: {S}, MISTAKE)",
+        "YOUR ACTIVITIES LIST | PROBABLY LOOKS | LIKE THIS ONE. | THAT'S THE | PROBLEM   (accent: PROBLEM)",
+        "GOOD STATS. | FORGETTABLE | APPLICATION   (accent: FORGETTABLE)",
+        "NINE ACTIVITIES | AND MAYBE ONE | OF THEM | COUNTS FOR {S}   (accent: {S}, ONE)",
+        "THIS IS THE LINE | BETWEEN A GOOD | APPLICANT AND | A {S} | ADMIT   (accent: {S}, LINE)",
+        "THE THING THAT | COST THIS KID | THE MOST | ISN'T ON | THE TRANSCRIPT   (accent: COST)",
+        "BEING WELL | ROUNDED IS | HURTING THIS | {S} | APPLICANT   (accent: {S}, HURTING)",
+        "READ THIS PROFILE | AND TELL ME | WHAT'S MISSING   (accent: MISSING)",
+    ],
+    "glowup": [
+        "THE FASTEST FIX | FOR THIS {S} | APPLICATION | IS THE ONE | NOBODY DOES   (accent: {S}, FASTEST)",
+        "CUT THREE OF | THESE ACTIVITIES | AND {S} | GETS EASIER   (accent: CUT, {S})",
+        "JUNIOR YEAR IS | ALREADY GONE. | HERE'S WHAT'S | STILL FIXABLE | FOR {S}   (accent: {S}, STILL)",
+        "ANOTHER CLUB | WON'T DO | ANYTHING FOR | {S}   (accent: {S}, ANOTHER CLUB)",
+        "STOP RETAKING | THE SAT FOR | {S}   (accent: {S}, STOP)",
+        "EVERYONE FIXES | THE WRONG THING | ON A {S} | APPLICATION   (accent: {S}, WRONG)",
+        "THE ONE CHANGE | THAT ACTUALLY | MOVED THE | {S} | NUMBER   (accent: {S}, ONE CHANGE)",
+        "THIS TAKES | ONE SUMMER, | NOT FOUR YEARS   (accent: ONE SUMMER)",
+        "SAVE THIS IF | YOUR LIST HAS | {S} | ON IT   (accent: {S}, SAVE THIS)",
+        "THE ADVICE | THIS KID GOT | MADE {S} | HARDER   (accent: {S}, HARDER)",
+    ],
+}
+
 # Flat list for backward-compat / when no reveal type is requested. Fold the
 # slide3 tag into each pattern's "(accent: ...)" note → "(accent: ...; slide3: t)".
-_TITLE_EXAMPLES = "\n".join(
-    (f"{ex.rstrip()[:-1]}; slide3: {t})" if ex.rstrip().endswith(")") else f"{ex}   (slide3: {t})")
-    for t, exs in _TITLE_FAMILIES.items() for ex in exs)
+def _flat_examples(fams):
+    return "\n".join(
+        (f"{ex.rstrip()[:-1]}; slide3: {t})" if ex.rstrip().endswith(")") else f"{ex}   (slide3: {t})")
+        for t, exs in fams.items() for ex in exs)
+
+
+_TITLE_EXAMPLES = _flat_examples(_TITLE_FAMILIES)
 
 
 # Local corpus of ~1,100 REAL r/collegeresults applicant posts (full self-text).
@@ -178,20 +247,70 @@ def _seed_block(post):
         "with the rest of their profile. The result should read like THIS real applicant.")
 
 
-def _gen_profile_and_title(slug, want_slide3=None, seed=None):
+# The TITLE half of the prompt, control version. Kept as its own constant so the
+# A/B arm can swap ONLY these rules and leave the PROFILE half byte-identical —
+# both arms must generate the same kind of applicant, or we'd be testing two
+# things at once and learn nothing from the readout.
+_TITLE_RULES_CONTROL = """CRITICAL: it MUST stay in the @candor "guessing-game" framing — the hook makes the viewer GUESS the
+applicant's odds, or react to a grade/verdict on the applicant. Vary the WORDING and which pattern you
+use (you may lightly remix phrasing), but DO NOT write a narrative sentence describing the student's
+achievements (e.g. NOT "SHE STARTED A WATER MONITORING NETWORK"). It must read like one of these
+families: "would you admit", "guess the odds", "candor told me if", "can you beat", "biggest weakness",
+"I thought they'd get in", "can AI predict", "what would it take to get in" (glow-up), OR a brand-forward
+"CANDOR ___ this applicant" line — e.g. CANDOR GAVE / CANDOR SAID / CANDOR GRADED / CANDOR SCORED /
+CANDOR RATED / CANDOR PREDICTED / CANDOR RAN THE ODDS / I ASKED CANDOR. LEAN INTO leading the hook with
+"CANDOR" often (it promotes the brand) — but still vary so the feed isn't every single one identical.
+NEVER put a specific number or percentage in the title (you do NOT know the real odds/grade;
+those are revealed on a later slide). No "%", no made-up scores.
+VARIETY: about a third of the time, instead of the generic "THIS STUDENT/APPLICANT", name the
+applicant by their SPIKE for a sharper hook — e.g. "THIS PUBLISHED RESEARCHER", "THIS RECRUITED
+ATHLETE", "THIS CS APPLICANT", "THIS NONPROFIT FOUNDER", "THIS 1590 APPLICANT". Keep it short
+and true to the profile you wrote; still keep the guessing-game/verdict framing."""
+
+# Arm A rules. The whole point of the test is that the hook stops being a QUESTION
+# about a stranger's odds and becomes a CLAIM the viewer wants to fight, or a line
+# aimed at their own application. So: no question-mark openers, no "CANDOR ___"
+# brand hooks (they read as an ad and the audit gave us no evidence they help),
+# no "would you admit / guess the odds" at all.
+_TITLE_RULES_ARM_A = """CRITICAL: do NOT write a "guess this applicant's odds" or "rate this applicant" hook. Those are the
+hooks we are testing AGAINST — if the line could start with "WOULD YOU ADMIT", "GUESS", "RATE THIS",
+"CAN YOU BEAT" or "CANDOR ___", it is wrong for this batch. Write a hook that does ONE of these:
+- takes a SIDE the viewer will want to argue with ("THIS PROFILE IS STRONGER THAN YOU THINK")
+- calls out the VIEWER's own application, not the fictional applicant ("YOUR ACTIVITIES LIST
+  PROBABLY LOOKS LIKE THIS ONE")
+- contradicts standard college advice ("ANOTHER CLUB WON'T DO ANYTHING", "STOP RETAKING THE SAT")
+- puts a cost or a deadline on a decision ("SAME PROFILE, ONE ROUND EARLIER")
+- defines something worth saving ("THIS IS WHAT A REAL {S} TARGET LOOKS LIKE")
+Write it like a person talking, not like marketing. Short words. Let the line lengths be uneven.
+No em-dashes, no "it's not just X it's Y", no three-item lists, no hype adjectives.
+Statements beat questions here; a question is fine only if it demands an answer the viewer
+actually has ("WHAT'S MISSING?"). Still DO NOT narrate the student's achievements.
+NEVER put a specific number or percentage in the title (you do NOT know the real odds/grade;
+those are revealed on a later slide). No "%", no made-up scores.
+VARIETY: sometimes name the applicant by their SPIKE instead of "THIS STUDENT" — e.g. "THIS
+PUBLISHED RESEARCHER", "THIS RECRUITED ATHLETE", "THIS CS APPLICANT". Keep it short and true to
+the profile you wrote. Do not reuse the sample lines verbatim — same angle, your own wording."""
+
+
+def _gen_profile_and_title(slug, want_slide3=None, seed=None, arm=None):
     sch = app.COLLEGES_BY_SLUG[slug]
     name = sch.get("name")
     short, _ = app._school_brand(slug, name)
     accept = sch.get("accept") or 0.15
+    # Hook A/B: arm 'A' swaps in the new title families + the new title rules.
+    # Anything else (arm 'B', None, an unknown value) takes the control path
+    # unchanged — control must never drift or the two weeks are wasted.
+    fams = _TITLE_FAMILIES_A if arm == "A" else _TITLE_FAMILIES
+    title_rules = _TITLE_RULES_ARM_A if arm == "A" else _TITLE_RULES_CONTROL
     # When the factory asks for a specific reveal type, show ONLY that family's
     # patterns and lock slide3 — so the hook always matches the slide we'll show
     # (no more "grade" reveal under a "chances" hook), and every format gets used.
-    if want_slide3 in _TITLE_FAMILIES:
-        examples = "\n".join(_TITLE_FAMILIES[want_slide3]).replace("{S}", short)
+    if want_slide3 in fams:
+        examples = "\n".join(fams[want_slide3]).replace("{S}", short)
         slide3_instr = (f'slide3 type: ALWAYS use "{want_slide3}" — write the hook in that family only '
                         f'(the patterns below are all {want_slide3} hooks).')
     else:
-        examples = _TITLE_EXAMPLES.replace("{S}", short)
+        examples = (_flat_examples(fams) if arm == "A" else _TITLE_EXAMPLES).replace("{S}", short)
         slide3_instr = ('slide3 type: "grade" for grading/score/profile hooks, "glowup" for '
                         '"what would it take / how to get in / glow up" hooks, else "chances".')
     prompt = f"""You write content for a college-admissions TikTok (@candor). Produce TWO things for
@@ -287,11 +406,14 @@ def _ensure_user(uid):
         conn.commit()
 
 
-def generate(slug=None, uid=181, want_slide3=None):
+def generate(slug=None, uid=181, want_slide3=None, arm=None):
+    """arm='A' writes the slide-1 hook from the new A/B families; anything else
+    keeps the current hooks. Only the TITLE changes — the profile is generated
+    identically either way (see _TITLE_RULES_CONTROL)."""
     slug = slug if slug in app.COLLEGES_BY_SLUG else random.choice(SCHOOLS)
     sch = app.COLLEGES_BY_SLUG[slug]
     seed = _pick_seed_post()                # a random REAL applicant write-up (or None)
-    d = _gen_profile_and_title(slug, want_slide3=want_slide3, seed=seed)
+    d = _gen_profile_and_title(slug, want_slide3=want_slide3, seed=seed, arm=arm)
     profile = d["profile"]
     for f in ("ecs", "leadership", "awards"):
         profile[f] = _normalize_list_field(profile.get(f))

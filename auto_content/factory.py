@@ -298,6 +298,32 @@ def _title_png(slug, lines, accent_words, nologo=False, bg=None, fg=None):
 _assigned_account = {}
 
 
+# ── hook A/B test: which arm this carousel is being rendered for ───────────
+# The arm has to be decided HERE, before slide 1 is rendered, because the title
+# is burned into a PNG — by the time Railway picks an account the hook is already
+# pixels. So we choose the arm, render its hook, and send `hook_arm` with the
+# push; app._assign_content_account then only considers accounts in that arm.
+# Strict alternation (not a coin flip) so a 2-week run can't drift into 60/40 by
+# luck and cost us the comparison. Counter lives in .post_state.json alongside
+# the school counters and is guarded by the same lock, since parallel workers
+# (PARALLEL_GEN) call this concurrently.
+# Arm definition itself lives in app.HOOK_AB_ARMS — the single place to edit.
+def _next_hook_arm():
+    if not getattr(app, "HOOK_AB_ACTIVE", False):
+        return None
+    with _state_lock:
+        d = _post_state()
+        n = int(d.get("ab_n", 0)) + 1
+        d["ab_n"] = n
+        try:
+            json.dump(d, open(_POST_STATE, "w"))
+        except Exception:
+            pass
+    # (_post_state resets at midnight, so the counter restarts each day — with
+    # 16 carousels/day that still lands 8/8, and it never accumulates skew.)
+    return "A" if n % 2 else "B"
+
+
 def _finish(payload, dry, label):
     if dry:
         print(f"  [dry] {label}")
@@ -306,7 +332,9 @@ def _finish(payload, dry, label):
     cid = res.get("id") if res.get("ok") else None
     if cid:
         _assigned_account[cid] = res.get("assigned_account")
-    print(f"  pushed #{res.get('id')} {label} | -> {res.get('assigned_account')} | pending={res.get('pending')}")
+    _arm = payload.get("hook_arm")     # hook A/B — printed so a run log shows the split
+    print(f"  pushed #{res.get('id')} {label} | -> {res.get('assigned_account')}"
+          f"{' [arm ' + _arm + ']' if _arm else ''} | pending={res.get('pending')}")
     return cid, payload["school_name"]
 
 
@@ -319,7 +347,8 @@ def make_single(dry=False, slug=None, slide3=None, uid=181):
         w = _blend({"chances": 5, "grade": 3, "glowup": 2}, _tt_perf())
         keys = list(w)
         slide3 = random.choices(keys, weights=[w[k] for k in keys])[0]
-    g = gen_profile.generate(slug, uid=uid, want_slide3=slide3)   # profile -> worker uid + matching hook
+    arm = _next_hook_arm()                                        # hook A/B (None when off)
+    g = gen_profile.generate(slug, uid=uid, want_slide3=slide3, arm=arm)   # profile -> worker uid + matching hook
     g["slide3"] = slide3
     odds, grade, low, high, gnum = odds_grade_text(slug, g["profile"],
                                                    want_grade=(g["slide3"] == "grade"), uid=uid)
@@ -331,7 +360,11 @@ def make_single(dry=False, slug=None, slide3=None, uid=181):
     # number always matches the reveal slide. Grade is LLM-graded and recomputed
     # at slide render, so a numeric grade on the cover could disagree with the
     # slide (the "74/100 vs 85" bug). Grade carousels keep a teaser hook instead.
-    if g["slide3"] == "chances" and random.random() < float(os.environ.get("RESULT_FORWARD_RATE", "0.3")):
+    # Arm A is excluded from the result-forward variant on purpose: a cover that
+    # reads "CANDOR GAVE THIS APPLICANT A 12-18% CHANCE" IS the odds-lookup hook
+    # we're testing against, so letting it through would put ~30% of the control
+    # hook into the treatment arm and blur the result. Arm B keeps it unchanged.
+    if arm != "A" and g["slide3"] == "chances" and random.random() < float(os.environ.get("RESULT_FORWARD_RATE", "0.3")):
         nt = numeric_title(short, g["slide3"], low, high, gnum)
         if nt:
             lines, accent_words = nt
@@ -342,6 +375,7 @@ def make_single(dry=False, slug=None, slide3=None, uid=181):
     payload = dict(school_slug=slug, school_name=g["name"], accent=accent, title_text=hook,
                    title_formula=title_formula, slide3_type=g["slide3"], profile_json=json.dumps(g["profile"]),
                    odds_text=odds, grade_text=grade, img1=s1, img2=s2, img3=s3,
+                   hook_arm=arm,
                    meta={"lines": lines, "accent_words": accent_words})
     return _finish(payload, dry, f"{slug} | {hook[:40]} | {g['slide3']} | {odds} {grade}")
 
@@ -369,6 +403,11 @@ def make_compare(dry=False):
     color + all logos; slide 3 = the ranking. The 3 schools are kept in the same
     acceptance-rate band so the comparison is apples-to-apples."""
     slug = _pick_school(respect_cap=False) or random.choice(SCHOOLS)  # weighted anchor; compare is exempt from the daily cap
+    # Compare's cover is a fixed layout ("THIS STUDENT APPLIED TO A, B & C") with no
+    # written hook, so there's no title to vary — but it still needs an arm so it
+    # lands on the right accounts and gets the right CAPTION. Leaving it armless
+    # would let control captions leak onto arm-A accounts.
+    arm = _next_hook_arm()
     comp = [slug] + _band_of(slug)          # 3 schools, similar selectivity
     g = gen_profile.generate(slug)          # profile -> 181
     odds, _, _, _, _ = odds_grade_text(slug, g["profile"], want_grade=False)
@@ -384,7 +423,8 @@ def make_compare(dry=False):
     payload = dict(school_slug=slug, school_name=f"Compare: {shorts}", accent=accent,
                    title_text=f"THIS STUDENT APPLIED TO {shorts}", title_formula="compare",
                    slide3_type="compare", profile_json=json.dumps(g["profile"]),
-                   odds_text=odds, grade_text="", img1=s1, img2=s2, img3=s3, meta={"compare": comp})
+                   odds_text=odds, grade_text="", img1=s1, img2=s2, img3=s3,
+                   hook_arm=arm, meta={"compare": comp})
     return _finish(payload, dry, f"COMPARE {shorts}")
 
 
@@ -392,10 +432,24 @@ def make_h2h(dry=False, slug=None):
     """Head-to-head: 4 slides — title, Student A profile, Student B profile, and
     the A-vs-B result for one school. Generates TWO profiles (181=A, 38=B)."""
     slug = slug if slug in SCHOOLS else (_pick_school(respect_cap=False) or random.choice(SCHOOLS))
+    arm = _next_hook_arm()                     # hook A/B (None when off)
     gA = gen_profile.generate(slug, uid=181)   # student A
     gen_profile.generate(slug, uid=38)         # student B
     short, accent = app._school_brand(slug, gA["name"])
     lines = ["WHICH STUDENT", "GETS INTO", f"{short}?"]
+    if arm == "A":
+        # h2h is the heaviest-weighted format (weight 6 vs single 5), so leaving its
+        # one hard-coded title alone would hand arm A a control hook a third of the
+        # time. Same new mechanics as _TITLE_FAMILIES_A: commit the viewer before
+        # the reveal, or tell them the room is split. None of these claim an
+        # outcome — we don't know which student wins until the reveal slide.
+        lines = random.choice([
+            ["DON'T SCROLL.", "PICK A OR B", "FOR", f"{short}"],
+            ["ONE OF THESE", "GETS INTO", f"{short}.", "THE COMMENTS", "ARE SPLIT"],
+            ["PICK ONE.", "ONLY ONE", "GETS INTO", f"{short}"],
+            ["THE OBVIOUS PICK", "HERE IS", "USUALLY", "THE WRONG ONE"],
+            ["MOST PEOPLE", "READ THIS", "MATCHUP", "BACKWARDS"],
+        ])
     tmp = tempfile.mkdtemp(prefix="cren_")
     s1 = _title_png(slug, lines, [short])
     s2 = _shot(f"{tmp}/h2.png", f"{LOCAL_URL}/profile/{slug}/export?rkey={CRON_KEY}&clean=1&uid=181&label=STUDENT%20A")
@@ -404,7 +458,8 @@ def make_h2h(dry=False, slug=None):
     payload = dict(school_slug=slug, school_name=f"H2H: {gA['name']}", accent=accent,
                    title_text=" ".join(lines), title_formula="h2h", slide3_type="h2h",
                    profile_json=json.dumps(gA["profile"]), odds_text="", grade_text="",
-                   img1=s1, img2=s2, img3=s3, img4=s4, meta={"head_to_head": True})
+                   img1=s1, img2=s2, img3=s3, img4=s4, hook_arm=arm,
+                   meta={"head_to_head": True})
     return _finish(payload, dry, f"H2H {short}")
 
 
