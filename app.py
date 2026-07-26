@@ -4325,6 +4325,43 @@ def _legacy_ed_only(school):
     return (school or {}).get("slug") in _LEGACY_ED_ONLY
 
 
+# A genuinely national-tier spike is a weapon, not a tiebreaker. The curve
+# steepening alone couldn't express that: it only moves someone already above the
+# median, so an Olympian or published researcher sitting below it on grades got
+# nothing (and, before the upside clamp, was actively punished). Applied here as an
+# odds-ratio instead — the same mechanism legacy uses — so it survives the center
+# caps and CAN push a profile past the school's headline accept rate. That's the
+# intent: a recruited national-level applicant at a 3.6% school is not a 3.6%
+# applicant.
+#
+# MAGNITUDE. Full strength is 7x, deliberately ABOVE legacy's 4.5x at Harvard — a
+# genuine national-tier spike should beat being someone's kid. But the strength
+# signal is close to BINARY in practice (prod 2026-07-26, 1,101 profiles: 72.1%
+# score 0, 11.0% score exactly 1.00, only ~6% land anywhere in between), so the
+# multiplier is really being handed to that top 11% wholesale. Gamma 2.0 keeps the
+# thin middle honest — 0.25 -> 1.4x, 0.5 -> 2.5x, 0.75 -> 4.4x, 1.0 -> 7.0x — so
+# "solid ECs" stays a nudge and only the top of the scale gets the weapon.
+#
+# CAVEAT worth revisiting: 11% of the userbase scoring MAX exceptional is high for
+# a signal meant to mean national-tier. The right follow-up is tightening
+# ec_exceptional_strength, not shrinking this multiplier — a real spike deserves 7x,
+# there just shouldn't be 121 of them. SPIKE_OR_K=0 disables; both are env-tunable.
+_SPIKE_OR_K = float(os.environ.get("SPIKE_OR_K", "6.0"))
+_SPIKE_OR_GAMMA = float(os.environ.get("SPIKE_OR_GAMMA", "2.0"))
+
+
+def _v2_spike_odds_ratio(profile):
+    """Odds-ratio for an exceptional-EC profile. 1.0 (no effect) when there's no
+    spike signal, rising superlinearly to 1+_SPIKE_OR_K at full strength."""
+    try:
+        s = float(ec_exceptional_strength(profile) or 0.0)
+    except Exception:
+        return 1.0
+    if s <= 0 or _SPIKE_OR_K <= 0:
+        return 1.0
+    return 1.0 + _SPIKE_OR_K * (max(0.0, min(1.0, s)) ** _SPIKE_OR_GAMMA)
+
+
 def _apply_odds_ratio_pct(low, high, OR):
     """Apply an odds-ratio to an integer-percent (low, high) band."""
     if OR <= 1.0:
@@ -4686,7 +4723,17 @@ def estimate_odds_v2(school, profile):
     # core curve: P50 == accept rate; graduated spike steepens for national-tier
     # ECs (continuous ec_exceptional_strength, 0-1 — the same signal v1 uses, so
     # there is no binary cliff).
-    scale = 1.0 + 0.4 * ec_exceptional_strength(profile)
+    #
+    # UPSIDE ONLY. (P - 0.5) flips sign at the median, so a scale > 1 amplifies the
+    # curve in BOTH directions — above median a spike helped, below median it made
+    # the odds WORSE, and worse the stronger the spike was. A national-tier EC
+    # profile scored below a part-time job on identical grades. Measured on prod
+    # 2026-07-26: 45 users penalized at Harvard alone, worst case x0.53. The
+    # steepening was only ever meant to reward a spike, so clamp it to the upside.
+    # Impact of this clamp over 13,212 (profile x school) cells: 96.1% unchanged,
+    # 3.9% changed, every one an increase (median 1.30x, max 1.93x).
+    spike = ec_exceptional_strength(profile)
+    scale = 1.0 + 0.4 * spike if P > 0.5 else 1.0
     center = a ** (1.0 - (P - 0.5) * scale)
     # legacy is applied as an odds-ratio at the return (below) so caps don't eat it;
     # ED-only schools get it in the round-split instead. first-gen stays here.
@@ -4702,6 +4749,11 @@ def estimate_odds_v2(school, profile):
     high = min(95, int(round((center + spread / 2) * 100)))
     if high <= low:
         high = low + 3
+    # exceptional-EC odds-ratio. Applied here rather than in the curve so it isn't
+    # eaten by the center caps and can carry a spiky profile past the headline
+    # accept rate. Applies at every percentile — the whole point is that an elite
+    # spike helps an applicant who is NOT already above the academic median.
+    low, high = _apply_odds_ratio_pct(low, high, _v2_spike_odds_ratio(profile))
     # legacy odds-ratio — overall (RD-anchored) boost. ED-only schools skip here and
     # get the boost concentrated in the Early round via the round-split instead.
     if not _legacy_ed_only(school):
