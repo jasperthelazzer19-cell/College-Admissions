@@ -1,7 +1,13 @@
 #!/bin/bash
-# Daily RIGGED batch — ONE-SHOT TEST MODE: runs once (tomorrow), then unloads
-# its own launchd job. Re-arm later with:
-#   launchctl load ~/Library/LaunchAgents/com.candor.dailyrigged.plist
+# Daily hot-take batch. Runs every morning at 6:40 (com.candor.dailyrigged).
+#
+# WAS one-shot test mode: it unloaded its own launchd job after the first
+# successful run, which made sense while the format was being trialled and
+# nothing else. Left in place it meant the multi-angle rotation added on
+# 2026-07-26 (round / legacy, and the celeb tracks behind it) would generate
+# exactly one morning's batch and then silently stop forever. The daily stamp
+# below is the real re-entry guard, so the self-unload was redundant as well as
+# harmful. Removed.
 source "$HOME/.candor_autopilot.env"
 cd "$HOME/college-tool" || exit 1
 LOG="$HOME/Library/Logs/candor-dailyrigged.log"
@@ -10,13 +16,10 @@ TODAY=$(date +%Y-%m-%d)
 if [ -f "$STAMP" ] && [ "$(cat "$STAMP" 2>/dev/null)" = "$TODAY" ]; then
   exit 0
 fi
-echo "=== $(date) daily rigged batch (one-shot test) ===" >> "$LOG"
+echo "=== $(date) daily hot-take batch ===" >> "$LOG"
 /usr/bin/python3 auto_content/make_daily_rigged.py --n 8 >> "$LOG" 2>&1
 rc=$?
 if [ $rc -eq 0 ]; then
   echo "$TODAY" > "$STAMP"
-  # one-shot: disarm after the successful test run
-  launchctl unload "$HOME/Library/LaunchAgents/com.candor.dailyrigged.plist" 2>/dev/null &
-  echo "one-shot complete — launchd job unloaded" >> "$LOG"
 fi
 echo "exit=$rc $(date)" >> "$LOG"
