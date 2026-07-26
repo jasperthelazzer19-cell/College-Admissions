@@ -4348,18 +4348,58 @@ def _legacy_ed_only(school):
 # there just shouldn't be 121 of them. SPIKE_OR_K=0 disables; both are env-tunable.
 _SPIKE_OR_K = float(os.environ.get("SPIKE_OR_K", "6.0"))
 _SPIKE_OR_GAMMA = float(os.environ.get("SPIKE_OR_GAMMA", "2.0"))
+# Damping exponent (3.0 = cubic), set from Jasper's call: an applicant already
+# sitting near 40% should come out around 60% after a full spike, not 90%.
+#
+# The exponent only shapes the TOP of the range — the underdog boost is identical
+# whatever you pick, because at a low center the headroom term is ~1 either way:
+#     start   E=1   E=2   E=3
+#       2%    12%   12%   12%     <- long shot: unchanged, still a huge upgrade
+#       5%    26%   25%   24%
+#      20%    59%   55%   50%
+#      40%    75%   68%   60%     <- only this end moves
+# So this buys a believable ceiling for free. Note the profiles at that end are
+# real and strong (4.0/1600 with ISEF Grand Awards, RSI, IMO, USAPhO Gold) — the
+# percentile term already gates the boost, and every profile clearing 70% at
+# Harvard also carries a 3.7+ GPA and a 1500+ SAT. This is not suppressing weak
+# applicants, it's declining to call a very strong one a near-lock.
+_SPIKE_OR_DAMP = float(os.environ.get("SPIKE_OR_DAMP", "3.0"))
 
 
-def _v2_spike_odds_ratio(profile):
+def _v2_spike_odds_ratio(profile, center=None):
     """Odds-ratio for an exceptional-EC profile. 1.0 (no effect) when there's no
-    spike signal, rising superlinearly to 1+_SPIKE_OR_K at full strength."""
+    spike signal, rising superlinearly to 1+_SPIKE_OR_K at full strength.
+
+    HEADROOM DAMPING (center given): the full ratio only makes sense for a
+    long-shot. Applied flat it stacked on top of an already-strong profile — and
+    then on top of legacy — and produced 96-97% at Harvard, which is indefensible
+    no matter how good the applicant is. Damping by remaining headroom is the same
+    idiom deterministic_round_odds already uses for early-round multipliers, so a
+    spike is worth a lot at 3% and almost nothing at 80%, where the applicant is
+    getting in anyway.
+
+    The damping is CUBIC, not linear, and that exponent is the whole ballgame. The
+    strength signal is near-binary (11% of prod profiles score exactly 1.00), so a
+    flat 7x got handed to that entire group at once. Swept against 1,100 real
+    profiles x 10 selective schools, cells reading over 70%:
+        linear damping   413   (Harvard alone 35, max 95%)
+        squared          140
+        cubic             15   (Harvard alone 5, max 90%)
+        no spike boost     4   (baseline)
+    Cubic costs the long shot almost nothing — a 1-2% applicant still lands at
+    6-12% versus 7-12% under linear — because at a 2% center the headroom term is
+    ~0.94 either way. It only bites where the applicant was already likely, which
+    is exactly where a spike should stop mattering."""
     try:
         s = float(ec_exceptional_strength(profile) or 0.0)
     except Exception:
         return 1.0
     if s <= 0 or _SPIKE_OR_K <= 0:
         return 1.0
-    return 1.0 + _SPIKE_OR_K * (max(0.0, min(1.0, s)) ** _SPIKE_OR_GAMMA)
+    OR = 1.0 + _SPIKE_OR_K * (max(0.0, min(1.0, s)) ** _SPIKE_OR_GAMMA)
+    if center is None:
+        return OR
+    return 1.0 + (OR - 1.0) * ((1.0 - max(0.0, min(1.0, center))) ** _SPIKE_OR_DAMP)
 
 
 def _apply_odds_ratio_pct(low, high, OR):
@@ -4370,10 +4410,13 @@ def _apply_odds_ratio_pct(low, high, OR):
         p = max(0.001, min(0.999, pct / 100.0))
         o = (p / (1 - p)) * OR
         return int(round((o / (1 + o)) * 100))
-    nl, nh = bump(low), bump(high)
-    if nh <= nl:
-        nh = nl + 3
-    return max(1, nl), min(97, nh)
+    # Clamp BEFORE widening, not after. The old order widened nh to nl+3 and only
+    # then capped it at 97, so a band that bumped past the ceiling came back
+    # INVERTED — low 98, high 97. Latent until the exceptional-EC odds-ratio
+    # started pushing profiles into the ceiling (90 inverted cells on prod).
+    nl = max(1, min(96, bump(low)))
+    nh = max(nl + 1, min(97, bump(high)))
+    return nl, nh
 
 
 def estimate_odds(school, fit, profile):
@@ -4753,7 +4796,7 @@ def estimate_odds_v2(school, profile):
     # eaten by the center caps and can carry a spiky profile past the headline
     # accept rate. Applies at every percentile — the whole point is that an elite
     # spike helps an applicant who is NOT already above the academic median.
-    low, high = _apply_odds_ratio_pct(low, high, _v2_spike_odds_ratio(profile))
+    low, high = _apply_odds_ratio_pct(low, high, _v2_spike_odds_ratio(profile, center))
     # legacy odds-ratio — overall (RD-anchored) boost. ED-only schools skip here and
     # get the boost concentrated in the Early round via the round-split instead.
     if not _legacy_ed_only(school):
