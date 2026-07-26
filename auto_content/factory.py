@@ -257,11 +257,26 @@ def render_lock(timeout=900):
 def start_local_server():
     """Serve the Candor app IN THIS PROCESS (a daemon thread) so the generator and
     the render endpoints share ONE set of DB connections — no cross-process SQLite
-    'disk I/O error'. Replaces spawning a separate app.py."""
+    'disk I/O error'. Replaces spawning a separate app.py.
+
+    WAIT for the port instead of dying on it. make_server raises OSError when the
+    port is taken and callers invoke this outside a try, so an hourly autopilot slot
+    still holding 5077 took down the whole 6:40am hot-take batch. Renders can't just
+    borrow the neighbour's server either: it shuts down when that slot finishes and
+    every in-flight screenshot dies with 'Connection refused' mid-run. Slots are
+    short, so waiting for a clean bind of our own is both simpler and safer."""
     global _server
     from werkzeug.serving import make_server
-    _server = make_server("127.0.0.1", LOCAL_PORT, app.app, threaded=True)
-    threading.Thread(target=_server.serve_forever, daemon=True).start()
+    last = None
+    for _ in range(60):          # ~2 min; an autopilot slot is far shorter than this
+        try:
+            _server = make_server("127.0.0.1", LOCAL_PORT, app.app, threaded=True)
+            threading.Thread(target=_server.serve_forever, daemon=True).start()
+            return
+        except OSError as e:
+            last = e
+            time.sleep(2)
+    raise RuntimeError(f"port {LOCAL_PORT} still busy after 2 min: {last}")
 
 
 def stop_local_server():
