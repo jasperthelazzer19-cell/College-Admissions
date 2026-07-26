@@ -359,7 +359,15 @@ def make_single(dry=False, slug=None, slide3=None, uid=181):
     # the hook to match — chances stays the staple, grade + glow-up get real
     # airtime so the feed cycles every format instead of defaulting to chances.
     if slide3 not in ("chances", "grade", "glowup"):
-        w = _blend({"chances": 5, "grade": 3, "glowup": 2}, _tt_perf())
+        # Base weights re-set 2026-07-26 from the FIRST trustworthy attribution data
+        # (622 posts; the loop had been running on 2 data points because the retention
+        # purge was orphaning links). Measured avg views / comments-per-post:
+        #   chances 380 / 0.159   glowup 370 / 0.183   grade 330 / 0.132
+        # glow-up nearly matches chances on reach and beats everything on comments —
+        # the signal TikTok actually pushes on — while it was the LEAST produced
+        # format. grade is the weakest of the three. _blend still adjusts from here;
+        # this just stops it starting from a prior the data contradicts.
+        w = _blend({"chances": 5, "grade": 2, "glowup": 4}, _tt_perf())
         keys = list(w)
         slide3 = random.choices(keys, weights=[w[k] for k in keys])[0]
     arm = _next_hook_arm()                                        # hook A/B (None when off)
@@ -798,7 +806,12 @@ def make_one(dry=False, slug=None, slide3=None, ctype=None, count_toward_cap=Tru
             for st in ("compare", "h2h"):
                 if st in perf:
                     cperf[st] = perf[st]
-            w = _blend({"single": 5, "compare": 3, "h2h": 6}, cperf)   # lean into "which student gets in" (h2h)
+            # compare cut 3 -> 2 on the 2026-07-26 attribution data: it was the
+            # MOST-produced carousel type (320 of 1,116 queued) and the worst on
+            # every metric — 310 avg views vs 380 for chances, and 0.057 comments
+            # per post against glow-up's 0.183, a third of the engagement. h2h
+            # holds at 6; it reads 375, second only to chances.
+            w = _blend({"single": 6, "compare": 2, "h2h": 6}, cperf)   # lean into "which student gets in" (h2h)
             keys = list(w)
             ctype = random.choices(keys, weights=[w[k] for k in keys])[0]
             if ctype == "h2h" and count_toward_cap and _h2h_today() >= H2H_DAILY_CAP:
