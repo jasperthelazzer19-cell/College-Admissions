@@ -20230,46 +20230,82 @@ def _tiktok_pull_all():
 # posted — i.e. the feedback loop had no input at all. Rather than depend on the
 # creator tapping a button 39x/day, match released carousels to pulled videos
 # automatically and mark them posted ourselves.
-_AUTOCLAIM_BEFORE = 3600        # video may appear up to 1h BEFORE we released it
-_AUTOCLAIM_AFTER = 36 * 3600    # …and up to 36h after (posting lags the slot)
+#
+# MATCH ON HASHTAGS, NOT TIME. The first cut of this matched purely on closest
+# create_time and was 97.8% WRONG — it paired a Duke carousel with a #uva video,
+# etc. Releases and posts both run ~40/day, so time alone can't tell two same-day
+# carousels apart. The reliable key is that _carousel_hashtags() is deterministic
+# from the carousel row and those exact tags go out in the caption, so the
+# school-specific tags (everything outside the evergreen fill pool) identify the
+# post almost uniquely. Requiring them as a subset of the video's tags took the
+# median release->post lag from 28h (garbage) to 0.2h (correct), and the
+# school-identifying tags then agree on 100% of matches.
+_AUTOCLAIM_BEFORE = 6 * 3600      # video may appear a few hours BEFORE the release row
+_AUTOCLAIM_AFTER = 96 * 3600      # …through several days after; the tag key does the work
+
+# The evergreen fill pool rotates and was re-pooled in the Jul-2026 hashtag audit,
+# so a video posted before that change carries tags _carousel_hashtags() would no
+# longer generate. Those are worthless for identification and must be stripped
+# before comparing — only the school tags are stable over time.
+_AUTOCLAIM_EVERGREEN = {"#collegeadmissions", "#dreamschool", "#collegeapps",
+                        "#collegeadvice", "#collegetok", "#college", "#ivyleague",
+                        "#fyp"}
 
 
 def _tiktok_autoclaim():
     """Match status='released' carousels to unattributed pulled videos and flip
-    them to 'posted'. Same-account when the queue assigned one (assigned_account
-    holds a LABEL, tiktok_posts holds an open_id, so map through tiktok_accounts);
-    otherwise any account. Closest create_time inside the window wins, each video
-    claimed at most once, oldest release first. Returns rows marked."""
+    them to 'posted'. A video is a candidate when it carries every school-specific
+    hashtag the carousel would have generated, sits in the time window, and is on
+    the assigned account (assigned_account holds a LABEL, tiktok_posts holds an
+    open_id, so map through tiktok_accounts; no assignment => any account). Among
+    candidates prefer an exact full-tag-set match, then closest create_time —
+    that tiebreak matters because two carousels for the same school on the same
+    account are otherwise indistinguishable. Oldest release first, each video
+    claimed at most once. Returns rows marked."""
+    import re as _re
     claimed = 0
     with db() as conn:
         label2oid = {r["label"]: r["open_id"]
                      for r in conn.execute("SELECT open_id, label FROM tiktok_accounts").fetchall()
                      if r["label"]}
+        vids = [dict(r) for r in conn.execute(
+            "SELECT video_id, open_id, create_time, description FROM tiktok_posts "
+            "WHERE carousel_id IS NULL AND create_time IS NOT NULL AND description IS NOT NULL")]
+        for v in vids:
+            v["tags"] = set(_re.findall(r"#[a-z0-9]+", (v["description"] or "").lower()))
+        taken = set()
         rows = conn.execute(
-            "SELECT id, assigned_account, CAST(strftime('%s', released_at) AS INTEGER) rt "
-            "FROM content_queue WHERE status='released' AND released_at IS NOT NULL "
-            "AND tiktok_video_id IS NULL ORDER BY released_at ASC").fetchall()
+            "SELECT *, CAST(strftime('%s', released_at) AS INTEGER) rt FROM content_queue "
+            "WHERE status='released' AND released_at IS NOT NULL AND tiktok_video_id IS NULL "
+            "ORDER BY released_at ASC").fetchall()
         for c in rows:
             rt = c["rt"]
             if rt is None:
                 continue
-            oid = label2oid.get(c["assigned_account"])   # None => any account
-            v = conn.execute(
-                "SELECT video_id, open_id, create_time FROM tiktok_posts "
-                "WHERE carousel_id IS NULL AND create_time IS NOT NULL "
-                "AND create_time >= ? AND create_time <= ? "
-                "AND (? IS NULL OR open_id = ?) "
-                "ORDER BY ABS(create_time - ?) ASC LIMIT 1",
-                (rt - _AUTOCLAIM_BEFORE, rt + _AUTOCLAIM_AFTER, oid, oid, rt)).fetchone()
-            if not v:
+            try:
+                full = set(_carousel_hashtags(c))
+            except Exception:
                 continue
+            school = full - _AUTOCLAIM_EVERGREEN
+            if not school:
+                continue   # nothing identifying — never guess
+            oid = label2oid.get(c["assigned_account"])
+            cands = [v for v in vids
+                     if v["video_id"] not in taken
+                     and school <= v["tags"]
+                     and (oid is None or v["open_id"] == oid)
+                     and (rt - _AUTOCLAIM_BEFORE) <= v["create_time"] <= (rt + _AUTOCLAIM_AFTER)]
+            if not cands:
+                continue
+            best = min(cands, key=lambda v: (full != v["tags"], abs(v["create_time"] - rt)))
+            taken.add(best["video_id"])
             conn.execute(
                 "UPDATE content_queue SET status='posted', "
                 "posted_at=datetime(?, 'unixepoch'), posted_account=COALESCE(posted_account,?), "
                 "tiktok_video_id=? WHERE id=?",
-                (v["create_time"], v["open_id"], v["video_id"], c["id"]))
+                (best["create_time"], best["open_id"], best["video_id"], c["id"]))
             conn.execute("UPDATE tiktok_posts SET carousel_id=? WHERE video_id=?",
-                         (c["id"], v["video_id"]))
+                         (c["id"], best["video_id"]))
             claimed += 1
         conn.commit()
     return claimed
