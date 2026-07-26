@@ -12773,6 +12773,142 @@ def headtohead_export(slug):
     return Response(page, mimetype="text/html")
 
 
+# ── "Would <celebrity> get into their own college today?" ──────────────────
+# The whole format rests on ONE factual claim: the admit rate the year they got
+# in vs the admit rate now. Everything else about a celebrity's application
+# (grades, scores, essays) is private and would be fabrication about a real,
+# identifiable person — so this route deliberately has NO way to render a
+# celebrity's academic stats. It reads its facts from auto_content/celebs.json
+# (curated + sourced by hand) rather than query params, so a malformed or
+# hand-edited URL can't put an unsourced number on a published slide.
+_CELEBS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "auto_content", "celebs.json")
+_celebs_cache = None
+
+
+def celeb_entries():
+    """[{id,name,slug,...}] from auto_content/celebs.json, cached per process.
+    Entries whose school slug we don't actually have are dropped here rather
+    than at render time, so the generator and the route agree on the pool."""
+    global _celebs_cache
+    if _celebs_cache is None:
+        try:
+            with open(_CELEBS_PATH, encoding="utf-8") as f:
+                raw = json.load(f)
+        except Exception as e:
+            print(f"celebs.json load failed: {e}")
+            raw = []
+        _celebs_cache = [c for c in raw if c.get("slug") in COLLEGES_BY_SLUG]
+    return _celebs_cache
+
+
+def celeb_by_id(cid):
+    for c in celeb_entries():
+        if c.get("id") == cid:
+            return c
+    return None
+
+
+def _celeb_harder(then_pct, now_pct):
+    """'How many times harder' — then/now on the admit rate. Rounded to one
+    decimal and clamped at >=1 so a school that got EASIER never renders as a
+    fractional 'harder' claim (we show 'about the same' copy instead)."""
+    if not then_pct or not now_pct or now_pct <= 0:
+        return None
+    return round(then_pct / now_pct, 1)
+
+
+@app.route("/celeb/export")
+@login_required
+def celeb_export():
+    """Reveal slide for the celebrity format: the admit rate the year they were
+    admitted vs the rate today, sourced. /celeb/export?id=<celeb id>&clean=1.
+
+    NOTE the deliberate omissions: no GPA, no test score, no "they'd get
+    rejected today" verdict. We do not know any celebrity's application and are
+    not going to imply we do — the slide argues that the DOOR got narrower, not
+    that a specific real person wasn't good enough."""
+    if not (_is_creator() or _has_render_key()):
+        abort(404)
+    from html import escape as _esc
+    c = celeb_by_id(request.args.get("id", ""))
+    if not c:
+        abort(404)
+    merged = merged_school(COLLEGES_BY_SLUG[c["slug"]])
+    then = float(c["admit_rate_then"])
+    now = round(merged["accept"] * 100, 1)
+    harder = _celeb_harder(then, now)
+    # year_label, not the raw year: for the pre-CDS entries the sourced rate is
+    # the earliest well-documented one, not their exact cycle, and the slide has
+    # to say so out loud ("early 2000s") instead of implying false precision.
+    when = _esc(c.get("year_label") or str(c.get("entry_year", "")))
+    # Only claim "harder" when it actually is. A school that opened up (rare, but
+    # it happens at publics) gets honest copy rather than a broken multiplier.
+    if harder and harder >= 1.15:
+        verdict = f"{harder}× harder"
+        vcol = "#f9a8d4"
+    elif harder and harder <= 0.87:
+        verdict = f"{round(1/harder, 1)}× easier"
+        vcol = "#5fc9b6"
+    else:
+        verdict = "about the same"
+        vcol = "#fcd34d"
+    src = _esc(c.get("source_note") or "")
+    # The bullets talk about the ADMIT RATE, never about the person's record —
+    # the prompt says so three ways because this is the one place an LLM could
+    # invent a fact about a real identifiable human. _content_bullets also drops
+    # any bullet citing a number we didn't hand it.
+    bullets = _content_bullets(
+        "You explain college admissions numbers for a TikTok slide.",
+        f'{c["name"]} was admitted to {merged["name"]} for {when}, when it accepted {then}% of applicants. '
+        f'Today {merged["name"]} accepts {now}%.\n'
+        f'HARD RULES — obey exactly: you know NOTHING about this person\'s grades, test scores, essays, '
+        f'activities, or application. NEVER state or guess them. NEVER say whether they would or would not '
+        f'be admitted today. NEVER imply they were or were not qualified. Talk ONLY about how the '
+        f'acceptance rate changed and why admissions got more competitive.\n'
+        f'Give 4 bullets: (1) how much narrower the door got, (2) the biggest reason admit rates collapsed '
+        f'(application volume, Common App, test-optional), (3) what that means for someone applying now, '
+        f'(4) a blunt reality check about comparing eras.',
+        n=4)
+    blurb_html = _bullets_html(bullets)
+
+    def _pct(v):
+        """20.0 -> '20', 5.07 -> '5.07'. A trailing '.0' on a 100pt slide reads
+        like a typo, and the whole format lives or dies on the numbers looking
+        deliberate."""
+        return f"{v:g}"
+
+    def _col(label, pct, year, color, big=False):
+        pct = _pct(pct)
+        return (f'<div style="flex:1;text-align:center;padding:20px 10px;border-radius:16px;'
+                + ('background:rgba(249,168,212,.12)' if big else 'background:rgba(95,201,182,.12)') + '">'
+                f'<div style="font-size:28px;letter-spacing:2px;color:#9aa6b6;font-weight:800">{label}</div>'
+                f'<div style="font-size:104px;font-weight:800;color:{color};line-height:1;'
+                f'letter-spacing:-2px;margin:12px 0 10px">{pct}%</div>'
+                f'<div style="font-size:28px;color:#dfe7f0;font-weight:600">{year}</div></div>')
+
+    card = f'''<div id="card" class="full compare">
+  <div class="pill-top"><span class="line"></span><span class="pill">CANDOR &mdash; THEN vs NOW:</span><span class="line r"></span></div>
+  <div class="title">{_esc(c["name"])} got into {_esc(merged["name"])} in {when}.</div>
+  <div class="meta">Here is what that door looks like now.</div>
+  <div class="ccard">
+    <div style="display:flex;gap:12px;align-items:stretch">
+      {_col("THEN", then, when, "#5fc9b6")}
+      <div style="display:flex;align-items:center;font-weight:800;color:#9aa6b6;font-size:1.1em">vs</div>
+      {_col("NOW", now, "today", "#f9a8d4", big=True)}
+    </div>
+    <div style="text-align:center;font-size:46px;font-weight:800;color:{vcol};margin:26px 0 4px">{verdict}</div>
+    {blurb_html}
+    <div class="rt-h" style="margin-top:auto;padding-top:26px;font-size:22px;line-height:1.45">
+      Admit rates only. We don&rsquo;t know anyone&rsquo;s grades or scores &mdash; and neither does anyone else.<br>
+      {src}
+    </div>
+  </div>
+  <div class="foot"><span class="lock">&#128274;</span>candoradmit.com</div>
+</div>'''
+    page = _tiktok_page(card, c["slug"], _esc(merged["name"]), clean=request.args.get("clean") == "1")
+    return Response(page, mimetype="text/html")
+
+
 @app.route("/content/compare")
 @login_required
 def content_compare():

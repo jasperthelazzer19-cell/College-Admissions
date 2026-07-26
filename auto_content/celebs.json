@@ -1,0 +1,252 @@
+[
+  {
+    "id": "emma-watson-brown",
+    "name": "Emma Watson",
+    "slug": "brown",
+    "entry_year": 2009,
+    "year_label": "2009",
+    "admit_rate_then": 10.8,
+    "source_note": "Brown admitted 10.8% (2,708 of 24,988) for the class she entered with in 2009.",
+    "confidence": "high"
+  },
+  {
+    "id": "natalie-portman-harvard",
+    "name": "Natalie Portman",
+    "slug": "harvard",
+    "entry_year": 1999,
+    "year_label": "1999",
+    "admit_rate_then": 11.3,
+    "source_note": "Harvard admitted 11.3% (2,055 of 18,160) that year — The Harvard Crimson, April 1999.",
+    "confidence": "high"
+  },
+  {
+    "id": "mark-zuckerberg-harvard",
+    "name": "Mark Zuckerberg",
+    "slug": "harvard",
+    "entry_year": 2002,
+    "year_label": "2002",
+    "admit_rate_then": 10.5,
+    "source_note": "Harvard admitted 10.5% (2,068 of 19,605) that year — Harvard Gazette, April 2002.",
+    "confidence": "high"
+  },
+  {
+    "id": "jeremy-lin-harvard",
+    "name": "Jeremy Lin",
+    "slug": "harvard",
+    "entry_year": 2006,
+    "year_label": "2006",
+    "admit_rate_then": 9.3,
+    "source_note": "Harvard admitted 9.3% (2,109 students) that year — Harvard Gazette, May 2006.",
+    "confidence": "high"
+  },
+  {
+    "id": "rashida-jones-harvard",
+    "name": "Rashida Jones",
+    "slug": "harvard",
+    "entry_year": 1993,
+    "year_label": "1993",
+    "admit_rate_then": 15.0,
+    "source_note": "Harvard admitted about 15% (2,084 of 13,865) that year — contemporary press reports.",
+    "confidence": "medium"
+  },
+  {
+    "id": "matt-damon-harvard",
+    "name": "Matt Damon",
+    "slug": "harvard",
+    "entry_year": 1988,
+    "year_label": "1988",
+    "admit_rate_then": 14.6,
+    "source_note": "Harvard admitted 14.6% (2,147 of a then-record 14,430) that year — The Harvard Crimson, April 1988.",
+    "confidence": "high"
+  },
+  {
+    "id": "conan-obrien-harvard",
+    "name": "Conan O'Brien",
+    "slug": "harvard",
+    "entry_year": 1981,
+    "year_label": "the early 1980s",
+    "admit_rate_then": 15.5,
+    "source_note": "Harvard's rate in the early 1980s: 15.5% of about 14,000 applicants — The Harvard Crimson, Jan 1981. His exact cycle isn't published.",
+    "confidence": "medium"
+  },
+  {
+    "id": "jodie-foster-yale",
+    "name": "Jodie Foster",
+    "slug": "yale",
+    "entry_year": 1981,
+    "year_label": "1981",
+    "admit_rate_then": 20.0,
+    "source_note": "Yale admitted 20% (2,186 of 10,937) that year — Yale Office of Institutional Research.",
+    "confidence": "high"
+  },
+  {
+    "id": "anderson-cooper-yale",
+    "name": "Anderson Cooper",
+    "slug": "yale",
+    "entry_year": 1985,
+    "year_label": "1985",
+    "admit_rate_then": 18.6,
+    "source_note": "Yale admitted 18.6% (2,182 of 11,737) that year — Yale Office of Institutional Research.",
+    "confidence": "high"
+  },
+  {
+    "id": "edward-norton-yale",
+    "name": "Edward Norton",
+    "slug": "yale",
+    "entry_year": 1987,
+    "year_label": "1987",
+    "admit_rate_then": 17.7,
+    "source_note": "Yale admitted 17.7% (2,310 of 13,063) that year — Yale Office of Institutional Research.",
+    "confidence": "high"
+  },
+  {
+    "id": "claire-danes-yale",
+    "name": "Claire Danes",
+    "slug": "yale",
+    "entry_year": 1998,
+    "year_label": "1998",
+    "admit_rate_then": 17.6,
+    "source_note": "Yale admitted 17.6% (2,100 of 11,947) that year — Yale Office of Institutional Research.",
+    "confidence": "high"
+  },
+  {
+    "id": "angela-bassett-yale",
+    "name": "Angela Bassett",
+    "slug": "yale",
+    "entry_year": 1976,
+    "year_label": "1976",
+    "admit_rate_then": 26.4,
+    "source_note": "Yale admitted 26.4% (2,481 of 9,387) that year — Yale Office of Institutional Research.",
+    "confidence": "high"
+  },
+  {
+    "id": "elizabeth-banks-penn",
+    "name": "Elizabeth Banks",
+    "slug": "upenn",
+    "entry_year": 1992,
+    "year_label": "1992",
+    "admit_rate_then": 38.9,
+    "source_note": "Penn admitted 38.9% (4,848 of 12,465) that year — The Daily Pennsylvanian, April 1992.",
+    "confidence": "high"
+  },
+  {
+    "id": "john-legend-penn",
+    "name": "John Legend",
+    "slug": "upenn",
+    "entry_year": 1995,
+    "year_label": "1995",
+    "admit_rate_then": 33.0,
+    "source_note": "Penn admitted about 33% that year — The Daily Pennsylvanian, April 1995. Approximate.",
+    "confidence": "medium"
+  },
+  {
+    "id": "john-krasinski-brown",
+    "name": "John Krasinski",
+    "slug": "brown",
+    "entry_year": 1997,
+    "year_label": "the late 1990s",
+    "admit_rate_then": 16.8,
+    "source_note": "Brown's earliest well-documented rate near his years: 16.8% for the class of 2003. His exact 1997 cycle isn't published.",
+    "confidence": "medium"
+  },
+  {
+    "id": "timothee-chalamet-columbia",
+    "name": "Timothée Chalamet",
+    "slug": "columbia",
+    "entry_year": 2013,
+    "year_label": "2013",
+    "admit_rate_then": 6.9,
+    "source_note": "Columbia admitted 6.9% (2,311 of 33,531) that year — Columbia Daily Spectator, March 2013.",
+    "confidence": "medium"
+  },
+  {
+    "id": "ellie-kemper-princeton",
+    "name": "Ellie Kemper",
+    "slug": "princeton",
+    "entry_year": 1998,
+    "year_label": "1998",
+    "admit_rate_then": 13.1,
+    "source_note": "Princeton admitted 13.1% (1,700 of 13,006) that year — Princeton's own published admission profile.",
+    "confidence": "high"
+  },
+  {
+    "id": "issa-rae-stanford",
+    "name": "Issa Rae",
+    "slug": "stanford",
+    "entry_year": 2003,
+    "year_label": "2003",
+    "admit_rate_then": 12.1,
+    "source_note": "Stanford admitted about 12% (2,250 of ~18,600) for the class she entered with in 2003.",
+    "confidence": "medium"
+  },
+  {
+    "id": "christian-mccaffrey-stanford",
+    "name": "Christian McCaffrey",
+    "slug": "stanford",
+    "entry_year": 2014,
+    "year_label": "2014",
+    "admit_rate_then": 5.07,
+    "source_note": "Stanford admitted 5.07% (2,138 students) that year — then the lowest in its history.",
+    "confidence": "high"
+  },
+  {
+    "id": "andrew-luck-stanford",
+    "name": "Andrew Luck",
+    "slug": "stanford",
+    "entry_year": 2008,
+    "year_label": "2008",
+    "admit_rate_then": 9.5,
+    "source_note": "Stanford admitted 9.5% (2,400 of 25,298) that year — Stanford News Service, April 2008.",
+    "confidence": "medium"
+  },
+  {
+    "id": "sterling-k-brown-stanford",
+    "name": "Sterling K. Brown",
+    "slug": "stanford",
+    "entry_year": 1994,
+    "year_label": "1994",
+    "admit_rate_then": 20.0,
+    "source_note": "Stanford took 20% of about 14,000 applicants in 1994 — The Stanford Daily.",
+    "confidence": "medium"
+  },
+  {
+    "id": "reese-witherspoon-stanford",
+    "name": "Reese Witherspoon",
+    "slug": "stanford",
+    "entry_year": 1994,
+    "year_label": "1994",
+    "admit_rate_then": 20.0,
+    "source_note": "Stanford took 20% of about 14,000 applicants in 1994 — The Stanford Daily.",
+    "confidence": "medium"
+  },
+  {
+    "id": "aaron-rodgers-ucb",
+    "name": "Aaron Rodgers",
+    "slug": "ucb",
+    "entry_year": 2003,
+    "year_label": "2003",
+    "admit_rate_then": 23.5,
+    "source_note": "Berkeley's overall fall-2003 admit rate was 23.5% of a record 36,920 applicants. He came in as a transfer.",
+    "confidence": "medium"
+  },
+  {
+    "id": "lady-gaga-nyu",
+    "name": "Lady Gaga",
+    "slug": "nyu",
+    "entry_year": 2004,
+    "year_label": "2004",
+    "admit_rate_then": 27.0,
+    "source_note": "NYU's university-wide admit rate was about 27% in 2004 (33,808 applications). Tisch admits separately by audition.",
+    "confidence": "medium"
+  },
+  {
+    "id": "meryl-streep-vassar",
+    "name": "Meryl Streep",
+    "slug": "vassar",
+    "entry_year": 1967,
+    "year_label": "the late 1960s",
+    "admit_rate_then": 50.0,
+    "source_note": "Vassar accepted about 50% of applicants in 1968 — the college's own chronology. Her exact 1967 cycle isn't published.",
+    "confidence": "medium"
+  }
+]
