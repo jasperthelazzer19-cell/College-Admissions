@@ -13,6 +13,7 @@ __pycache__/
 *.pyc
 auto_content/.text_state
 auto_content/.text_state.json
+auto_content/.celeb_state.json
 college.db
 college.db-journal
 static/logos_inst_correct_backup/

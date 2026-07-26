@@ -12318,10 +12318,18 @@ def chances_export(slug):
     import html as _html
     esc = _html.escape
     rounds_block = f'<div class="rt-h">By application round (your odds)</div><div class="rounds">{round_rows}</div>' if round_rows else ""
+    # ?note= stamps a disclaimer under the meta line. Added for the celebrity
+    # format: the odds below are REAL engine output, but they're computed on an
+    # archetype profile, and the slide has to say that itself rather than rely
+    # on a caption nobody reads.
+    _note = (request.args.get("note") or "").strip()
+    note_html = (f'<div class="meta" style="color:#f9a8d4;font-weight:800;letter-spacing:.6px;'
+                 f'text-transform:uppercase;margin:-28px 0 34px">{esc(_note)}</div>' if _note else "")
     card = f'''<div id="card" class="full">
   <div class="pill-top"><span class="line"></span><span class="pill">CANDOR SAYS:</span><span class="line r"></span></div>
   <div class="title">Your plan for {esc(merged["name"])}</div>
   <div class="meta">{esc(city_state(merged))} &middot; {accept}% acceptance &middot; {esc(merged.get("type",""))}</div>
+  {note_html}
   <div class="ccard">
     <div class="ccard-top">
       <h2 class="ch-h">Your chances</h2>
@@ -12891,6 +12899,142 @@ def headtohead_export(slug):
     return Response(page, mimetype="text/html")
 
 
+# ── "Would <celebrity> get into their own college today?" ──────────────────
+# The whole format rests on ONE factual claim: the admit rate the year they got
+# in vs the admit rate now. Everything else about a celebrity's application
+# (grades, scores, essays) is private and would be fabrication about a real,
+# identifiable person — so this route deliberately has NO way to render a
+# celebrity's academic stats. It reads its facts from auto_content/celebs.json
+# (curated + sourced by hand) rather than query params, so a malformed or
+# hand-edited URL can't put an unsourced number on a published slide.
+_CELEBS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "auto_content", "celebs.json")
+_celebs_cache = None
+
+
+def celeb_entries():
+    """[{id,name,slug,...}] from auto_content/celebs.json, cached per process.
+    Entries whose school slug we don't actually have are dropped here rather
+    than at render time, so the generator and the route agree on the pool."""
+    global _celebs_cache
+    if _celebs_cache is None:
+        try:
+            with open(_CELEBS_PATH, encoding="utf-8") as f:
+                raw = json.load(f)
+        except Exception as e:
+            print(f"celebs.json load failed: {e}")
+            raw = []
+        _celebs_cache = [c for c in raw if c.get("slug") in COLLEGES_BY_SLUG]
+    return _celebs_cache
+
+
+def celeb_by_id(cid):
+    for c in celeb_entries():
+        if c.get("id") == cid:
+            return c
+    return None
+
+
+def _celeb_harder(then_pct, now_pct):
+    """'How many times harder' — then/now on the admit rate. Rounded to one
+    decimal and clamped at >=1 so a school that got EASIER never renders as a
+    fractional 'harder' claim (we show 'about the same' copy instead)."""
+    if not then_pct or not now_pct or now_pct <= 0:
+        return None
+    return round(then_pct / now_pct, 1)
+
+
+@app.route("/celeb/export")
+@login_required
+def celeb_export():
+    """Reveal slide for the celebrity format: the admit rate the year they were
+    admitted vs the rate today, sourced. /celeb/export?id=<celeb id>&clean=1.
+
+    NOTE the deliberate omissions: no GPA, no test score, no "they'd get
+    rejected today" verdict. We do not know any celebrity's application and are
+    not going to imply we do — the slide argues that the DOOR got narrower, not
+    that a specific real person wasn't good enough."""
+    if not (_is_creator() or _has_render_key()):
+        abort(404)
+    from html import escape as _esc
+    c = celeb_by_id(request.args.get("id", ""))
+    if not c:
+        abort(404)
+    merged = merged_school(COLLEGES_BY_SLUG[c["slug"]])
+    then = float(c["admit_rate_then"])
+    now = round(merged["accept"] * 100, 1)
+    harder = _celeb_harder(then, now)
+    # year_label, not the raw year: for the pre-CDS entries the sourced rate is
+    # the earliest well-documented one, not their exact cycle, and the slide has
+    # to say so out loud ("early 2000s") instead of implying false precision.
+    when = _esc(c.get("year_label") or str(c.get("entry_year", "")))
+    # Only claim "harder" when it actually is. A school that opened up (rare, but
+    # it happens at publics) gets honest copy rather than a broken multiplier.
+    if harder and harder >= 1.15:
+        verdict = f"{harder}× harder"
+        vcol = "#f9a8d4"
+    elif harder and harder <= 0.87:
+        verdict = f"{round(1/harder, 1)}× easier"
+        vcol = "#5fc9b6"
+    else:
+        verdict = "about the same"
+        vcol = "#fcd34d"
+    src = _esc(c.get("source_note") or "")
+    # The bullets talk about the ADMIT RATE, never about the person's record —
+    # the prompt says so three ways because this is the one place an LLM could
+    # invent a fact about a real identifiable human. _content_bullets also drops
+    # any bullet citing a number we didn't hand it.
+    bullets = _content_bullets(
+        "You explain college admissions numbers for a TikTok slide.",
+        f'{c["name"]} was admitted to {merged["name"]} for {when}, when it accepted {then}% of applicants. '
+        f'Today {merged["name"]} accepts {now}%.\n'
+        f'HARD RULES — obey exactly: you know NOTHING about this person\'s grades, test scores, essays, '
+        f'activities, or application. NEVER state or guess them. NEVER say whether they would or would not '
+        f'be admitted today. NEVER imply they were or were not qualified. Talk ONLY about how the '
+        f'acceptance rate changed and why admissions got more competitive.\n'
+        f'Give 4 bullets: (1) how much narrower the door got, (2) the biggest reason admit rates collapsed '
+        f'(application volume, Common App, test-optional), (3) what that means for someone applying now, '
+        f'(4) a blunt reality check about comparing eras.',
+        n=4)
+    blurb_html = _bullets_html(bullets)
+
+    def _pct(v):
+        """20.0 -> '20', 5.07 -> '5.07'. A trailing '.0' on a 100pt slide reads
+        like a typo, and the whole format lives or dies on the numbers looking
+        deliberate."""
+        return f"{v:g}"
+
+    def _col(label, pct, year, color, big=False):
+        pct = _pct(pct)
+        return (f'<div style="flex:1;text-align:center;padding:20px 10px;border-radius:16px;'
+                + ('background:rgba(249,168,212,.12)' if big else 'background:rgba(95,201,182,.12)') + '">'
+                f'<div style="font-size:28px;letter-spacing:2px;color:#9aa6b6;font-weight:800">{label}</div>'
+                f'<div style="font-size:104px;font-weight:800;color:{color};line-height:1;'
+                f'letter-spacing:-2px;margin:12px 0 10px">{pct}%</div>'
+                f'<div style="font-size:28px;color:#dfe7f0;font-weight:600">{year}</div></div>')
+
+    card = f'''<div id="card" class="full compare">
+  <div class="pill-top"><span class="line"></span><span class="pill">CANDOR &mdash; THEN vs NOW:</span><span class="line r"></span></div>
+  <div class="title">{_esc(c["name"])} got into {_esc(merged["name"])} in {when}.</div>
+  <div class="meta">Here is what that door looks like now.</div>
+  <div class="ccard">
+    <div style="display:flex;gap:12px;align-items:stretch">
+      {_col("THEN", then, when, "#5fc9b6")}
+      <div style="display:flex;align-items:center;font-weight:800;color:#9aa6b6;font-size:1.1em">vs</div>
+      {_col("NOW", now, "today", "#f9a8d4", big=True)}
+    </div>
+    <div style="text-align:center;font-size:46px;font-weight:800;color:{vcol};margin:26px 0 4px">{verdict}</div>
+    {blurb_html}
+    <div class="rt-h" style="margin-top:auto;padding-top:26px;font-size:22px;line-height:1.45">
+      Admit rates only. We don&rsquo;t know anyone&rsquo;s grades or scores &mdash; and neither does anyone else.<br>
+      {src}
+    </div>
+  </div>
+  <div class="foot"><span class="lock">&#128274;</span>candoradmit.com</div>
+</div>'''
+    page = _tiktok_page(card, c["slug"], _esc(merged["name"]), clean=request.args.get("clean") == "1")
+    return Response(page, mimetype="text/html")
+
+
 @app.route("/content/compare")
 @login_required
 def content_compare():
@@ -13089,6 +13233,74 @@ def _title_card_body(slug, sch, hook, nologo=False, fg="#111"):
     # dominating), lines packed tight, and any leftover room grows the logo (up to
     # logoMax) instead of opening gaps. cardH+pad sum to the full card.
     return _title_frame(line_html, logo_html, cardH=1436, maxFont=380, logoMax=700, fg=fg)
+
+
+def celeb_photo_url(cid):
+    """/static/celebs/<id>.<ext> if the image is actually ON DISK, else None.
+
+    Checked against the filesystem rather than trusted from celebs.json on
+    purpose: a dataset entry that names a file we never added would otherwise
+    render a broken-image box onto a published slide. Missing photo just means
+    the cover falls back to logo-only."""
+    for ext in ("jpg", "jpeg", "png", "webp"):
+        rel = f"celebs/{cid}.{ext}"
+        if os.path.exists(os.path.join(app.root_path, "static", rel)):
+            return "/static/" + rel
+    return None
+
+
+def _celeb_title_body(slug, sch, hook, photo_url):
+    """Celebrity cover: the 'CAN <PERSON> GET INTO <SCHOOL>?' hook over a bottom
+    band holding the person's photo and the school logo side by side.
+
+    The photo is a background-image div, not an <img>, so _title_frame's logo
+    autosizer (which rewrites every img's max-height to fill leftover room)
+    can't squash a fixed-size circle into an oval — the logo still autosizes."""
+    short, color = _school_brand(slug, sch.get("name"))
+    outline = SCHOOL_TEXT_OUTLINE.get(slug)
+    logo_url = INST_LOGOS.get(slug) or SCHOOL_LOGOS.get(slug)
+    lines = [ln for ln in hook.upper().split("\n") if ln.strip()]
+    line_html = "".join(
+        f'<div class="tline" style="line-height:.92;font-size:120px;-webkit-text-stroke:.6px currentColor">'
+        f'<span class="tin" style="display:inline-block;white-space:nowrap">{_hook_html(ln, color, outline)}</span></div>'
+        for ln in lines)
+    # 380, not 420: the autosizer caps a logo at 0.62x its native height to avoid
+    # upscaling blur, and most crest logos land around 330-360 — a bigger circle
+    # just made the pair look lopsided.
+    photo_html = (f'<div style="flex:0 0 auto;width:380px;height:380px;border-radius:50%;'
+                  f'background-image:url({photo_url});background-size:cover;background-position:center top;'
+                  f'border:12px solid {color}"></div>' if photo_url else '')
+    logo_html = (f'<img src="{logo_url}" style="max-height:420px;max-width:42%;object-fit:contain">'
+                 if logo_url else '')
+    band = (f'<div style="display:flex;align-items:center;justify-content:center;gap:46px;'
+            f'width:100%">{photo_html}{logo_html}</div>')
+    # Shorter text area + capped per-line size than the plain hook cover: the
+    # band is two objects wide here, so the words have to give up some height.
+    return _title_frame(line_html, band, cardH=1470, maxFont=300, logoMax=460)
+
+
+@app.route("/title-celeb/export")
+@login_required
+def title_celeb_export():
+    """Celebrity slide-1: 'CAN <PERSON> GET INTO <SCHOOL>?' + photo/logo band.
+    /title-celeb/export?id=<celeb id>. Like /celeb/export it takes only the id
+    and reads the name and school from celebs.json — the copy is a question, so
+    the slide asserts nothing about anyone's record."""
+    if not (_is_creator() or _has_render_key()):
+        abort(404)
+    c = celeb_by_id(request.args.get("id", ""))
+    if not c:
+        abort(404)
+    slug = c["slug"]
+    sch = COLLEGES_BY_SLUG[slug]
+    short = _school_brand(slug, sch.get("name"))[0]
+    # Accent the name and the school so the two nouns the slide is about pop in
+    # the school's color; "CAN"/"GET INTO" stay black.
+    hook = f'CAN\n*{c["name"].upper()}*\nGET INTO\n*{short.upper()}*?'
+    body = _celeb_title_body(slug, sch, hook, celeb_photo_url(c["id"]))
+    return Response(_profile_export_page(body, dl_name=f'{c["id"]}-title', pad="52px 58px 48px",
+                                         clean=request.args.get("clean") == "1"),
+                    mimetype="text/html")
 
 
 def _compare_title_body(slugs):
@@ -14767,7 +14979,16 @@ def profile_slide_export(slug):
                 "font-size:56px;margin:0 0 14px;color:#111")
 
     _header = _esc(_label) if _label else f"{_esc(short)}?"
+    # ?note= stamps a small disclaimer strip under the header. Added for the
+    # celebrity format, where the stats on this card are an ARCHETYPE and saying
+    # so on the slide itself (not just in the caption) is the whole legal point —
+    # the slide has to be self-evidently not a claim about a real person's record.
+    _note = (request.args.get("note") or "").strip()
+    note_html = (f'<div style="font-size:27px;font-weight:800;letter-spacing:1.2px;color:#b4232f;'
+                 f'border:3px solid #b4232f;border-radius:10px;padding:12px 16px;margin:0 0 26px;'
+                 f'text-transform:uppercase">{_esc(_note)}</div>' if _note else "")
     inner = f'''<div style="font-family:'AntonEmb','Anton',sans-serif;font-weight:400;font-size:150px;line-height:.92;color:{color};letter-spacing:-1px;margin:0 0 30px">{_header}</div>
+  {note_html}
   <div style="{head_css}">ACADEMICS</div>
   <ul style="list-style:disc;margin:0 0 34px;padding-left:34px;color:#111">{acad_html}</ul>
   <div style="{head_css}">EXTRACURRICULARS</div>
