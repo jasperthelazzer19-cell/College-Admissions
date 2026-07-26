@@ -5654,10 +5654,18 @@ def init_db():
             # left format/school selection running on static weights. So: strip the
             # heavy slide blobs (that was the real bloat) but KEEP the row whenever
             # it's linked to a real TikTok video.
+            # AGE FROM WHEN IT WENT OUT, NOT WHEN IT WAS BUILT. Keying on created_at
+            # alone meant a carousel generated 20 days ago but posted yesterday had
+            # its row deleted today, 404ing its own slide URLs one day after going
+            # live. The buffer routinely holds carousels ~2 weeks before release, so
+            # this fired constantly. COALESCE walks back to created_at only when the
+            # row never got released.
             "UPDATE content_queue SET img1=NULL, img2=NULL, img3=NULL, img4=NULL "
-            "  WHERE tiktok_video_id IS NOT NULL AND created_at < datetime('now','-14 days')",
+            "  WHERE tiktok_video_id IS NOT NULL "
+            "  AND COALESCE(posted_at, released_at, created_at) < datetime('now','-14 days')",
             "DELETE FROM content_queue WHERE status IN ('posted','skipped') "
-            "  AND created_at < datetime('now','-14 days') AND tiktok_video_id IS NULL",
+            "  AND COALESCE(posted_at, released_at, created_at) < datetime('now','-14 days') "
+            "  AND tiktok_video_id IS NULL",
             "DELETE FROM batch_requests WHERE claimed_at IS NOT NULL AND claimed_at < datetime('now','-1 day')",
         ):
             try:
