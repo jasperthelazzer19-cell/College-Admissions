@@ -12200,10 +12200,18 @@ def chances_export(slug):
     import html as _html
     esc = _html.escape
     rounds_block = f'<div class="rt-h">By application round (your odds)</div><div class="rounds">{round_rows}</div>' if round_rows else ""
+    # ?note= stamps a disclaimer under the meta line. Added for the celebrity
+    # format: the odds below are REAL engine output, but they're computed on an
+    # archetype profile, and the slide has to say that itself rather than rely
+    # on a caption nobody reads.
+    _note = (request.args.get("note") or "").strip()
+    note_html = (f'<div class="meta" style="color:#f9a8d4;font-weight:800;letter-spacing:.6px;'
+                 f'text-transform:uppercase;margin:-28px 0 34px">{esc(_note)}</div>' if _note else "")
     card = f'''<div id="card" class="full">
   <div class="pill-top"><span class="line"></span><span class="pill">CANDOR SAYS:</span><span class="line r"></span></div>
   <div class="title">Your plan for {esc(merged["name"])}</div>
   <div class="meta">{esc(city_state(merged))} &middot; {accept}% acceptance &middot; {esc(merged.get("type",""))}</div>
+  {note_html}
   <div class="ccard">
     <div class="ccard-top">
       <h2 class="ch-h">Your chances</h2>
@@ -13107,6 +13115,74 @@ def _title_card_body(slug, sch, hook, nologo=False, fg="#111"):
     # dominating), lines packed tight, and any leftover room grows the logo (up to
     # logoMax) instead of opening gaps. cardH+pad sum to the full card.
     return _title_frame(line_html, logo_html, cardH=1436, maxFont=380, logoMax=700, fg=fg)
+
+
+def celeb_photo_url(cid):
+    """/static/celebs/<id>.<ext> if the image is actually ON DISK, else None.
+
+    Checked against the filesystem rather than trusted from celebs.json on
+    purpose: a dataset entry that names a file we never added would otherwise
+    render a broken-image box onto a published slide. Missing photo just means
+    the cover falls back to logo-only."""
+    for ext in ("jpg", "jpeg", "png", "webp"):
+        rel = f"celebs/{cid}.{ext}"
+        if os.path.exists(os.path.join(app.root_path, "static", rel)):
+            return "/static/" + rel
+    return None
+
+
+def _celeb_title_body(slug, sch, hook, photo_url):
+    """Celebrity cover: the 'CAN <PERSON> GET INTO <SCHOOL>?' hook over a bottom
+    band holding the person's photo and the school logo side by side.
+
+    The photo is a background-image div, not an <img>, so _title_frame's logo
+    autosizer (which rewrites every img's max-height to fill leftover room)
+    can't squash a fixed-size circle into an oval — the logo still autosizes."""
+    short, color = _school_brand(slug, sch.get("name"))
+    outline = SCHOOL_TEXT_OUTLINE.get(slug)
+    logo_url = INST_LOGOS.get(slug) or SCHOOL_LOGOS.get(slug)
+    lines = [ln for ln in hook.upper().split("\n") if ln.strip()]
+    line_html = "".join(
+        f'<div class="tline" style="line-height:.92;font-size:120px;-webkit-text-stroke:.6px currentColor">'
+        f'<span class="tin" style="display:inline-block;white-space:nowrap">{_hook_html(ln, color, outline)}</span></div>'
+        for ln in lines)
+    # 380, not 420: the autosizer caps a logo at 0.62x its native height to avoid
+    # upscaling blur, and most crest logos land around 330-360 — a bigger circle
+    # just made the pair look lopsided.
+    photo_html = (f'<div style="flex:0 0 auto;width:380px;height:380px;border-radius:50%;'
+                  f'background-image:url({photo_url});background-size:cover;background-position:center top;'
+                  f'border:12px solid {color}"></div>' if photo_url else '')
+    logo_html = (f'<img src="{logo_url}" style="max-height:420px;max-width:42%;object-fit:contain">'
+                 if logo_url else '')
+    band = (f'<div style="display:flex;align-items:center;justify-content:center;gap:46px;'
+            f'width:100%">{photo_html}{logo_html}</div>')
+    # Shorter text area + capped per-line size than the plain hook cover: the
+    # band is two objects wide here, so the words have to give up some height.
+    return _title_frame(line_html, band, cardH=1470, maxFont=300, logoMax=460)
+
+
+@app.route("/title-celeb/export")
+@login_required
+def title_celeb_export():
+    """Celebrity slide-1: 'CAN <PERSON> GET INTO <SCHOOL>?' + photo/logo band.
+    /title-celeb/export?id=<celeb id>. Like /celeb/export it takes only the id
+    and reads the name and school from celebs.json — the copy is a question, so
+    the slide asserts nothing about anyone's record."""
+    if not (_is_creator() or _has_render_key()):
+        abort(404)
+    c = celeb_by_id(request.args.get("id", ""))
+    if not c:
+        abort(404)
+    slug = c["slug"]
+    sch = COLLEGES_BY_SLUG[slug]
+    short = _school_brand(slug, sch.get("name"))[0]
+    # Accent the name and the school so the two nouns the slide is about pop in
+    # the school's color; "CAN"/"GET INTO" stay black.
+    hook = f'CAN\n*{c["name"].upper()}*\nGET INTO\n*{short.upper()}*?'
+    body = _celeb_title_body(slug, sch, hook, celeb_photo_url(c["id"]))
+    return Response(_profile_export_page(body, dl_name=f'{c["id"]}-title', pad="52px 58px 48px",
+                                         clean=request.args.get("clean") == "1"),
+                    mimetype="text/html")
 
 
 def _compare_title_body(slugs):
@@ -14717,7 +14793,16 @@ def profile_slide_export(slug):
                 "font-size:56px;margin:0 0 14px;color:#111")
 
     _header = _esc(_label) if _label else f"{_esc(short)}?"
+    # ?note= stamps a small disclaimer strip under the header. Added for the
+    # celebrity format, where the stats on this card are an ARCHETYPE and saying
+    # so on the slide itself (not just in the caption) is the whole legal point —
+    # the slide has to be self-evidently not a claim about a real person's record.
+    _note = (request.args.get("note") or "").strip()
+    note_html = (f'<div style="font-size:27px;font-weight:800;letter-spacing:1.2px;color:#b4232f;'
+                 f'border:3px solid #b4232f;border-radius:10px;padding:12px 16px;margin:0 0 26px;'
+                 f'text-transform:uppercase">{_esc(_note)}</div>' if _note else "")
     inner = f'''<div style="font-family:'AntonEmb','Anton',sans-serif;font-weight:400;font-size:150px;line-height:.92;color:{color};letter-spacing:-1px;margin:0 0 30px">{_header}</div>
+  {note_html}
   <div style="{head_css}">ACADEMICS</div>
   <ul style="list-style:disc;margin:0 0 34px;padding-left:34px;color:#111">{acad_html}</ul>
   <div style="{head_css}">EXTRACURRICULARS</div>

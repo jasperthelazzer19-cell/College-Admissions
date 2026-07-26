@@ -1,30 +1,40 @@
 #!/usr/bin/env python3
 """'Would <celebrity> get into their own college today?' carousels.
 
-The one format where the hook is a FACT, not a simulated applicant: the admit
-rate the year they were admitted vs the admit rate now. That comparison is the
-whole Candor thesis in two numbers — the door narrowed, and the kids getting
-rejected today are not worse than the people already inside.
+The hook is a FACT — the admit rate the year they were admitted vs the rate now.
+That comparison is the whole Candor thesis in two numbers: the door narrowed, and
+the kids getting rejected today are not worse than the people already inside.
 
-Hard rule this generator enforces structurally: it never renders a celebrity's
-GPA, test scores, or any academic record. There is no profile slide (the staple
-formats have one; this one deliberately does not), no saved demo profile, and
-the reveal route (/celeb/export) can only read facts from celebs.json — not from
-query params. Fabricating an academic record for a real, identifiable person is
-a legal problem, so the safest design is one where the code physically can't.
+But the hook is not the payload. Like every other format here, the carousel has
+to end with the viewer watching Candor actually COMPUTE something, so slides 3
+and 4 are the real product screens (/profile/<slug>/export and
+/chances/<slug>/export) — the same two the daily-rigged generator screenshots.
+
+Squaring that with the accuracy rule: what goes through the engine is an
+ARCHETYPE, not the celebrity. We do not know anyone's GPA or test scores, so we
+don't claim any. The archetype is a strong applicant of the kind that cleared
+the bar in that era, both product slides carry an on-slide "hypothetical, not
+their real stats" stamp (?note=), and the only person-specific input is their
+publicly documented field of study — a fact, not an academic record. The
+factual claims (school, year, admit rate then vs now) stay on slides 1-2 where
+they're sourced; the engine output on slides 3-4 is honestly framed as "here's
+what Candor says about a profile like this applying there today."
 
 Facts live in auto_content/celebs.json, hand-researched with a source note per
 entry. Anything unverifiable for the exact cycle carries the earliest
 well-documented rate plus a year_label that says so on the slide.
 
-3 slides: cover hook -> the two numbers -> the sourced then/now reveal.
+4 slides: "CAN <PERSON> GET INTO <SCHOOL>?" over a photo+logo band -> the
+sourced then/now -> the archetype profile card -> Candor's real odds for it
+today. Cover photos are optional files in static/celebs/<id>.jpg; a missing one
+degrades to a logo-only cover (see that folder's README).
 Run: python3 auto_content/make_celeb.py --n 4 [--dry] [--id emma-watson-brown]
 """
-import os, sys, json, tempfile, datetime
+import os, sys, json, tempfile, datetime, urllib.parse
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import app
-from factory import (_shot, _title_png, _finish, start_local_server, stop_local_server,
+from factory import (_shot, _finish, start_local_server, stop_local_server,
                      LOCAL_URL, CRON_KEY)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -70,6 +80,27 @@ def _fmt(pct):
     return (f"{pct:.1f}".rstrip("0").rstrip(".")) + "%"
 
 
+# The archetype fed to the engine on slides 3-4. Deliberately GENERIC and
+# deliberately strong: a well-rounded, no-national-hook applicant — the profile
+# that comfortably cleared a 15-20% admit rate and gets shredded by a 4% one.
+# That contrast IS the format's argument, and it's an argument about the bar
+# moving, not about any real person's record.
+#
+# is_exceptional=0 and a mid ec_rating on purpose: hand it a national-tier hook
+# and today's odds stop collapsing, which would kill the payoff AND overstate
+# how forgiving admissions still is.
+def _archetype(major):
+    return dict(
+        uw_gpa=3.92, weighted_gpa=4.35, sat=1500, sat_math=760, sat_ebrw=740,
+        major=major or "Economics", state="Connecticut", school_type="private",
+        aps="AP English Literature, AP US History, AP Calculus AB, AP Biology, AP Psychology",
+        ecs="Varsity Athlete (3 years)\nSchool Newspaper\nDebate Team\nVolunteer Tutor",
+        leadership="Newspaper Editor, Debate Team Captain",
+        awards="AP Scholar with Distinction, National Honor Society",
+        legacy_schools="", first_gen=0, athlete=0, is_exceptional=0, ec_rating=380,
+    )
+
+
 def build(c, dry=False):
     slug = c["slug"]
     sch = app.COLLEGES_BY_SLUG[slug]
@@ -84,40 +115,66 @@ def build(c, dry=False):
     when = c.get("year_label") or str(c.get("entry_year", ""))
     name = c["name"].upper()
 
-    # Cover asks the question; it never answers it. "Would they get in today?" is
-    # a question about the odds, and leaving it open is both the honest framing
-    # and the reason anyone swipes.
-    t1 = ["WOULD", name, f"GET INTO {short}", "TODAY?"]
-    # Slide 2 is the payoff and it is pure arithmetic — no adjectives, nothing
-    # about the person. Phrased with "they" so one template covers everyone, and
-    # the year sits on its own line so a fuzzy label ("the late 1990s") reads as
-    # a sentence instead of a parenthetical.
-    t2 = [f"{short} TOOK {_fmt(then)}", f"IN {when.upper()}", f"TODAY: {_fmt(now)}"]
-    img1 = _title_png(slug, t1, [name, short])
-    # Accent the bare numbers, not "38.9%" — mark_accents anchors on \b, and a
-    # trailing '%' is not a word char, so the %-suffixed form never matches and
-    # the line renders flat black.
-    img2 = _title_png(slug, t2, [_fmt(then).rstrip("%"), _fmt(now).rstrip("%")])
+    # Cover asks the question, never answers it — "CAN X GET INTO Y?" asserts
+    # nothing about anyone's record, which is exactly why it's the safe framing
+    # AND the reason anyone swipes. Built server-side by /title-celeb/export so
+    # the name and school come from the dataset, not from a URL we assembled.
+    t1 = ["CAN", name, "GET INTO", f"{short}?"]
     tmp = tempfile.mkdtemp(prefix="celeb_")
-    # static=True: the reveal route runs the bullets LLM, which on the Max-CLI
-    # path outlasts Chrome's paint budget and ships a black slide. Fetch once,
-    # screenshot the already-rendered HTML (same fix as chances/compare).
+    photo = app.celeb_photo_url(c["id"])
+    if not photo:
+        # Degrade to a logo-only band rather than a broken image box. Worth
+        # printing: the cover is much stronger with the face, so a run that logs
+        # a pile of these is a prompt to go fill in static/celebs/.
+        print(f"  note: no photo for {c['id']} — cover falls back to logo only")
+    img1 = _shot(f"{tmp}/t.png", f"{LOCAL_URL}/title-celeb/export?id={c['id']}&rkey={CRON_KEY}&clean=1")
+
+    # Slide 2 — the sourced fact. The old plain-text "X TOOK 38.9% / TODAY 5.4%"
+    # title slide was cut for this: /celeb/export carries the same two numbers
+    # AND the source line, and the queue only holds four images, so the product
+    # slides get the last two slots.
     reveal = _shot(f"{tmp}/r.png",
                    f"{LOCAL_URL}/celeb/export?id={c['id']}&rkey={CRON_KEY}&clean=1", static=True)
 
+    # Slides 3-4 — the actual product. Save the archetype to the demo user, then
+    # screenshot the same two routes the daily-rigged generator uses, so the
+    # viewer ends the carousel having watched Candor read a profile and print
+    # odds, not having read a trivia card. c["major"] is their real, publicly
+    # documented field of study — a fact, so it's safe to feed the engine.
+    # Nothing else in that profile is theirs, which is what the stamp says.
+    p = _archetype(c.get("major"))
+    app.save_profile(181, p)
+    # Same compute_fit -> estimate_odds path /chances/<slug>/export uses, so the
+    # odds_text we file in the queue can't disagree with the number printed on
+    # the slide (estimate_odds_v2 reads a couple of points lower here).
+    _fit = app.compute_fit(p, merged)[0]
+    odds = app.estimate_odds(merged, _fit, p)
+    # The stamp names the person on purpose: "hypothetical profile" alone could
+    # still be read as somebody's estimate OF them.
+    stamp = urllib.parse.quote(f"Hypothetical profile — not {c['name']}'s real stats")
+    prof = _shot(f"{tmp}/p.png",
+                 f"{LOCAL_URL}/profile/{slug}/export?rkey={CRON_KEY}&clean=1&uid=181&note={stamp}")
+    chances = _shot(f"{tmp}/c.png",
+                    f"{LOCAL_URL}/chances/{slug}/export?uid=181&rkey={CRON_KEY}&clean=1&note={stamp}",
+                    static=True)
+
     payload = dict(
         school_slug=slug, school_name=merged["name"], accent=accent,
-        title_text=" ".join(t1), title_formula="celeb", slide3_type="celeb",
-        # Empty on purpose: there is no applicant here. Writing a profile blob
-        # would be inventing an academic record for a real person.
-        profile_json="{}",
-        odds_text=f"{_fmt(then)} → {_fmt(now)}", grade_text="",
-        img1=img1, img2=img2, img3=reveal,
+        title_text=" ".join(t1), title_formula="celeb",
+        # 'chances' so the release gate and the TikTok perf feedback bucket this
+        # with the other odds-reveal carousels — the payoff slide IS a chances
+        # slide. meta.celeb is what identifies the format.
+        slide3_type="chances",
+        profile_json=json.dumps(p),
+        odds_text=f"{odds[0]}-{odds[1]}%", grade_text="",
+        img1=img1, img2=reveal, img3=prof, img4=chances,
         meta={"celeb": c["id"], "celeb_name": c["name"], "then": then, "now": now,
               "harder": harder, "year_label": when, "source_note": c.get("source_note", ""),
-              "lines": t1},
+              "archetype": True, "lines": t1},
     )
-    res = _finish(payload, dry, f"CELEB {c['name']} / {short} ({_fmt(then)} -> {_fmt(now)}, {harder}x)")
+    res = _finish(payload, dry,
+                  f"CELEB {c['name']} / {short} ({_fmt(then)} -> {_fmt(now)}, {harder}x) "
+                  f"| today {odds[0]}-{odds[1]}%")
     if not dry:
         _mark_used(c["id"])
     return res

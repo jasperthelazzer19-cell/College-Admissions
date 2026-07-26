@@ -7,7 +7,8 @@
     "year_label": "2009",
     "admit_rate_then": 10.8,
     "source_note": "Brown admitted 10.8% (2,708 of 24,988) for the class she entered with in 2009.",
-    "confidence": "high"
+    "confidence": "high",
+    "major": "English"
   },
   {
     "id": "natalie-portman-harvard",
@@ -17,7 +18,8 @@
     "year_label": "1999",
     "admit_rate_then": 11.3,
     "source_note": "Harvard admitted 11.3% (2,055 of 18,160) that year — The Harvard Crimson, April 1999.",
-    "confidence": "high"
+    "confidence": "high",
+    "major": "Psychology"
   },
   {
     "id": "mark-zuckerberg-harvard",
@@ -27,7 +29,8 @@
     "year_label": "2002",
     "admit_rate_then": 10.5,
     "source_note": "Harvard admitted 10.5% (2,068 of 19,605) that year — Harvard Gazette, April 2002.",
-    "confidence": "high"
+    "confidence": "high",
+    "major": "Computer Science"
   },
   {
     "id": "jeremy-lin-harvard",
@@ -37,7 +40,8 @@
     "year_label": "2006",
     "admit_rate_then": 9.3,
     "source_note": "Harvard admitted 9.3% (2,109 students) that year — Harvard Gazette, May 2006.",
-    "confidence": "high"
+    "confidence": "high",
+    "major": "Economics"
   },
   {
     "id": "rashida-jones-harvard",
@@ -57,7 +61,8 @@
     "year_label": "1988",
     "admit_rate_then": 14.6,
     "source_note": "Harvard admitted 14.6% (2,147 of a then-record 14,430) that year — The Harvard Crimson, April 1988.",
-    "confidence": "high"
+    "confidence": "high",
+    "major": "English"
   },
   {
     "id": "conan-obrien-harvard",
@@ -67,7 +72,8 @@
     "year_label": "the early 1980s",
     "admit_rate_then": 15.5,
     "source_note": "Harvard's rate in the early 1980s: 15.5% of about 14,000 applicants — The Harvard Crimson, Jan 1981. His exact cycle isn't published.",
-    "confidence": "medium"
+    "confidence": "medium",
+    "major": "History"
   },
   {
     "id": "jodie-foster-yale",
@@ -87,7 +93,8 @@
     "year_label": "1985",
     "admit_rate_then": 18.6,
     "source_note": "Yale admitted 18.6% (2,182 of 11,737) that year — Yale Office of Institutional Research.",
-    "confidence": "high"
+    "confidence": "high",
+    "major": "Political Science"
   },
   {
     "id": "edward-norton-yale",
@@ -97,7 +104,8 @@
     "year_label": "1987",
     "admit_rate_then": 17.7,
     "source_note": "Yale admitted 17.7% (2,310 of 13,063) that year — Yale Office of Institutional Research.",
-    "confidence": "high"
+    "confidence": "high",
+    "major": "History"
   },
   {
     "id": "claire-danes-yale",
@@ -107,7 +115,8 @@
     "year_label": "1998",
     "admit_rate_then": 17.6,
     "source_note": "Yale admitted 17.6% (2,100 of 11,947) that year — Yale Office of Institutional Research.",
-    "confidence": "high"
+    "confidence": "high",
+    "major": "Psychology"
   },
   {
     "id": "angela-bassett-yale",
@@ -117,7 +126,8 @@
     "year_label": "1976",
     "admit_rate_then": 26.4,
     "source_note": "Yale admitted 26.4% (2,481 of 9,387) that year — Yale Office of Institutional Research.",
-    "confidence": "high"
+    "confidence": "high",
+    "major": "African American Studies"
   },
   {
     "id": "elizabeth-banks-penn",
@@ -137,7 +147,8 @@
     "year_label": "1995",
     "admit_rate_then": 33.0,
     "source_note": "Penn admitted about 33% that year — The Daily Pennsylvanian, April 1995. Approximate.",
-    "confidence": "medium"
+    "confidence": "medium",
+    "major": "English"
   },
   {
     "id": "john-krasinski-brown",
@@ -147,7 +158,8 @@
     "year_label": "the late 1990s",
     "admit_rate_then": 16.8,
     "source_note": "Brown's earliest well-documented rate near his years: 16.8% for the class of 2003. His exact 1997 cycle isn't published.",
-    "confidence": "medium"
+    "confidence": "medium",
+    "major": "English"
   },
   {
     "id": "timothee-chalamet-columbia",
@@ -157,7 +169,8 @@
     "year_label": "2013",
     "admit_rate_then": 6.9,
     "source_note": "Columbia admitted 6.9% (2,311 of 33,531) that year — Columbia Daily Spectator, March 2013.",
-    "confidence": "medium"
+    "confidence": "medium",
+    "major": "Anthropology"
   },
   {
     "id": "ellie-kemper-princeton",
@@ -167,7 +180,8 @@
     "year_label": "1998",
     "admit_rate_then": 13.1,
     "source_note": "Princeton admitted 13.1% (1,700 of 13,006) that year — Princeton's own published admission profile.",
-    "confidence": "high"
+    "confidence": "high",
+    "major": "English"
   },
   {
     "id": "issa-rae-stanford",
@@ -197,7 +211,8 @@
     "year_label": "2008",
     "admit_rate_then": 9.5,
     "source_note": "Stanford admitted 9.5% (2,400 of 25,298) that year — Stanford News Service, April 2008.",
-    "confidence": "medium"
+    "confidence": "medium",
+    "major": "Architecture"
   },
   {
     "id": "sterling-k-brown-stanford",
@@ -207,7 +222,8 @@
     "year_label": "1994",
     "admit_rate_then": 20.0,
     "source_note": "Stanford took 20% of about 14,000 applicants in 1994 — The Stanford Daily.",
-    "confidence": "medium"
+    "confidence": "medium",
+    "major": "Economics"
   },
   {
     "id": "reese-witherspoon-stanford",
@@ -217,7 +233,8 @@
     "year_label": "1994",
     "admit_rate_then": 20.0,
     "source_note": "Stanford took 20% of about 14,000 applicants in 1994 — The Stanford Daily.",
-    "confidence": "medium"
+    "confidence": "medium",
+    "major": "English"
   },
   {
     "id": "aaron-rodgers-ucb",
@@ -247,6 +264,40 @@
     "year_label": "the late 1960s",
     "admit_rate_then": 50.0,
     "source_note": "Vassar accepted about 50% of applicants in 1968 — the college's own chronology. Her exact 1967 cycle isn't published.",
-    "confidence": "medium"
+    "confidence": "medium",
+    "major": "Drama"
+  },
+  {
+    "id": "colin-jost-harvard",
+    "name": "Colin Jost",
+    "slug": "harvard",
+    "entry_year": 2000,
+    "year_label": "2000",
+    "admit_rate_then": 10.9,
+    "major": "History",
+    "source_note": "Harvard admitted 10.9% (2,035 of a record 18,691) that year — Harvard Gazette, April 2000.",
+    "confidence": "high"
+  },
+  {
+    "id": "paul-giamatti-yale",
+    "name": "Paul Giamatti",
+    "slug": "yale",
+    "entry_year": 1985,
+    "year_label": "1985",
+    "admit_rate_then": 18.6,
+    "major": "English",
+    "source_note": "Yale admitted 18.6% (2,182 of 11,737) that year — Yale Office of Institutional Research.",
+    "confidence": "high"
+  },
+  {
+    "id": "jennifer-connelly-yale",
+    "name": "Jennifer Connelly",
+    "slug": "yale",
+    "entry_year": 1988,
+    "year_label": "1988",
+    "admit_rate_then": 18.5,
+    "major": "English",
+    "source_note": "Yale admitted 18.5% (2,370 of 12,797) that year — Yale Office of Institutional Research.",
+    "confidence": "high"
   }
 ]
