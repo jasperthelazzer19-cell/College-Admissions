@@ -440,6 +440,101 @@ def _load_slide_bytes(cid, n, dbval):
         return _b64.b64decode(dbval.split(",", 1)[1])
     return _b64.b64decode(dbval)
 
+# ── Slide retention ──────────────────────────────────────────────────────────
+# Moving slides out of the DB fixed the DB bloat but relocated the leak to the
+# volume: ~39 carousels/day x 3-5 PNGs each, and NOTHING ever deleted them. At
+# 3.5GB of a 4.9GB Railway volume that's a hard outage in weeks.
+#
+# WHY 14 DAYS (this is the app's own EXISTING contract, not a guess):
+#   * The boot prune in init_db() already DELETES content_queue rows with status
+#     posted/skipped at created_at + 14d, and NULLs img1..img4 on attributed rows
+#     at that same 14d mark. Either way /content/slide/<cid>/<n>.jpg can no
+#     longer find the row/column and returns 404 — so from day 14 the file on
+#     disk is ALREADY unreachable by every code path in the app. Deleting it
+#     changes nothing user-visible; this just finishes a cleanup that was only
+#     ever half-done (rows pruned, files orphaned).
+#   * Every external fetcher is far inside that window. TikTok's PULL_FROM_URL
+#     fetcher reads the JPEGs once at publish-init and then serves its own copy;
+#     Buffer likewise pulls the image at publish time. The widest "might still be
+#     fetched" signal anywhere in this codebase is the autoclaim window,
+#     _AUTOCLAIM_AFTER = 36h after released_at. 14 days is ~9x that.
+# The window is measured from the LATEST of created_at/released_at/posted_at, so
+# a carousel that sat in the buffer 13 days and only posted yesterday still gets
+# a full 14 days after it actually went out — never 1.
+SLIDE_RETENTION_DAYS = int(os.environ.get("SLIDE_RETENTION_DAYS", "14"))
+
+# Doubles as the traversal guard: only bare "<int>-<1..4>.png" basenames are ever
+# considered, so no "..", no subdirectory, no absolute path can be constructed.
+_SLIDE_FILE_RE = re.compile(r"^(\d+)-([1-4])\.png$")
+
+
+def _prune_slide_files(days=None, dry=False):
+    """Delete slide PNGs whose carousel is safely past the retention window.
+
+    NEVER touches a slide whose carousel is still status pending or released —
+    those are the standing buffer and the released-but-unposted queue, and their
+    images must stay fetchable. Only two things get removed:
+      1. posted/skipped carousels whose newest timestamp is older than `days`
+         (their row is already gone, or their img columns already NULL, courtesy
+         of the boot prune — the file is dead weight either way);
+      2. ORPHANS — files whose cid has no content_queue row at all, which is
+         exactly the residue that row-delete leaves behind. Orphans must ALSO
+         have an mtime older than `days`, so a file written moments before its
+         INSERT commits (see /content/queue/push: the PNG is written after the
+         row, but a crash or a legacy path could invert that) is never hit.
+    Returns (n_files, n_bytes). Never raises: a permission error, a racing
+    delete, or an unreadable DB degrades to "pruned less", never to a boot
+    failure — this runs inside init_db() and must not be able to take the app
+    down."""
+    days = SLIDE_RETENTION_DAYS if days is None else int(days)
+    n = nbytes = 0
+    try:
+        entries = list(os.scandir(_SLIDES_DIR))      # NOT os.walk: one flat dir
+    except OSError:
+        return (0, 0)                                # no slides dir yet — fine
+    try:
+        with db() as conn:
+            # keep = everything we must not touch. A carousel is protected while
+            # it's pending/released, or while its newest timestamp is inside the
+            # window. COALESCE order matters: posted_at is the truest "it's out
+            # there" stamp, then released_at, with created_at as the floor.
+            keep = {r["id"] for r in conn.execute(
+                "SELECT id FROM content_queue WHERE status IN ('pending','released') "
+                "   OR COALESCE(posted_at, released_at, created_at) "
+                f"      >= datetime('now','-{days} days')").fetchall()}
+            known = {r["id"] for r in conn.execute("SELECT id FROM content_queue").fetchall()}
+    except Exception as e:                            # DB unreadable/locked mid-boot
+        print(f"slide prune: skipped (db read failed: {e})", flush=True)
+        return (0, 0)
+    cutoff = time.time() - days * 86400
+    for e in entries:
+        m = _SLIDE_FILE_RE.match(e.name)
+        if not m:
+            continue                                  # stray/unknown file — leave it alone
+        try:
+            if not e.is_file(follow_symlinks=False):  # dirs & symlinks: never follow
+                continue
+            cid = int(m.group(1))
+            if cid in keep:
+                continue
+            st = e.stat(follow_symlinks=False)
+            if cid not in known and st.st_mtime >= cutoff:
+                continue                              # young orphan — may be racing an INSERT
+            if not dry:
+                os.remove(e.path)
+            n += 1
+            nbytes += st.st_size
+        except FileNotFoundError:
+            continue                                  # someone else got there first
+        except OSError as ex:
+            print(f"slide prune: skip {e.name}: {ex}", flush=True)
+            continue
+    if n:
+        print(f"slide prune: {'would remove' if dry else 'removed'} {n} files, "
+              f"{nbytes / 1048576:.1f} MB (retention {days}d)", flush=True)
+    return (n, nbytes)
+
+
 NEWSAPI_KEY = os.environ.get("NEWSAPI_KEY", "")
 SCORECARD_KEY = os.environ.get("SCORECARD_KEY", "")
 SECRET_KEY = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
@@ -5570,6 +5665,21 @@ def init_db():
             except sqlite3.OperationalError:
                 pass   # table/column absent — skip
         conn.commit()
+    # Same idea, different storage: the row prune above frees DB pages, but the
+    # actual slide PNGs live on the Railway volume and were never cleaned up at
+    # all (3.5GB of 4.9GB by Jul 2026). Runs AFTER the commit so the rows it
+    # keys off are already gone — orphaned files get collected on this same boot
+    # instead of waiting for the next restart. Outside the `with db()` block
+    # because _prune_slide_files opens its own short read connection; it swallows
+    # every error, so it can't fail a boot.
+    # SLIDE_PRUNE_SKIP_BOOT=1 suppresses it — set by scripts/prune_slides.py so a
+    # `--dry` report isn't preempted by an import-time real delete, and available
+    # as a kill switch if the prune ever needs to be stopped without a rollback.
+    if os.environ.get("SLIDE_PRUNE_SKIP_BOOT") != "1":
+        try:
+            _prune_slide_files()
+        except Exception as e:
+            print(f"slide prune: failed: {e}", flush=True)
 
 
 # ─── AUTH ─────────────────────────────────────────────────
