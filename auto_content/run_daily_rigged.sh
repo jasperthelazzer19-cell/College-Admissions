@@ -1,17 +1,22 @@
 #!/bin/bash
-# Daily RIGGED batch — one legacy hot-take carousel per account, rotating schools.
-# Server sprinkles them across the day's slots (app._rigged_slot_today).
+# Daily RIGGED batch — ONE-SHOT TEST MODE: runs once (tomorrow), then unloads
+# its own launchd job. Re-arm later with:
+#   launchctl load ~/Library/LaunchAgents/com.candor.dailyrigged.plist
 source "$HOME/.candor_autopilot.env"
 cd "$HOME/college-tool" || exit 1
 LOG="$HOME/Library/Logs/candor-dailyrigged.log"
-# guard: only once per day even if launchd fires again (RunAtLoad after reboot etc.)
 STAMP="$HOME/.candor_rigged_day"
 TODAY=$(date +%Y-%m-%d)
 if [ -f "$STAMP" ] && [ "$(cat "$STAMP" 2>/dev/null)" = "$TODAY" ]; then
   exit 0
 fi
-echo "=== $(date) daily rigged batch ===" >> "$LOG"
+echo "=== $(date) daily rigged batch (one-shot test) ===" >> "$LOG"
 /usr/bin/python3 auto_content/make_daily_rigged.py --n 8 >> "$LOG" 2>&1
 rc=$?
-[ $rc -eq 0 ] && echo "$TODAY" > "$STAMP"
+if [ $rc -eq 0 ]; then
+  echo "$TODAY" > "$STAMP"
+  # one-shot: disarm after the successful test run
+  launchctl unload "$HOME/Library/LaunchAgents/com.candor.dailyrigged.plist" 2>/dev/null &
+  echo "one-shot complete — launchd job unloaded" >> "$LOG"
+fi
 echo "exit=$rc $(date)" >> "$LOG"
