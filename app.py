@@ -5553,7 +5553,16 @@ def init_db():
         for sql in (
             "DELETE FROM page_visits WHERE ts < datetime('now','-90 days')",
             "DELETE FROM calc_runs  WHERE ts < datetime('now','-90 days')",
-            "DELETE FROM content_queue WHERE status IN ('posted','skipped') AND created_at < datetime('now','-14 days')",
+            # Attributed carousels are the ONLY performance history we have — the
+            # blanket 14-day delete orphaned 655 of 657 tiktok_posts.carousel_id
+            # links, which silently reduced tiktok_perf_by() to 2 data points and
+            # left format/school selection running on static weights. So: strip the
+            # heavy slide blobs (that was the real bloat) but KEEP the row whenever
+            # it's linked to a real TikTok video.
+            "UPDATE content_queue SET img1=NULL, img2=NULL, img3=NULL, img4=NULL "
+            "  WHERE tiktok_video_id IS NOT NULL AND created_at < datetime('now','-14 days')",
+            "DELETE FROM content_queue WHERE status IN ('posted','skipped') "
+            "  AND created_at < datetime('now','-14 days') AND tiktok_video_id IS NULL",
             "DELETE FROM batch_requests WHERE claimed_at IS NOT NULL AND claimed_at < datetime('now','-1 day')",
         ):
             try:
@@ -20201,12 +20210,69 @@ def _tiktok_pull_all():
         except Exception as e:
             print(f"tiktok pull {oid}:", e)
     try:
+        n = _tiktok_autoclaim()
+        if n:
+            print(f" * tiktok autoclaim: marked {n} released carousel(s) posted", flush=True)
+    except Exception as e:
+        print("tiktok autoclaim:", e)
+    try:
         n = _tiktok_attribute()
         if n:
             print(f" * tiktok attribute: linked {n} post(s) to carousels", flush=True)
     except Exception as e:
         print("tiktok attribute:", e)
     return total
+
+
+# A released carousel that was never hand-marked "✓ Posted" is invisible to
+# _tiktok_attribute (which only walks status='posted'), so its real TikTok video
+# never gets linked. As of the 2026-07-26 audit that was 1,074 released vs 2
+# posted — i.e. the feedback loop had no input at all. Rather than depend on the
+# creator tapping a button 39x/day, match released carousels to pulled videos
+# automatically and mark them posted ourselves.
+_AUTOCLAIM_BEFORE = 3600        # video may appear up to 1h BEFORE we released it
+_AUTOCLAIM_AFTER = 36 * 3600    # …and up to 36h after (posting lags the slot)
+
+
+def _tiktok_autoclaim():
+    """Match status='released' carousels to unattributed pulled videos and flip
+    them to 'posted'. Same-account when the queue assigned one (assigned_account
+    holds a LABEL, tiktok_posts holds an open_id, so map through tiktok_accounts);
+    otherwise any account. Closest create_time inside the window wins, each video
+    claimed at most once, oldest release first. Returns rows marked."""
+    claimed = 0
+    with db() as conn:
+        label2oid = {r["label"]: r["open_id"]
+                     for r in conn.execute("SELECT open_id, label FROM tiktok_accounts").fetchall()
+                     if r["label"]}
+        rows = conn.execute(
+            "SELECT id, assigned_account, CAST(strftime('%s', released_at) AS INTEGER) rt "
+            "FROM content_queue WHERE status='released' AND released_at IS NOT NULL "
+            "AND tiktok_video_id IS NULL ORDER BY released_at ASC").fetchall()
+        for c in rows:
+            rt = c["rt"]
+            if rt is None:
+                continue
+            oid = label2oid.get(c["assigned_account"])   # None => any account
+            v = conn.execute(
+                "SELECT video_id, open_id, create_time FROM tiktok_posts "
+                "WHERE carousel_id IS NULL AND create_time IS NOT NULL "
+                "AND create_time >= ? AND create_time <= ? "
+                "AND (? IS NULL OR open_id = ?) "
+                "ORDER BY ABS(create_time - ?) ASC LIMIT 1",
+                (rt - _AUTOCLAIM_BEFORE, rt + _AUTOCLAIM_AFTER, oid, oid, rt)).fetchone()
+            if not v:
+                continue
+            conn.execute(
+                "UPDATE content_queue SET status='posted', "
+                "posted_at=datetime(?, 'unixepoch'), posted_account=COALESCE(posted_account,?), "
+                "tiktok_video_id=? WHERE id=?",
+                (v["create_time"], v["open_id"], v["video_id"], c["id"]))
+            conn.execute("UPDATE tiktok_posts SET carousel_id=? WHERE video_id=?",
+                         (c["id"], v["video_id"]))
+            claimed += 1
+        conn.commit()
+    return claimed
 
 
 def _tiktok_attribute():
@@ -20294,14 +20360,22 @@ def _carousel_image_urls(r):
 # but stays deterministic. NOTE: "comment"/"link in bio" scale with no manual work and
 # help reach; the "DM me" variant converts but is invisible to the algorithm and creates
 # reply work — so it's only 1 of the rotation, not the default.
+# 2026-07-26 audit, 1,388 posts since Jun 15: caption CTAs did NOT beat bare
+# hashtags on views (372.9 vs 369.8) and LOST on engagement (5.79 vs 7.09 likes,
+# 0.113 vs 0.134 comments). Per-variant averages said only one earns its slot:
+#   Comment your stats            458  ✅
+#   DM me your stats              413
+#   Would YOU have gotten in      410
+#   Your real chances surprise    322
+#   Think the odds are wrong      297  ❌ worse than posting nothing
+#   Run your own odds free        289  ❌ worse than posting nothing
+# The two link-in-bio funnels are cut. "DM me" stays at 1/rotation only (converts,
+# but is invisible to the algorithm and creates reply work).
 _CAPTION_HOOKS = [
     "Do you agree with these odds? 👀",
-    "Run your own odds free — link in bio 🔗",
     "Comment your stats and see if you'd get in 👇",
     "Be honest… did we get this right? 👇",
-    "Think the odds are wrong? Check yours — link in bio",
     "Would YOU have gotten in? Drop your stats 👇",
-    "Your real chances might surprise you — try it, link in bio",
     "DM me your stats and I'll run your real odds",
 ]
 
