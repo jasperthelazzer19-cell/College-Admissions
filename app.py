@@ -13271,6 +13271,46 @@ def _autopilot_authed():
 CONTENT_ACCOUNT_SLOTS = int(os.environ.get("CONTENT_ACCOUNT_SLOTS", "5"))
 
 
+# ═══ HOOK A/B TEST — THE ONE PLACE THIS EXPERIMENT IS DEFINED ══════════════
+# Started 2026-07-26, read out ~2026-08-09 with scripts/hook_ab_report.py.
+#
+# WHY: the 2026-07-26 audit (693 attributed posts) found engagement essentially
+# dead — 340 avg views, 5.8 likes, 0.13 comments per post, and reach per post
+# sliding ~10%/week as volume scaled. The caption CTAs we shipped in June did
+# NOT beat bare hashtags on views (372.9 vs 369.8) and LOST on likes (5.79 vs
+# 7.09). Every hook we run, on-slide and in-caption, is a variant of "here are
+# [school]'s odds" — a lookup nobody asked for. So this tests a genuinely
+# different hook family (stance, callout, counterintuitive claim, stakes)
+# against the current one, split by ACCOUNT so the two never share a feed.
+#
+# TO END THE TEST: set HOOK_AB=0 (everything falls back to the control hooks,
+# no other code path changes), or delete this block and the two callers that
+# read it (_assign_content_account / content_queue_push, and _caption_hook).
+# TO SWAP WHICH ACCOUNTS ARE IN WHICH ARM: edit HOOK_AB_ARMS below, nothing else.
+#
+# Accounts NOT listed here (the dormant @candoradmissions and candorcalc, plus
+# any numbered placeholder slot) are in NEITHER arm. They keep the current
+# behaviour verbatim and are excluded from the report — a dormant account's
+# zero-view posts would otherwise poison whichever arm we filed them under.
+HOOK_AB_ACTIVE = os.environ.get("HOOK_AB", "1") != "0"
+HOOK_AB_ARMS = {
+    # A = NEW hooks (new on-slide title families + new caption set)
+    "A": ("@candor54", "@candoradmit", "Candoradmitt", "@candor20"),
+    # B = CONTROL. Do not touch — its hooks must stay byte-identical to what
+    # was running before 2026-07-26 or the comparison is worthless.
+    "B": ("candoradmit19", "@candoradmit.com3", "@candoradmit.com", "Candor57"),
+}
+_HOOK_ARM_BY_LABEL = {lab: arm for arm, labs in HOOK_AB_ARMS.items() for lab in labs}
+
+
+def hook_arm_of(label):
+    """'A' | 'B' | None for a tiktok_accounts.label (== content_queue.assigned_account).
+    None = not in the experiment; caller must fall back to control behaviour."""
+    if not HOOK_AB_ACTIVE:
+        return None
+    return _HOOK_ARM_BY_LABEL.get((label or "").strip())
+
+
 def _content_account_roster(conn):
     """Ordered list of {label, open_id} for the post rotation: connected accounts
     first (by connection order, shown by their @username), padded to
@@ -13372,7 +13412,7 @@ def _release_one_per_account(conn, slot, limit=None):
     return ids
 
 
-def _assign_content_account(conn, school_slug=None, slide3_type=None):
+def _assign_content_account(conn, school_slug=None, slide3_type=None, want_arm=None):
     """Round-robin the next carousel across the account roster, so a batch of N
     spreads one carousel to each account — a batch of 5 covers all 5 exactly, and
     consecutive batches keep cycling evenly. Deterministic (rotation = total
@@ -13381,8 +13421,20 @@ def _assign_content_account(conn, school_slug=None, slide3_type=None):
     Auto-pause: any account flagged 'likely' by the shadowban detector is dropped
     from the rotation (stop feeding a suppressed account) until it recovers — unless
     that would leave nobody, or TT_AUTOPAUSE=0. It resumes automatically once the
-    detector clears it."""
+    detector clears it.
+
+    want_arm ('A'/'B'): hook A/B test. The Mac renders the SLIDE-1 title before it
+    knows which account the carousel lands on, so it picks the arm first and tells
+    us here; we then only consider accounts in that arm, which makes it impossible
+    for the on-slide hook and the account's arm to disagree. If that arm has no
+    live account at this moment (all of them shadowban-paused), fall back to the
+    whole roster rather than dropping the carousel — content_queue_push then tags
+    meta with the arm of the account we ACTUALLY picked, so the readout stays honest."""
     labels = _live_account_labels(conn)
+    if HOOK_AB_ACTIVE and want_arm in HOOK_AB_ARMS:
+        in_arm = [lab for lab in labels if hook_arm_of(lab) == want_arm]
+        if in_arm:
+            labels = in_arm
     # Balance by CURRENT PENDING per account (not lifetime). Lifetime balancing
     # made a brand-new account hog every new carousel until it caught up to the
     # others' totals (the "all 3 went to @candoradmit.com3" bug). Pending balance
@@ -13432,7 +13484,23 @@ def content_queue_push():
         if d.get("slide3_type") == "bestfit":
             assigned = "bestfit"
         else:
-            assigned = _assign_content_account(conn, d.get("school_slug"), d.get("slide3_type"))
+            assigned = _assign_content_account(conn, d.get("school_slug"), d.get("slide3_type"),
+                                               want_arm=d.get("hook_arm"))
+        # HOOK A/B: tag the row with the arm of the account it ACTUALLY landed on,
+        # not the arm the Mac asked for — those differ only in the rare fallback
+        # case above, and the report must group by what really shipped. Lives in
+        # `meta` rather than `title_formula` on purpose: title_formula already
+        # carries the FORMAT identity (llm/numeric/compare/h2h/bestfit/hottake…)
+        # and _RIGGED_SQL pattern-matches on it, so appending an arm suffix there
+        # would silently reclassify carousels in the rigged-release logic and in
+        # every per-formula breakdown. meta is a free-form JSON blob that already
+        # carries per-carousel extras (lines, accent_words, compare, wants), so a
+        # hook_arm key costs nothing and reads out with json_extract().
+        _meta = d.get("meta")
+        _arm = hook_arm_of(assigned)
+        if _arm:
+            _meta = dict(_meta) if isinstance(_meta, dict) else ({} if _meta is None else {"_": _meta})
+            _meta["hook_arm"] = _arm
         # Slides go to DISK (see _store_slide); the img columns keep only a tiny
         # 'file' marker so content_queue rows stay bytes, not megabytes.
         try:
@@ -13448,7 +13516,7 @@ def content_queue_push():
              d.get("title_text"), d.get("title_formula"), d.get("slide3_type"),
              d.get("profile_json"), d.get("odds_text"), d.get("grade_text"),
              None, None, None, None,
-             json.dumps(d.get("meta")) if d.get("meta") is not None else None,
+             json.dumps(_meta) if _meta is not None else None,
              assigned, _prio))
         cid = cur.lastrowid
         markers = {}
@@ -20379,6 +20447,60 @@ _CAPTION_HOOKS = [
     "DM me your stats and I'll run your real odds",
 ]
 
+# ── ARM A caption set (hook A/B test — see HOOK_AB_ARMS near CONTENT_ACCOUNT_SLOTS)
+# The control set above shares one mechanic: ask the viewer to agree/disagree with
+# an odds number, or hand over their stats. Both asks are expensive — typing your
+# GPA is work — and the audit says they underperform posting nothing at all.
+# This set trades that for cheaper, angrier asks. Every line here is deliberately
+# format-agnostic (the same caption has to sit under a chances, grade, glow-up,
+# compare or h2h carousel without lying about what's on the slides), which is why
+# none of them name a number or a specific weakness — that job belongs to the
+# slide-1 title, which IS format-specific (see gen_profile._TITLE_FAMILIES_A).
+# Mechanics, one per line, so we can attribute a winner afterwards:
+#   1 guess-first     — commits the viewer before the reveal; the comment is a number
+#   2 crowd framing   — tells them a fight is already happening; joining is free
+#   3 counter-ask     — "you say the number" is one word, not a whole profile
+#   4 save            — the only non-comment mechanic; saves are a stronger signal
+#                       than likes and we currently ask for zero of them
+#   5 authority clash — counselor vs us; people defend their counselor in comments
+#   6 request bait    — comments double as our content backlog (we already weight
+#                       which schools to post by real demand, so this is honest)
+#   7 flat stance     — no question mark, no emoji; the ones who disagree self-select
+#   8 challenge       — Cunningham's law; correcting a stranger is the cheapest
+#                       comment there is
+_CAPTION_HOOKS_A = [
+    "Guess before you swipe. Then tell me how far off you were 👇",
+    "Half the comments are going to say we got this wrong. Go ahead 👇",
+    "If you disagree, say what you'd put instead 👇",
+    "Save this for when you're building your list.",
+    "Your counselor would give you a different answer than this one. Which do you trust?",
+    "Drop a school and I'll run the same thing for it 👇",
+    "This is the one people argue about.",
+    "Nobody gets this right first try. Prove me wrong 👇",
+]
+
+
+def _carousel_hook_arm(r):
+    """'A'/'B'/None for a content_queue row. Prefers the arm stamped into meta at
+    push time (durable — survives the 'no account' release path, which NULLs
+    assigned_account), then falls back to whichever account the row is tied to."""
+    try:
+        m = r["meta"]
+        if m:
+            arm = (json.loads(m) or {}).get("hook_arm")
+            if arm in HOOK_AB_ARMS:
+                return arm if HOOK_AB_ACTIVE else None
+    except Exception:
+        pass
+    for col in ("assigned_account", "posted_account"):
+        try:
+            arm = hook_arm_of(r[col])
+        except (IndexError, KeyError):
+            continue
+        if arm:
+            return arm
+    return None
+
 
 def _caption_hook(r):
     import random as _rnd
@@ -20386,7 +20508,12 @@ def _caption_hook(r):
         seed = int(r["id"] or 0)
     except Exception:
         seed = 0
-    return _rnd.Random(seed * 7 + 3).choice(_CAPTION_HOOKS)
+    # Arm A gets the new set, everything else (arm B, dormant accounts, unassigned
+    # one-offs) keeps the control set unchanged. Same id-derived seed either way so
+    # consecutive posts on one account don't repeat a caption — identical captions
+    # throttle reach — and so a caption is reproducible from the row alone.
+    pool = _CAPTION_HOOKS_A if _carousel_hook_arm(r) == "A" else _CAPTION_HOOKS
+    return _rnd.Random(seed * 7 + 3).choice(pool)
 
 
 def _tiktok_post_caption(r):
