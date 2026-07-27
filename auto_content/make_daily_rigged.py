@@ -13,23 +13,44 @@ still the right shape, but it is not the proven winner the original note claimed
 
 ANGLES (2026-07-26). The batch used to be legacy-only, which capped it at 20
 eligible schools — with 8/day and a 5-day no-repeat window it exhausted the pool
-every 2.5 days and started repeating. Three angles now rotate, and each is backed
+every 2.5 days and started repeating. Six angles now rotate, and each is backed
 by a number the odds engine actually computes rather than a claim we invented:
 
-  legacy  app._LEGACY_MULT — the original. Excludes ED-only-legacy schools, whose
-          OVERALL odds don't move (the boost lives in the Early round), so the
-          reveal would show nothing.
-  round   candor.rounds.deterministic_round_odds — ED/REA vs RD, from the table
-          calibrated on 2,350 real stored round-odds. This is the strongest angle
-          and it UNLOCKS exactly the schools legacy had to skip: Columbia 2.7x,
-          Duke 2.4x, Cornell 2.3x, Dartmouth 2.3x, Vanderbilt 2.3x.
-  major   same profile, same stats, different intended major. Real swings at the
-          schools that admit by college/school rather than university-wide
-          (JHU 1.8x, Vanderbilt 1.75x, Northwestern 1.4x).
+  legacy   app._LEGACY_MULT — the original. Excludes ED-only-legacy schools, whose
+           OVERALL odds don't move (the boost lives in the Early round), so the
+           reveal would show nothing.  ~20 schools.
+  round    deterministic_round_odds — ED/REA vs RD, from the table calibrated on
+           2,350 real stored round-odds. UNLOCKS exactly the schools legacy had
+           to skip: Columbia 2.7x, Duke 2.4x, Cornell 2.3x, Vanderbilt 2.3x.
+  state    in-state vs out-of-state at publics, via _residency_adjust_accept and
+           the school's published CDS in_state_rate/out_of_state_rate. The widest
+           multiplier of any angle — UNC 8.7x, UT-Austin 5.8x, Georgia Tech 4.3x,
+           Berkeley 2.9x — and the only angle that reaches the big publics, which
+           legacy and round barely touch. 22 schools, 1.6-8.7x. Service academies
+           are excluded — they run on congressional nominations, not residency.
+  athlete  recruited-athlete flag on/off, same stats: the hook term the engine
+           already prices. 50 schools, 2.1-3.8x (Stanford/Yale/Columbia 3.8x).
+  spike    same GPA and SAT, ec_rating 420 -> 900 (one national-level activity),
+           i.e. the smooth spike ramp on the elite odds cap. 48 schools, capped
+           at 8x — the engine goes to 9.6x but that stops being believable on a
+           title slide. Does NOT force is_exceptional; that flag belongs to the
+           3-judge panel.
+  ed2      ED I vs ED II at the 13 schools running both, same calibrated table as
+           `round`. 1.2-1.6x (JHU 1.6x, Northeastern 1.4x, Tufts 1.4x).
+  major    same profile, different intended major. IMPLEMENTED BUT DISABLED —
+           see the ANGLES comment below.
 
-first-gen was tested as a fourth angle and CUT: the engine returns 1.00x at every
-school except Dartmouth, so any "first-gen changes everything" hook would be a
-claim our own numbers don't support.
+TESTED AND CUT — the multiplier wasn't there, so no copy was written:
+  first-gen        engine returns 1.00x everywhere except Dartmouth.
+  test-optional    submitting a 1500 vs withholding it: median 1.05x over 74
+                   schools, only Brown and Northwestern clear 1.3x. Withholding a
+                   1350 instead of submitting it is barely better (median 1.08x,
+                   9 schools over 1.3x) and the direction flips school to school,
+                   so any take would be cherry-picked from two outliers.
+  demonstrated     not in the odds path at all. estimate_odds_v2 and
+  interest         compute_my_fit never read it — it's advice-page copy. A
+                   "demonstrated interest moves your odds" post would be
+                   describing a number this engine does not compute.
 
 Run daily (launchd com.candor.dailyrigged, ~6:40am) with --n <accounts> or default 8.
 --dry to preview without pushing. --angle <name> to force one angle.
@@ -42,11 +63,12 @@ from factory import (_shot, _title_png, _finish, start_local_server, stop_local_
                      LOCAL_URL, CRON_KEY, TARGET_URL)
 
 # No-repeat window. The dedup API keys on SLUG, not (slug, angle), so a school is
-# spoken for across every angle once it's used. Two angles give ~30 unique iconic
+# spoken for across every angle once it's used. Two angles gave ~30 unique iconic
 # slugs; at 8/day a 5-day window needed 40 and so blew through "pool exhausted"
-# every 2.5 days and silently started repeating. 3 days needs 24. Raise this only
-# alongside more angles or a wider iconic gate.
-RECENT_DAYS = 3
+# every 2.5 days and silently started repeating. Six angles now cover 63 distinct
+# slugs (168 angle/school combos), so 5 days (needs 40) fits with room. Raise
+# further only alongside more angles or a wider iconic gate.
+RECENT_DAYS = 5
 
 # NOT ICONIC ENOUGH TO CARRY A HOT TAKE. These cleared the legacy-multiplier gate
 # but a high-schooler scrolling TikTok has no reaction to "Washington and Lee
@@ -191,6 +213,143 @@ def _major_pool():
     return [s for s, _ in sorted(out, key=lambda kv: -kv[1])]
 
 
+# ── angles added 2026-07-26 ────────────────────────────────────────────────
+# Each of these was probed against the live engine over all 74 iconic-gated
+# schools BEFORE any copy was written; the ones that didn't move a real number
+# were dropped rather than dressed up (see the module docstring for the two that
+# died). Every multiplier below comes out of estimate_odds_v2 / the calibrated
+# round table on the SAME demo applicant, so the reveal slide and the profile
+# slide can never disagree.
+
+def _odds(sch, p):
+    """Midpoint odds for a profile, via the same v2-then-v1 path every angle uses."""
+    o = app.estimate_odds_v2(sch, p) or app.estimate_odds(sch, app.compute_my_fit(p, sch), p)
+    return (_mid(o), o) if o else (None, None)
+
+
+# Service academies are typed "public" and carry a state, so they fall into the
+# residency angle by accident — but admission there runs on congressional
+# nominations allocated per district, not on a residency quota. "8X the odds if
+# you live here" is the wrong story at USNA whatever the rate table says.
+_STATE_EXCLUDE = {"naval-academy", "west-point", "air-force-academy",
+                  "coast-guard-academy"}
+
+
+def _state_mult(slug):
+    """In-state vs out-of-state at a PUBLIC. This is real CDS data, not a fudge:
+    _residency_adjust_accept rescales the accept-rate anchor by the school's
+    published in_state_rate / out_of_state_rate. Biggest gaps in the pool are the
+    flagships with a legislated residency quota (UNC 8.7x, UT-Austin 5.8x)."""
+    sch = app.COLLEGES_BY_SLUG.get(slug)
+    if (not sch or sch.get("type") != "public" or not sch.get("state")
+            or slug in _STATE_EXCLUDE):
+        return None
+    home = sch["state"]
+    away = "Vermont" if home != "Vermont" else "Nevada"   # small, far, never a quota state
+    p_in = _profile(sch["name"]);  p_in["legacy_schools"] = "";  p_in["state"] = home
+    p_out = _profile(sch["name"]); p_out["legacy_schools"] = ""; p_out["state"] = away
+    a, _ = _odds(sch, p_in)
+    b, _ = _odds(sch, p_out)
+    if not a or not b or b <= 0:
+        return None
+    return a / b
+
+
+def _state_pool():
+    """Publics where residency is worth a take. Unlocks a whole side of the map
+    the other angles barely touch — legacy and round are almost all privates."""
+    out = [(s, _state_mult(s)) for s in app.COLLEGES_BY_SLUG if _iconic(s)]
+    return [s for s, m in sorted([(s, m) for s, m in out if m and m >= 1.6],
+                                 key=lambda kv: -kv[1])]
+
+
+def _athlete_mult(slug):
+    """Recruited-athlete flag on/off, same stats. Comes from the hook term in
+    _spike_cap / the fit hooks (+120 hook points, +5 fit), so it's the engine's
+    own price on a recruit, not a claim we made up."""
+    sch = app.COLLEGES_BY_SLUG.get(slug)
+    if not sch:
+        return None
+    ph = _profile(sch["name"]); ph["legacy_schools"] = ""; ph["athlete"] = 1
+    pl = _profile(sch["name"]); pl["legacy_schools"] = ""
+    a, _ = _odds(sch, ph)
+    b, _ = _odds(sch, pl)
+    if not a or not b or b <= 0:
+        return None
+    return a / b
+
+
+def _athlete_pool():
+    out = [(s, _athlete_mult(s)) for s in app.COLLEGES_BY_SLUG if _iconic(s)]
+    return [s for s, m in sorted([(s, m) for s, m in out if m and m >= 2.0],
+                                 key=lambda kv: -kv[1])]
+
+
+# EC rating on the demo profile (420 = strong-but-normal: varsity sport, club
+# founder) vs a national-level spike (900). Deliberately NOT touching
+# is_exceptional — that flag is the 3-judge panel's call, and forcing it would
+# be putting words in the grader's mouth. 900 on the rating alone is enough.
+_SPIKE_BASE_EC, _SPIKE_HIGH_EC = 420, 900
+# Upper bound on what we'll post. The engine goes to 9.6x (Dartmouth) and 8.8x
+# (MIT/Princeton/Vanderbilt) with the spike, which is real but reads as a lie on
+# a title slide. Anything above 8x gets left out rather than softened.
+_SPIKE_MAX = 8.0
+
+
+def _spike_mult(slug):
+    """Same GPA, same SAT, one national-level activity. This is the ec_rating ramp
+    in _spike_cap — the thing that lifts the elite odds cap smoothly instead of
+    the old binary cliff."""
+    sch = app.COLLEGES_BY_SLUG.get(slug)
+    if not sch:
+        return None
+    ph = _profile(sch["name"]); ph["legacy_schools"] = ""; ph["ec_rating"] = _SPIKE_HIGH_EC
+    pl = _profile(sch["name"]); pl["legacy_schools"] = ""; pl["ec_rating"] = _SPIKE_BASE_EC
+    a, _ = _odds(sch, ph)
+    b, _ = _odds(sch, pl)
+    if not a or not b or b <= 0:
+        return None
+    return a / b
+
+
+def _spike_pool():
+    out = [(s, _spike_mult(s)) for s in app.COLLEGES_BY_SLUG if _iconic(s)]
+    return [s for s, m in sorted([(s, m) for s, m in out if m and 2.0 <= m <= _SPIKE_MAX],
+                                 key=lambda kv: -kv[1])]
+
+
+def _ed2_mult(slug):
+    """ED I vs ED II at the schools that run both, from the same calibrated
+    round-split table the `round` angle uses. Smaller numbers than round (1.2-1.6x
+    vs 1.6-2.7x) because both are binding early rounds — that IS the take: people
+    treat ED II as a free second shot and the engine prices it well below ED I."""
+    sch = app.COLLEGES_BY_SLUG.get(slug)
+    detail = app.ADMISSIONS_DETAIL.get(slug) or {}
+    if not sch or not detail.get("rounds"):
+        return None
+    p = _profile(sch["name"]); p["legacy_schools"] = ""
+    mid, _ = _odds(sch, p)
+    if not mid:
+        return None
+    split = app.deterministic_round_odds(sch, detail, mid / 100.0)
+    if not split:
+        return None
+    ed1 = split.get("ED") or split.get("ED1")
+    ed2 = split.get("ED2")
+    if not ed1 or not ed2 or ed2 <= 0:
+        return None
+    return ed1 / ed2
+
+
+def _ed2_pool():
+    """1.2 not 1.6: the honest ED I/ED II gap is narrower than the early/RD gap,
+    and gating at 1.6 would empty the pool. The take doesn't need a huge number —
+    'your second chance is worth 30% less' lands on its own."""
+    out = [(s, _ed2_mult(s)) for s in app.COLLEGES_BY_SLUG if _iconic(s)]
+    return [s for s, m in sorted([(s, m) for s, m in out if m and m >= 1.2],
+                                 key=lambda kv: -kv[1])]
+
+
 # Each angle: pool builder + the multiplier it reveals + the two title slides.
 # ANGLES is ordered; the daily batch rotates through it so one morning's 8 posts
 # don't all make the same argument.
@@ -204,12 +363,16 @@ def _major_pool():
 # JHU (Whiting), where CS is the harder admit. Posting "1.8X the odds on major
 # alone" for those would be a false claim in public. Fix the engine first, then
 # add "major" back to this tuple.
-ANGLES = ("round", "legacy")
-ALL_ANGLES = ("round", "legacy", "major")
+ANGLES = ("round", "legacy", "state", "athlete", "spike", "ed2")
+ALL_ANGLES = ANGLES + ("major",)
+
+_POOL_FN = {"legacy": _legacy_pool, "round": _round_pool, "major": _major_pool,
+            "state": _state_pool, "athlete": _athlete_pool, "spike": _spike_pool,
+            "ed2": _ed2_pool}
 
 
 def _pool(angle="legacy"):
-    return {"legacy": _legacy_pool, "round": _round_pool, "major": _major_pool}[angle]()
+    return _POOL_FN[angle]()
 
 
 def _recent_rigged_slugs():
@@ -275,7 +438,71 @@ def _angle_major(slug, sch, name, short):
             ["MAJORS"], [m, "MAJOR ALONE"])
 
 
-_ANGLE_FN = {"legacy": _angle_legacy, "round": _angle_round, "major": _angle_major}
+def _angle_state(slug, sch, name, short):
+    mult = _state_mult(slug)
+    if not mult or mult < 1.6:
+        return None
+    m = _mtxt(mult)
+    # The profile slide has to BE the in-state applicant, since the odds shown are
+    # the in-state odds. Only the state field differs from every other angle.
+    p = _profile(name); p["legacy_schools"] = ""; p["state"] = sch["state"]
+    _, o = _odds(sch, p)
+    if not o:
+        return None
+    return (p, o, m,
+            [short.upper() + " IS TWO", "DIFFERENT SCHOOLS"],
+            ["SAME APPLICANT.", f"{m} THE ODDS", "IF YOU LIVE HERE"],
+            ["TWO"], [m, "LIVE HERE"])
+
+
+def _angle_athlete(slug, sch, name, short):
+    mult = _athlete_mult(slug)
+    if not mult or mult < 2.0:
+        return None
+    m = _mtxt(mult)
+    p = _profile(name); p["legacy_schools"] = ""; p["athlete"] = 1
+    _, o = _odds(sch, p)
+    if not o:
+        return None
+    return (p, o, m,
+            [short.upper() + " RECRUITS", "BEFORE IT ADMITS"],
+            ["SAME GRADES.", "SAME SCORES.", f"{m} THE ODDS", "AS A RECRUIT"],
+            ["RECRUITS"], [m, "AS A RECRUIT"])
+
+
+def _angle_spike(slug, sch, name, short):
+    mult = _spike_mult(slug)
+    if not mult or not (2.0 <= mult <= _SPIKE_MAX):
+        return None
+    m = _mtxt(mult)
+    p = _profile(name); p["legacy_schools"] = ""; p["ec_rating"] = _SPIKE_HIGH_EC
+    _, o = _odds(sch, p)
+    if not o:
+        return None
+    return (p, o, m,
+            ["YOUR GRADES AREN'T", "WHY " + short.upper(), "SAID NO"],
+            ["SAME GPA. SAME SAT.", "ONE NATIONAL-LEVEL", f"ACTIVITY. {m} THE ODDS"],
+            ["GRADES"], [m, "NATIONAL-LEVEL"])
+
+
+def _angle_ed2(slug, sch, name, short):
+    mult = _ed2_mult(slug)
+    if not mult or mult < 1.2:
+        return None
+    m = _mtxt(mult)
+    p = _profile(name); p["legacy_schools"] = ""
+    _, o = _odds(sch, p)
+    if not o:
+        return None
+    return (p, o, m,
+            ["ED II IS NOT", "A SECOND CHANCE", "AT " + short.upper()],
+            ["SAME APPLICANT.", f"ED I IS {m}", "THE ODDS OF ED II"],
+            ["NOT"], [m, "ED I"])
+
+
+_ANGLE_FN = {"legacy": _angle_legacy, "round": _angle_round, "major": _angle_major,
+             "state": _angle_state, "athlete": _angle_athlete, "spike": _angle_spike,
+             "ed2": _angle_ed2}
 
 
 def build(slug, angle="legacy", dry=False):

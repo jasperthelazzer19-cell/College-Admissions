@@ -595,13 +595,33 @@ def _bump_h2h():
 
 # ── TikTok performance feedback ────────────────────────────────────────────
 # Blend the static format weights with how each format ACTUALLY performs on
-# TikTok (avg views over carousels we attributed to a real post). Conservative:
-# a format needs at least TT_PERF_MIN_N attributed posts before it sways its own
-# weight, the adjustment is scaled by TT_PERF_ALPHA, and every weight is clamped
-# to [lo,hi]× its base so one viral fluke can't starve the rotation. Set
+# TikTok (engagement score over carousels we attributed to a real post). A format
+# needs at least TT_PERF_MIN_N attributed posts before it sways its own weight,
+# the adjustment is scaled by TT_PERF_ALPHA, and every weight is clamped to
+# [lo,hi]× its base so one viral fluke can't starve the rotation. Set
 # TT_FEEDBACK=0 to turn the whole thing off and fall back to the static weights.
-TT_PERF_MIN_N = int(os.environ.get("TT_PERF_MIN_N", "3"))
-TT_PERF_ALPHA = float(os.environ.get("TT_PERF_ALPHA", "0.6"))
+#
+# RETUNED 2026-07-26, first time this ran on real data. Until the hashtag
+# attribution fix there were 2 attributed posts, so `good` never reached 2 keys
+# and _blend was a pass-through — every "learned" weight was in fact the static
+# base. On the 633 recovered posts the old constants moved ctype weights by at
+# most 4.1% and slide3 by 5.2%: a feedback loop that read as learning and wasn't.
+#
+# MIN_N 3 -> 6. Per-post score sd is 311 against a mean of 388, so at n=3 the
+# standard error of a group's mean is 180 (46% of the mean) while the true
+# spread BETWEEN schools is only 68 (17.5%). n=3 is ~80% noise; n=6 is the point
+# where the estimate carries as much signal as the shrinkage prior can use.
+#
+# ALPHA 0.6 -> 1.0. app.tiktok_perf_by already returns an empirical-Bayes
+# posterior (shrunk by K=12 effective posts, the measured within/between
+# variance ratio), so the right thing to do with it is act on it exactly.
+# alpha=0.6 was a second, arbitrary discount ON TOP of a correctly shrunk
+# estimate — double-conservatism that pinned the loop near the static base.
+# Net effect: a format with 200 posts now moves ~1.6x harder than before, a
+# school with 5 posts moves LESS. That is the whole point — learn where there's
+# evidence, stop guessing where there isn't.
+TT_PERF_MIN_N = int(os.environ.get("TT_PERF_MIN_N", "6"))
+TT_PERF_ALPHA = float(os.environ.get("TT_PERF_ALPHA", "1.0"))
 
 
 def _tt_perf(group="slide3_type"):
@@ -617,10 +637,16 @@ def _tt_perf(group="slide3_type"):
 
 
 def _blend(base, perf, lo=0.4, hi=2.0):
-    """base: {key: weight}. perf: {key: (n, avg_views)}. Returns a new weight
-    dict nudged toward higher-performing keys. Keys with <TT_PERF_MIN_N samples
-    keep their base weight. No-op (returns base) unless at least two keys have
-    enough data to compare."""
+    """base: {key: weight}. perf: {key: (n, shrunk engagement score)}. Returns a
+    new weight dict nudged toward higher-performing keys. Keys with <TT_PERF_MIN_N
+    samples keep their base weight. No-op (returns base) unless at least two keys
+    have enough data to compare.
+
+    The [lo,hi] clamp is catastrophe insurance, not the throttle: measured on the
+    633 attributed posts at ALPHA=1.0 the widest multiplier anywhere is 0.89-1.60
+    (schools) and 0.79-1.15 (formats), so it never binds. If it ever does bind,
+    something upstream is wrong — check for a mis-attributed viral before raising
+    it."""
     good = {k: v for k, (n, v) in perf.items() if k in base and n >= TT_PERF_MIN_N}
     if len(good) < 2:
         return dict(base)
@@ -642,6 +668,12 @@ SCHOOL_DAILY_CAP = int(os.environ.get("SCHOOL_DAILY_CAP", "2"))  # max same-scho
 SCHOOL_WEIGHT_BASELINE = 2          # so low/no-demand schools still get some airtime
 # Demand curve steepness: weight = (demand+baseline or floor) ** DEMAND_GAMMA.
 # 1.0 = linear (old). >1 = most-calculated schools dominate harder. 1.4 = moderate.
+# LEFT AT 1.4 ON PURPOSE, but know what it is and isn't buying: on the 633
+# attributed posts, corr(log 90-day calc demand, TikTok engagement score) is
+# -0.078 across the 28 schools with n>=8. Demand does NOT predict TikTok reach.
+# It's a CONVERSION lever (post the schools users actually look up, so the click
+# lands on a page they want), not a reach lever. Changing gamma is an owner call
+# about which of those two the feed is for.
 DEMAND_GAMMA = float(os.environ.get("DEMAND_GAMMA", "1.4"))
 ICONIC_FLOOR = 45                   # iconic/household-name schools get AT LEAST this
 # selection weight regardless of calc volume — so BC (4 calcs), Notre Dame (7),
@@ -664,10 +696,18 @@ MEGA_SCHOOLS = {
     "harvard","stanford","mit","yale","princeton","columbia","upenn","brown",
     "cornell","dartmouth","umich","nyu","usc","ucla","ucb","duke","northwestern","uchicago",
 }
-MEGA_FLOOR = int(os.environ.get("MEGA_FLOOR", "150"))   # vs ICONIC_FLOOR 45
-# Bumped 110->150 (Jul 2026): the 992-post audit showed big-name schools dominate the
-# 600+ view band and obscure schools cluster at the bottom, so lean harder into the
-# household names. Revert via MEGA_FLOOR=110 if the feed feels too Ivy-heavy.
+MEGA_FLOOR = int(os.environ.get("MEGA_FLOOR", "110"))   # vs ICONIC_FLOOR 45
+# 110 -> 150 (Jul 2026) -> back to 110 (2026-07-26). The bump was made off a
+# "992-post audit" claim that big names dominate the 600+ view band. That audit
+# could not have used attribution — only 2 posts were attributed at the time —
+# and the 633 posts the hashtag fix recovered say the opposite:
+#   MEGA posts            366 avg engagement score (N=380)
+#   non-MEGA posts        422                      (N=253)   diff -56, t=-1.91
+#   iconic-but-not-MEGA   430                      (N=201)   vs MEGA t=+1.79
+# At 150 the 18 MEGA schools held 63% of all selection probability while
+# performing ~13% BELOW the second tier. 110 walks that back to the last setting
+# that wasn't justified by bad data rather than inventing a new number. Set
+# MEGA_FLOOR=150 to restore if the feed reads too obscure.
 # Don't repeat a school within the last N picks (across ALL accounts) so the feed
 # stays varied. Applies to the headline/anchor school of every carousel.
 RECENT_NOREPEAT = int(os.environ.get("RECENT_NOREPEAT", "6"))

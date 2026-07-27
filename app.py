@@ -21324,12 +21324,37 @@ def tiktok_test_post():
 # factory optimizes the feed toward this score (not bare views), so a post that
 # made people share/comment counts for more than one that just got impressions.
 # Tunable via env without a redeploy.
+#
+# WHY TWO WEIGHT SETS (measured 2026-07-26 on the 633 posts the hashtag
+# attribution fix recovered). Comments/shares are RARE: 78 comments and 95 shares
+# across all 633 posts. That makes them a good discriminator where a group has
+# ~100+ posts and a terrible one where it has ~10:
+#   * FORMAT level (5 groups, n=60-202 each): comment rate spreads 3.7x across
+#     formats and share rate 6.1x, against only 1.24x for views — real signal.
+#     Split-half reliability of the format ranking: .60 at these weights vs .57
+#     views-only.
+#   * SCHOOL level (74 groups, median n=5): split-half reliability FALLS with
+#     every engagement term added — .44 views-only, .43 (+comments), .41
+#     (+likes), .38 at the format weights. At ~10 posts a school has ~1 comment;
+#     weighting it 25x is amplifying Poisson noise into the selection weights.
+# So school selection scores on views alone and format selection keeps the
+# virality terms. Same env knobs as before for formats; TT_WS_* for schools.
 _TT_W_SHARE = float(os.environ.get("TT_W_SHARE", "50"))
 _TT_W_COMMENT = float(os.environ.get("TT_W_COMMENT", "25"))
 _TT_W_LIKE = float(os.environ.get("TT_W_LIKE", "5"))
-_TT_SCORE_SQL = ("(COALESCE(p.view_count,0) + %g*COALESCE(p.share_count,0) "
-                 "+ %g*COALESCE(p.comment_count,0) + %g*COALESCE(p.like_count,0))"
-                 % (_TT_W_SHARE, _TT_W_COMMENT, _TT_W_LIKE))
+_TT_WS_SHARE = float(os.environ.get("TT_WS_SHARE", "0"))
+_TT_WS_COMMENT = float(os.environ.get("TT_WS_COMMENT", "0"))
+_TT_WS_LIKE = float(os.environ.get("TT_WS_LIKE", "0"))
+
+
+def _tt_score_sql(share, comment, like):
+    return ("(COALESCE(p.view_count,0) + %g*COALESCE(p.share_count,0) "
+            "+ %g*COALESCE(p.comment_count,0) + %g*COALESCE(p.like_count,0))"
+            % (share, comment, like))
+
+
+_TT_SCORE_SQL = _tt_score_sql(_TT_W_SHARE, _TT_W_COMMENT, _TT_W_LIKE)
+_TT_SCORE_SQL_SCHOOL = _tt_score_sql(_TT_WS_SHARE, _TT_WS_COMMENT, _TT_WS_LIKE)
 
 
 def tiktok_perf_by(group_col):
@@ -21342,11 +21367,12 @@ def tiktok_perf_by(group_col):
     if group_col not in ("slide3_type", "school_slug"):
         return {}
     out = {}
+    score_sql = _TT_SCORE_SQL_SCHOOL if group_col == "school_slug" else _TT_SCORE_SQL
     try:
         import time as _t
         with db() as conn:
             rows = conn.execute(
-                f"SELECT c.{group_col} k, ({_TT_SCORE_SQL}) s, p.create_time ct "
+                f"SELECT c.{group_col} k, ({score_sql}) s, p.create_time ct "
                 f"FROM content_queue c JOIN tiktok_posts p ON p.carousel_id = c.id "
                 f"WHERE c.{group_col} IS NOT NULL AND p.view_count IS NOT NULL").fetchall()
         if not rows:
@@ -21367,7 +21393,18 @@ def tiktok_perf_by(group_col):
         gmean = (gs / gw) if gw > 0 else 0.0
         # SHRINKAGE: pull each group's recency-weighted average toward the global mean
         # by K effective posts, so one lucky post can't hijack a whole format's weight.
-        K = float(os.environ.get("TT_PERF_SHRINK_K", "3"))
+        # K is not a taste knob — it is sigma^2_within / sigma^2_true, the point at
+        # which a group's own average and the global mean deserve equal trust.
+        # MEASURED 2026-07-26 on the 633 recovered posts (schools with n>=8):
+        #   per-post score sd 311 on a mean of 388 (CV 0.80)  -> sigma^2_within 54,600
+        #   observed sd of school means 88, of which 56 is pure sampling noise
+        #                                            -> sigma^2_true  = 68^2 = 4,624
+        #   K = 54,600 / 4,624 = 11.8
+        # The old default of 3 implied schools were ~4x more distinguishable than
+        # they are, so a school with 3 posts entered at half weight when its real
+        # reliability is 0.20 — the engine was reading noise as a school effect.
+        # 12 makes reliability n/(n+12): 0.20 at n=3, 0.40 at n=8, 0.63 at n=20.
+        K = float(os.environ.get("TT_PERF_SHRINK_K", "12"))
         for k, (wsum, wscore, n) in agg.items():
             wavg = (wscore / wsum) if wsum > 0 else 0.0
             out[k] = (n, (wsum * wavg + K * gmean) / (wsum + K) if (wsum + K) > 0 else wavg)
