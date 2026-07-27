@@ -13578,9 +13578,14 @@ def _celeb_title_body(slug, sch, hook, photo_url, credit=None):
     # cover has nothing to attribute).
     credit_html = ''
     if photo_url and credit:
-        credit_html = (f'<div style="position:absolute;left:0;right:0;bottom:2px;text-align:center;'
+        # The white strip matters: on a tall portrait the photo circle reaches the
+        # bottom edge and grey-on-photo made the attribution unreadable exactly
+        # where it overlapped (Messi's cover). On the white cover the strip is
+        # invisible everywhere else, so it costs nothing and keeps the BY legible.
+        credit_html = (f'<div style="position:absolute;left:0;right:0;bottom:0;text-align:center;'
+                       f'z-index:5;background:rgba(255,255,255,.93);padding:3px 0 4px;'
                        f'font-family:\'InterEmb\',-apple-system,sans-serif;font-weight:500;'
-                       f'font-size:17px;letter-spacing:0;text-transform:none;color:#9aa0a6">'
+                       f'font-size:17px;letter-spacing:0;text-transform:none;color:#6b7280">'
                        f'{_esc(credit)}</div>')
     # Shorter text area + capped per-line size than the plain hook cover: the
     # band is two objects wide here, so the words have to give up some height.
