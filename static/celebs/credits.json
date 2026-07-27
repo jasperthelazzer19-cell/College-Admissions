@@ -1,32 +1,282 @@
 {
- "lamine-yamal-harvard": {
-  "license": "CC BY-SA 4.0",
-  "author": "Bryan Berlin",
-  "source": "https://commons.wikimedia.org/wiki/File:Lamine_Yamal_France_v_Spain_7.24.26-142.jpg"
+ "aaron-rodgers-ucb": {
+  "license": "CC BY-SA 2.0",
+  "author": "All-Pro Reels",
+  "source": "https://commons.wikimedia.org/wiki/File:Aaron_Rodgers_Packers_OCT2021_(cropped).jpg"
  },
- "rodri-upenn": {
-  "license": "CC BY-SA 4.0",
-  "author": "Bryan Berlin",
-  "source": "https://commons.wikimedia.org/wiki/File:Rodri_France_v_Spain_7.24.26-096_(cropped).jpg"
+ "anderson-cooper-yale": {
+  "license": "Public domain",
+  "author": "The White House",
+  "source": "https://commons.wikimedia.org/wiki/File:Anderson_Cooper_at_the_White_House_on_November_7,_2023_(cropped).jpg"
  },
- "kylian-mbappe-harvard": {
+ "andrew-luck-stanford": {
+  "license": "CC BY-SA 2.0",
+  "author": "Keith Allison",
+  "source": "https://commons.wikimedia.org/wiki/File:Andrew_Luck_vs._Redskins_2018.jpg"
+ },
+ "angela-bassett-yale": {
   "license": "CC BY-SA 4.0",
-  "author": "Bryan Berlin",
-  "source": "https://commons.wikimedia.org/wiki/File:Kylian_Mbappe_France_v_Senegal_16_June_2026-391_(cropped).jpg"
+  "author": "Gabriel Hutchinson",
+  "source": "https://commons.wikimedia.org/wiki/File:Angela_Basset_at_the_2025_Cannes_Film_Festival_04_(cropped).jpg"
+ },
+ "bad-bunny-columbia": {
+  "license": "CC BY-SA 4.0",
+  "author": "Toglenn",
+  "source": "https://commons.wikimedia.org/wiki/File:Bad_Bunny_2019_by_Glenn_Francis_(cropped).jpg"
+ },
+ "billie-eilish-usc": {
+  "license": "CC BY 4.0",
+  "author": "Raph_PH",
+  "source": "https://commons.wikimedia.org/wiki/File:BillieEilishO2140725-39_-_54665577407_(cropped).jpg"
+ },
+ "bronny-james-cornell": {
+  "license": "CC BY 4.0",
+  "author": "Erik Drost",
+  "source": "https://commons.wikimedia.org/wiki/File:Bronny_James_Jr._(55095342116)_(cropped).jpg"
+ },
+ "caitlin-clark-stanford": {
+  "license": "CC BY-SA 4.0",
+  "author": "John Mac",
+  "source": "https://commons.wikimedia.org/wiki/File:Caitlin_Clark_2025_2_(cropped).jpg"
+ },
+ "charli-damelio-nyu": {
+  "license": "CC BY 3.0",
+  "author": "Priyanka Pruthi",
+  "source": "https://commons.wikimedia.org/wiki/File:Charli_D%27Amelio_3.jpg"
+ },
+ "christian-mccaffrey-stanford": {
+  "license": "CC0",
+  "author": "Thomson200",
+  "source": "https://commons.wikimedia.org/wiki/File:Christian_McCaffrey_2019_(1).jpg"
+ },
+ "claire-danes-yale": {
+  "license": "CC BY 3.0",
+  "author": "David Shankbone",
+  "source": "https://commons.wikimedia.org/wiki/File:Claire_Danes_2012_Shankbone.JPG"
+ },
+ "coco-gauff-princeton": {
+  "license": "CC BY-SA 4.0",
+  "author": "Rick Munroe",
+  "source": "https://commons.wikimedia.org/wiki/File:Coco_Gauff_Miami_Open.jpg"
+ },
+ "colin-jost-harvard": {
+  "license": "CC BY-SA 4.0",
+  "author": "YantsImages",
+  "source": "https://commons.wikimedia.org/wiki/File:Colin_Jost_301_(cropped)_(cropped).jpg"
+ },
+ "conan-obrien-harvard": {
+  "license": "CC BY-SA 4.0",
+  "author": "Adam Chitayat",
+  "source": "https://commons.wikimedia.org/wiki/File:Conan_O%27Brien_at_the_2025_Sundance_Film_Festival_03_(cropped).jpg"
+ },
+ "edward-norton-yale": {
+  "license": "CC BY 4.0",
+  "author": "Max Surprenant",
+  "source": "https://commons.wikimedia.org/wiki/File:Ed_Norton_and_Shauna_Robertson_TIFF_2025_(cropped).jpg"
+ },
+ "elizabeth-banks-penn": {
+  "license": "CC BY 3.0",
+  "author": "Empire Movies",
+  "source": "https://commons.wikimedia.org/wiki/File:Elizabeth_Banks_during_interview_in_2019.png"
+ },
+ "ellie-kemper-princeton": {
+  "license": "CC BY 2.0",
+  "author": "jjduncan_80",
+  "source": "https://commons.wikimedia.org/wiki/File:Ellie_Kemper_at_the_38th_People%27s_Choice_Award_(cropped).jpg"
+ },
+ "emma-watson-brown": {
+  "license": "CC BY 3.0",
+  "author": "David Shankbone",
+  "source": "https://commons.wikimedia.org/wiki/File:Emma_Watson_2012_Shankbone.JPG"
  },
  "ferran-torres-stanford": {
   "license": "CC BY-SA 4.0",
   "author": "Bryan Berlin",
   "source": "https://commons.wikimedia.org/wiki/File:Ferran_Torres_France_v_Spain_7.24.26-237_(cropped).jpg"
  },
- "pau-cubarsi-princeton": {
+ "ishowspeed-ucla": {
+  "license": "CC BY-SA 2.0",
+  "author": "Chin Yu Chu",
+  "source": "https://commons.wikimedia.org/wiki/File:IShowSpeed_at_Chinatown_(Portrait)_04.jpg"
+ },
+ "issa-rae-stanford": {
+  "license": "CC BY-SA 4.0",
+  "author": "Bea Phi",
+  "source": "https://commons.wikimedia.org/wiki/File:Issa_Rae,_producer,_writer,_and_actress,_at_SXSW_2025_01_(cropped).jpg"
+ },
+ "jennifer-connelly-yale": {
+  "license": "CC BY 2.0",
+  "author": "Karon Liu",
+  "source": "https://commons.wikimedia.org/wiki/File:Jennifer_Connelly_2010_TIFF.jpg"
+ },
+ "jeremy-lin-harvard": {
+  "license": "CC BY 3.0",
+  "author": "David Shankbone",
+  "source": "https://commons.wikimedia.org/wiki/File:Jeremy_Lin_2012_Shankbone.JPG"
+ },
+ "jodie-foster-yale": {
+  "license": "CC BY-SA 4.0",
+  "author": "Claire Fridkin",
+  "source": "https://commons.wikimedia.org/wiki/File:Jodie_Foster_and_Rebecca_Zlotowski_at_NYFF_2025_02_(cropped_headshot).jpg"
+ },
+ "john-krasinski-brown": {
+  "license": "CC BY 3.0",
+  "author": "Prime Video AU & NZ",
+  "source": "https://commons.wikimedia.org/wiki/File:John_Krasinski_2022.jpg"
+ },
+ "john-legend-penn": {
+  "license": "CC BY-SA 4.0",
+  "author": "PhilipRomanoPhoto",
+  "source": "https://commons.wikimedia.org/wiki/File:JohnLegend-byPhilipRomano.jpg"
+ },
+ "jude-bellingham-oxford-stanford": {
   "license": "CC BY-SA 4.0",
   "author": "Bryan Berlin",
-  "source": "https://commons.wikimedia.org/wiki/File:Pau_Cubarsi_Argentina_v_Spain_19_July_2026-181_(cropped).jpg"
+  "source": "https://commons.wikimedia.org/wiki/File:Jude_Bellingham_England_v_Ghana_23_June_2026-061_(cropped).jpg"
+ },
+ "kai-cenat-nyu": {
+  "license": "CC BY 3.0",
+  "author": "ImDavisss Live",
+  "source": "https://commons.wikimedia.org/wiki/File:Kai_Cenat_July_2025.jpg"
+ },
+ "khaby-lame-bocconi-nyu": {
+  "license": "CC BY 4.0",
+  "author": "Web Summit",
+  "source": "https://commons.wikimedia.org/wiki/File:Khaby_Lame,_Nov_2025_(cropped1).jpg"
+ },
+ "kylian-mbappe-harvard": {
+  "license": "CC BY-SA 4.0",
+  "author": "Bryan Berlin",
+  "source": "https://commons.wikimedia.org/wiki/File:Kylian_Mbappe_France_v_Senegal_16_June_2026-391_(cropped).jpg"
+ },
+ "lady-gaga-nyu": {
+  "license": "CC BY 2.0",
+  "author": "Carlos M. Vazquez II",
+  "source": "https://commons.wikimedia.org/wiki/File:Lady_Gaga_at_Joe_Biden%27s_inauguration_(cropped_5).jpg"
+ },
+ "lamine-yamal-harvard": {
+  "license": "CC BY-SA 4.0",
+  "author": "Bryan Berlin",
+  "source": "https://commons.wikimedia.org/wiki/File:Lamine_Yamal_France_v_Spain_7.24.26-142.jpg"
  },
  "lionel-messi-miami": {
   "license": "CC BY-SA 4.0",
   "author": "Bryan Berlin",
   "source": "https://commons.wikimedia.org/wiki/File:Leo_Messi_Argentina_v_Egypt_7_July_2026-1.jpg"
+ },
+ "mark-zuckerberg-harvard": {
+  "license": "CC BY 2.0",
+  "author": "Anthony Quintano",
+  "source": "https://commons.wikimedia.org/wiki/File:Mark_Zuckerberg_2019_(cropped).jpg"
+ },
+ "matt-damon-harvard": {
+  "license": "Public domain",
+  "author": "Bill Ingalls",
+  "source": "https://commons.wikimedia.org/wiki/File:Matt_Damon_TIFF_2015.jpg"
+ },
+ "meryl-streep-vassar": {
+  "license": "CC BY 2.0",
+  "author": "Dick Thomas Johnson",
+  "source": "https://commons.wikimedia.org/wiki/File:Meryl_Streep_at_the_Tokyo_International_Film_Festival_2016_(32801846044)_(cropped).jpg"
+ },
+ "mrbeast-upenn": {
+  "license": "CC BY 4.0",
+  "author": "Tyren Redd",
+  "source": "https://commons.wikimedia.org/wiki/File:MrBeast_in_2026_(cropped_4).png"
+ },
+ "natalie-portman-harvard": {
+  "license": "CC BY 4.0",
+  "author": "Colleen Sturtevant",
+  "source": "https://commons.wikimedia.org/wiki/File:NataliePortman.jpg"
+ },
+ "olivia-rodrigo-nyu": {
+  "license": "Public domain",
+  "author": "White House staff",
+  "source": "https://commons.wikimedia.org/wiki/File:Olivia_Rodrigo_at_White_House.jpg"
+ },
+ "patrick-mahomes-duke": {
+  "license": "CC0",
+  "author": "Thomson200",
+  "source": "https://commons.wikimedia.org/wiki/File:Patrick_Mahomes_Feb_2019.jpg"
+ },
+ "pau-cubarsi-princeton": {
+  "license": "CC BY-SA 4.0",
+  "author": "Bryan Berlin",
+  "source": "https://commons.wikimedia.org/wiki/File:Pau_Cubarsi_Argentina_v_Spain_19_July_2026-181_(cropped).jpg"
+ },
+ "paul-giamatti-yale": {
+  "license": "CC BY 2.0",
+  "author": "Montclair Film",
+  "source": "https://commons.wikimedia.org/wiki/File:Paul_Giamatti_MFF_2024.jpg"
+ },
+ "peso-pluma-berkeley": {
+  "license": "CC BY 3.0",
+  "author": "PelucheEn ElEstuche",
+  "source": "https://commons.wikimedia.org/wiki/File:PESO_PLUMA_2023.jpg"
+ },
+ "rashida-jones-harvard": {
+  "license": "CC BY-SA 2.0",
+  "author": "Stephanie Moreno/Grady College of Journali\u2026",
+  "source": "https://commons.wikimedia.org/wiki/File:Rashida_Jones_2017_(cropped).jpg"
+ },
+ "reese-witherspoon-stanford": {
+  "license": "CC BY-SA 2.0",
+  "author": "GabboT",
+  "source": "https://commons.wikimedia.org/wiki/File:Reese_Witherspoon_(29144489784)_(cropped).jpg"
+ },
+ "rodri-upenn": {
+  "license": "CC BY-SA 4.0",
+  "author": "Bryan Berlin",
+  "source": "https://commons.wikimedia.org/wiki/File:Rodri_France_v_Spain_7.24.26-096_(cropped).jpg"
+ },
+ "sabrina-carpenter-nyu": {
+  "license": "CC BY 2.0",
+  "author": "Raph_PH",
+  "source": "https://commons.wikimedia.org/wiki/File:Sabrina_Carpenter_-_O2_Arena_2025_-_086_(cropped_2).jpg"
+ },
+ "sha-carri-richardson-ucla": {
+  "license": "CC BY 2.0",
+  "author": "jenaragon94",
+  "source": "https://commons.wikimedia.org/wiki/File:Sha%27Carri_Richardson_15555_(sq_cropped).jpg"
+ },
+ "shohei-ohtani-mit": {
+  "license": "CC BY-SA 2.0",
+  "author": "All-Pro Reels",
+  "source": "https://commons.wikimedia.org/wiki/File:Dodgers_at_Nationals_(53677192000)_(cropped).jpg"
+ },
+ "simone-biles-stanford": {
+  "license": "CC0",
+  "author": "Ocoudis",
+  "source": "https://commons.wikimedia.org/wiki/File:Simone_Biles_Olympic_Trials_24.jpg"
+ },
+ "stephen-curry-mit": {
+  "license": "CC BY 2.0",
+  "author": "TechCrunch",
+  "source": "https://commons.wikimedia.org/wiki/File:TechCrunch_Disrupt_2019_(48834853256)_(1).jpg"
+ },
+ "sterling-k-brown-stanford": {
+  "license": "CC BY 4.0",
+  "author": "Kevin Paul",
+  "source": "https://commons.wikimedia.org/wiki/File:Sterling_K_Brown_-_Paradise.jpg"
+ },
+ "sza-northwestern": {
+  "license": "CC BY 4.0",
+  "author": "Raph_PH",
+  "source": "https://commons.wikimedia.org/wiki/File:KendrickSZASPurs230725-19_-_54683179509_(cropped)_(cropped).jpg"
+ },
+ "timothee-chalamet-columbia": {
+  "license": "CC BY 4.0",
+  "author": "Amy Martin Photography",
+  "source": "https://commons.wikimedia.org/wiki/File:Timoth%C3%A9e_Chalamet_2025_2_(cropped).jpg"
+ },
+ "victor-wembanyama-mit": {
+  "license": "CC BY 4.0",
+  "author": "Frenchieinportland",
+  "source": "https://commons.wikimedia.org/wiki/File:Victor_Wembanyama_San_Antonio_Spurs_2024.jpg"
+ },
+ "zendaya-yale": {
+  "license": "CC BY-SA 4.0",
+  "author": "PhilipRomano",
+  "source": "https://commons.wikimedia.org/wiki/File:Zendaya-byPhilipRomano.jpg"
  }
 }

@@ -13430,13 +13430,48 @@ def celeb_photo_url(cid):
     return None
 
 
-def _celeb_title_body(slug, sch, hook, photo_url):
+# Attribution for the cover portraits, keyed by celeb id. Every one of them is a
+# Wikimedia Commons file and most are CC BY or CC BY-SA, which oblige us to name
+# the photographer WHEREVER the image is published — and a TikTok carousel is
+# publishing. Cached at first use: it's a static file that ships with the repo
+# and the cover renderer runs for every celeb slide.
+_CELEB_CREDITS = None
+
+
+def celeb_photo_credit(cid):
+    """One-line photo credit for a celeb cover portrait, or None if unknown.
+
+    Composed from credits.json's {license, author, source} rather than stored as
+    a finished string, so a hand-added entry only has to carry the three facts.
+    None is NOT a reason to drop the photo — the cover still renders it, just
+    without a credit line. Public-domain and CC0 files name no rights-holder
+    because there isn't one; inventing an "author" for them would be worse than
+    the bare source."""
+    global _CELEB_CREDITS
+    if _CELEB_CREDITS is None:
+        try:
+            with open(os.path.join(app.root_path, "static", "celebs", "credits.json")) as f:
+                _CELEB_CREDITS = json.load(f)
+        except Exception:
+            _CELEB_CREDITS = {}
+    e = _CELEB_CREDITS.get(cid) or {}
+    lic, author = (e.get("license") or "").strip(), (e.get("author") or "").strip()
+    if not lic:
+        return None
+    free = lic.lower().startswith("public domain") or lic.upper().startswith("CC0")
+    if free or not author:
+        return f"Photo: {lic} via Wikimedia Commons"
+    return f"Photo: {author} / {lic} / Wikimedia Commons"
+
+
+def _celeb_title_body(slug, sch, hook, photo_url, credit=None):
     """Celebrity cover: the 'CAN <PERSON> GET INTO <SCHOOL>?' hook over a bottom
     band holding the person's photo and the school logo side by side.
 
     The photo is a background-image div, not an <img>, so _title_frame's logo
     autosizer (which rewrites every img's max-height to fill leftover room)
     can't squash a fixed-size circle into an oval — the logo still autosizes."""
+    from html import escape as _esc
     short, color = _school_brand(slug, sch.get("name"))
     outline = SCHOOL_TEXT_OUTLINE.get(slug)
     logo_url = INST_LOGOS.get(slug) or SCHOOL_LOGOS.get(slug)
@@ -13455,9 +13490,22 @@ def _celeb_title_body(slug, sch, hook, photo_url):
                  if logo_url else '')
     band = (f'<div style="display:flex;align-items:center;justify-content:center;gap:46px;'
             f'width:100%">{photo_html}{logo_html}</div>')
+    # The BY in CC BY / CC BY-SA has to appear on the published artifact, so the
+    # credit rides the slide itself, not a caption we might forget to paste.
+    # position:absolute keeps it OUT of the flow: the frame's height math is tuned
+    # to the pixel and an extra flow row would shrink the whole card. Small, grey,
+    # sentence-case, pinned to the bottom edge — legible if you look for it,
+    # invisible if you don't. Only rendered when there IS a photo (a logo-only
+    # cover has nothing to attribute).
+    credit_html = ''
+    if photo_url and credit:
+        credit_html = (f'<div style="position:absolute;left:0;right:0;bottom:2px;text-align:center;'
+                       f'font-family:\'InterEmb\',-apple-system,sans-serif;font-weight:500;'
+                       f'font-size:17px;letter-spacing:0;text-transform:none;color:#9aa0a6">'
+                       f'{_esc(credit)}</div>')
     # Shorter text area + capped per-line size than the plain hook cover: the
     # band is two objects wide here, so the words have to give up some height.
-    return _title_frame(line_html, band, cardH=1470, maxFont=300, logoMax=460)
+    return _title_frame(line_html, band, cardH=1470, maxFont=300, logoMax=460) + credit_html
 
 
 @app.route("/title-celeb/export")
@@ -13484,7 +13532,10 @@ def title_celeb_export():
     # Accent the name and the school so the two nouns the slide is about pop in
     # the school's color; "CAN"/"GET INTO" stay black.
     hook = f'CAN\n*{c["name"].upper()}*\nGET INTO\n*{short.upper()}*?'
-    body = _celeb_title_body(slug, sch, hook, celeb_photo_url(c["id"]))
+    # The photo is the point of this cover, so a missing credits entry never
+    # suppresses it — it only means the small attribution line goes unrendered.
+    body = _celeb_title_body(slug, sch, hook, celeb_photo_url(c["id"]),
+                             celeb_photo_credit(c["id"]))
     return Response(_profile_export_page(body, dl_name=f'{c["id"]}-title', pad="52px 58px 48px",
                                          clean=request.args.get("clean") == "1"),
                     mimetype="text/html")
