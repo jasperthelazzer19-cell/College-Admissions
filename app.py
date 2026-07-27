@@ -21222,17 +21222,122 @@ def _carousel_hook_arm(r):
     return None
 
 
+# ── PER-ACCOUNT CAPTION POOLS ──────────────────────────────────────────────
+# 2026-07-27. Every account drew from ONE shared pool seeded by row id, so the
+# identical string went out on several accounts inside the same batch:
+#
+#   15:11:05  candoradmit19     "Comment your stats and see if you'd get in"
+#   15:14:14  Candoradmitt      "Save this for when you're building your list."
+#   15:14:37  @candor20         "Guess before you swipe..."   <- same lines,
+#   15:13:59  @candoradmit      "If you disagree, say what..."    minutes apart
+#
+# On 2026-07-26 ~22:00 UTC, three accounts (@candor20, Candoradmitt, Candor57)
+# dropped from ~280 views/post to 6-15 in a single batch, and @candoradmit.com3
+# was banned outright. Every account created on or after Jun 16 was hit; every
+# account created before it was spared. That is network detection, and duplicate
+# captions posted in a 90-second window across accounts is the cheapest signal
+# we were handing it.
+#
+# So the pools are DISJOINT BY CONSTRUCTION — an account can only ever draw its
+# own five lines. Adding an account means adding a block here, not sharing one.
+# Keep the mechanics varied WITHIN a block (guess-first, save, counter-ask,
+# stance, challenge) so an account still reads like a person, not a bot with one
+# catchphrase.
+#
+# Kept from the 1,388-post audit: "Comment your stats" (458 avg) was the only
+# CTA that beat bare hashtags, so its mechanic — ask for one number, not a
+# profile — is spread across the blocks. The two link-in-bio funnels that scored
+# BELOW posting nothing (297, 289) are gone and should not come back.
+_CAPTION_POOLS = {
+    "@candoradmit": [
+        "Comment your stats and I'll tell you if you'd get in 👇",
+        "Guess the number before you swipe.",
+        "This one always splits the room.",
+        "Say what you'd put instead. I'll wait 👇",
+        "Screenshot this if you're applying there.",
+    ],
+    "@candoradmit.com": [
+        "Do you agree with these odds? 👀",
+        "Most people guess way too high on this one.",
+        "Drop your GPA and I'll run it 👇",
+        "Save this before you build your list.",
+        "Tell me which school you want next 👇",
+    ],
+    "candoradmit19": [
+        "Be honest… did we get this right? 👇",
+        "Half of you are going to argue with this. Go ahead.",
+        "One number. What would you have said? 👇",
+        "Keep this for application season.",
+        "Nobody gets this on the first try.",
+    ],
+    "@candor54": [
+        "Your counselor would give you a different answer than this.",
+        "Would YOU have gotten in? Drop your stats 👇",
+        "The gap between these two is bigger than people think.",
+        "Bookmark this one.",
+        "Name a school and I'll do it next 👇",
+    ],
+    "@candor20": [
+        "Prove me wrong in the comments 👇",
+        "This is the one people argue about.",
+        "What's your guess? No cheating 👇",
+        "Worth saving if you're a junior.",
+        "Everyone overestimates this school.",
+    ],
+    "@candoradmissions": [
+        "Where do you think you'd land? 👇",
+        "This surprised me too.",
+        "Drop a school, I'll run the same breakdown 👇",
+        "Save it, you'll want it in October.",
+        "Say the number you'd have guessed.",
+    ],
+    "Candoradmitt": [
+        "Read the stats first, then the odds. Still shocked?",
+        "Tell me I'm wrong 👇",
+        "Which one would you pick?",
+        "Hold onto this for later.",
+        "Comment a GPA and I'll run it 👇",
+    ],
+    "Candor57": [
+        "Guess first, then swipe 👇",
+        "This one's closer than it looks.",
+        "What would you have put? 👇",
+        "Save this for your list.",
+        "People get loud about this school.",
+    ],
+}
+# Unassigned / one-off / manual rows. Deliberately bland and never used by a
+# real account, so it can't collide with a live account's block.
+_CAPTION_FALLBACK = [
+    "Real numbers, not vibes.",
+    "Here's what the data actually says.",
+    "Swipe for the breakdown.",
+]
+
+
 def _caption_hook(r):
+    """One caption, drawn only from the row's own account's block.
+
+    Seeded by row id so it's reproducible from the row alone and consecutive
+    posts on one account don't repeat — repeating a caption on the SAME account
+    throttles reach, and repeating one ACROSS accounts is what this partition
+    exists to stop.
+    """
     import random as _rnd
     try:
         seed = int(r["id"] or 0)
     except Exception:
         seed = 0
-    # Arm A gets the new set, everything else (arm B, dormant accounts, unassigned
-    # one-offs) keeps the control set unchanged. Same id-derived seed either way so
-    # consecutive posts on one account don't repeat a caption — identical captions
-    # throttle reach — and so a caption is reproducible from the row alone.
-    pool = _CAPTION_HOOKS_A if _carousel_hook_arm(r) == "A" else _CAPTION_HOOKS
+    acct = None
+    for col in ("assigned_account", "posted_account"):
+        try:
+            acct = (r[col] or "").strip()
+        except (IndexError, KeyError):
+            continue
+        if acct in _CAPTION_POOLS:
+            break
+        acct = None
+    pool = _CAPTION_POOLS.get(acct) or _CAPTION_FALLBACK
     return _rnd.Random(seed * 7 + 3).choice(pool)
 
 
