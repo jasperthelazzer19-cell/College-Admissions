@@ -290,6 +290,11 @@ def build_hypo(c, dry=False):
         slide3_type="chances",
         profile_json=json.dumps(p),
         odds_text=f"{odds[0]}-{odds[1]}%", grade_text="",
+        # priority>=100 is the release gate's top tier (app.py: it looks for that
+        # band before rigged, then before everything else). Perishable batches --
+        # the World Cup block especially -- need to jump a queue that already has
+        # 40 pending, or they go out weeks after anyone cares.
+        priority=PRIORITY,
         img1=img1, img2=setup, img3=prof, img4=chances,
         meta={"celeb": c["id"], "celeb_name": c["name"], "celeb_track": "hypo",
               "category": c.get("category", ""), "spike_strength": round(strength, 3),
@@ -420,9 +425,14 @@ def _arg(flag):
     return sys.argv[sys.argv.index(flag) + 1] if flag in sys.argv else None
 
 
+PRIORITY = 0        # set by --priority; see the payload note on the 100 threshold
+
+
 def main():
+    global PRIORITY
     dry = "--dry" in sys.argv
     n = int(_arg("--n")) if "--n" in sys.argv else 4
+    PRIORITY = int(_arg("--priority")) if "--priority" in sys.argv else 0
     track = (_arg("--track") or "factual").lower()
     if track not in ("factual", "hypo"):
         sys.exit("--track must be 'factual' or 'hypo'")

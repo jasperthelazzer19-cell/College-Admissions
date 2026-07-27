@@ -1,0 +1,32 @@
+{
+ "lamine-yamal-harvard": {
+  "license": "CC BY-SA 4.0",
+  "author": "Bryan Berlin",
+  "source": "https://commons.wikimedia.org/wiki/File:Lamine_Yamal_France_v_Spain_7.24.26-142.jpg"
+ },
+ "rodri-upenn": {
+  "license": "CC BY-SA 4.0",
+  "author": "Bryan Berlin",
+  "source": "https://commons.wikimedia.org/wiki/File:Rodri_France_v_Spain_7.24.26-096_(cropped).jpg"
+ },
+ "kylian-mbappe-harvard": {
+  "license": "CC BY-SA 4.0",
+  "author": "Bryan Berlin",
+  "source": "https://commons.wikimedia.org/wiki/File:Kylian_Mbappe_France_v_Senegal_16_June_2026-391_(cropped).jpg"
+ },
+ "ferran-torres-stanford": {
+  "license": "CC BY-SA 4.0",
+  "author": "Bryan Berlin",
+  "source": "https://commons.wikimedia.org/wiki/File:Ferran_Torres_France_v_Spain_7.24.26-237_(cropped).jpg"
+ },
+ "pau-cubarsi-princeton": {
+  "license": "CC BY-SA 4.0",
+  "author": "Bryan Berlin",
+  "source": "https://commons.wikimedia.org/wiki/File:Pau_Cubarsi_Argentina_v_Spain_19_July_2026-181_(cropped).jpg"
+ },
+ "lionel-messi-miami": {
+  "license": "CC BY-SA 4.0",
+  "author": "Bryan Berlin",
+  "source": "https://commons.wikimedia.org/wiki/File:Leo_Messi_Argentina_v_Egypt_7_July_2026-1.jpg"
+ }
+}
