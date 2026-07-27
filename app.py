@@ -2952,6 +2952,15 @@ def _rating_to_fit_delta(r):
     return max(-4.0, min(15.0, -4.0 + (r / 1000.0) * 19.0))
 
 
+# Spike floor granted by the self-declared recruited-athlete checkbox.
+# CORROBORATED keeps the historical 0.70 — a real D1 recruit is genuinely in
+# that band. BARE is what a tick with nothing behind it gets: above an ordinary
+# profile, well below the elite floor, and low enough that it can't out-argue
+# the grader. Both env-overridable so this is a one-line rollback.
+ATHLETE_SPIKE_FLOOR = float(os.environ.get("ATHLETE_SPIKE_FLOOR", "0.70"))
+ATHLETE_SPIKE_FLOOR_BARE = float(os.environ.get("ATHLETE_SPIKE_FLOOR_BARE", "0.30"))
+
+
 def ec_exceptional_strength(profile):
     """Continuous 0-1 'how exceptional are the ECs' signal that replaces the
     old binary is_exceptional cliff for the odds CAP. Ramps from 0 at rating
@@ -2964,7 +2973,13 @@ def ec_exceptional_strength(profile):
     # the standard cap. Genuinely national-tier (900+) still reaches ~1.0.
     exc = max(0.0, min(1.0, (r - 640.0) / 360.0))
     if profile.get("athlete"):
-        exc = max(exc, 0.70)
+        # A corroborated recruit keeps the full 0.70 floor — recruited-athlete is
+        # one of the few hooks that genuinely does what that number implies. An
+        # uncorroborated tick gets a much smaller floor: still an acknowledged
+        # hook, but it can no longer beat the grader into the elite band on its
+        # own. See _athlete_corroborated for why and for the escape hatch.
+        exc = max(exc, ATHLETE_SPIKE_FLOOR if _athlete_corroborated(profile)
+                       else ATHLETE_SPIKE_FLOOR_BARE)
     if profile.get("is_exceptional"):
         exc = max(exc, 1.0)
     return exc
@@ -3954,7 +3969,13 @@ def counterfactual_lift(profile, school, *, gpa=None, sat=None, act=None,
     if gpa is not None:        sim["uw_gpa"] = gpa
     if sat is not None:        sim["sat"] = sat
     if act is not None:        sim["act"] = act
-    if hook_athlete:           sim["athlete"] = True
+    if hook_athlete:
+        # Being a recruit is the PREMISE of this scenario ("if you were a
+        # recruited athlete here"), not a self-report to be checked, so it
+        # carries the corroborated floor — otherwise the what-if would quote a
+        # lift no real recruit would actually get.
+        sim["athlete"] = True
+        sim["athlete_corroborated"] = True
     if hook_legacy_at:
         existing = sim.get("legacy_schools","") or ""
         if hook_legacy_at not in existing:
@@ -4099,6 +4120,52 @@ _EXC_INLINE_KW = (
     "jack kent cooke", "davidson fellow",
 )
 
+# Corroboration for the self-declared "recruited athlete" checkbox.
+#
+# The box is a free, unverified field on the profile form, and it used to be
+# enough on its own to (a) floor the spike signal at 0.70 — the elite band —
+# and (b) force the keyword EC rating to 780. Both OVERRODE the actual grader:
+# the LLM could read a profile at 200/1000 and the checkbox would beat it.
+# That was always slightly wrong; the 2026-07-26 spike fix made the floor worth
+# ~3.9x odds, which turned it into the cheapest way to buy an elite profile.
+#
+# So the box now has to be backed by something the applicant actually wrote.
+# The list is deliberately narrow — phrases a real recruit uses and an ordinary
+# varsity player doesn't. Bare "committed"/"scholarship"/"captain" are LEFT OUT
+# on purpose: they're common in ordinary activity lists ("committed volunteer",
+# "merit scholarship") and would corroborate almost everyone.
+_ATHLETE_CORROBORATION_RE = (
+    r"\brecruit(?:ed|ing|s|ment)?\b",
+    r"\bd-?1\b", r"\bdivision\s*(?:i|1|one)\b", r"\bncaa\b", r"\bpower\s*(?:5|five)\b",
+    r"\ball[-\s]american\b", r"\ball[-\s]state\b",
+    r"\bnational\s+letter\s+of\s+intent\b", r"\bnli\b",
+    r"\bverbal(?:ly)?\s+commit", r"\bcommitted\s+to\s+(?:play|compete|run|swim|row)",
+    r"\bathletic\s+scholarship\b", r"\bsports\s+scholarship\b", r"\bwalk[-\s]on\b",
+    r"\b(?:state|national|world|olympic)\s+champion(?:ship)?\b",
+    r"\bjunior\s+nationals?\b", r"\bnationals?\s+qualifier\b", r"\bnationally\s+ranked\b",
+    r"\bteam\s+usa\b", r"\bnational\s+team\b", r"\bolympic\s+(?:trials|team)\b",
+    r"\bjunior\s+olympics?\b", r"\bid\s*camp\b", r"\belite\s+showcase\b",
+    r"\bcoach(?:es)?\s+(?:contact|interest|list)\b", r"\bofficial\s+visit\b",
+)
+
+
+def _athlete_corroborated(profile):
+    """True when a ticked recruited-athlete box is actually supported.
+
+    Two ways to clear it:
+      - `athlete_corroborated` set explicitly by the caller. Used by the
+        "if you were a recruited athlete here" counterfactual, where being a
+        recruit is the PREMISE of the scenario, not a claim to be checked.
+      - Something recruiting-shaped in the written profile.
+    """
+    if profile.get("athlete_corroborated"):
+        return True
+    import re as _re
+    blob = (f"{profile.get('awards','')}\n{profile.get('ecs','')}\n"
+            f"{profile.get('leadership','')}\n{profile.get('spike','') or ''}").lower()
+    return any(_re.search(p, blob) for p in _ATHLETE_CORROBORATION_RE)
+
+
 def _keyword_exceptional(profile):
     blob = f"{profile.get('awards','')}\n{profile.get('ecs','')}\n{profile.get('leadership','')}".lower()
     # Word-boundary match so short tokens like "rsi" don't fire inside
@@ -4107,7 +4174,8 @@ def _keyword_exceptional(profile):
     import re as _re
     if any(_re.search(r"\b" + _re.escape(k) + r"\b", blob) for k in _EXC_INLINE_KW):
         return True
-    return bool(profile.get("athlete"))
+    # A ticked box alone no longer lands in the elite keyword band (see above).
+    return bool(profile.get("athlete") and _athlete_corroborated(profile))
 
 
 # Per-school calibration dial. Lifts ONLY the listed school's odds curve —
@@ -13193,6 +13261,18 @@ def celeb_hypo_export():
     # than a template built from gpa/sat — the roster author wrote the sentence
     # that has to appear, so the slide can't drift from it.
     note = (c.get("academic_note") or "").strip()
+    # The label above the stamp and the disclaimer below the card BOTH assert
+    # that the academics are invented. That is true for every entry except the
+    # ones where research turned up a real, published number (Caitlin Clark's
+    # 3.64 is on Iowa's own athletics site), and there the fixed wording would
+    # print "MADE UP FOR THIS SCENARIO" directly above a real GPA — the exact
+    # mislabelling this format exists to avoid, just pointing the other way.
+    # So an entry with a real academic component overrides both strings.
+    note_label = (c.get("note_label") or "Made up for this scenario").strip()
+    foot = (c.get("note_foot") or
+            "The achievements above are real and public. The grades are invented &mdash; we "
+            "don&rsquo;t know anyone&rsquo;s transcript. Candor scores what&rsquo;s on this "
+            "slide, nothing else.")
     card = f'''<div id="card" class="full compare">
   <div class="pill-top"><span class="line"></span><span class="pill">CANDOR &mdash; THE SETUP:</span><span class="line r"></span></div>
   <div class="title">Best in the world at one thing.</div>
@@ -13202,12 +13282,11 @@ def celeb_hypo_export():
     <ul style="list-style:disc;margin:0;padding-left:32px;color:#dfe7f0">{ach_html}</ul>
     {awards_html}
     <div style="margin:30px 0 0;padding:20px 22px;border:4px solid #f9a8d4;border-radius:14px">
-      <div style="font-size:26px;letter-spacing:2px;font-weight:800;color:#f9a8d4;text-transform:uppercase;margin:0 0 8px">Made up for this scenario</div>
+      <div style="font-size:26px;letter-spacing:2px;font-weight:800;color:#f9a8d4;text-transform:uppercase;margin:0 0 8px">{_esc(note_label)}</div>
       <div style="font-size:33px;line-height:1.35;font-weight:800;color:#fff">{_esc(note)}</div>
     </div>
     <div class="rt-h" style="margin-top:auto;padding-top:26px;font-size:22px;line-height:1.45">
-      The achievements above are real and public. The grades are invented &mdash; we
-      don&rsquo;t know anyone&rsquo;s transcript. Candor scores what&rsquo;s on this slide, nothing else.
+      {foot}
     </div>
   </div>
   <div class="foot"><span class="lock">&#128274;</span>candoradmit.com</div>
