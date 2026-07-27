@@ -13787,6 +13787,14 @@ def _autopilot_authed():
 # ("1","2","3") for accounts not yet linked — fill them in by connecting more.
 CONTENT_ACCOUNT_SLOTS = int(os.environ.get("CONTENT_ACCOUNT_SLOTS", "5"))
 
+# How long before one account may post the same school again. 7 days at ~6
+# carousels/account/day is ~42 posts of separation, and the eligible school pool
+# is far larger than that, so it doesn't bind often enough to distort selection.
+# Raise it if the feed still feels repetitive; the fallback in
+# _assign_content_account means a too-high value degrades to the old behaviour
+# rather than starving a batch.
+ACCOUNT_SCHOOL_COOLDOWN_DAYS = int(os.environ.get("ACCOUNT_SCHOOL_COOLDOWN_DAYS", "7"))
+
 
 # ═══ HOOK A/B TEST — THE ONE PLACE THIS EXPERIMENT IS DEFINED ══════════════
 # Started 2026-07-26, read out ~2026-08-09 with scripts/hook_ab_report.py.
@@ -13962,14 +13970,29 @@ def _assign_content_account(conn, school_slug=None, slide3_type=None, want_arm=N
                             "WHERE status='pending' AND assigned_account IS NOT NULL GROUP BY assigned_account"):
         if row["assigned_account"] in counts:
             counts[row["assigned_account"]] = row["c"]
-    # No-repeat: an account shouldn't get a school it posted in its last 5 (compare
+    # No-repeat: an account shouldn't get a school it recently PUT OUT (compare
     # carousels are exempt — and don't count toward any account's recent schools).
+    #
+    # This used to be "not in the last 5 rows by id" and it did not work. Two
+    # reasons, both measured on prod 2026-07-26: at ~6 carousels per account per
+    # day a 5-row window covers well under a day, and ordering by id meant it
+    # compared against the most recently PUSHED rows — which, with ~56 sitting
+    # pending, are unposted future content rather than anything a viewer has seen.
+    # Replaying 1,086 released carousels found 111 same-account-same-school repeats
+    # inside 3 days and 255 inside 7. Someone following one account was seeing the
+    # same school twice a week.
+    #
+    # Now: block a school this account still has QUEUED, or actually released
+    # inside the cooldown. The fallback still lets a school through when every
+    # account is holding it, so this can never starve a batch.
     eligible = labels
     if school_slug and slide3_type != "compare":
         def _recent(lab):
             rows = conn.execute(
                 "SELECT school_slug FROM content_queue WHERE assigned_account=? "
-                "AND IFNULL(slide3_type,'')!='compare' ORDER BY id DESC LIMIT 5", (lab,)).fetchall()
+                "AND IFNULL(slide3_type,'')!='compare' "
+                "AND (status='pending' OR released_at >= datetime('now', ?))",
+                (lab, f"-{ACCOUNT_SCHOOL_COOLDOWN_DAYS} days")).fetchall()
             return {r["school_slug"] for r in rows}
         elig = [lab for lab in labels if school_slug not in _recent(lab)]
         if elig:                         # fall back to all if every account has it recently
