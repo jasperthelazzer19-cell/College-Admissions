@@ -4969,6 +4969,75 @@ def _bullet_pcts(text):
     return out
 
 
+_CLAIM_MEMO = {}
+
+
+def _false_claims(statements, facts):
+    """Indices of statements that are factually FALSE, judged by a second model.
+
+    The numeric guard above only checks digits. It cannot catch the claims that
+    actually got mocked on TikTok — "Everyone has a 4.0 at Clemson" (a ~40% admit
+    school), "UChicago test-blind, skip the SAT prep" (it's test-optional),
+    "History faces lighter competition than biochemistry" (invented). None of
+    those contain a bad number, so nothing caught them.
+
+    Deliberately narrow: it flags statements that are false or contradict the
+    supplied data, NOT statements that are merely unverifiable. Admissions copy
+    is full of legitimate unfalsifiable advice ("essays matter most here") and
+    rejecting that would gut the writing to fix a smaller problem.
+
+    Routed through _claude, so it is FREE on the Mac autopilot (USE_MAX_CLI) and
+    runs on gpt-5-mini via the FEATURE_LLM=openai shim on Railway. Set
+    CLAIM_VERIFY=0 to disable entirely.
+    """
+    if os.environ.get("CLAIM_VERIFY", "1") == "0" or not statements:
+        return set()
+    numbered = "\n".join(f"{i+1}. {s}" for i, s in enumerate(statements))
+    # Memoized on the exact statements+facts: the number check is a free pure
+    # function and can run on every call, but this one costs money. Note we do
+    # NOT reuse _bullet_memo here — it caches only truthy values, and the common
+    # result is an EMPTY set (nothing false), which is exactly the case that must
+    # be cached or every repeat request re-bills.
+    import hashlib
+    memo_key = "cv|" + hashlib.sha1(f"{facts}\n{numbered}".encode("utf-8", "ignore")).hexdigest()
+    if memo_key in _CLAIM_MEMO:
+        return set(_CLAIM_MEMO[memo_key])
+    user = (f"DATA YOU CAN RELY ON:\n{facts}\n\n"
+            f"STATEMENTS:\n{numbered}\n\n"
+            "For each numbered statement reply on its own line: the number, then "
+            "TRUE or FALSE.\n"
+            "Mark FALSE only if the statement is factually wrong about this school "
+            "or contradicts the data above — for example claiming a school is "
+            "test-blind when it is test-optional, claiming a school offers a "
+            "program it does not, or claiming nearly all applicants have some "
+            "credential at a school that admits a large share of applicants.\n"
+            "Mark TRUE for advice, opinion, and admissions generalities that "
+            "cannot be checked ('essays matter most', 'this is a reach'). "
+            "Unverifiable is NOT false. When genuinely unsure, answer TRUE.")
+    try:
+        raw = _claude("claude-haiku-4-5-20251001",
+                      "You check college-admissions statements for factual errors. "
+                      "Answer only with lines of the form '<number> TRUE' or '<number> FALSE'.",
+                      user, max_tokens=200)
+    except Exception as e:
+        print(f" * CLAIM-VERIFY skipped: {e}", flush=True)
+        return set()
+    if not raw:
+        return set()
+    bad = set()
+    for line in raw.splitlines():
+        m = re.match(r"\s*(\d+)\s*[.):]?\s*(TRUE|FALSE)", line.strip(), re.I)
+        if m and m.group(2).upper() == "FALSE":
+            idx = int(m.group(1)) - 1
+            if 0 <= idx < len(statements):
+                bad.add(idx)
+                print(f" * CLAIM-REJECT {statements[idx][:110]}", flush=True)
+    if len(_CLAIM_MEMO) > 256:
+        _CLAIM_MEMO.clear()
+    _CLAIM_MEMO[memo_key] = sorted(bad)
+    return bad
+
+
 def _bad_stat_nums(text, prompt_text):
     """Numbers in `text` that we never gave the model, percentages judged apart."""
     allowed_all = _bullet_nums(prompt_text) | _BULLET_NUM_FREE
@@ -5016,6 +5085,10 @@ def _verify_bullet_numbers(out, fb, *prompt_parts):
     the copy noticeably more repetitive than the bug it fixes.
     """
     prompt_text = "\n".join(str(p) for p in prompt_parts)
+    # Non-numeric falsehoods first — one call covering all three fields.
+    fields = list(out.keys())
+    for i in _false_claims([out[f] for f in fields], prompt_text):
+        out[fields[i]] = fb.get(fields[i], "")
     for field, text in list(out.items()):
         bad = _bad_stat_nums(text, prompt_text)
         if bad:
@@ -12944,7 +13017,11 @@ def _content_bullets(system, user, n=4, max_tokens=420):
             return [], 0
         lines = [l.strip().lstrip("-•*▸·").strip() for l in raw.split("\n") if l.strip()]
         lines = [l for l in lines if len(l) > 4]
-        return [l for l in lines if not _invents_stat(l)], len(lines)
+        kept = [l for l in lines if not _invents_stat(l)]
+        # Then the factual pass — one call for the whole slide, not per bullet.
+        false_idx = _false_claims(kept, user)
+        kept = [l for i, l in enumerate(kept) if i not in false_idx]
+        return kept, len(lines)
     def _produce():
         try:
             clean, total = _run()
