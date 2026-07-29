@@ -5644,6 +5644,21 @@ def init_db():
         )""")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_page_visits_ts ON page_visits(ts)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_page_visits_visitor ON page_visits(visitor_id, ts)")
+        # Jasper's own /admin/* views. Deliberately a SEPARATE table from
+        # page_visits: /admin/ stays in _VISIT_SKIP_PREFIXES so operator traffic
+        # never pollutes the visitor stats, but we still want an answer to "how
+        # often do I actually check the dashboard". auto=1 marks the 90s
+        # self-refresh on /admin/stats so an idle open tab doesn't read as
+        # hundreds of deliberate checks — filter on auto=0 for real look-ins.
+        conn.execute("""CREATE TABLE IF NOT EXISTS admin_views (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ts TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            path TEXT NOT NULL,
+            device TEXT,
+            auto INTEGER NOT NULL DEFAULT 0,
+            user_id INTEGER
+        )""")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_admin_views_ts ON admin_views(ts)")
         # Tracked-link clicks (e.g. the win-back email). One row per click on /go/<slug>.
         conn.execute("""CREATE TABLE IF NOT EXISTS link_clicks (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -10698,12 +10713,51 @@ _REAL_VISITOR_SQL = (
     "(SELECT visitor_id FROM page_visits GROUP BY visitor_id HAVING COUNT(*) >= 2) "
     "AND (user_agent, date(ts)) NOT IN " + _BOT_CLUSTER_DAYS_SQL + "))")
 
+def _device_of(ua):
+    """Coarse device bucket — enough to answer 'phone or laptop', nothing more."""
+    if not ua: return "unknown"
+    u = ua.lower()
+    if "ipad" in u or ("tablet" in u and "mobile" not in u): return "tablet"
+    if "iphone" in u or "android" in u or "mobile" in u: return "phone"
+    return "desktop"
+
+
+def _log_admin_view(path):
+    """One row per authorized /admin/* pageview (see admin_views schema note).
+
+    Only AUTHORIZED views are logged, so random 401 probes from scanners can't
+    pad the count. The `_auto=1` marker is set by the /admin/stats 90s refresh
+    script, which strips it from the address bar on load so a manual reload
+    never inherits it.
+    """
+    try:
+        # The meter doesn't count itself — checking the view log isn't a dashboard check.
+        if path.startswith("/admin/view-log"):
+            return
+        if not (_key_eq(request.args.get("key"), ADMIN_KEY) or _is_creator()):
+            return
+        ua = request.headers.get("User-Agent", "")
+        if _BOT_UA_RE.search(ua or ""):
+            return
+        with db() as conn:
+            conn.execute(
+                "INSERT INTO admin_views(path, device, auto, user_id) VALUES(?,?,?,?)",
+                (path[:200], _device_of(ua),
+                 1 if request.args.get("_auto") else 0, session.get("user_id")))
+            conn.commit()
+    except Exception:
+        pass  # logging must never break a request
+
+
 @app.before_request
 def _log_page_visit():
     if request.method != "GET":
         return
     p = request.path or ""
     if p in _VISIT_SKIP_PATHS: return
+    if p.startswith("/admin/"):
+        _log_admin_view(p)
+        return
     if any(p.startswith(x) for x in _VISIT_SKIP_PREFIXES): return
     if any(p.endswith(x) for x in _VISIT_SKIP_SUFFIXES): return
     # Drop declared bots/crawlers/HTTP-libs and empty-UA requests entirely.
@@ -15707,6 +15761,87 @@ def admin_link_clicks():
     return Response(html, mimetype="text/html")
 
 
+@app.route("/admin/view-log")
+def admin_view_log():
+    """How often Jasper actually checks the dashboard, by window and device.
+
+    Reads admin_views. Default excludes auto-refreshes (an idle /admin/stats tab
+    fires one every 90s); add ?auto=1 to include them.
+    """
+    if not (_key_eq(request.args.get("key"), ADMIN_KEY) or _is_creator()):
+        abort(404)
+    include_auto = request.args.get("auto") == "1"
+    where = "" if include_auto else " AND auto = 0"
+    with db() as conn:
+        def n(days):
+            return conn.execute(
+                f"SELECT COUNT(*) c FROM admin_views WHERE ts > datetime('now', ?){where}",
+                (f"-{days} day",)).fetchone()["c"]
+        windows = [(lbl, n(d)) for lbl, d in
+                   (("24 hours", 1), ("7 days", 7), ("30 days", 30), ("90 days", 90))]
+        active = conn.execute(
+            f"SELECT COUNT(DISTINCT date(ts)) c FROM admin_views "
+            f"WHERE ts > datetime('now','-90 day'){where}").fetchone()["c"]
+        by_device = conn.execute(
+            f"SELECT COALESCE(device,'unknown') d, COUNT(*) c FROM admin_views "
+            f"WHERE ts > datetime('now','-90 day'){where} GROUP BY d ORDER BY c DESC").fetchall()
+        by_page = conn.execute(
+            f"SELECT path, COUNT(*) c, MAX(ts) last FROM admin_views "
+            f"WHERE ts > datetime('now','-90 day'){where} "
+            f"GROUP BY path ORDER BY c DESC LIMIT 20").fetchall()
+        by_day = conn.execute(
+            f"SELECT date(ts) d, COUNT(*) c FROM admin_views "
+            f"WHERE ts > datetime('now','-30 day'){where} GROUP BY d ORDER BY d DESC").fetchall()
+        first = conn.execute("SELECT MIN(ts) t FROM admin_views").fetchone()["t"]
+        auto_n = conn.execute(
+            "SELECT COUNT(*) c FROM admin_views WHERE auto = 1 "
+            "AND ts > datetime('now','-90 day')").fetchone()["c"]
+
+    key = request.args.get("key", "")
+    cards = "".join(
+        f"<div style='flex:1;min-width:110px;background:#111d2b;border-radius:10px;padding:12px 14px'>"
+        f"<div style='font-size:26px;font-weight:700'>{c:,}</div>"
+        f"<div style='color:#7c8aa0;font-size:12px'>last {lbl}</div></div>"
+        for lbl, c in windows)
+    dev = " · ".join(f"{r['d']} {r['c']:,}" for r in by_device) or "—"
+    pages = "".join(
+        f"<tr style='border-top:1px solid #1d2a3d'><td style='padding:7px 0'>{r['path']}</td>"
+        f"<td><b>{r['c']:,}</b></td><td style='color:#7c8aa0'>{r['last']}</td></tr>"
+        for r in by_page) or "<tr><td colspan=3 style='padding:18px;color:#7c8aa0'>Nothing logged yet.</td></tr>"
+    days = "".join(
+        f"<tr style='border-top:1px solid #1d2a3d'><td style='padding:6px 0'>{r['d']}</td>"
+        f"<td><b>{r['c']:,}</b></td></tr>" for r in by_day)
+
+    toggle = (f"<a href='/admin/view-log?key={key}' style='color:#5fc9b6'>hide auto-refreshes</a>"
+              if include_auto else
+              f"<a href='/admin/view-log?key={key}&auto=1' style='color:#5fc9b6'>include auto-refreshes ({auto_n:,} in 90d)</a>")
+    html = (
+        "<html><head><title>Admin views</title><meta name='viewport' "
+        "content='width=device-width,initial-scale=1'></head>"
+        "<body style='font-family:system-ui;background:#0a131c;color:#e9eef5;"
+        "max-width:680px;margin:0 auto;padding:28px 18px'>"
+        f"<div style='margin-bottom:10px'><a href='/admin/stats?key={key}' "
+        "style='color:#7c8aa0;text-decoration:none'>← Stats</a></div>"
+        "<h1 style='margin:0 0 4px'>👀 Admin views</h1>"
+        f"<p style='color:#7c8aa0;margin:0 0 16px;font-size:13px'>"
+        f"{'Including' if include_auto else 'Excluding'} the 90s auto-refresh · {toggle}</p>"
+        f"<div style='display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px'>{cards}</div>"
+        f"<p style='font-size:14px'><b>{active}</b> distinct days with a check in the last 90 · "
+        f"by device: {dev}</p>"
+        "<h3 style='margin:22px 0 6px'>By page (90d)</h3>"
+        "<table style='width:100%;border-collapse:collapse;font-size:14px'>"
+        "<tr style='text-align:left;color:#7c8aa0;font-size:12px'><th>Page</th><th>Views</th>"
+        f"<th>Last</th></tr>{pages}</table>"
+        "<h3 style='margin:22px 0 6px'>By day (30d)</h3>"
+        "<table style='width:100%;border-collapse:collapse;font-size:14px'>"
+        f"{days or '<tr><td style=padding:18px;color:#7c8aa0>No views yet.</td></tr>'}</table>"
+        f"<p style='color:#7c8aa0;margin-top:22px;font-size:12.5px'>Logging started "
+        f"{first or 'just now — no rows yet'}. Only authorized /admin/* views are recorded, "
+        "and this table is separate from page_visits so it never touches your visitor stats."
+        "</p></body></html>")
+    return Response(html, mimetype="text/html")
+
+
 @app.route("/api/demo-odds")
 def api_demo_odds():
     """No-auth interactive demo on the landing page. Computes a fast odds
@@ -20113,7 +20248,7 @@ def admin_stats():
     profile_pct = round(profiles_done / max(1, total_users) * 100)
     return _page(f"""
 <h1>Activity</h1>
-<div class="bar" style="margin-bottom:6px"><a href="/admin/returning?key={ADMIN_KEY}">Returning users →</a> · <a href="/admin/visitors?key={ADMIN_KEY}">Visitors →</a> · <a href="/admin/data-status?key={ADMIN_KEY}">Data status →</a></div>
+<div class="bar" style="margin-bottom:6px"><a href="/admin/returning?key={ADMIN_KEY}">Returning users →</a> · <a href="/admin/visitors?key={ADMIN_KEY}">Visitors →</a> · <a href="/admin/data-status?key={ADMIN_KEY}">Data status →</a> · <a href="/admin/view-log?key={ADMIN_KEY}">My views →</a></div>
 <h3 style="margin:18px 0 8px;color:var(--text-2);font-size:.82em;letter-spacing:.6px;text-transform:uppercase;font-weight:600">Live traffic</h3>
 <div class="grid">
   <div class="stat-card">
@@ -20189,7 +20324,23 @@ def admin_stats():
   {schools_html}
 </div>
 <p class="muted" style="font-size:.78em;margin-top:18px">Auto-refreshes every 90s · scraper-excluded counts use the 2+ pageview heuristic. Bookmark this URL for quick access.</p>
-<script>setTimeout(function(){{location.reload();}}, 90000);</script>
+<script>
+// Auto-refresh, tagged so the admin_views log can tell an idle open tab apart
+// from a deliberate check. The marker is stripped from the address bar right
+// away, so a manual reload never inherits it and counts as a real look-in.
+(function(){{
+  var u = new URL(location.href);
+  if (u.searchParams.has('_auto')) {{
+    u.searchParams.delete('_auto');
+    history.replaceState({{}}, '', u.toString());
+  }}
+  setTimeout(function(){{
+    var n = new URL(location.href);
+    n.searchParams.set('_auto', '1');
+    location.replace(n.toString());
+  }}, 90000);
+}})();
+</script>
 """, title="Activity — Candor")
 
 
