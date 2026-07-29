@@ -363,6 +363,57 @@ Return ONLY strict JSON:
     return json.loads(txt)
 
 
+_TITLE_NUM_RE = re.compile(r"\d+(?:,\d{3})*(?:\.\d+)?")
+
+
+def _profile_numbers(profile):
+    """Every number the applicant profile itself contains — an SAT, a GPA, an EC
+    metric. These are legitimate in a hook ("THIS 1590 APPLICANT", which the
+    prompt explicitly asks for); anything else is invented."""
+    nums = set()
+    for k in ("uw_gpa", "weighted_gpa", "sat", "act", "sat_math", "sat_ebrw"):
+        v = profile.get(k)
+        if v not in (None, ""):
+            try:
+                nums.add(float(v))
+                nums.add(float(app.normalize_gpa(v)) if k.endswith("gpa") else float(v))
+            except (TypeError, ValueError):
+                pass
+    for k in ("aps", "ecs", "leadership", "awards"):
+        for tok in _TITLE_NUM_RE.findall(str(profile.get(k) or "")):
+            try:
+                nums.add(float(tok.replace(",", "")))
+            except ValueError:
+                pass
+    return nums
+
+
+def _bad_title_lines(lines, profile):
+    """Indices of hook lines that state a number the model could not know.
+
+    The old guard dropped every line containing ANY digit and, if that emptied
+    the hook, silently returned the original lines — so a title where all five
+    lines carried a number passed through completely unfiltered, which is the
+    exact case worth catching. It also deleted the "THIS 1590 APPLICANT" lines
+    the prompt asks for, mangling good hooks.
+
+    A number from the applicant's own profile is fine. A percentage or a number
+    from nowhere is the reveal (odds/grade) leaking, or a hallucination.
+    """
+    allowed = _profile_numbers(profile)
+    bad = []
+    for i, ln in enumerate(lines):
+        nums = set()
+        for tok in _TITLE_NUM_RE.findall(ln):
+            try:
+                nums.add(float(tok.replace(",", "")))
+            except ValueError:
+                pass
+        if "%" in ln or any(not any(abs(n - a) < 1e-9 for a in allowed) for n in nums):
+            bad.append(i)
+    return bad
+
+
 def _normalize_list_field(v):
     """ECs/awards/leadership must be ONE PER LINE for the profile slide. Models
     return these in different shapes: haiku gives newline/semicolon-joined text,
@@ -413,7 +464,16 @@ def generate(slug=None, uid=181, want_slide3=None, arm=None):
     slug = slug if slug in app.COLLEGES_BY_SLUG else random.choice(SCHOOLS)
     sch = app.COLLEGES_BY_SLUG[slug]
     seed = _pick_seed_post()                # a random REAL applicant write-up (or None)
-    d = _gen_profile_and_title(slug, want_slide3=want_slide3, seed=seed, arm=arm)
+    # Generate, then check the hook for invented numbers BEFORE anything is saved
+    # or graded — a retry here is one cheap Haiku call (free on the Max CLI),
+    # whereas re-doing it later would mean re-saving and re-grading the profile.
+    for _try in range(2):
+        d = _gen_profile_and_title(slug, want_slide3=want_slide3, seed=seed, arm=arm)
+        bad = _bad_title_lines(d["title"]["lines"], d["profile"])
+        if not bad:
+            break
+        print(f"  title stat-reject (try {_try+1}): "
+              f"{[d['title']['lines'][i] for i in bad]}")
     profile = d["profile"]
     for f in ("ecs", "leadership", "awards"):
         profile[f] = _normalize_list_field(profile.get(f))
@@ -444,10 +504,18 @@ def generate(slug=None, uid=181, want_slide3=None, arm=None):
     # Lock to the requested reveal type when the factory asked for one (the hook
     # was written in that family); else trust the model's pick.
     slide3 = want_slide3 if want_slide3 in _TITLE_FAMILIES else t.get("slide3", "chances")
-    # Enforce the "no number/percentage in the title" rule the prompt asks for —
-    # the reveal (odds %, grade) lives on a later slide; a leaked number both
-    # spoils the guessing-game and is an LLM hallucination, not the real value.
-    lines = [ln for ln in t["lines"] if not re.search(r"\d", ln)] or t["lines"]
+    # Enforce the "no invented number/percentage in the title" rule the prompt
+    # asks for — the reveal (odds %, grade) lives on a later slide, so a leaked
+    # number both spoils the guessing-game and is a hallucination, not the real
+    # value. Numbers that ARE the applicant's own stats stay (the prompt asks
+    # for "THIS 1590 APPLICANT" hooks).
+    bad = set(_bad_title_lines(t["lines"], profile))
+    lines = [ln for i, ln in enumerate(t["lines"]) if i not in bad]
+    if not lines:
+        # Both attempts put an invented number on every line. Never ship it —
+        # fall back to a plain in-family hook that asserts no number at all.
+        print(f"  title stat-reject: all lines bad, using safe hook ({slug})")
+        lines = ["WOULD YOU ADMIT", "THIS APPLICANT", f"TO {short.upper()}?"]
     return {"slug": slug, "name": sch.get("name"), "short": short, "profile": profile,
             "lines": lines, "accent_words": t.get("accent_words", [short]),
             "slide3": slide3}

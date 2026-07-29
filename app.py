@@ -4934,6 +4934,96 @@ def _openai_chat(model, system, user, max_tokens=200, temperature=0.4):
         return None
 
 
+_BULLET_NUM_RE = re.compile(r"\d+(?:,\d{3})*(?:\.\d+)?")
+# Percentile/count vocabulary that is legitimate even when the exact token isn't
+# in the prompt: quartile language ("middle-50%", "25th percentile") and small
+# counts ("two national awards"). Deliberately EXCLUDES 10 — "top 10%" is a class
+# rank claim we never hand the model and it must not invent one.
+_BULLET_NUM_FREE = {1.0, 2.0, 3.0, 25.0, 50.0, 75.0, 100.0}
+# A PERCENTAGE is checked against percentages only. Without this, a GPA midpoint
+# of 3.95 rounds to 4 and silently authorises a fabricated "only 4% get in" —
+# a made-up admit rate is the most damaging stat we can print, so it gets the
+# narrowest pool. Quartile vocabulary is free; small integers are NOT (an
+# invented "3% acceptance" must not ride in on a generic count allowance).
+_BULLET_PCT_FREE = {25.0, 50.0, 75.0, 100.0}
+_BULLET_PCT_RE = re.compile(r"(\d+(?:,\d{3})*(?:\.\d+)?)\s*(?:%|percent\b)", re.I)
+
+
+def _bullet_nums(text):
+    out = set()
+    for tok in _BULLET_NUM_RE.findall(text or ""):
+        try:
+            out.add(float(tok.replace(",", "")))
+        except ValueError:
+            pass
+    return out
+
+
+def _bullet_pcts(text):
+    out = set()
+    for tok in _BULLET_PCT_RE.findall(text or ""):
+        try:
+            out.add(float(tok.replace(",", "")))
+        except ValueError:
+            pass
+    return out
+
+
+def _bad_stat_nums(text, prompt_text):
+    """Numbers in `text` that we never gave the model, percentages judged apart."""
+    allowed_all = _bullet_nums(prompt_text) | _BULLET_NUM_FREE
+    allowed_pct = _bullet_pcts(prompt_text) | _BULLET_PCT_FREE
+    pcts = _bullet_pcts(text)
+    return sorted(x for x in _bullet_nums(text)
+                  if not _num_ok(x, allowed_pct if x in pcts else allowed_all))
+
+
+def _num_ok(x, allowed):
+    """True if x is a number we supplied, or a benign rounding of one.
+
+    Rounding matters: handed "acceptance 6.3%", the model often writes "at 6%".
+    That's the same fact, not an invention, and rejecting it would push good
+    bullets to the fallback for no reason. Tolerance is one-directional — we round
+    the number we GAVE, so the model may drop precision but never add it ("6.28%"
+    off a given 6.3% is still rejected).
+
+    The integer rounding is floored at 5 because a GPA midpoint of 3.95 rounds to
+    4, which would otherwise whitelist a fabricated "only 4% get in" — the exact
+    class of hallucination this exists to stop. Real GPAs appear in the prompt
+    verbatim and match exactly, so nothing legitimate needs that range.
+    """
+    for a in allowed:
+        if abs(x - a) < 1e-9:
+            return True
+        if abs(round(a, 1) - x) < 1e-9:
+            return True
+        if round(a) >= 5 and abs(round(a) - x) < 1e-9:
+            return True
+    return False
+
+
+def _verify_bullet_numbers(out, fb, *prompt_parts):
+    """Reject any bullet citing a number we never gave the model.
+
+    The prompt already says "use ONLY the numbers above / do not invent stats",
+    but a prompt rule is advisory — Haiku still occasionally emits a fabricated
+    admit rate or percentile, and until now nothing checked. Every number in the
+    output must appear somewhere in what we actually handed the model (the
+    pre-computed comparisons, the school's real CDS figures, the applicant's own
+    stats), else that ONE field falls back to the deterministic sentence.
+
+    Per-field on purpose: replacing all three on a single bad number would make
+    the copy noticeably more repetitive than the bug it fixes.
+    """
+    prompt_text = "\n".join(str(p) for p in prompt_parts)
+    for field, text in list(out.items()):
+        bad = _bad_stat_nums(text, prompt_text)
+        if bad:
+            print(f" * BULLET-STAT-REJECT {field}: invented {bad} — {text[:120]}", flush=True)
+            out[field] = fb.get(field, "")
+    return out
+
+
 def generate_bullets(profile, school, fit, components, tier, odds):
     fb = _fallback_bullets(profile, school, fit, components, tier)
     # Pre-compute the test comparison so the model can't get the direction wrong.
@@ -5053,9 +5143,9 @@ Output exactly three lines. Each is ONE tight sentence (~25 words max) — speci
 STRENGTH: <one sentence: the strongest thing working in their favor here and why it matters at this school>
 WEAKNESS: <one sentence: the biggest thing working against them here — honest and concrete>
 DIFFERENTIATOR: <one sentence: what concretely could make them memorable here, or the specific gap to close>"""
+    system = (f"You are an experienced college admissions consultant. Be concrete, cite specific numbers, EXACTLY one tight sentence (~25 words max) per field, never hedge. Punchy over comprehensive. No preamble.\n\n{_date_context()}")
     raw = _bullet_memo(f"gb|{user}", lambda: _claude("claude-haiku-4-5-20251001",
-        f"You are an experienced college admissions consultant. Be concrete, cite specific numbers, EXACTLY one tight sentence (~25 words max) per field, never hedge. Punchy over comprehensive. No preamble.\n\n{_date_context()}",
-        user, max_tokens=260))
+        system, user, max_tokens=260))
     if not raw: return fb
     out = {"strength": "", "weakness": "", "differentiator": ""}
     for line in raw.split("\n"):
@@ -5063,7 +5153,10 @@ DIFFERENTIATOR: <one sentence: what concretely could make them memorable here, o
         if line.startswith("STRENGTH:"): out["strength"] = line.split(":",1)[1].strip()
         elif line.startswith("WEAKNESS:"): out["weakness"] = line.split(":",1)[1].strip()
         elif line.startswith("DIFFERENTIATOR:"): out["differentiator"] = line.split(":",1)[1].strip()
-    return out if all(out.values()) else fb
+    if not all(out.values()): return fb
+    # Numbers are checked AFTER the memo, so a bullet cached before this landed
+    # still gets verified rather than trusted.
+    return _verify_bullet_numbers(out, fb, user, system)
 
 
 def _fallback_bullets(profile, school, fit, components, tier):
@@ -12805,32 +12898,47 @@ def _content_bullets(system, user, n=4, max_tokens=420):
     """Returns a list of n punchy, specific bullet strings for a content slide.
 
     Guards against the model inventing GPA/test-score/percentage stats that aren't
-    in the data it was given: any bullet citing a stat-shaped number not present in
-    the `user` prompt is dropped (the model was hallucinating wrong stats onto the
-    calculations slide)."""
-    import re as _re
-    # stat-shaped tokens: GPAs (X.XX), percentages, and SAT-shaped 4-digit scores
-    _STAT = _re.compile(r"\b\d{1,2}\.\d\d?\b|\b\d{1,3}\s?%|\b1[0-6]\d\d\b")
-    given = set(_re.findall(r"\d[\d.]*", user or ""))
+    in the data it was given: any bullet citing a number not present in the `user`
+    prompt is dropped (the model was hallucinating wrong stats onto the
+    calculations slide).
+
+    The first version of this guard leaked badly and shipped wrong numbers to TikTok
+    for weeks. Three holes, all fixed here:
+      1. It only inspected "stat-shaped" tokens — `X.XX`, `NNN%`, and `1[0-6]NN`.
+         A bare ACT ("a 34"), a bare count ("3 in 100"), a percentage with the sign
+         spelled out, and any SAT outside 1000-1699 were never even examined.
+      2. `given` was built with `\\d[\\d.]*`, which splits on the thousands comma:
+         a prompt saying "1,540" produced {"1","540"}, so the real value read as
+         invented while the fragment "540" became silently allowed.
+      3. It compared as STRINGS with `.rstrip("0")`, so a given "1500" whitelisted
+         "15" — any trailing-zero number in the prompt authorised its own truncation.
+    Now: every number in a bullet is parsed properly and matched NUMERICALLY against
+    the numbers actually in the prompt."""
     def _invents_stat(bullet):
-        for m in _STAT.finditer(bullet):
-            num = _re.sub(r"[^\d.]", "", m.group(0))
-            if num and num not in given and num.rstrip("0").rstrip(".") not in {g.rstrip("0").rstrip(".") for g in given}:
-                return True
-        return False
+        bad = _bad_stat_nums(bullet, user)
+        if bad:
+            print(f" * CONTENT-STAT-REJECT {bad} :: {bullet[:110]}", flush=True)
+        return bool(bad)
+    def _run():
+        raw = _claude("claude-haiku-4-5-20251001",
+            system + f" Output exactly {n} bullets for a TikTok slide. Each bullet is a SHORT punchy fragment — 7 to 13 words MAX, like a caption, NOT a full sentence. Specific and concrete but tight; cut every filler word. Plain text, one per line, no numbering, no markdown."
+            " HARD RULE: use ONLY the numbers, GPAs, test scores, and percentages that appear verbatim in the data above. NEVER state a GPA, test score, or admit percentage that isn't given to you — do not estimate, round, or invent any stat.",
+            user, max_tokens=max_tokens)
+        if not raw:
+            return [], 0
+        lines = [l.strip().lstrip("-•*▸·").strip() for l in raw.split("\n") if l.strip()]
+        lines = [l for l in lines if len(l) > 4]
+        return [l for l in lines if not _invents_stat(l)], len(lines)
     def _produce():
         try:
-            raw = _claude("claude-haiku-4-5-20251001",
-                system + f" Output exactly {n} bullets for a TikTok slide. Each bullet is a SHORT punchy fragment — 7 to 13 words MAX, like a caption, NOT a full sentence. Specific and concrete but tight; cut every filler word. Plain text, one per line, no numbering, no markdown."
-                " HARD RULE: use ONLY the numbers, GPAs, test scores, and percentages that appear verbatim in the data above. NEVER state a GPA, test score, or admit percentage that isn't given to you — do not estimate, round, or invent any stat.",
-                user, max_tokens=max_tokens)
-            if not raw:
-                return []
-            lines = [l.strip().lstrip("-•*▸·").strip() for l in raw.split("\n") if l.strip()]
-            lines = [l for l in lines if len(l) > 4]
-            clean = [l for l in lines if not _invents_stat(l)]
-            if len(clean) < len(lines):
-                print(f"content bullets: dropped {len(lines)-len(clean)} bullet(s) citing invented stats")
+            clean, total = _run()
+            # A dropped bullet leaves a short slide, so buy the count back with one
+            # retry rather than shipping three bullets where the layout wants four.
+            if total and len(clean) < min(n, total):
+                print(f"content bullets: dropped {total-len(clean)} invented-stat bullet(s), retrying", flush=True)
+                clean2, _ = _run()
+                if len(clean2) > len(clean):
+                    clean = clean2
             return clean[:n]
         except Exception as e:
             print(f"content bullets failed: {e}")
