@@ -12894,6 +12894,22 @@ def _bullet_memo(key, produce):
     return val
 
 
+def _test_label(p, none_text="no test score"):
+    """SAT, else ACT, else a plain 'didn't submit' phrase.
+
+    These slides used to check `sat` ONLY, so an ACT-only applicant rendered as
+    having no score at all — carousel #2222 dropped a 35 ACT and then told
+    viewers testing didn't matter. The none_text must never say "test-blind":
+    that describes the STUDENT but reads as school policy, and the model repeats
+    it as fact about the school.
+    """
+    if p.get("sat"):
+        return f'{p["sat"]} SAT'
+    if p.get("act"):
+        return f'{p["act"]} ACT'
+    return none_text
+
+
 def _content_bullets(system, user, n=4, max_tokens=420):
     """Returns a list of n punchy, specific bullet strings for a content slide.
 
@@ -13146,7 +13162,7 @@ def glowup_export(slug):
     # matter. Skip the SAT prep for this school." UChicago is test-OPTIONAL, so
     # that was both false and harmful advice. Real test-blind schools are handled
     # separately below via is_test_blind(), which reads TEST_BLIND_SCHOOLS.
-    stats_plain = f'{p.get("uw_gpa")} GPA, {(str(p.get("sat"))+" SAT") if p.get("sat") else "no test score submitted"}, {p.get("major") or "undecided major"}'
+    stats_plain = f'{p.get("uw_gpa")} GPA, {_test_label(p, "no test score submitted")}, {p.get("major") or "undecided major"}'
     _tb = is_test_blind(merged)
     _b2 = ("that this school is TEST-BLIND — SAT/ACT scores are not considered at all, so don't waste effort on them"
            if _tb else "why a higher SAT barely helps here")
@@ -13189,14 +13205,14 @@ def headtohead_export(slug):
             return None
         cf = compute_fit(prof, merged); fit = cf[0] if isinstance(cf, tuple) else cf
         lo, hi = estimate_odds(merged, fit, prof)
-        return {"gpa": prof.get("uw_gpa"), "sat": prof.get("sat"), "major": prof.get("major"),
-                "lo": lo, "hi": hi}
+        return {"gpa": prof.get("uw_gpa"), "sat": prof.get("sat"), "act": prof.get("act"),
+                "major": prof.get("major"), "lo": lo, "hi": hi}
     A = side(181); B = side(38)
     if B is None:
         return _page('<h1>Student B isn\'t set yet</h1><p class="muted">Send me a 2nd profile and I\'ll store it as Student B (the demopixam account), then this works.</p>', title="Head-to-head")
     def col(letter, s, win):
         star = ' &#11088;' if win else ''
-        sat = f'{s["sat"]} SAT' if s.get("sat") else 'no test score'
+        sat = _test_label(s)
         return (f'<div style="flex:1;text-align:center;padding:22px 12px;border-radius:16px;'
                 + ('background:rgba(95,201,182,.16)' if win else 'background:transparent') + '">'
                 f'<div style="font-size:30px;letter-spacing:2px;color:#9aa6b6;font-weight:800;margin-bottom:10px">STUDENT {letter}{star}</div>'
@@ -13212,7 +13228,7 @@ def headtohead_export(slug):
     tie = _ta == _tb
     aw = _ta > _tb
     def _ss(s):
-        return f'{s.get("gpa")} GPA, {(str(s.get("sat"))+" SAT") if s.get("sat") else "submitted no test score"}, {s.get("major") or "—"}, odds {s["lo"]}-{s["hi"]}%'
+        return f'{s.get("gpa")} GPA, {_test_label(s, "submitted no test score")}, {s.get("major") or "—"}, odds {s["lo"]}-{s["hi"]}%'
     _g = _school_narrative_guardrails(merged, None, merged.get("tier"))
     _ask = ('(1) why this is genuinely too close to call — do NOT name a winner, the model gives them the SAME odds'
             if tie else
