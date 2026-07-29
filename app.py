@@ -13197,13 +13197,23 @@ def headtohead_export(slug):
                 f'<div style="font-size:96px;font-weight:800;color:#5fc9b6;line-height:1;letter-spacing:-2px;margin:6px 0 14px">{s["lo"]}&ndash;{s["hi"]}%</div>'
                 f'<div style="font-size:30px;color:#dfe7f0;font-weight:600">{s.get("gpa")} GPA &middot; {sat}</div>'
                 f'<div style="font-size:26px;color:#9aa6b6;margin-top:4px">{_esc(s.get("major") or "")}</div></div>')
-    aw = (A["lo"] + A["hi"]) >= (B["lo"] + B["hi"])
+    # A TIE IS NOT A WIN. The old test was `>=`, so two students with the same
+    # odds range still put the star and the highlight on Student A — while the
+    # bullets, reading the same numbers, correctly said "identical 7-10% odds".
+    # The slide contradicted itself in public. Ties now crown nobody and the
+    # prompt is told to argue the tiebreak instead of inventing a winner.
+    _ta, _tb = A["lo"] + A["hi"], B["lo"] + B["hi"]
+    tie = _ta == _tb
+    aw = _ta > _tb
     def _ss(s):
         return f'{s.get("gpa")} GPA, {(str(s.get("sat"))+" SAT") if s.get("sat") else "test-blind"}, {s.get("major") or "—"}, odds {s["lo"]}-{s["hi"]}%'
     _g = _school_narrative_guardrails(merged, None, merged.get("tier"))
+    _ask = ('(1) why this is genuinely too close to call — do NOT name a winner, the model gives them the SAME odds'
+            if tie else
+            '(1) who is more likely to get in and the single biggest reason')
     bullets = _content_bullets(
         "You analyze a head-to-head between two college applicants.",
-        f'At {merged["name"]}: Student A — {_ss(A)}. Student B — {_ss(B)}. Give 4 bullets: (1) who is more likely to get in and the single biggest reason, (2) where Student A is clearly stronger, (3) where Student B is clearly stronger, (4) the one factor that ultimately decides it (or could flip it) at this specific school.'
+        f'At {merged["name"]}: Student A — {_ss(A)}. Student B — {_ss(B)}. Give 4 bullets: {_ask}, (2) where Student A is clearly stronger, (3) where Student B is clearly stronger, (4) the one factor that ultimately decides it (or could flip it) at this specific school.'
         + (f'\nCRITICAL RULES:\n{_g}' if _g else ''),
         n=4)
     blurb_html = _bullets_html(bullets)
@@ -13212,10 +13222,11 @@ def headtohead_export(slug):
   <div class="title">{_esc(merged["name"])}?</div>
   <div class="ccard">
     <div style="display:flex;gap:10px;align-items:stretch">
-      {col("A", A, aw)}
+      {col("A", A, aw and not tie)}
       <div style="display:flex;align-items:center;font-weight:800;color:#9aa6b6;font-size:1.1em">vs</div>
-      {col("B", B, not aw)}
+      {col("B", B, (not aw) and not tie)}
     </div>
+    {'<div style="text-align:center;font-size:30px;font-weight:800;letter-spacing:2px;color:#fcd34d;margin-top:14px">TOO CLOSE TO CALL</div>' if tie else ''}
     {blurb_html}
   </div>
   <div class="foot"><span class="lock">&#128274;</span>candoradmit.com</div>
