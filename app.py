@@ -14269,11 +14269,19 @@ def _content_account_roster(conn):
 
 def _live_account_labels(conn):
     """Account labels currently in rotation: the roster minus any flagged 'likely'
-    shadowbanned (unless that leaves nobody, or TT_AUTOPAUSE=0)."""
+    shadowbanned (unless that leaves nobody, or TT_AUTOPAUSE=0).
+
+    TT_AUTOPAUSE_EXEMPT is a comma-separated list of labels that stay in rotation
+    even when the detector flags them. It exists because TT_AUTOPAUSE=0 is the only
+    other override and it is far too blunt: the roster is NOT filtered on the
+    `paused` column, so that flag would also return a BANNED account (.com3) and a
+    dormant one (candorcalc) to the rotation. Exempt one account by name instead."""
     roster = _content_account_roster(conn)
+    exempt = {s.strip() for s in (os.environ.get("TT_AUTOPAUSE_EXEMPT") or "").split(",") if s.strip()}
     if os.environ.get("TT_AUTOPAUSE") != "0":
         try:
-            flagged = {oid for oid, h in tiktok_account_health().items() if h.get("status") == "likely"}
+            flagged = {oid for oid, h in tiktok_account_health().items()
+                       if h.get("status") == "likely" and (h.get("label") or "") not in exempt}
             live = [r for r in roster if r["open_id"] not in flagged]
             if live:
                 roster = live
