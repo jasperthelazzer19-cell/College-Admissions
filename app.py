@@ -4917,13 +4917,27 @@ def _openai_chat(model, system, user, max_tokens=200, temperature=0.4):
     key = os.environ.get("OPENAI_KEY") or os.environ.get("OPENAI_API_KEY")
     if not key:
         return None
+    # gpt-5* rejects `max_tokens` ("use max_completion_tokens") and only accepts the
+    # default temperature. Sending the old shape made EVERY gpt-5-mini call 400 and
+    # return None — silent, because the caller just falls back. Found 2026-07-30 while
+    # timing the claim verifier; FEATURE_LLM=openai is set on Railway, so this had been
+    # failing there too.
+    body = {"model": model,
+            "messages": [{"role": "system", "content": system},
+                         {"role": "user", "content": user}]}
+    if str(model).startswith("gpt-5"):
+        # Reasoning model: max_completion_tokens covers REASONING tokens too, so a
+        # tight budget gets fully spent thinking and returns empty content — which
+        # reads as a failure and falls back to the slow path. Give it headroom.
+        body["max_completion_tokens"] = max(max_tokens, 1200)
+    else:
+        body["max_tokens"] = max_tokens
+        body["temperature"] = temperature
     try:
         r = requests.post(
             "https://api.openai.com/v1/chat/completions",
             headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
-            json={"model": model, "max_tokens": max_tokens, "temperature": temperature,
-                  "messages": [{"role": "system", "content": system},
-                               {"role": "user", "content": user}]},
+            json=body,
             timeout=30)
         if r.status_code != 200:
             print(f"OpenAI error {r.status_code}: {r.text[:160]}")
@@ -5014,14 +5028,39 @@ def _false_claims(statements, facts):
             "Mark TRUE for advice, opinion, and admissions generalities that "
             "cannot be checked ('essays matter most', 'this is a reach'). "
             "Unverifiable is NOT false. When genuinely unsure, answer TRUE.")
-    try:
-        raw = _claude("claude-haiku-4-5-20251001",
-                      "You check college-admissions statements for factual errors. "
-                      "Answer only with lines of the form '<number> TRUE' or '<number> FALSE'.",
-                      user, max_tokens=200)
-    except Exception as e:
-        print(f" * CLAIM-VERIFY skipped: {e}", flush=True)
-        return set()
+    sys_prompt = ("You check college-admissions statements for factual errors. "
+                  "Answer only with lines of the form '<number> TRUE' or '<number> FALSE'.")
+    # This check is the throughput bottleneck on the Mac, and the model was never
+    # the reason. _claude spawns a `claude -p` child, and the SPAWN costs ~30-40s
+    # of process startup on every call. Measured on the live autopilot 2026-07-30:
+    # /compare/export 135s, /headtohead 83s, /chances 72s, against a shipping
+    # estimate of +40s — and generation fell to 8 carousels created against 25
+    # released, i.e. the buffer drains.
+    #
+    # So route THIS call (short prompt, 200 tokens out, no creative writing) through
+    # the gpt-5-mini shim instead: no spawn, ~2s, ~$0.0003 a call. That keeps the
+    # verifier on 100% of formats, which matters because compare and h2h are the
+    # SLOW ones AND the ones the 2026-07-28 audit caught shipping false claims —
+    # disabling it there to save time would have removed it exactly where it earns
+    # its keep. Falls back to _claude if the key is missing or the call fails, so
+    # the guard degrades to slow rather than to off.
+    #
+    # Key name matters here: the Mac's ~/.candor_autopilot.env exports OPENAI_KEY,
+    # Railway sets OPENAI_API_KEY. Gating on OPENAI_API_KEY alone would silently
+    # skip the fast path on the Mac — the only machine that is actually slow.
+    raw = None
+    _has_openai = os.environ.get("OPENAI_KEY") or os.environ.get("OPENAI_API_KEY")
+    if os.environ.get("CLAIM_VERIFY_FAST", "1") != "0" and _has_openai:
+        try:
+            raw = _openai_chat(OPENAI_FEATURE_MODEL, sys_prompt, user, max_tokens=200)
+        except Exception as e:
+            print(f" * CLAIM-VERIFY fast path failed, falling back: {e}", flush=True)
+    if not raw:
+        try:
+            raw = _claude("claude-haiku-4-5-20251001", sys_prompt, user, max_tokens=200)
+        except Exception as e:
+            print(f" * CLAIM-VERIFY skipped: {e}", flush=True)
+            return set()
     if not raw:
         return set()
     bad = set()

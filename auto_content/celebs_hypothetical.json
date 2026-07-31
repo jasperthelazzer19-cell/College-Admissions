@@ -34,7 +34,8 @@
   "to Inter Miami through 2028); do not write him as retiring.",
   "CUT 2026-07-26: emiliano-martinez-umich and travis-kelce-michigan. Both landed at 10-15%, the two weakest in the file, and worse, they render BACKWARDS on screen -- Michigan reading harder than Harvard, Stanford and Princeton. That is the umich 0.46 cooling dial behaving exactly as calibrated, not a bug, but a viewer seeing 'Mbappe 16-20% at Harvard / Kelce 10-14% at Michigan' reads the product as broken. Don't re-add a Michigan pairing without checking that dial first.",
   "REAL ACADEMICS + REAL OFF-FIELD ECs, added 2026-07-27: every entry was researched for a publicly documented academic record and for documented activity OUTSIDE the career that made them famous (foundations, philanthropy, advocacy, business). What was found is appended to 'achievement' -- the fact side of the slide -- with the URLs in a per-entry 'sources' list. The bar was a real source or nothing: widely-circulated but unsourced GPA/SAT claims were rejected, and NOTHING invented is ever labelled real. Six entries (Ferran Torres, Peso Pluma, Charli D'Amelio, Bronny James, Khaby Lame, and Rodri, who already carried his degree) got no new line because nothing verifiable exists. ONE entry has a real GPA: Caitlin Clark's 3.64 is published by Iowa athletics, so her gpa field is her actual number and her academic_note says so. Everyone else's gpa/sat stay invented and stay labelled invented.",
-  "note_label / note_foot are OPTIONAL per-entry overrides for slide 2's stamp header and the line under the card. Both default to wording that says the academics are invented, which is true for every entry but Caitlin Clark's — hers would have printed 'MADE UP FOR THIS SCENARIO' directly above a real, published GPA. Set them together whenever an entry carries a real academic number, and never set them to soften a claim that IS invented."
+  "note_label / note_foot are OPTIONAL per-entry overrides for slide 2's stamp header and the line under the card. Both default to wording that says the academics are invented, which is true for every entry but Caitlin Clark's — hers would have printed 'MADE UP FOR THIS SCENARIO' directly above a real, published GPA. Set them together whenever an entry carries a real academic number, and never set them to soften a claim that IS invented.",
+  "ALUM-FLIP track, added 2026-07-30: 28 people who got into one elite school, tested against a DIFFERENT one they did not attend. Sourced from Wikipedia on that date. Their real alma mater is documented and appears in 'achievement', which is what makes the question fair rather than a stunt — the viewer knows they cleared a comparable bar. SCHOOL CHOICE RULE: never assign a school the person actually attended at ANY level. Traps already handled: Chalamet attended both Columbia and NYU; Sterling K. Brown has an NYU Tisch MFA; Meryl Streep has a Yale MFA and was a Dartmouth visiting student; Jennifer Connelly attended both Yale and Stanford; Angela Bassett, Jodie Foster and Paul Giamatti are all Yale. No Michigan pairings — the umich cooling dial renders it harder than Harvard on screen. REAL ACADEMIC CREDENTIALS: eleven entries carry a documented academic fact and set the note_label/note_foot overrides so the slide does not stamp 'MADE UP FOR THIS SCENARIO' over something real — Jeremy Lin's 3.1 Harvard GPA is a real published GPA (the second in the file after Caitlin Clark), Conan O'Brien was really his high school valedictorian, Lady Gaga really won early admission to NYU Tisch at 17, and Jodie Foster, Elizabeth Banks, John Legend, Meryl Streep, Colin Jost carry real Latin honors while McCaffrey and Luck carry real academic athletic honors. Every gpa/sat in this track is invented."
  ],
  "celebs": [
   {
@@ -461,6 +462,448 @@
    "gpa": 3.4,
    "sat": 1240,
    "academic_note": "Hypothetical academics: 3.4 GPA, 1240 SAT. Not his real stats."
+  },
+  {
+   "id": "emma-watson-harvard",
+   "name": "Emma Watson",
+   "slug": "harvard",
+   "major": "English",
+   "achievement": "Earned a BA in English Literature from Brown University in 2014, taking a year at Oxford mid-degree while finishing the Harry Potter films. Appointed UN Women Goodwill Ambassador in July 2014 and launched the HeForShe gender-equality campaign with a speech at UN headquarters. Joined the board of directors of Kering in 2020, chairing its sustainability committee.",
+   "awards": "UN Women Goodwill Ambassador (2014). Kering board of directors, chair of the sustainability committee (2020).",
+   "gpa": 3.8,
+   "sat": 1380,
+   "academic_note": "The 3.8 and 1380 are invented for this scenario — her high school record isn't public.",
+   "sources": [
+    "https://www.cbsnews.com/news/emma-watson-graduates-from-brown-university/",
+    "https://www.unwomen.org/en/partnerships/goodwill-ambassadors/emma-watson",
+    "https://www.cnn.com/style/article/emma-watson-kering-intl-scli/index.html"
+   ],
+   "category": "alum-flip"
+  },
+  {
+   "id": "natalie-portman-princeton",
+   "name": "Natalie Portman",
+   "slug": "princeton",
+   "major": "Neuroscience",
+   "achievement": "Earned a BA in psychology from Harvard in 2003, also studying Hebrew literature and neurobiology. Co-authored a high school research paper on enzymatic hydrogen production from sugar that was entered in the Intel Science Talent Search, and contributed to a 2002 study on frontal lobe activation using near-infrared spectroscopy. Guest lectured on counterterrorism at Columbia in 2006. Co-founded the NWSL club Angel City FC in 2020.",
+   "awards": "Academy Award for Best Actress (2011, Black Swan). Two further Oscar nominations. Golden Globe (2005). Intel Science Talent Search entrant (1999).",
+   "gpa": 3.9,
+   "sat": 1470,
+   "academic_note": "The 3.9 and 1470 are invented for this scenario — her high school record isn't public.",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Natalie_Portman"
+   ],
+   "category": "alum-flip"
+  },
+  {
+   "id": "mark-zuckerberg-stanford",
+   "name": "Mark Zuckerberg",
+   "slug": "stanford",
+   "major": "Computer Science",
+   "achievement": "Studied psychology and computer science at Harvard from 2002 before leaving in his second year. Captain of the fencing team at Phillips Exeter Academy, graduating 2002. Named to the MIT Technology Review TR35 list of top innovators under 35 in 2007. Signed the Giving Pledge in 2010 and launched the Chan Zuckerberg Initiative in 2015, pledging 99% of his shares.",
+   "awards": "MIT Technology Review TR35 (2007). Harvard honorary degree (2017). Giving Pledge signatory (2010).",
+   "gpa": 3.9,
+   "sat": 1500,
+   "academic_note": "The 3.9 and 1500 are invented for this scenario — his actual high school numbers aren't public.",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Mark_Zuckerberg"
+   ],
+   "category": "alum-flip"
+  },
+  {
+   "id": "jeremy-lin-duke",
+   "name": "Jeremy Lin",
+   "slug": "duke",
+   "major": "Economics",
+   "achievement": "Earned an economics degree from Harvard in 2010 with a 3.1 GPA, a three-time All-Ivy League selection and the first Ivy League player with 1,450+ points, 450+ rebounds, 400+ assists and 200+ steals. Captained Palo Alto High School to a 32-1 record and a California state title, named Northern California Division II Player of the Year. NBA champion with Toronto in 2019, the first Asian American to win a title.",
+   "awards": "NBA champion (2019). ESPY Breakthrough Athlete of the Year (2012). TIME 100 (2012). Three-time All-Ivy League.",
+   "gpa": 3.1,
+   "sat": 1310,
+   "note_label": "Real college GPA, invented test score",
+   "note_foot": "The 3.1 is his real published Harvard GPA. The SAT is invented — his test scores aren't public.",
+   "academic_note": "Real: 3.1 GPA at Harvard. The 1310 SAT is invented — his test scores aren't public.",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Jeremy_Lin"
+   ],
+   "category": "alum-flip"
+  },
+  {
+   "id": "rashida-jones-columbia",
+   "name": "Rashida Jones",
+   "slug": "columbia",
+   "major": "Philosophy",
+   "achievement": "Earned a degree in religion and philosophy from Harvard in 1997, where she was musical director of the Harvard Opportunes and performed with Hasty Pudding Theatricals and the Harvard-Radcliffe Dramatic Club. Made National Honor Society at the Buckley School. Co-wrote the Black Mirror episode 'Nosedive' and the story for Toy Story 4, directed the documentary Quincy, and has served on the board of the nonprofit Peace First since 2004.",
+   "awards": "Grammy Award for Best Music Film (2019, Quincy). Emmy and Golden Globe nominations (2025). TIME 100 (2025).",
+   "gpa": 3.8,
+   "sat": 1420,
+   "academic_note": "The 3.8 and 1420 are invented for this scenario — her high school numbers aren't public.",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Rashida_Jones"
+   ],
+   "category": "alum-flip"
+  },
+  {
+   "id": "matt-damon-yale",
+   "name": "Matt Damon",
+   "slug": "yale",
+   "major": "English",
+   "achievement": "Attended Harvard as an English major with the class of 1992, leaving before completing the degree. Co-wrote Good Will Hunting, winning the Academy Award for Best Original Screenplay in 1998. Co-founded Water.org in 2009 and the Not On Our Watch Project, and co-founded the production companies Pearl Street Films (2010) and Artists Equity (2022).",
+   "awards": "Academy Award for Best Original Screenplay (1998). Two Golden Globes. Three further Oscar nominations. Seven Emmy nominations.",
+   "gpa": 3.7,
+   "sat": 1360,
+   "academic_note": "The 3.7 and 1360 are invented for this scenario — his high school numbers aren't public.",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Matt_Damon"
+   ],
+   "category": "alum-flip"
+  },
+  {
+   "id": "conan-obrien-uchicago",
+   "name": "Conan O'Brien",
+   "slug": "uchicago",
+   "major": "English",
+   "achievement": "Graduated valedictorian of Brookline High School, then earned a BA in history and literature magna cum laude from Harvard in 1985 with a senior thesis on Faulkner and Flannery O'Connor. Served as president of the Harvard Lampoon for two years. Co-founded the anti-hunger organization Labels Are For Jars and helped open the Cor Unum meal center in Lawrence, Massachusetts in 2006.",
+   "awards": "Four Primetime Emmy Awards. Mark Twain Prize for American Humor (2025). Television Academy Hall of Fame (2025).",
+   "gpa": 4.0,
+   "sat": 1490,
+   "note_label": "Real class rank, invented grades",
+   "note_foot": "He really was his high school's valedictorian. The GPA and SAT below are invented — his actual numbers aren't public.",
+   "academic_note": "Real: valedictorian of Brookline High School. The 4.0 and 1490 are invented — his actual numbers aren't public.",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Conan_O%27Brien"
+   ],
+   "category": "alum-flip"
+  },
+  {
+   "id": "jodie-foster-brown",
+   "name": "Jodie Foster",
+   "slug": "brown",
+   "major": "Comparative Literature",
+   "achievement": "Earned a BA in African-American literature from Yale in 1985, graduating magna cum laude with a thesis on Toni Morrison written under Henry Louis Gates Jr. Fluent in French and dubs her own performances in French-language releases. Received the Yale Undergraduate Lifetime Achievement Award in 2018.",
+   "awards": "Two Academy Awards for Best Actress (1988, 1991). Three further Oscar nominations. Four Golden Globes. Primetime Emmy (2024). Honorary Palme d'Or (2021).",
+   "gpa": 3.9,
+   "sat": 1460,
+   "note_label": "Real college honors, invented grades",
+   "note_foot": "The magna cum laude is real. The GPA and SAT below are invented — her high school numbers aren't public.",
+   "academic_note": "Real: magna cum laude at Yale. The 3.9 and 1460 are invented — her high school numbers aren't public.",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Jodie_Foster"
+   ],
+   "category": "alum-flip"
+  },
+  {
+   "id": "anderson-cooper-georgetown",
+   "name": "Anderson Cooper",
+   "slug": "georgetown",
+   "major": "International Relations",
+   "achievement": "Earned a BA in political science from Yale in 1989 after graduating a semester early from the Dalton School at 17. Reported from Somalia, Bosnia and Rwanda beginning in 1992, and has covered the Indian Ocean tsunami, Hurricane Katrina, the Niger famine, the Haiti earthquake and the Arab Spring. Awarded Haiti's National Order of Honour and Merit in 2010 for his earthquake reporting.",
+   "awards": "18 Primetime Emmy Awards. Two Peabody Awards. Edward R. Murrow Award (2011). National Order of Honour and Merit, Haiti (2010).",
+   "gpa": 3.8,
+   "sat": 1440,
+   "academic_note": "The 3.8 and 1440 are invented for this scenario — his high school numbers aren't public.",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Anderson_Cooper"
+   ],
+   "category": "alum-flip"
+  },
+  {
+   "id": "edward-norton-dartmouth",
+   "name": "Edward Norton",
+   "slug": "dartmouth",
+   "major": "History",
+   "achievement": "Earned a BA in history from Yale in 1991 and speaks conversational Japanese. Designated UN Goodwill Ambassador for Biodiversity in 2010. Serves as president of the American branch of the Maasai Wilderness Conservation Trust and has been a board trustee of Enterprise Community Partners since 1998. Co-founded the fundraising platform Crowdrise in 2010 and raised over $1.2 million running the 2009 NYC Marathon.",
+   "awards": "Four Academy Award nominations. Golden Globe for Best Supporting Actor (1996). UN Goodwill Ambassador for Biodiversity (2010).",
+   "gpa": 3.8,
+   "sat": 1430,
+   "academic_note": "The 3.8 and 1430 are invented for this scenario — his high school numbers aren't public.",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Edward_Norton"
+   ],
+   "category": "alum-flip"
+  },
+  {
+   "id": "claire-danes-nyu",
+   "name": "Claire Danes",
+   "slug": "nyu",
+   "major": "Psychology",
+   "achievement": "Studied psychology at Yale from 1998 to 2000 after graduating from the Lycee Francais de Los Angeles in 1997, leaving before completing the degree. Supports Afghan Hands, which helps Afghan women gain education and livable wages, and has been a long-time supporter of DonorsChoose.",
+   "awards": "Three Primetime Emmy Awards (2010, 2012, 2013). Four Golden Globe Awards (1995, 2011, 2012, 2013).",
+   "gpa": 3.7,
+   "sat": 1350,
+   "academic_note": "The 3.7 and 1350 are invented for this scenario — her high school numbers aren't public.",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Claire_Danes"
+   ],
+   "category": "alum-flip"
+  },
+  {
+   "id": "angela-bassett-northwestern",
+   "name": "Angela Bassett",
+   "slug": "northwestern",
+   "major": "Theatre",
+   "achievement": "Earned a BA in African American Studies from Yale in 1980 and an MFA from the Yale School of Drama in 1983. Serves as a UNICEF Ambassador for the United States and supports youth arts programs and the Royal Theater Boys & Girls Club in St. Petersburg, Florida. Received an honorary Doctorate of Fine Arts from Yale in 2018.",
+   "awards": "Academy Honorary Award (2024). Two Oscar nominations. Two Golden Globe Awards (1993, 2022). Multiple Emmy nominations.",
+   "gpa": 3.8,
+   "sat": 1390,
+   "academic_note": "The 3.8 and 1390 are invented for this scenario — her high school numbers aren't public.",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Angela_Bassett"
+   ],
+   "category": "alum-flip"
+  },
+  {
+   "id": "elizabeth-banks-cornell",
+   "name": "Elizabeth Banks",
+   "slug": "cornell",
+   "major": "Communications",
+   "achievement": "Earned a BA in communications magna cum laude from the University of Pennsylvania in 1996, where she was elected to the Friars Senior Society, then an MFA from the American Conservatory Theater in 1998. A member of the Massachusetts Junior Classical League at Pittsfield High School. Founded Brownstone Productions in 2002 and directed Pitch Perfect 2, which opened to $69 million.",
+   "awards": "Three Primetime Emmy nominations. CinemaCon Breakthrough Filmmaker of the Year (2015). Hasty Pudding Woman of the Year (2020).",
+   "gpa": 3.9,
+   "sat": 1410,
+   "note_label": "Real college honors, invented grades",
+   "note_foot": "The magna cum laude is real. The GPA and SAT below are invented — her high school numbers aren't public.",
+   "academic_note": "Real: magna cum laude at Penn. The 3.9 and 1410 are invented — her high school numbers aren't public.",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Elizabeth_Banks"
+   ],
+   "category": "alum-flip"
+  },
+  {
+   "id": "john-legend-jhu",
+   "name": "John Legend",
+   "slug": "jhu",
+   "major": "English",
+   "achievement": "Earned a BA in English with an emphasis on African-American literature magna cum laude from the University of Pennsylvania in 1999. Founded the FREEAMERICA campaign for incarceration reform in 2014 and the Show Me Campaign in 2007, joined the national board of Teach For America in 2010, and donated $500,000 to the Springfield City School District in 2017. Became the first Black man to complete the EGOT in 2018.",
+   "awards": "EGOT (2018). 12 Grammy Awards. Academy Award for Best Original Song (2015, Glory). Tony Award (2017). Primetime Emmy (2018).",
+   "gpa": 3.9,
+   "sat": 1440,
+   "note_label": "Real college honors, invented grades",
+   "note_foot": "The magna cum laude is real. The GPA and SAT below are invented — his high school numbers aren't public.",
+   "academic_note": "Real: magna cum laude at Penn. The 3.9 and 1440 are invented — his high school numbers aren't public.",
+   "sources": [
+    "https://en.wikipedia.org/wiki/John_Legend"
+   ],
+   "category": "alum-flip"
+  },
+  {
+   "id": "john-krasinski-usc",
+   "name": "John Krasinski",
+   "slug": "usc",
+   "major": "Film",
+   "achievement": "Earned a BA in English and playwriting from Brown in 2001 with an honors thesis titled 'Contents Under Pressure', and trained at the National Theater Institute. Wrote and directed A Quiet Place (2018), named to the TIME 100 that year. Raised over $500,000 for Family Reach to help families facing cancer costs, and partnered with the Malala Fund in 2018.",
+   "awards": "TIME 100 (2018). Theatre World Award (2016). Three Primetime Emmy nominations.",
+   "gpa": 3.7,
+   "sat": 1370,
+   "academic_note": "The 3.7 and 1370 are invented for this scenario — his high school numbers aren't public.",
+   "sources": [
+    "https://en.wikipedia.org/wiki/John_Krasinski"
+   ],
+   "category": "alum-flip"
+  },
+  {
+   "id": "timothee-chalamet-harvard",
+   "name": "Timothee Chalamet",
+   "slug": "harvard",
+   "major": "Anthropology",
+   "achievement": "Graduated from Fiorello H. LaGuardia High School of Music & Art and Performing Arts in 2013 as a YoungArts alumnus, then studied cultural anthropology at Columbia for a year before transferring to NYU's Gallatin School. Donated his salary from A Rainy Day in New York to Time's Up, the LGBT Center of New York and RAINN in 2019.",
+   "awards": "Four Academy Award nominations for Best Actor. Golden Globe (2025). SAG Award (2025). Six BAFTA nominations.",
+   "gpa": 3.6,
+   "sat": 1330,
+   "academic_note": "The 3.6 and 1330 are invented for this scenario — his high school numbers aren't public.",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Timoth%C3%A9e_Chalamet"
+   ],
+   "category": "alum-flip"
+  },
+  {
+   "id": "ellie-kemper-washu",
+   "name": "Ellie Kemper",
+   "slug": "washu",
+   "major": "English",
+   "achievement": "Earned a BA in English from Princeton in 2002, then spent a year at Worcester College, Oxford working toward a master's in English literature. Has written for The Onion and McSweeney's and published the essay collection My Squirrel Days with Scribner in 2018.",
+   "awards": "Two Primetime Emmy nominations (2016, 2017). Seven Screen Actors Guild nominations. Golden Nymph Award (2010).",
+   "gpa": 3.9,
+   "sat": 1450,
+   "academic_note": "The 3.9 and 1450 are invented for this scenario — her high school numbers aren't public.",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Ellie_Kemper"
+   ],
+   "category": "alum-flip"
+  },
+  {
+   "id": "issa-rae-ucla",
+   "name": "Issa Rae",
+   "slug": "ucla",
+   "major": "African American Studies",
+   "achievement": "Earned a BA in African and African-American Studies from Stanford in 2007 after attending King Drew Magnet High School of Medicine and Science in Los Angeles. Founded the production company Hoorae Media in 2020 and the record label Raedio in 2019, co-owns the Hilltop Coffee + Kitchen chain, and joined the investor group that bought the United States SailGP Team in 2023.",
+   "awards": "Peabody Trailblazer Award (2022). PGA Visionary Award (2022). Three Emmy nominations. Three Golden Globe nominations. TIME 100 (2018, 2022).",
+   "gpa": 3.8,
+   "sat": 1400,
+   "academic_note": "The 3.8 and 1400 are invented for this scenario — her high school numbers aren't public.",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Issa_Rae"
+   ],
+   "category": "alum-flip"
+  },
+  {
+   "id": "christian-mccaffrey-notre-dame",
+   "name": "Christian McCaffrey",
+   "slug": "notre-dame",
+   "major": "Business",
+   "achievement": "Named CoSIDA Academic All-American of the Year in 2016 while at Stanford, where he set the school record for career all-purpose yards (6,987) and the single-season record (3,864 in 2015). AP College Football Player of the Year in 2015 and a consensus All-American. NFL Offensive Player of the Year in 2023 and a three-time first-team All-Pro.",
+   "awards": "CoSIDA Academic All-American of the Year (2016). AP College Football Player of the Year (2015). NFL Offensive Player of the Year (2023). Three-time first-team All-Pro.",
+   "gpa": 3.7,
+   "sat": 1330,
+   "note_label": "Real academic honor, invented grades",
+   "note_foot": "Academic All-American of the Year is real. The GPA and SAT below are invented — his high school numbers aren't public.",
+   "academic_note": "Real: CoSIDA Academic All-American of the Year. The 3.7 and 1330 are invented — his high school numbers aren't public.",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Christian_McCaffrey"
+   ],
+   "category": "alum-flip"
+  },
+  {
+   "id": "andrew-luck-rice",
+   "name": "Andrew Luck",
+   "slug": "rice",
+   "major": "Architecture",
+   "achievement": "Earned a degree in architectural design from Stanford in 2012 and won the Al Masters Award for the highest standards of athletic performance, leadership and academic achievement. Later completed a master's in education at Stanford, finishing before November 2024, and became general manager of Stanford football. Two-time Heisman Trophy runner-up and winner of the Maxwell and Walter Camp awards in 2011.",
+   "awards": "Al Masters Award (2012). Maxwell Award and Walter Camp Player of the Year (2011). Two-time Heisman runner-up. Four-time Pro Bowl. NFL Comeback Player of the Year (2018).",
+   "gpa": 3.8,
+   "sat": 1420,
+   "note_label": "Real academic honor, invented grades",
+   "note_foot": "The Al Masters Award for academic achievement is real. The GPA and SAT below are invented — his high school numbers aren't public.",
+   "academic_note": "Real: Stanford's Al Masters Award for academic achievement. The 3.8 and 1420 are invented — his high school numbers aren't public.",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Andrew_Luck"
+   ],
+   "category": "alum-flip"
+  },
+  {
+   "id": "sterling-k-brown-emory",
+   "name": "Sterling K. Brown",
+   "slug": "emory",
+   "major": "Economics",
+   "achievement": "Entered Stanford as an economics major before switching to acting, graduating in 1998, then earned an MFA from NYU's Tisch School of the Arts. In 2018 became the first African-American actor to win the Golden Globe for Best Actor in a Television Drama.",
+   "awards": "Three Primetime Emmy Awards. Golden Globe (2018). Academy Award nomination for Best Supporting Actor (2024). Multiple SAG Awards.",
+   "gpa": 3.8,
+   "sat": 1390,
+   "academic_note": "The 3.8 and 1390 are invented for this scenario — his high school numbers aren't public.",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Sterling_K._Brown"
+   ],
+   "category": "alum-flip"
+  },
+  {
+   "id": "reese-witherspoon-vanderbilt",
+   "name": "Reese Witherspoon",
+   "slug": "vanderbilt",
+   "major": "English",
+   "achievement": "Attended Stanford as an English literature major after graduating from the Harpeth Hall School in Nashville, leaving before finishing the degree. Founded the media company Hello Sunshine in 2012 and sold a majority stake to a Blackstone-backed venture in 2021 in a deal valuing it at $900 million, and launched the retail brand Draper James in 2015.",
+   "awards": "Academy Award for Best Actress (2005, Walk the Line). Primetime Emmy for Outstanding Limited Series (2017, Big Little Lies). Multiple Golden Globes.",
+   "gpa": 3.8,
+   "sat": 1380,
+   "academic_note": "The 3.8 and 1380 are invented for this scenario — her high school numbers aren't public.",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Reese_Witherspoon"
+   ],
+   "category": "alum-flip"
+  },
+  {
+   "id": "aaron-rodgers-stanford",
+   "name": "Aaron Rodgers",
+   "slug": "stanford",
+   "major": "Business",
+   "achievement": "Played a season at Butte College in 2002 with 26 touchdowns before transferring to the University of California, Berkeley for 2003-2004, where he set school records for the lowest interception rates. Four-time NFL Most Valuable Player and Super Bowl XLV MVP, holding the career passer rating record at 102.2 and a career interception percentage of 1.4%.",
+   "awards": "Four-time NFL MVP (2011, 2014, 2020, 2021). Super Bowl XLV champion and MVP. Ten Pro Bowls. AP Athlete of the Year (2011).",
+   "gpa": 3.6,
+   "sat": 1290,
+   "academic_note": "The 3.6 and 1290 are invented for this scenario — his high school numbers aren't public.",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Aaron_Rodgers"
+   ],
+   "category": "alum-flip"
+  },
+  {
+   "id": "lady-gaga-yale",
+   "name": "Lady Gaga",
+   "slug": "yale",
+   "major": "Music",
+   "achievement": "Won early admission at 17 to NYU's Tisch School of the Arts in 2003 through the Collaborative Arts Project 21, after attending Convent of the Sacred Heart in New York, and withdrew in 2005 to pursue music. Founded the Born This Way Foundation supporting youth mental health and LGBTQ rights, and launched the vegan cosmetics brand Haus Labs in 2019.",
+   "awards": "16 Grammy Awards. Academy Award for Best Original Song (2019, Shallow). Two Golden Globes. 22 MTV Video Music Awards.",
+   "gpa": 3.7,
+   "sat": 1340,
+   "note_label": "Real early admission, invented grades",
+   "note_foot": "The early admission to NYU Tisch at 17 is real. The GPA and SAT below are invented — her actual numbers aren't public.",
+   "academic_note": "Real: early admission to NYU Tisch at 17. The 3.7 and 1340 are invented — her actual numbers aren't public.",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Lady_Gaga"
+   ],
+   "category": "alum-flip"
+  },
+  {
+   "id": "meryl-streep-columbia",
+   "name": "Meryl Streep",
+   "slug": "columbia",
+   "major": "Drama",
+   "achievement": "Earned a BA in drama cum laude from Vassar in 1971, spent 1970 as a visiting student at Dartmouth, and earned an MFA from the Yale School of Drama in 1975. Holds the record for the most Academy Award nominations of any performer, with 21, and the most Golden Globe nominations, with 34. Awarded the Presidential Medal of Freedom in 2014.",
+   "awards": "Three Academy Awards and a record 21 nominations. Eight Golden Globes and a record 34 nominations. Presidential Medal of Freedom (2014). Kennedy Center Honor.",
+   "gpa": 3.8,
+   "sat": 1400,
+   "note_label": "Real college honors, invented grades",
+   "note_foot": "The cum laude at Vassar is real. The GPA and SAT below are invented — her high school numbers aren't public.",
+   "academic_note": "Real: cum laude at Vassar. The 3.8 and 1400 are invented — her high school numbers aren't public.",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Meryl_Streep"
+   ],
+   "category": "alum-flip"
+  },
+  {
+   "id": "colin-jost-tufts",
+   "name": "Colin Jost",
+   "slug": "tufts",
+   "major": "History",
+   "achievement": "Graduated from Regis High School in Manhattan in 2000 as editor of the school newspaper, then earned a BA in history and literature cum laude from Harvard in 2004 with a senior thesis on Nabokov. Served as president of the Harvard Lampoon. Has published four 'Shouts and Murmurs' pieces in The New Yorker and the New York Times bestselling memoir A Very Punchable Face (2020).",
+   "awards": "Two Primetime Emmy Awards and 19 nominations. Four Writers Guild Awards. Peabody Award (2009).",
+   "gpa": 3.9,
+   "sat": 1470,
+   "note_label": "Real college honors, invented grades",
+   "note_foot": "The cum laude at Harvard is real. The GPA and SAT below are invented — his high school numbers aren't public.",
+   "academic_note": "Real: cum laude at Harvard. The 3.9 and 1470 are invented — his high school numbers aren't public.",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Colin_Jost"
+   ],
+   "category": "alum-flip"
+  },
+  {
+   "id": "paul-giamatti-duke",
+   "name": "Paul Giamatti",
+   "slug": "duke",
+   "major": "English",
+   "achievement": "Graduated from Choate Rosemary Hall in 1985, earned a BA in English from Yale in 1989 and an MFA from the Yale School of Drama in 1994. His father was a Yale professor who became president of the university, and his mother taught English at the Hopkins School.",
+   "awards": "Primetime Emmy for Outstanding Lead Actor (2008, John Adams). Three Golden Globe Awards. Two Academy Award nominations (2005, 2023).",
+   "gpa": 3.8,
+   "sat": 1430,
+   "academic_note": "The 3.8 and 1430 are invented for this scenario — his high school numbers aren't public.",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Paul_Giamatti"
+   ],
+   "category": "alum-flip"
+  },
+  {
+   "id": "jennifer-connelly-princeton",
+   "name": "Jennifer Connelly",
+   "slug": "princeton",
+   "major": "English",
+   "achievement": "Studied English literature at Yale from 1988 to 1990, then transferred to Stanford to study drama before leaving to act. Named Ambassador for Human Rights Education by Amnesty International in November 2005 and a Save the Children ambassador in May 2012, and has partnered with Charity: Water on clean water projects in Africa, India and Central America.",
+   "awards": "Academy Award for Best Supporting Actress (2001, A Beautiful Mind). Golden Globe (2002). BAFTA (2002). Amnesty International Ambassador (2005).",
+   "gpa": 3.9,
+   "sat": 1450,
+   "academic_note": "The 3.9 and 1450 are invented for this scenario — her high school numbers aren't public.",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Jennifer_Connelly"
+   ],
+   "category": "alum-flip"
   }
  ]
 }
