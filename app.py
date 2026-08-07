@@ -21809,7 +21809,12 @@ def _tiktok_autopost_ids(ids):
     Skips accounts that haven't been re-authed with the video.upload scope yet."""
     if not ids:
         return
-    direct = os.environ.get("TIKTOK_AUTOPOST_DIRECT") == "1"   # Stage 2, post-audit
+    # Stage 2: DIRECT_POST publishes straight to the profile, bypassing the inbox.
+    # Per-account, not global — an account without video.publish falls back to the
+    # draft path instead of being skipped, so turning this on can never silence an
+    # account that was working. Re-auth at /tiktok/connect grants the scope.
+    direct_pref = os.environ.get("TIKTOK_AUTOPOST_DIRECT") == "1"
+    privacy = os.environ.get("TIKTOK_DIRECT_PRIVACY", "PUBLIC_TO_EVERYONE")
     manual = _manual_account_labels()                          # never auto-push these
     for cid in ids:
         try:
@@ -21829,12 +21834,17 @@ def _tiktok_autopost_ids(ids):
             if not acct or not acct["open_id"]:
                 continue                              # unlinked placeholder slot
             scope = acct["scope"] or ""
+            direct = direct_pref and "video.publish" in scope
             need = "video.publish" if direct else "video.upload"
             if need not in scope:
                 print(f" * autopost cid {cid}: {r['assigned_account']} missing {need} scope — skip", flush=True)
                 continue
+            if direct_pref and not direct:
+                print(f" * autopost cid {cid}: {r['assigned_account']} has no video.publish — "
+                      f"falling back to inbox draft (re-auth at /tiktok/connect)", flush=True)
             pid, _ = _tiktok_post_photos(acct, _carousel_image_urls(r),
-                                         _tiktok_post_caption(r), direct=direct)
+                                         _tiktok_post_caption(r), direct=direct,
+                                         privacy=privacy)
             with db() as conn:
                 conn.execute("UPDATE content_queue SET tt_publish_id=?, tt_post_status=?, "
                              "tt_posted_at=CURRENT_TIMESTAMP WHERE id=?",
