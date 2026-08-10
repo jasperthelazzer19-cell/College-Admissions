@@ -4087,9 +4087,11 @@ def grade_ec_and_spike(profile):
         "(800+). If the major doesn't match the activities at all, keep this LOW.\n\n"
         "Output ONLY valid JSON: {\"ec_strength\": <1-1000>, \"spike\": <1-1000>}"
     )
+    # Runs inside the profile-save request -- hard cap it and let the keyword
+    # fallback take over rather than hanging the save.
     raw = _claude("claude-haiku-4-5-20251001",
         "You are a strict admissions reader. Output only valid JSON with two integers.",
-        user, max_tokens=40, temperature=0)
+        user, max_tokens=40, temperature=0, timeout=8)
     if not raw:
         return None, None
     import json as _json, re as _re
@@ -4881,7 +4883,7 @@ def confidence_level(profile, components):
 
 
 # ─── CLAUDE-POWERED REASONING (with template fallback) ───
-def _claude(model, system, user, max_tokens=400, temperature=1.0, client=None):
+def _claude(model, system, user, max_tokens=400, temperature=1.0, client=None, timeout=None):
     # GRADER_FAST=1 (set only by the TikTok autopilot render process) downgrades
     # Sonnet -> Haiku to keep content generation cheap. The live site never sets
     # it, so real users always get the full Sonnet-quality grader.
@@ -4903,6 +4905,12 @@ def _claude(model, system, user, max_tokens=400, temperature=1.0, client=None):
               "messages": [{"role": "user", "content": user}]}
         if system:                       # omit when None — the API rejects system=null
             kw["system"] = system
+        # Explicit timeout for calls that run INSIDE a request. Without one the
+        # SDK default plus retries can hang for minutes during an API incident;
+        # the profile save spun until the gunicorn worker timed out and the user
+        # lost everything they had typed.
+        if timeout:
+            kw["timeout"] = timeout
         msg = cl.messages.create(**kw)
         return msg.content[0].text
     except Exception as e:
@@ -7250,7 +7258,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',function(){navig
         var t=document.createElement('div');
         t.style.cssText='position:fixed;bottom:16px;left:16px;right:16px;z-index:9999;background:#0f1b2e;color:#e8eef7;border:1px solid #24344f;border-radius:14px;padding:13px 16px;font-size:14px;box-shadow:0 10px 30px rgba(0,0,0,.5);display:flex;align-items:center;gap:10px';
         t.innerHTML='<span style="font-size:18px">\\uD83D\\uDCF2</span><span style="flex:1">Add Candor to your home screen: tap <b>Share</b> then <b>Add to Home Screen</b>.</span><button style="background:#5eead4;color:#04130f;border:0;border-radius:8px;padding:7px 12px;font-weight:800;cursor:pointer">Got it</button>';
-        t.querySelector('button').onclick=function(){localStorage.setItem('iosA2HS','1');t.remove();};
+        t.querySelector('button').onclick=function(){try{localStorage.setItem('iosA2HS','1');}catch(e){}t.remove();};
         document.body.appendChild(t);
       });
     }
@@ -8118,7 +8126,7 @@ def signup_html():
   {csrf_input()}
   {nxt_hidden}
   <label style="margin-top:0">Email</label>
-  <input type="email" name="email" required autofocus>
+  <input type="email" name="email" required autofocus value="{_prefill_email()}">
   <label>Password</label>
   <input type="password" name="password" minlength="8" required>
   <p class="muted" style="font-size:.78em;margin-top:6px">8+ characters. We never email you marketing.</p>
@@ -8128,6 +8136,17 @@ def signup_html():
 </form>
 <p class="muted" style="font-size:.85em;margin-top:16px"><a href="/#demo" style="color:var(--text-2)">← Just try the free calculator first</a></p>
 """, title="Sign up — Candor")
+
+
+def _prefill_email():
+    """Keep the typed email on a failed signup/login submit. Blanking it forced
+    a full retype and is a classic abandon point."""
+    try:
+        if request.method == "POST":
+            return _esc((request.form.get("email") or "").strip(), quote=True)
+    except Exception:
+        pass
+    return ""
 
 
 def login_html():
@@ -8146,7 +8165,7 @@ def login_html():
   {csrf_input()}
   {nxt_hidden}
   <label style="margin-top:0">Email</label>
-  <input type="email" name="email" required autofocus>
+  <input type="email" name="email" required autofocus value="{_prefill_email()}">
   <label>Password</label>
   <input type="password" name="password" required>
   <button class="btn btn-primary" type="submit">Log in</button>
@@ -8391,6 +8410,7 @@ def profile_html():
   </select>
 
   <label>AP courses taken <span class="muted">(optional — click any you're taking or have taken)</span></label>
+  <input type="hidden" name="_prev_aps" value="{v('aps')}">
   {_render_ap_picker(v('aps'))}
   <div style="margin-top:10px;display:flex;flex-direction:column;gap:6px">
     <label style="display:flex;align-items:center;gap:8px;font-weight:500">
@@ -8405,6 +8425,7 @@ def profile_html():
   <p class="muted" style="font-size:.78em;margin:4px 0 0">Pick whichever applies. Top schools care a lot about course rigor — taking no APs at a school that offers them is a small negative; not having APs available isn't your fault and won't be counted against you.</p>
 
   <label style="margin-top:18px">IB courses <span class="muted">(if you're in an IB program — click HL/SL subjects you're taking)</span></label>
+  <input type="hidden" name="_prev_ibs" value="{v('ibs')}">
   {_render_ib_picker(v('ibs'))}
   <div style="margin-top:10px;display:flex;flex-direction:column;gap:6px">
     <label style="display:flex;align-items:center;gap:8px;font-weight:500">
@@ -8486,7 +8507,7 @@ def _chances_profile(uid, slug):
     # the panel. 25s cap so a hung API call can't hang the page.
     ev = _exc_inflight.get(uid)
     if ev is not None:
-        ev.wait(timeout=25)
+        ev.wait(timeout=8)   # was 25 -- a blank page that long reads as broken
         p = get_profile(uid) or p        # re-read: the eval persisted to the row
     # Lazy exceptional-applicant eval (cached after first call).
     is_exc, exc_reason = get_or_evaluate_exceptionality(uid, p)
@@ -11224,12 +11245,19 @@ def _read_profile_form(form):
             cap = LIMITS.get(k)
             return cleaned[:cap] if cap else cleaned
 
+    # A value the user typed that we could not parse used to vanish silently
+    # while the page still said "Profile saved" -- odds then computed off
+    # missing data. Collect the rejects so save_profile can name them.
+    rejected = []
+
     def f(k, cast=str, default=None):
         v = form.get(k)
         if v is None or v == "": return default
         if cast is str: v = s(v, k)
         try: return cast(v)
-        except (TypeError, ValueError): return default
+        except (TypeError, ValueError):
+            rejected.append((k, str(v)[:40]))
+            return default
     result = {
         "uw_gpa": f("uw_gpa", float),
         "weighted_gpa": f("weighted_gpa", float),
@@ -11273,14 +11301,34 @@ def _read_profile_form(form):
         "w_notoffered_junior": form.get("w_notoffered_junior") in ("yes","on","true","1"),
         "w_notoffered_senior": form.get("w_notoffered_senior") in ("yes","on","true","1"),
     }
-    # Merge picker selections into the aps string
+    # Merge picker selections into the aps string.
+    # The list used to be rebuilt from the checkboxes ALONE, which silently
+    # deleted anything the picker can't represent -- free-text courses written
+    # by /content/setprofile ("Post-AP Linear Algebra") or legacy rows. Those
+    # don't pre-check, so the next unrelated save wiped them and quietly
+    # lowered the student's rigor. Keep them.
+    def _keep_unlisted(prev_str, canon_names):
+        kept = []
+        for item in (prev_str or "").split(","):
+            item = item.strip()
+            if not item:
+                continue
+            low = item.lower()
+            if not any(c.lower() in low or low in c.lower() for c in canon_names):
+                kept.append(item)
+        return kept
+
+    _ap_canon = [c for _, items in AP_PICKER_GROUPS for c, _ in items]
     picked = form.getlist("ap_pick") if hasattr(form, "getlist") else []
     parts = [p.strip() for p in picked if p.strip()]
-    result["aps"] = ", ".join(parts)[:LIMITS["aps"]]
+    parts += _keep_unlisted(form.get("_prev_aps"), _ap_canon)
+    result["aps"] = ", ".join(dict.fromkeys(parts))[:LIMITS["aps"]]
     # Same for IBs
+    _ib_canon = [c for _, items in IB_PICKER_GROUPS for c, _ in items]
     ib_picked = form.getlist("ib_pick") if hasattr(form, "getlist") else []
     ib_parts = [p.strip() for p in ib_picked if p.strip()]
-    result["ibs"] = ", ".join(ib_parts)[:LIMITS["ibs"]]
+    ib_parts += _keep_unlisted(form.get("_prev_ibs"), _ib_canon)
+    result["ibs"] = ", ".join(dict.fromkeys(ib_parts))[:LIMITS["ibs"]]
     # Legacy boolean is derived from whether they listed any legacy schools.
     result["legacy"] = bool(result["legacy_schools"])
     # Multi-select prefs: getlist returns all checked values. Stored as
@@ -11294,6 +11342,7 @@ def _read_profile_form(form):
         result[key] = ",".join(vals)
     # Per-pref importance weights
     result["pref_weights"] = parse_pref_weights_form(form)
+    result["_rejected_fields"] = rejected
     return result
 
 
@@ -12278,6 +12327,13 @@ def _handle_405(e):
     return redirect("/"), 302
 
 
+@app.errorhandler(429)
+def _handle_429(e):
+    return _error_page(429, "Too many tries",
+                       "You have hit the limit for now. Wait a minute and try again "
+                       "\u2014 shared school or library WiFi can trip this."), 429
+
+
 @app.errorhandler(500)
 def _handle_500(e):
     app.logger.exception("500 on %s", request.path)
@@ -12428,6 +12484,7 @@ def reset_password(token):
 def profile_page():
     if request.method == "POST":
         p = _read_profile_form(request.form)
+        rejected = p.pop("_rejected_fields", [])
         uid = current_user()["id"]
         save_profile(uid, p)
         # Profile changed — invalidate any cached advice/chances that were
@@ -12443,7 +12500,16 @@ def profile_page():
         # instantly. Any calc that arrives before the panel finishes waits for
         # the fresh verdict inside _chances_profile (no stale odds, no re-run).
         _kick_exceptionality_async(uid)
-        flash("Profile saved — pick a school to see your chances.", "success")
+        if rejected:
+            # Name what we threw away instead of claiming a clean save.
+            _labels = {"uw_gpa": "GPA", "weighted_gpa": "weighted GPA", "sat": "SAT",
+                       "act": "ACT", "class_rank": "class rank", "class_size": "class size"}
+            _bits = ", ".join(f"{_labels.get(k, k.replace('_',' '))} \u201c{v}\u201d"
+                              for k, v in rejected[:4])
+            flash(f"Saved, but these weren\u2019t numbers so they were not stored: {_bits}. "
+                  f"Enter digits only (e.g. 3.9, 1450).", "error")
+        else:
+            flash("Profile saved — pick a school to see your chances.", "success")
         nxt = session.pop("next_url", None)
         if nxt: return redirect(nxt)
         # No specific destination -> send them to Chances (school picker) instead
@@ -16265,6 +16331,11 @@ def api_demo_odds():
     from collections import deque
     ip = _client_ip()
     now = time.time()
+    # Evict stale IPs -- this dict lives for the life of the process and used
+    # to grow one entry per visitor forever.
+    if len(_DEMO_RATE) > 5000:
+        for k in [k for k, v in list(_DEMO_RATE.items()) if not v or now - v[-1] > 300]:
+            _DEMO_RATE.pop(k, None)
     dq = _DEMO_RATE.setdefault(ip, deque())
     while dq and now - dq[0] > 60:
         dq.popleft()
@@ -17063,11 +17134,11 @@ def plans_index_page():
   <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
     <a class="btn btn-primary" href="/signup?next=/plans" style="padding:12px 24px">Start free →</a>
     <a class="btn btn-light" href="/upgrade" style="padding:12px 24px">See Premium</a>
-    <span class="muted" style="font-size:.9em">Premium is ${0}/mo. Cancel anytime.</span>
+    <span class="muted" style="font-size:.9em">Premium is $__PRICE__/mo. Cancel anytime.</span>
   </div>
   <p class="muted" style="font-size:.85em;margin-top:18px">The chances calculator stays free, forever. Premium is the strategy layer on top.</p>
 </div>
-""".format(PREMIUM_MONTHLY_PRICE), title="My Colleges — Candor")
+""".replace("__PRICE__", str(PREMIUM_MONTHLY_PRICE)), title="My Colleges — Candor")
     return plans_index_html()
 
 
