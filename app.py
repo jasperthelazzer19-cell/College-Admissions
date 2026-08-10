@@ -1487,7 +1487,7 @@ def _render_counterfactual_card(profile, school, current_low, current_high):
             arrow = "↑"
         rows += f'''<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-top:1px solid var(--border);font-size:.92em;gap:12px;flex-wrap:wrap">
   <div style="flex:1;min-width:160px">{label}</div>
-  <div style="white-space:nowrap"><span class="muted">{int(current_low)}–{int(current_high)}%</span> <span style="color:{color};font-weight:700;margin:0 4px">{arrow}</span> <b style="color:{color}">{int(lo)}–{int(hi)}%</b> <span style="color:{color};font-size:.85em">(+{delta:.0f})</span></div>
+  <div style="white-space:nowrap"><span class="muted">{int(current_low)}–{int(current_high)}%</span> <span style="color:{color};font-weight:700;margin:0 4px">{arrow}</span> <b style="color:{color}">{int(lo)}–{int(hi)}%</b> <span style="color:{color};font-size:.85em">({delta:+.0f})</span></div>
 </div>'''
 
     return f'''<div class="card" style="margin-top:18px">
@@ -8523,8 +8523,20 @@ def _chances_profile(uid, slug):
     # the panel. 25s cap so a hung API call can't hang the page.
     ev = _exc_inflight.get(uid)
     if ev is not None:
-        ev.wait(timeout=8)   # was 25 -- a blank page that long reads as broken
+        finished = ev.wait(timeout=8)    # was 25 -- a blank page that long reads as broken
         p = get_profile(uid) or p        # re-read: the eval persisted to the row
+        if not finished:
+            # The background panel is still running. Do NOT let
+            # get_or_evaluate_exceptionality kick a SECOND full panel here --
+            # that made the user wait 8s plus an entire synchronous panel
+            # (worse than the old 25s), billed twice, and let two panels
+            # race-write different verdicts. Use what's on the row for now;
+            # the background run will persist and the next view picks it up.
+            profile = dict(p)
+            profile["_di_level"] = get_demonstrated_interest(uid, slug)
+            profile["is_exceptional"] = bool(p.get("is_exceptional"))
+            profile["exceptional_reason"] = p.get("exceptional_reason") or ""
+            return profile
     # Lazy exceptional-applicant eval (cached after first call).
     is_exc, exc_reason = get_or_evaluate_exceptionality(uid, p)
     profile = dict(p)  # every saved column: ec_rating, spike_score, self_rigor, ibs, ...
@@ -8822,7 +8834,7 @@ def chances_html(slug):
   {narrative_html}
 </div>
 {_c7_values_card(school_data)}
-{_render_counterfactual_card(profile, COLLEGES_BY_SLUG.get(r['slug']), r['odds_low'], r['odds_high'])}
+{_render_counterfactual_card(profile, merged_school(COLLEGES_BY_SLUG[r['slug']]), *counterfactual_lift(profile, merged_school(COLLEGES_BY_SLUG[r['slug']])))}
 {(_render_di_card(r['slug'], r['school'], profile.get('_di_level','none')) if _tracks_demonstrated_interest(COLLEGES_BY_SLUG.get(r['slug']) or {}, (COLLEGES_BY_SLUG.get(r['slug']) or {}).get('tier', 5)) else '')}
 <details class="card" style="margin-top:18px">
   <summary style="cursor:pointer;font-weight:600">What does "{r['confidence']} confidence" mean?</summary>
@@ -11350,27 +11362,45 @@ def _read_profile_form(form):
     # by /content/setprofile ("Post-AP Linear Algebra") or legacy rows. Those
     # don't pre-check, so the next unrelated save wiped them and quietly
     # lowered the student's rigor. Keep them.
-    def _keep_unlisted(prev_str, canon_names):
+    def _norm_course(x):
+        """Compare on the bare subject. Stored rows say "AP Calculus BC" while
+        the picker's canonical name is "Calc BC" -- neither substring-matches
+        the other, so the legacy row was never pre-checked (unremovable through
+        the UI) AND was preserved alongside the checkbox, double-counting rigor."""
+        x = re.sub(r"\b(ap|ib|honors?|hl|sl)\b", " ", (x or "").lower())
+        x = re.sub(r"\b(calculus|calc)\b", "calc", x)
+        x = re.sub(r"[^a-z0-9]+", "", x)
+        return x
+
+    def _keep_unlisted(prev_str, canon_names, picked_names):
+        """Carry forward saved courses the picker cannot represent, without
+        resurrecting one the user just unchecked and without duplicating one
+        they checked."""
+        canon_norm = {_norm_course(c) for c in canon_names}
+        picked_norm = {_norm_course(c) for c in picked_names}
         kept = []
         for item in (prev_str or "").split(","):
             item = item.strip()
             if not item:
                 continue
-            low = item.lower()
-            if not any(c.lower() in low or low in c.lower() for c in canon_names):
-                kept.append(item)
+            nrm = _norm_course(item)
+            if not nrm or nrm in picked_norm:
+                continue          # the checkbox already represents it
+            if nrm in canon_norm:
+                continue          # in the picker and left unchecked = removed
+            kept.append(item)     # genuinely free-text, e.g. "Post-AP Linear Algebra"
         return kept
 
     _ap_canon = [c for _, items in AP_PICKER_GROUPS for c, _ in items]
     picked = form.getlist("ap_pick") if hasattr(form, "getlist") else []
     parts = [p.strip() for p in picked if p.strip()]
-    parts += _keep_unlisted(form.get("_prev_aps"), _ap_canon)
+    parts += _keep_unlisted(form.get("_prev_aps"), _ap_canon, parts)
     result["aps"] = ", ".join(dict.fromkeys(parts))[:LIMITS["aps"]]
     # Same for IBs
     _ib_canon = [c for _, items in IB_PICKER_GROUPS for c, _ in items]
     ib_picked = form.getlist("ib_pick") if hasattr(form, "getlist") else []
     ib_parts = [p.strip() for p in ib_picked if p.strip()]
-    ib_parts += _keep_unlisted(form.get("_prev_ibs"), _ib_canon)
+    ib_parts += _keep_unlisted(form.get("_prev_ibs"), _ib_canon, ib_parts)
     result["ibs"] = ", ".join(dict.fromkeys(ib_parts))[:LIMITS["ibs"]]
     # Legacy boolean is derived from whether they listed any legacy schools.
     result["legacy"] = bool(result["legacy_schools"])
@@ -18964,10 +18994,15 @@ def plans_compute_all():
         return redirect(request.form.get("return_to") or "/plans/simulate")
     for slug in todo:
         try:
-            school = COLLEGES_BY_SLUG.get(slug)
-            if not school:
+            _raw_school = COLLEGES_BY_SLUG.get(slug)
+            if not _raw_school:
                 errors.append(f"{slug}: not in college DB")
                 continue
+            # merged_school applies CDS_VERIFIED / MANUAL_FRESH_ACCEPT. Without
+            # it this batch path used stale accept rates while
+            # /plans/recompute used the verified ones -- two buttons writing
+            # different numbers into the same saved_chances table.
+            school = merged_school(_raw_school)
             profile_for_school = dict(profile)
             try:
                 profile_for_school["_di_level"] = get_demonstrated_interest(uid, slug)
