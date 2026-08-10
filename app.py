@@ -10884,7 +10884,7 @@ def service_worker():
     # Network-first for pages (always fresh content/odds), cache-first for static
     # assets (logos, icons). Bump CACHE to invalidate the static cache on deploy.
     js = """
-const CACHE='candor-v11';
+const CACHE='candor-v12';
 const STATIC=/\\/static\\//;
 self.addEventListener('install',e=>{self.skipWaiting();});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});
@@ -10914,9 +10914,10 @@ self.addEventListener('fetch',e=>{
     return caches.match(req).then(function(hit){
       return hit||new Response(
         '<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1">'+
-        '<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:420px;margin:18vh auto;padding:0 22px;text-align:center;color:#0a131c">'+
+        '<body style="margin:0;background:#070d16">'+
+        '<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:420px;margin:18vh auto;padding:0 22px;text-align:center;color:#e9eef5">'+
         '<h1 style="margin:0 0 6px">You are offline</h1>'+
-        '<p style="color:#5b6674">Candor needs a connection to calculate odds. Reconnect and reload.</p>'+
+        '<p style="color:#8a97a8">Candor needs a connection to calculate odds. Reconnect and reload.</p>'+
         '<button onclick="location.reload()" style="background:#0f766e;color:#fff;border:0;border-radius:8px;padding:11px 22px;font-weight:700;cursor:pointer">Try again</button></div>',
         {status:503,headers:{'Content-Type':'text/html; charset=utf-8'}});
     });
@@ -20138,10 +20139,18 @@ def upgrade_thanks():
         var tries=0;
         var t=setInterval(function(){
           tries++;
-          fetch('/api/paid-status').then(function(r){return r.json()}).then(function(d){
+          fetch('/api/paid-status').then(function(r){
+            // A session that dies mid-payment-poll returns the login page;
+            // r.json() then throws into the empty catch and this spins in
+            // silence until the 20-try notice.
+            if(!r.ok||r.redirected)throw new Error('bad response');
+            return r.json();
+          }).then(function(d){
             if(d.paid){clearInterval(t);location.href='/upgrade/thanks';}
             else if(tries>20){clearInterval(t);var e=document.getElementById('slow');if(e)e.style.display='block';}
-          }).catch(function(){});
+          }).catch(function(){
+            if(tries>20){clearInterval(t);var e=document.getElementById('slow');if(e)e.style.display='block';}
+          });
         },3000);
       })();
       </script>"""
