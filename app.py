@@ -7059,19 +7059,28 @@ NAV_CONTENT = ('<div class="nav"><a class="brand" href="/admin/stats">' + CANDOR
     '<a href="/content/cost">💸 Cost</a>'
     '<span class="sp"></span>'
     '<a href="/colleges?full=1" style="font-size:.82em;opacity:.65">full site</a> '
-    '<a href="/logout">Logout</a></div>')
+    '<form method="post" action="/logout" style="display:inline">__CSRF__<button type="submit" class="navlink-btn" style="background:none;border:0;padding:0;font:inherit;color:inherit;cursor:pointer">Logout</button></form></div>')
 
 
-def _nav():
-    user = current_user()
+def _nav(safe=False):
+    # safe=True is for error pages: if the failure IS the database, calling
+    # current_user() here raises again and the user gets Flask's bare
+    # "Internal Server Error" instead of the branded page.
+    if safe:
+        try:
+            user = current_user()
+        except Exception:
+            user = None
+    else:
+        user = current_user()
     if user:
         # New Roads content account: export-first nav (Chances picker → export
         # slide, Grade → grade export, Compare → ranked slide builder).
         if _is_creator():
-            return NAV_CONTENT
+            return NAV_CONTENT.replace("__CSRF__", csrf_input())
         cta = "" if bool(user.get("is_paid")) else NAV_UPGRADE_BTN
         return NAV.replace("__UPGRADE_CTA__", cta).replace("__USER_LINKS__",
-            f'<a href="/profile">Profile</a> <a href="/logout">Logout</a> <span class="muted" style="font-size:.85em">{user["email"]}</span>')
+            f'<a href="/profile">Profile</a> <form method="post" action="/logout" style="display:inline">{csrf_input()}<button type="submit" class="navlink-btn" style="background:none;border:0;padding:0;font:inherit;color:inherit;cursor:pointer">Logout</button></form> <span class="muted" style="font-size:.85em">{user["email"]}</span>')
     return NAV.replace("__UPGRADE_CTA__", "").replace("__USER_LINKS__", '<a href="/login">Login</a> <a href="/signup" class="btn btn-primary btn-sm">Sign up</a>')
 
 
@@ -7173,7 +7182,7 @@ def _score_range(lo, hi):
     return f"{lo}\u2013{hi}"
 
 
-def _page(body_html, title="Candor", description=None):
+def _page(body_html, title="Candor", description=None, safe_nav=False):
     from html import escape as _esc
     description = description or "Honest college admissions chances, calibrated to verified Common Data Set data. Built by a HS junior to tell you the truth, not a flattering number."
     try:
@@ -7269,7 +7278,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',function(){navig
 {favicon}{pwa_head}
 {social_meta}
 {csrf_meta}{_posthog_head()}<title>{title}</title><style>{BASE_CSS}</style></head>
-<body>{_nav()}<div class="wrap">{_flash()}{body_html}</div>{footer}{pwa_script}<script>try{{navigator.sendBeacon("/api/beacon",location.pathname)}}catch(e){{}}</script></body></html>"""
+<body>{_nav(safe=safe_nav)}<div class="wrap">{_flash()}{body_html}</div>{footer}{pwa_script}<script>try{{navigator.sendBeacon("/api/beacon",location.pathname)}}catch(e){{}}</script></body></html>"""
 
 
 # ─── PAGE BUILDERS ────────────────────────────────────────
@@ -12346,7 +12355,7 @@ def _error_page(code, heading, msg):
             f'<a class="btn btn-primary" href="/">Home</a> '
             f'<a class="btn btn-light" href="/colleges">Browse colleges</a> '
             f'<a class="btn btn-light" href="/signup">Sign up</a></div>')
-    return _page(body, title=f"{heading} · Candor")
+    return _page(body, title=f"{heading} · Candor", safe_nav=True)
 
 
 @app.errorhandler(404)
@@ -12357,6 +12366,13 @@ def _handle_404(e):
 
 @app.errorhandler(405)
 def _handle_405(e):
+    # Pages: a wrong-method hit is almost always a stale link or a POST-only
+    # route being replayed as a GET after login -- send them home rather than
+    # show a bare Flask page. APIs must stay loud, or a frontend bug calling an
+    # endpoint with the wrong method silently returns HTML and never shows up
+    # as a 4xx in the logs.
+    if request.path.startswith(("/api/", "/content/", "/ingest/", "/stripe/")):
+        return jsonify({"error": "method not allowed", "path": request.path}), 405
     return redirect("/"), 302
 
 
@@ -12439,9 +12455,10 @@ def logout():
     # Any third-party page could log a user out with <img src=".../logout">.
     # Keep GET working (nav links point at it) but only from our own pages.
     if request.method == "GET":
+        # Legacy/bookmarked GETs only. The nav uses a POST form now.
+        from urllib.parse import urlparse as _up
         ref = request.referrer or ""
-        host = request.host_url.rstrip("/")
-        if ref and not ref.startswith(host):
+        if ref and _up(ref).netloc != request.host:
             return redirect(url_for("landing"))
     session.pop("user_id", None)
     session.pop("next_url", None)
