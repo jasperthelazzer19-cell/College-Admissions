@@ -5781,7 +5781,7 @@ def init_db():
         except sqlite3.OperationalError:
             pass
         # Metered free tier: users who sign up from the meter's launch onward
-        # get FREE_CALC_LIMIT free calculations (requests within CALC_DEBOUNCE_S
+        # get FREE_CALC_LIMIT free calculations (requests within the distinct-slug set (there is no debounce)
         # seconds of each other count as one), then a $3/mo paywall. Everyone who
         # already existed when the meter shipped is grandfathered to unlimited —
         # a one-shot UPDATE that runs only on the boot that first adds the column.
@@ -8622,7 +8622,10 @@ def _calc_meter(user, slug=None):
         rows = conn.execute(
             "SELECT DISTINCT college_slug FROM calc_runs WHERE user_id=?", (user["id"],)
         ).fetchall()
-    seen = {r["college_slug"] for r in rows}
+    # Only count schools that still exist. A renamed or removed slug used to
+    # hold a free slot forever while the "your unlocked schools" chips filtered
+    # it out -- the user read "5 of 5 used" next to 4 chips.
+    seen = {r["college_slug"] for r in rows if r["college_slug"] in COLLEGES_BY_SLUG}
     used = len(seen)
     if slug and slug in seen:
         return (False, used, FREE_CALC_LIMIT)
@@ -10865,7 +10868,7 @@ def service_worker():
     # Network-first for pages (always fresh content/odds), cache-first for static
     # assets (logos, icons). Bump CACHE to invalidate the static cache on deploy.
     js = """
-const CACHE='candor-v10';
+const CACHE='candor-v11';
 const STATIC=/\\/static\\//;
 self.addEventListener('install',e=>{self.skipWaiting();});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});
@@ -10875,10 +10878,33 @@ self.addEventListener('fetch',e=>{
   const url=new URL(req.url);
   if(url.origin!==location.origin)return;
   if(STATIC.test(url.pathname)){
-    e.respondWith(caches.open(CACHE).then(c=>c.match(req).then(hit=>hit||fetch(req).then(res=>{if(res&&res.status===200)c.put(req,res.clone());return res;}))));
+    // stale-while-revalidate: serve the cached copy instantly but always
+    // refresh it in the background, so a changed asset can't be pinned to an
+    // old version until someone remembers to bump CACHE.
+    e.respondWith(caches.open(CACHE).then(function(c){
+      return c.match(req).then(function(hit){
+        var net=fetch(req).then(function(res){
+          if(res&&res.status===200)c.put(req,res.clone());
+          return res;
+        }).catch(function(){return hit;});
+        return hit||net;
+      });
+    }));
     return;
   }
-  e.respondWith(fetch(req).catch(()=>caches.match(req)));
+  // Offline with nothing cached used to reject respondWith (caches.match
+  // resolves undefined), which shows the browser's own network-error page.
+  e.respondWith(fetch(req).catch(function(){
+    return caches.match(req).then(function(hit){
+      return hit||new Response(
+        '<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1">'+
+        '<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:420px;margin:18vh auto;padding:0 22px;text-align:center;color:#0a131c">'+
+        '<h1 style="margin:0 0 6px">You are offline</h1>'+
+        '<p style="color:#5b6674">Candor needs a connection to calculate odds. Reconnect and reload.</p>'+
+        '<button onclick="location.reload()" style="background:#0f766e;color:#fff;border:0;border-radius:8px;padding:11px 22px;font-weight:700;cursor:pointer">Try again</button></div>',
+        {status:503,headers:{'Content-Type':'text/html; charset=utf-8'}});
+    });
+  }));
 });
 """
     return (js, 200, {"Content-Type": "application/javascript; charset=utf-8",
@@ -12346,12 +12372,19 @@ def _handle_500(e):
 def signup_page():
     if current_user(): return redirect(url_for("profile_page"))
     nxt = request.args.get("next") or request.form.get("next")
-    if _is_safe_path(nxt):
+    if _is_safe_path(nxt) and request.method == "POST":
+        # Only on submit. Planting it on a GET meant an abandoned
+        # /signup?next=/upgrade dumped a totally unrelated later login on
+        # /upgrade.
         session["next_url"] = nxt
     if request.method == "POST":
         email = (request.form.get("email") or "").strip().lower()
         password = request.form.get("password") or ""
-        if not re.match(r"^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$", email):
+        if len(email) > 254 or len(password) > 200:
+            # No caps meant a 3,000-char email inserted fine and a 1MB password
+            # went through 200k rounds of PBKDF2.
+            flash("That email or password is too long.", "error")
+        elif not re.match(r"^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$", email):
             flash("Invalid email address.", "error")
         elif len(password) < 8:
             flash("Password must be at least 8 characters.", "error")
@@ -12378,7 +12411,7 @@ def signup_page():
 def login_page():
     if current_user(): return redirect(url_for("profile_page"))
     nxt = request.args.get("next") or request.form.get("next")
-    if _is_safe_path(nxt):
+    if _is_safe_path(nxt) and request.method == "POST":
         session["next_url"] = nxt
     if request.method == "POST":
         email = (request.form.get("email") or "").strip().lower()
@@ -12394,9 +12427,17 @@ def login_page():
     return login_html()
 
 
-@app.route("/logout")
+@app.route("/logout", methods=["GET", "POST"])
 def logout():
+    # Any third-party page could log a user out with <img src=".../logout">.
+    # Keep GET working (nav links point at it) but only from our own pages.
+    if request.method == "GET":
+        ref = request.referrer or ""
+        host = request.host_url.rstrip("/")
+        if ref and not ref.startswith(host):
+            return redirect(url_for("landing"))
     session.pop("user_id", None)
+    session.pop("next_url", None)
     return redirect(url_for("landing"))
 
 
@@ -12423,7 +12464,17 @@ def forgot_password():
                     'padding:11px 22px;border-radius:8px;font-weight:700">Reset password &rarr;</a>'
                     '<p style="color:#9ca3af;font-size:12px;margin-top:18px">If you did not request this, you can ignore this email '
                     'and your password stays the same.</p></div>')
-                _send_email(email, "Reset your Candor password", html)
+                # _send_email returns False (no exception) when Resend errors
+                # and no Gmail fallback is configured -- the user then saw
+                # "reset link is on the way" and was locked out for good.
+                if not _send_email(email, "Reset your Candor password", html):
+                    print(f"PASSWORD RESET EMAIL FAILED for {email}")
+                    try:
+                        _send_email(CANCEL_EMAIL, "Candor: password-reset email FAILED",
+                                    f"<p>Reset mail to <b>{_esc(email)}</b> did not send. "
+                                    f"Check RESEND_API_KEY / GMAIL_APP_PASSWORD.</p>")
+                    except Exception:
+                        pass
         # Always the same message — never reveal whether an email is registered.
         flash("If that email has an account, a reset link is on the way. Check your inbox (and spam).", "success")
         return redirect(url_for("login_page"))
@@ -16136,7 +16187,7 @@ def chances_narrative(slug):
     if not school_data:
         return ("", 204)
     # Paywall: don't run the paid AI narrative for a metered user who's out of
-    # free calcs. A legit lazy-load fires within CALC_DEBOUNCE_S of the chances
+    # free calcs. A legit lazy-load fires within the distinct-slug set (there is no debounce) of the chances
     # page's own _log_calc_run, so the meter's debounce returns not-blocked here;
     # only a direct-hit bypass (no recent page view) trips this.
     _blocked, _u, _l = _calc_meter(current_user(), slug)
@@ -16468,13 +16519,20 @@ def compare_page():
     raw_picker  = request.args.getlist("school")
     nm = _name_to_slug_map()
     slugs = []
+    unmatched = []
     for piece in (raw_schools.split(",") + raw_picker):
         key = (piece or "").strip().lower()
         if not key: continue
         slug = nm.get(key)
         if slug and slug not in slugs:
             slugs.append(slug)
+        elif not slug:
+            # A typo used to re-render the picker blank with no explanation.
+            unmatched.append(piece.strip())
         if len(slugs) >= 4: break
+    if unmatched:
+        flash("Couldn\u2019t find: " + ", ".join(_esc(u) for u in unmatched[:3])
+              + ". Pick from the suggestions as you type.", "error")
     user = current_user()
     profile = get_profile(user["id"]) if user else None
     valid = [merged_school(COLLEGES_BY_SLUG[s]) for s in slugs if s in COLLEGES_BY_SLUG]
@@ -16898,7 +16956,7 @@ def predictor_page():
 <p class="muted">See how raising your test scores or GPA would shift your odds. We re-run the same model used on the chances pages.</p>
 <div class="card" style="background:var(--card);max-width:680px">
   <p style="margin:0 0 10px;font-weight:600">Current: SAT {cur_sat} · ACT {cur_act} · GPA {cur_gpa}</p>
-  <form method="get" action="/predictor" style="display:grid;gap:12px;grid-template-columns:1fr 1fr 1fr">
+  <form method="get" action="/predictor" style="display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(140px,1fr))">
     <div><label>SAT</label><input name="sat" type="number" min="400" max="1600" value="{sim_sat or ''}" placeholder="e.g. 1500"></div>
     <div><label>ACT</label><input name="act" type="number" min="1" max="36" value="{sim_act or ''}" placeholder="e.g. 34"></div>
     <div><label>UW GPA</label><input name="gpa" type="number" step="0.01" min="0" max="4.0" value="{sim_gpa or ''}" placeholder="e.g. 3.9"></div>
@@ -19936,7 +19994,7 @@ def upgrade_page():
                    else f"${eff_month:.2f}")
         save_pct = round((1 - (price_a / (price_m * 12.0))) * 100)
         plan_picker = f"""
-      <div id="plan-picker" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:8px 0 4px">
+      <div id="plan-picker" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:8px 0 4px">
         <label data-plan="monthly" style="cursor:pointer;border:2px solid var(--teal);border-radius:12px;padding:15px 16px;background:rgba(95,201,182,.06);transition:border-color .12s">
           <div style="display:flex;justify-content:space-between;align-items:center">
             <span style="font-weight:700">Monthly</span>
