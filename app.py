@@ -32,7 +32,7 @@ from functools import wraps
 from html import escape as _esc   # module-level so every render fn has it (fixes /colleges 500)
 
 import requests
-from flask import Flask, render_template_string, request, redirect, url_for, session, flash, jsonify, abort, Response
+from flask import Flask, render_template_string, request, redirect, url_for, session, flash, jsonify, abort, Response, send_from_directory
 from candor_data import *  # static domain data (schools, rankings, weights) — see candor_data.py
 from candor_styles import *  # CSS + HTML/SVG template strings — see candor_styles.py
 
@@ -6104,7 +6104,10 @@ def login_required(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
         if not current_user() and not _has_render_key():
-            session["next_url"] = request.path
+            # Only remember GET targets. POST-only routes (e.g. /save/<slug>) would
+            # otherwise be replayed as a GET after login and render a bare 405.
+            if request.method == "GET":
+                session["next_url"] = request.full_path.rstrip("?")
             return redirect(url_for("login_page"))
         return f(*args, **kwargs)
     return wrapper
@@ -7127,6 +7130,15 @@ def _posthog_head():
     )
 
 
+def _score_range(lo, hi):
+    """SAT/ACT mid-50% string. 15 live schools have no published bounds and are
+    not test-blind -- they were rendering a literal 'None-None' on public,
+    Google-indexed pages."""
+    if lo is None or hi is None:
+        return "Not reported"
+    return f"{lo}\u2013{hi}"
+
+
 def _page(body_html, title="Candor", description=None):
     from html import escape as _esc
     description = description or "Honest college admissions chances, calibrated to verified Common Data Set data. Built by a HS junior to tell you the truth, not a flattering number."
@@ -7537,8 +7549,8 @@ def college_detail_html(slug):
                 f'padding:9px 11px;background:rgba(255,255,255,.02)">'
                 f'<div style="font-size:.62em;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);font-weight:700;white-space:nowrap">{label}</div>'
                 f'<div style="font-size:{fs};font-weight:800;color:{color};margin-top:2px;white-space:nowrap">{val}</div></div>')
-    _sat_txt = "Test-blind" if is_test_blind(c) else f"{c['sat_25']}–{c['sat_75']}"
-    _act_txt = "Test-blind" if is_test_blind(c) else f"{c['act_25']}–{c['act_75']}"
+    _sat_txt = "Test-blind" if is_test_blind(c) else _score_range(c.get('sat_25'), c.get('sat_75'))
+    _act_txt = "Test-blind" if is_test_blind(c) else _score_range(c.get('act_25'), c.get('act_75'))
     stat_strip = (_stat_box("Acceptance rate", f"{acc_pct}%", "#2b6cff")
                   + _stat_box("GPA mid-50%", f"{c['gpa_lo']}–{c['gpa_hi']}")
                   + _stat_box("SAT mid-50%", _sat_txt)
@@ -7617,11 +7629,29 @@ def college_detail_html(slug):
 <script>
 (function(){{
   var slug = "{c['slug']}";
+  function settle(target){{
+    // No content (or the request failed) -- clear the placeholder instead of
+    // spinning "Loading..." forever. Uncached schools returned {{"html":""}},
+    // which the old truthiness check skipped, so anon SEO traffic landed on a
+    // page that never finished loading.
+    var el = document.getElementById(target);
+    if (!el) return;
+    var note = el.querySelector(".muted");
+    if (note) {{ note.parentNode.removeChild(note); }}
+    if (!el.textContent.trim()) {{
+      var card = el.closest ? el.closest(".card") : null;
+      if (card) {{ card.style.display = "none"; }} else {{ el.innerHTML = ""; }}
+    }}
+  }}
   function load(target, url){{
-    fetch(url).then(function(r){{return r.json();}}).then(function(d){{
+    fetch(url).then(function(r){{
+      if (!r.ok || r.redirected) throw new Error("bad response");
+      return r.json();
+    }}).then(function(d){{
       var el = document.getElementById(target);
-      if (el && d && d.html) el.innerHTML = d.html;
-    }}).catch(function(){{}});
+      if (!el) return;
+      if (d && d.html) {{ el.innerHTML = d.html; }} else {{ settle(target); }}
+    }}).catch(function(){{ settle(target); }});
   }}
   load("summary-block", "/api/college/"+slug+"/summary");
   load("facts-block",   "/api/college/"+slug+"/facts");
@@ -8211,7 +8241,13 @@ def _render_ib_picker(saved_ibs_str):
 
 def profile_html():
     p = get_profile(current_user()["id"]) or {}
-    def v(k): return (p.get(k) if p.get(k) is not None else "")
+    def v(k):
+        # MUST escape: these go straight into value="..." attributes and into
+        # <textarea> bodies. An unescaped quote truncated the field; an
+        # unescaped </textarea> in an ECs/awards box destroyed the Save button
+        # and every field below it (and was a stored-XSS hole on reload).
+        val = p.get(k)
+        return "" if val is None else _esc(str(val), quote=True)
     _is_paid = bool(current_user().get("is_paid"))
     match_section = ""
     checked = lambda k: 'checked' if p.get(k) else ''
@@ -8496,7 +8532,14 @@ def _chances_narrative_block(slug, r, ready):
 <style>@keyframes cdrspin{{to{{transform:rotate(360deg)}}}}.cdr-spinner-sm{{width:18px;height:18px;border-radius:50%;border:2px solid rgba(95,201,182,.2);border-top-color:#5fc9b6;display:inline-block;animation:cdrspin .8s linear infinite}}</style>
 <script>
 (function(){{
-  fetch("/chances/{slug}/narrative").then(function(x){{return x.text();}}).then(function(h){{
+  fetch("/chances/{slug}/narrative").then(function(x){{
+    // An expired session 302s to the login page; without this check the whole
+    // login screen got painted inside the results card. An empty 204 body
+    // silently blanked the section.
+    if(!x.ok || x.redirected) throw new Error("bad response");
+    return x.text();
+  }}).then(function(h){{
+    if(!h || !h.trim()) throw new Error("empty");
     var el=document.getElementById("chances-narr"); if(el) el.innerHTML=h;
   }}).catch(function(){{
     var el=document.getElementById("chances-narr"); if(el) el.innerHTML='<p class="muted" style="font-size:.9em">Narrative unavailable. <a href="/chances/{slug}?refresh=1">Retry</a></p>';
@@ -10685,8 +10728,16 @@ app.config.update(
 # CSRF protection on every POST form. Requires {{ csrf_token() }} to be
 # emitted in each form template.
 try:
-    from flask_wtf.csrf import CSRFProtect
+    from flask_wtf.csrf import CSRFProtect, CSRFError
+    # Referer-stripping browsers (privacy extensions, in-app webviews) could never
+    # sign up or log in; an open form >1hr also died with a bare 400.
+    app.config.update(WTF_CSRF_SSL_STRICT=False, WTF_CSRF_TIME_LIMIT=None)
     csrf = CSRFProtect(app)
+
+    @app.errorhandler(CSRFError)
+    def _handle_csrf(e):
+        flash("Your session expired. Please try that again.")
+        return redirect(request.referrer or "/"), 302
     _CSRF_ON = True
 except Exception:
     _CSRF_ON = False
@@ -12139,6 +12190,73 @@ def _rate_limit(*args, **kwargs):
             return limiter.limit(*args, **kwargs)(fn)
         return fn
     return deco
+
+
+# ─── URL aliases + error pages ────────────────────────────
+# People (and Google, and chatbots) guess these. A bare Flask 404 was killing signups.
+def _q():
+    qs = request.query_string.decode()
+    return ("?" + qs) if qs else ""
+
+
+@app.route("/register")
+@app.route("/sign-up")
+@app.route("/signup.html")
+@app.route("/join")
+@app.route("/create-account")
+def signup_aliases():
+    return redirect("/signup" + _q(), code=301)
+
+
+@app.route("/signin")
+@app.route("/sign-in")
+@app.route("/log-in")
+@app.route("/login.html")
+def login_aliases():
+    return redirect("/login" + _q(), code=301)
+
+
+@app.route("/account")
+@app.route("/settings")
+@app.route("/my-profile")
+def profile_aliases():
+    return redirect("/profile" + _q(), code=301)
+
+
+@app.route("/favicon.ico")
+def favicon_ico():
+    return send_from_directory(os.path.join(app.root_path, "static"),
+                               "apple-touch-icon.png",
+                               mimetype="image/png")
+
+
+def _error_page(code, heading, msg):
+    body = (f'<div class="card" style="text-align:center;padding:48px 24px">'
+            f'<div style="font-size:52px;font-weight:800;opacity:.25">{code}</div>'
+            f'<h1 style="margin:8px 0 6px">{heading}</h1>'
+            f'<p class="muted" style="margin-bottom:22px">{msg}</p>'
+            f'<a class="btn btn-primary" href="/">Home</a> '
+            f'<a class="btn btn-light" href="/colleges">Browse colleges</a> '
+            f'<a class="btn btn-light" href="/signup">Sign up</a></div>')
+    return _page(body, title=f"{heading} · Candor")
+
+
+@app.errorhandler(404)
+def _handle_404(e):
+    return _error_page(404, "Page not found",
+                       "That link does not exist. Try one of these instead."), 404
+
+
+@app.errorhandler(405)
+def _handle_405(e):
+    return redirect("/"), 302
+
+
+@app.errorhandler(500)
+def _handle_500(e):
+    app.logger.exception("500 on %s", request.path)
+    return _error_page(500, "Something broke on our end",
+                       "This has been logged. Try again in a moment."), 500
 
 
 @app.route("/signup", methods=["GET", "POST"])
@@ -16202,10 +16320,17 @@ def api_college_articles(slug):
 @login_required
 def school_plan_page(slug):
     if slug in COLLEGES_BY_SLUG:
-        _blocked, _used, _limit = _calc_meter(current_user(), slug)
-        if _blocked:
-            return _calc_paywall_html(_used, _limit, slug=slug, user=current_user())
-        _log_calc_run(slug, current_user()["id"])
+        _u = current_user()
+        # Only meter a real calculation. Without this guard, a user with no
+        # profile burned a free slot on every plan page they opened and saw
+        # "Add your profile first" instead of odds -- then hit the paywall
+        # having never been shown a single number.
+        _prof = get_profile(_u["id"])
+        if _prof and _prof.get("uw_gpa") is not None:
+            _blocked, _used, _limit = _calc_meter(_u, slug)
+            if _blocked:
+                return _calc_paywall_html(_used, _limit, slug=slug, user=_u)
+            _log_calc_run(slug, _u["id"])
     return school_plan_html(slug)
 
 
@@ -16300,8 +16425,8 @@ def compare_page():
         return f"<tr><td class='muted' style='font-weight:500'>{label}</td>{cells}</tr>"
     rows.append(row("Acceptance rate", lambda c: f"{round(c['accept']*100,1)}%"))
     rows.append(row("GPA mid-50%", lambda c: f"{c['gpa_lo']}–{c['gpa_hi']}"))
-    rows.append(row("SAT mid-50%", lambda c: "Test-blind" if is_test_blind(c) else f"{c['sat_25']}–{c['sat_75']}"))
-    rows.append(row("ACT mid-50%", lambda c: "Test-blind" if is_test_blind(c) else f"{c['act_25']}–{c['act_75']}"))
+    rows.append(row("SAT mid-50%", lambda c: "Test-blind" if is_test_blind(c) else _score_range(c.get('sat_25'), c.get('sat_75'))))
+    rows.append(row("ACT mid-50%", lambda c: "Test-blind" if is_test_blind(c) else _score_range(c.get('act_25'), c.get('act_75'))))
     rows.append(row("Undergrads", lambda c: f"{c.get('size','?'):,}"))
     rows.append(row("S/F ratio", lambda c: f"{sf_ratio(c)}:1"))
     rows.append(row("Tuition (sticker)", lambda c: f"${c.get('tuition',0):,}"))
@@ -16379,7 +16504,11 @@ _GRADE_SHELL = """
 <div id="grade-content"></div>
 <script>
 (function(){
-  fetch('/grade/fragment').then(function(r){return r.text();}).then(function(h){
+  fetch('/grade/fragment').then(function(r){
+    if(!r.ok || r.redirected) throw new Error("bad response");
+    return r.text();
+  }).then(function(h){
+    if(!h || !h.trim()) throw new Error("empty");
     document.getElementById('grade-content').innerHTML = h;
     var l=document.getElementById('grade-loading'); if(l) l.style.display='none';
   }).catch(function(){
@@ -16795,7 +16924,7 @@ def save_school(slug):
         conn.commit()
     nxt = request.form.get("next")
     if not _is_safe_path(nxt):
-        nxt = url_for("college_detail_page", slug=slug)
+        nxt = url_for("college_detail", slug=slug)
     return redirect(nxt)
 
 
@@ -16844,7 +16973,7 @@ def unsave_school(slug):
         conn.commit()
     nxt = request.form.get("next")
     if not _is_safe_path(nxt):
-        nxt = url_for("college_detail_page", slug=slug)
+        nxt = url_for("college_detail", slug=slug)
     return redirect(nxt)
 
 
