@@ -2401,7 +2401,7 @@ def compute_my_fit(profile, school):
     # 1) Admit realism: scaled by the OUTPUT of the same chances calculator,
     # so the ranking matches what the chances page says.
     fit_acad, _ = compute_fit(profile, school)
-    low, high = estimate_odds(school, fit_acad, profile)
+    low, high = odds_for(school, fit_acad, profile)
     odds_mid = (low + high) / 2.0  # in percentage points 0-100
     # Map odds to a 0-100 realism score:
     #   ≤5% → 25 (steep penalty, but not zero)
@@ -3990,7 +3990,7 @@ def counterfactual_lift(profile, school, *, gpa=None, sat=None, act=None,
         )
         sim.pop("ec_rating", None)
     fit, _ = compute_fit(sim, school)
-    return estimate_odds(school, fit, sim)
+    return odds_for(school, fit, sim, simulated=True)
 
 
 
@@ -5315,6 +5315,41 @@ def _fallback_bullets(profile, school, fit, components, tier):
     return {"strength": strength, "weakness": weakness, "differentiator": differentiator}
 
 
+def odds_for(school, fit, profile, simulated=False, _v2_surface=False):
+    """THE single entry point for odds. Every surface must call this.
+
+    Before this existed the ODDS_ENGINE=v2 gate lived only inside
+    analyze_school, whose only caller is the plan page -- so /chances/<slug>,
+    the narrative, /plans/recompute, /plans/compute-all and every export still
+    ran v1 and showed a DIFFERENT number for the same user and school.
+
+    simulated=True is for what-if profiles (SAT +60, GPA bump, EC boost). v2
+    prefers the cached LLM grade, which predates the hypothetical, so a sim
+    would come back byte-identical to the baseline and the simulator would show
+    no movement. Dropping grade_json forces the deterministic grade, which does
+    respond to the changed stats. Pass it on BOTH sides of a comparison so the
+    delta is apples-to-apples.
+
+    ROLLOUT: _v2_surface=True is the plan page -- the one surface that already
+    ran v2 in prod, so its numbers are unchanged. Every other surface stays on
+    v1 until ODDS_V2_EVERYWHERE=1 is set in Railway. Measured on 400 real prod
+    profiles x 14 schools: 84% of cells move, median +2.5pts, and 17-18 of 400
+    profiles would read above 40% at each of Harvard/Stanford/MIT/Princeton/
+    Columbia (today: zero), with Yale topping out at 81%. That tail is Jasper's
+    call, not a silent flip.
+    """
+    if os.environ.get("ODDS_ENGINE") == "v2" and (
+            _v2_surface or os.environ.get("ODDS_V2_EVERYWHERE") == "1"):
+        p = profile
+        if simulated and profile.get("grade_json"):
+            p = dict(profile)
+            p.pop("grade_json", None)
+        v2 = estimate_odds_v2(school, p)
+        if v2 is not None:
+            return v2
+    return estimate_odds(school, fit, profile)
+
+
 def analyze_school(profile, slug):
     raw = COLLEGES_BY_SLUG.get(slug)
     if not raw: return None
@@ -5323,16 +5358,7 @@ def analyze_school(profile, slug):
     school = merged_school(raw)
     fit, components = compute_fit(profile, school)
     tier = assign_tier(school, fit, profile)
-    # Odds engine v2 (grade-anchored, rank-based) is flag-gated and OFF by
-    # default. It returns None for any profile without a cached LLM grade, in
-    # which case we fall straight back to v1 — so an ungraded calc is never broken.
-    low = high = None
-    if os.environ.get("ODDS_ENGINE") == "v2":
-        _v2 = estimate_odds_v2(school, profile)
-        if _v2 is not None:
-            low, high = _v2
-    if low is None:
-        low, high = estimate_odds(school, fit, profile)
+    low, high = odds_for(school, fit, profile, _v2_surface=True)
     bullets = generate_bullets(profile, school, fit, components, tier, (low, high))
     return {
         "school": school["name"], "slug": school["slug"],
@@ -8667,7 +8693,7 @@ def chances_html(slug):
     merged = merged_school(school_data)
     fit, components = compute_fit(profile, merged)
     tier = assign_tier(merged, fit, profile)
-    low, high = estimate_odds(merged, fit, profile)
+    low, high = odds_for(merged, fit, profile)
     r = {
         "school": merged["name"], "slug": slug,
         "accept_rate_pct": round(merged["accept"]*100, 1),
@@ -9117,7 +9143,7 @@ def school_improve_html(slug):
         cur_sat = profile.get("sat")
         cur_act = profile.get("act")
         cur_fit, _ = compute_fit(profile, school_m)
-        cur_lo, cur_hi = estimate_odds(school_m, cur_fit, profile)
+        cur_lo, cur_hi = odds_for(school_m, cur_fit, profile, simulated=True)
         scenarios = []
         if cur_sat:
             for delta in (30, 60, 100):
@@ -9125,7 +9151,7 @@ def school_improve_html(slug):
                 if new_sat == cur_sat: continue
                 sim = dict(profile); sim["sat"] = new_sat
                 sf, _ = compute_fit(sim, school_m)
-                lo, hi = estimate_odds(school_m, sf, sim)
+                lo, hi = odds_for(school_m, sf, sim, simulated=True)
                 scenarios.append((f"SAT +{delta} → {new_sat}", f"{lo}–{hi}%", lo - cur_lo))
         if cur_act:
             for delta in (1, 2, 3):
@@ -9133,7 +9159,7 @@ def school_improve_html(slug):
                 if new_act == cur_act: continue
                 sim = dict(profile); sim["act"] = new_act
                 sf, _ = compute_fit(sim, school_m)
-                lo, hi = estimate_odds(school_m, sf, sim)
+                lo, hi = odds_for(school_m, sf, sim, simulated=True)
                 scenarios.append((f"ACT +{delta} → {new_act}", f"{lo}–{hi}%", lo - cur_lo))
         if scenarios:
             rows_html = f'<tr><td><span class="muted">Current</span></td><td>{cur_lo}–{cur_hi}%</td><td></td></tr>'
@@ -9663,7 +9689,7 @@ def get_tailored_advice(user_id, school, profile, force=False):
                 return row["body"]
     # Generate fresh
     fit_acad, components = compute_fit(profile, school)
-    low, high = estimate_odds(school, fit_acad, profile)
+    low, high = odds_for(school, fit_acad, profile)
     tier = assign_tier(school, fit_acad, profile)
     m = school_match(profile, school)
     note = get_school_strategy(school)
@@ -10357,7 +10383,7 @@ def plans_index_html():
                     _pd["_di_level"] = "none"
                 try:
                     _fit, _ = compute_fit(_pd, _cm)
-                    it["odds_low"], it["odds_high"] = estimate_odds(_cm, _fit, _pd)
+                    it["odds_low"], it["odds_high"] = odds_for(_cm, _fit, _pd)
                     it["fit"] = _fit
                     it["tier"] = assign_tier(_cm, _fit, _pd)
                     it["computed"] = True
@@ -11695,7 +11721,7 @@ def college_gpa_chances(slug, gpa):
     low = high = None
     try:
         fit, _ = compute_fit(profile, c)
-        low, high = estimate_odds(c, fit, profile)
+        low, high = odds_for(c, fit, profile)
     except Exception:
         pass
     odds_str = f"{round(low)}–{round(high)}%" if (low is not None and high is not None) else "—"
@@ -12827,7 +12853,7 @@ def chances_export(slug):
     merged = merged_school(school_data)
     fit, components = compute_fit(profile, merged)
     tier = assign_tier(merged, fit, profile)
-    low, high = estimate_odds(merged, fit, profile)
+    low, high = odds_for(merged, fit, profile)
     conf = confidence_level(profile, components)
     # Bullets: prefer the cached narrative, else generate fresh.
     bullets = None
@@ -12985,7 +13011,7 @@ def compare_export():
         merged = merged_school(sch)
         cf = compute_fit(prof, merged)
         fit = cf[0] if isinstance(cf, tuple) else cf
-        low, high = estimate_odds(merged, fit, prof)
+        low, high = odds_for(merged, fit, prof)
         is_public = merged.get("type") == "public"
         results.append({"name": merged["name"], "low": low, "high": high,
                         "mid": (low + high) / 2.0, "is_public": is_public,
@@ -13438,7 +13464,7 @@ def headtohead_export(slug):
         if prof is None:
             return None
         cf = compute_fit(prof, merged); fit = cf[0] if isinstance(cf, tuple) else cf
-        lo, hi = estimate_odds(merged, fit, prof)
+        lo, hi = odds_for(merged, fit, prof)
         return {"gpa": prof.get("uw_gpa"), "sat": prof.get("sat"), "act": prof.get("act"),
                 "major": prof.get("major"), "lo": lo, "hi": hi}
     A = side(181); B = side(38)
@@ -16053,7 +16079,7 @@ def chances_narrative(slug):
     merged = merged_school(school_data)
     fit, components = compute_fit(profile, merged)
     tier = assign_tier(merged, fit, profile)
-    low, high = estimate_odds(merged, fit, profile)
+    low, high = odds_for(merged, fit, profile)
     bullets = generate_bullets(profile, merged, fit, components, tier, (low, high))
     r = {"tier": tier, "odds_low": low, "odds_high": high, "fit": fit,
          "confidence": confidence_level(profile, components), **bullets}
@@ -16286,7 +16312,7 @@ def api_demo_odds():
         "is_exceptional": looks_exceptional,
     }
     fit, _ = compute_fit(profile, school)
-    low, high = estimate_odds(school, fit, profile)
+    low, high = odds_for(school, fit, profile)
     tier = assign_tier(school, fit, profile)
     return jsonify({
         "low": low, "high": high, "fit": int(round(fit)), "tier": tier,
@@ -16413,7 +16439,7 @@ def compare_page():
         if profile:
             score, _ = compute_my_fit(profile, c)
             fit_acad, _ = compute_fit(profile, c)
-            low, high = estimate_odds(c, fit_acad, profile)
+            low, high = odds_for(c, fit_acad, profile)
             fits.append({"my_fit": score, "odds": f"{low}–{high}%"})
         else:
             fits.append({"my_fit": None, "odds": None})
@@ -16780,9 +16806,9 @@ def predictor_page():
         if slug not in COLLEGES_BY_SLUG: continue
         c = merged_school(COLLEGES_BY_SLUG[slug])
         cur_fit, _ = compute_fit(profile, c)
-        cur_lo, cur_hi = estimate_odds(c, cur_fit, profile)
+        cur_lo, cur_hi = odds_for(c, cur_fit, profile, simulated=True)
         new_fit, _ = compute_fit(sim_profile, c)
-        new_lo, new_hi = estimate_odds(c, new_fit, sim_profile)
+        new_lo, new_hi = odds_for(c, new_fit, sim_profile, simulated=True)
         delta = ((new_lo + new_hi) / 2) - ((cur_lo + cur_hi) / 2)
         arrow = ""
         if delta > 1.5: arrow = f'<span style="color:#22c55e;font-weight:600">↑ +{round(delta)}%</span>'
@@ -17123,7 +17149,7 @@ def plans_recompute_odds():
             "fit": fit,
             "confidence": confidence_level(profile, components),
         }
-        r["odds_low"], r["odds_high"] = estimate_odds(merged, fit, profile)
+        r["odds_low"], r["odds_high"] = odds_for(merged, fit, profile)
         _save_chances_row(uid, slug, r, profile=profile)  # numbers only; keeps bullets
         n += 1
     flash(f"Recomputed odds for {n} school{'' if n == 1 else 's'} with the latest data.", "success")
@@ -17183,7 +17209,7 @@ def grade_user_list(uid):
             fit, _ = compute_fit(profile, c)
             tier = assign_tier(c, fit, profile)
             # Estimate odds midpoint too (for realism scoring)
-            lo, hi = estimate_odds(c, fit, profile)
+            lo, hi = odds_for(c, fit, profile)
             odds_mid = (lo + hi) / 2.0
         except Exception:
             tier = None
@@ -17376,7 +17402,7 @@ def recommend_schools_to_add(uid, limit=9):
         try:
             fit, _ = compute_fit(profile, c)
             tier = assign_tier(c, fit, profile)
-            lo, hi = estimate_odds(c, fit, profile)
+            lo, hi = odds_for(c, fit, profile)
         except Exception:
             continue
         if fit < 40: continue  # weak match — skip
@@ -17570,7 +17596,7 @@ def plans_add_explain(slug):
     try:
         fit, _ = compute_fit(profile, c)
         tier = assign_tier(c, fit, profile)
-        lo, hi = estimate_odds(c, fit, profile)
+        lo, hi = odds_for(c, fit, profile)
     except Exception:
         fit, tier, lo, hi = 50, "Target", 0, 0
     with db() as conn:
@@ -18750,27 +18776,15 @@ def plans_compute_all():
         flash("Add your profile first so we can compute chances.", "error")
         return redirect("/profile")
     is_exc, exc_reason = get_or_evaluate_exceptionality(uid, p)
-    profile = {
-        "uw_gpa": p.get("uw_gpa"), "weighted_gpa": p.get("weighted_gpa"),
-        "gpa_freshman": p.get("gpa_freshman"), "gpa_sophomore": p.get("gpa_sophomore"),
-        "gpa_junior": p.get("gpa_junior"), "gpa_senior": p.get("gpa_senior"),
-        "sat": p.get("sat"), "act": p.get("act"),
-        "sat_math": p.get("sat_math"), "sat_ebrw": p.get("sat_ebrw"),
-        "act_math": p.get("act_math"), "act_english": p.get("act_english"),
-        "act_reading": p.get("act_reading"), "act_science": p.get("act_science"),
-        "major": p.get("major"), "state": p.get("state"),
-        "school_type": p.get("school_type"),
-        "ecs": p.get("ecs"), "leadership": p.get("leadership"), "awards": p.get("awards"),
-        "legacy": bool(p.get("legacy")), "first_gen": bool(p.get("first_gen")),
-        "athlete": bool(p.get("athlete")),
-        "is_international": bool(p.get("is_international")),
-        "legacy_schools": p.get("legacy_schools") or "",
-        "aps": p.get("aps") or "",
-        "no_aps_offered": bool(p.get("no_aps_offered")),
-        "aps_offered_not_taken": bool(p.get("aps_offered_not_taken")),
-        "is_exceptional": is_exc, "exceptional_reason": exc_reason,
-        "portfolio": p.get("portfolio") or "",
-    }
+    # Use the WHOLE row, same as _chances_profile. The old hand-picked dict
+    # dropped ec_rating, spike_score, self_rigor, class_rank/class_size, the
+    # w_gpa_* columns, ibs/no_ibs_offered and grade_json -- so the batch path
+    # graded blind and wrote numbers that disagreed (usually lower) with the
+    # chances page for the same school. This is the identical bug that was
+    # already fixed once for the plan page.
+    profile = dict(p)
+    profile["is_exceptional"] = is_exc
+    profile["exceptional_reason"] = exc_reason
     # Get every school the user has in their list — saved_schools (clicked
     # "Save") OR saved_chances (ran chances on it). The simulator reads
     # BOTH tables; if compute-all only checks saved_schools we'd miss
@@ -18807,7 +18821,7 @@ def plans_compute_all():
                 profile_for_school["_di_level"] = "none"
             fit, components = compute_fit(profile_for_school, school)
             tier = assign_tier(school, fit, profile_for_school)
-            low, high = estimate_odds(school, fit, profile_for_school)
+            low, high = odds_for(school, fit, profile_for_school)
             fb = _fallback_bullets(profile_for_school, school, fit, components, tier)
             conf = confidence_level(profile_for_school, components)
             with db() as conn:

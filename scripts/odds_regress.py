@@ -90,7 +90,14 @@ def snapshot():
             try:
                 fit, _ = app.compute_fit(dict(prof), school)
                 lo_hi = app.estimate_odds(school, fit, dict(prof))
-                out[key] = json.dumps({"fit": fit, "odds": lo_hi}, sort_keys=True, default=str)
+                # Also pin what the SHIPPING dispatcher returns. The gate used
+                # to call estimate_odds directly, so it never exercised v2 or
+                # odds_for at all -- an engine change could not fail it.
+                disp = app.odds_for(school, fit, dict(prof))
+                plan = app.odds_for(school, fit, dict(prof), _v2_surface=True)
+                out[key] = json.dumps(
+                    {"fit": fit, "odds": lo_hi, "dispatch": disp, "plan": plan},
+                    sort_keys=True, default=str)
             except Exception as e:
                 out[key] = "ERR:" + str(e)[:90]
     detail = app.ADMISSIONS_DETAIL.get("stanford", {})
