@@ -8292,7 +8292,14 @@ def profile_html():
         # unescaped </textarea> in an ECs/awards box destroyed the Save button
         # and every field below it (and was a stored-XSS hole on reload).
         val = p.get(k)
-        return "" if val is None else _esc(str(val), quote=True)
+        if val is None:
+            return ""
+        # 305 of 1318 prod profiles already have HTML entities STORED in the
+        # DB (&amp;, &lt;) from an earlier round-trip. Escaping those again
+        # renders "&amp;amp;", which the user reads as a literal "&amp;" in
+        # their own ECs box. Decode once, then escape once.
+        import html as _h
+        return _esc(_h.unescape(str(val)), quote=True)
     _is_paid = bool(current_user().get("is_paid"))
     match_section = ""
     checked = lambda k: 'checked' if p.get(k) else ''
