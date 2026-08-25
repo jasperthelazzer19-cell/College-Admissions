@@ -564,7 +564,13 @@ def make_bestfit(dry=False, slug=None, variant=None):
 
 
 # ── daily head-to-head cap (they cost ~2-4x a normal carousel) ─────────────
-H2H_DAILY_CAP = int(os.environ.get("H2H_DAILY_CAP", "5"))
+# Raised 5 -> 8 on 2026-08-25. The cap was written when generation cost money and
+# when h2h was merely "second best"; on the Aug 12-25 data it is the clear top
+# format (869 avg vs compare's 345, 9 of 37 posts over 1k) and generation is $0
+# on the Max CLI, so the cap was spending the best format's slots on the worst.
+# Cost is now wall-clock only: /headtohead/*/export runs ~83s with the claim
+# verifier. Drop this back to 5 if the buffer starts draining faster than it fills.
+H2H_DAILY_CAP = int(os.environ.get("H2H_DAILY_CAP", "8"))
 _H2H_STATE = os.path.join(HERE, ".h2h_state.json")
 
 
@@ -846,16 +852,23 @@ def make_one(dry=False, slug=None, slide3=None, ctype=None, count_toward_cap=Tru
             for st in ("compare", "h2h"):
                 if st in perf:
                     cperf[st] = perf[st]
-            # compare cut 3 -> 2 on the 2026-07-26 attribution data: it was the
-            # MOST-produced carousel type (320 of 1,116 queued) and the worst on
-            # every metric — 310 avg views vs 380 for chances, and 0.057 comments
-            # per post against glow-up's 0.183, a third of the engagement. h2h
-            # holds at 6; it reads 375, second only to chances.
-            w = _blend({"single": 6, "compare": 2, "h2h": 6}, cperf)   # lean into "which student gets in" (h2h)
+            # Re-weighted 2026-08-25 on 237 attributed posts from Aug 12-25, the
+            # first clean read since the rotation consolidated to four accounts:
+            #   h2h      n=37  avg 869  9 posts >=1k  (best ever recorded: 4,952)
+            #   single   n=100 avg ~500 6 posts >=1k
+            #   compare  n=46  avg 345  ZERO posts >=1k, best 718
+            # compare is the format that has never once broken out across two
+            # separate audits (cut 3->2 in July on the same verdict); h2h is 2.5x
+            # its average and owns the tail. compare 2 -> 1, h2h 6 -> 8.
+            w = _blend({"single": 6, "compare": 1, "h2h": 8}, cperf)   # lean into "which student gets in" (h2h)
             keys = list(w)
             ctype = random.choices(keys, weights=[w[k] for k in keys])[0]
             if ctype == "h2h" and count_toward_cap and _h2h_today() >= H2H_DAILY_CAP:
-                ctype = random.choice(["single", "compare"])
+                # Overflow used to be random.choice(["single","compare"]) — a coin
+                # flip that sent half of the best format's spillover into the worst
+                # one, ignoring the weights entirely. Fall back proportionally.
+                _fb = {k: w[k] for k in ("single", "compare") if w.get(k, 0) > 0} or {"single": 1}
+                ctype = random.choices(list(_fb), weights=list(_fb.values()))[0]
     if ctype == "compare":
         with _serial_lock:
             return make_compare(dry)
