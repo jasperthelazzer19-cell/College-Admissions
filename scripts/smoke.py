@@ -49,6 +49,7 @@ def main():
         if not ok:
             bad.append(path)
     bad += check_stat_guard()
+    bad += check_slide_render()
     if bad:
         print(f"SMOKE FAIL: {bad}")
         sys.exit(1)
@@ -103,6 +104,51 @@ def check_stat_guard():
         failures.append("test-label-says-test-blind")
     if not failures:
         print(f"  OK   stat guard: {len(_MUST_FLAG)} caught, {len(_MUST_PASS)} passed clean")
+    return failures
+
+
+# ── Slide-render identity ─────────────────────────────────────────────────
+# This exists because the LAST fix for mismatched slides only landed on half the
+# path. factory.py was given a worker pool ([181, 9101..9105]) so parallel
+# generations wouldn't clobber each other's demo profile, and its comment says so
+# — but /profile/<slug>/export still read `38 if uid=="38" else 181`, so workers
+# 9101-9105 rendered a stats slide belonging to whichever student worker 0 wrote
+# last, while the plan slide (which DID honour uid) showed the right one. Five of
+# every six carousels shipped two different applicants stapled together. Nothing
+# tested the route, so the half-fix read as a whole one for weeks.
+def check_slide_render():
+    failures = []
+    with app.app.test_request_context("/profile/stanford/export?uid=9103"):
+        if app._render_uid() != 9103:
+            print("  FAIL  _render_uid drops worker uids -> slide 2 renders the wrong student")
+            failures.append("render-uid-drops-worker")
+    with app.app.test_request_context("/profile/stanford/export?uid=38"):
+        if app._render_uid() != 38:
+            print("  FAIL  _render_uid drops Student B (h2h slide 3)")
+            failures.append("render-uid-drops-38")
+    for bad_uid in ("1", "9999", "abc", ""):
+        with app.app.test_request_context(f"/profile/stanford/export?uid={bad_uid}"):
+            if app._render_uid() != 181:
+                print(f"  FAIL  _render_uid leaked a non-demo profile for uid={bad_uid!r}")
+                failures.append(f"render-uid-leak:{bad_uid}")
+    with app.app.test_request_context("/profile/stanford/export"):
+        if app._render_uid() != 181:
+            print("  FAIL  _render_uid default is not 181")
+            failures.append("render-uid-default")
+    # AP count was the number of commas in a prose sentence, so a profile saying
+    # "9 AP courses; senior year: A, B, C, D, E" rendered as "5 APs".
+    for text, want in [("9 AP courses; senior year: Calculus BC, Literature, Government, "
+                        "Environmental Science, Computer Science Principles", 9),
+                       ("11 AP exams (all 4s & 5s)", 11),
+                       ("2 APs (Biology, Literature)", 2),
+                       ("AP Physics, AP Calculus BC, AP Macroeconomics (4), AP Microeconomics (4)", 4),
+                       ("", 0), (None, 0)]:
+        got = app._ap_count(text)
+        if got != want:
+            print(f"  FAIL  _ap_count({text!r:.50}) = {got}, want {want}")
+            failures.append("ap-count")
+    if not failures:
+        print("  OK   slide render: uid honoured for workers, non-demo uids refused, AP count parsed")
     return failures
 
 

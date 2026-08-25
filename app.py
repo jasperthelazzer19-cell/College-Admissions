@@ -6134,6 +6134,52 @@ def _has_render_key():
     return _key_eq(request.args.get("rkey"), CRON_KEY)
 
 
+# Demo profile rows the carousel renderer is allowed to read. 181 is the default
+# single-worker student, 38 is Student B in head-to-head, and 9101-9105 are the
+# PARALLEL_GEN worker slots in auto_content/factory.py.
+RENDER_DEMO_UIDS = frozenset({38, 181, 9101, 9102, 9103, 9104, 9105})
+
+
+def _ap_count(aps):
+    """How many APs a demo profile claims.
+
+    The old version was `len(aps.split(","))`, i.e. the number of commas in a free
+    text sentence. "9 AP courses; senior year: Calculus BC, Literature, Government,
+    Environmental Science, Computer Science Principles" rendered as "5 APs" — the
+    slide contradicted the profile it was rendering. Prefer the count the string
+    states outright ("11 AP exams", "2 APs (Biology, Literature)"); fall back to
+    counting comma-separated course names only when no leading count is given."""
+    text = (aps or "").strip()
+    if not text:
+        return 0
+    m = re.match(r"\s*(\d{1,2})\s*(?:AP|IB)?", text, re.I)
+    if m:
+        n = int(m.group(1))
+        if 1 <= n <= 30:
+            return n
+    return len([a for a in (a.strip() for a in text.split(",")) if a])
+
+
+def _render_uid(default=181):
+    """Which demo profile a slide should render.
+
+    This used to be `38 if request.args.get("uid") == "38" else 181`, which threw
+    away every other uid. factory.py had already been given a worker pool
+    ([181, 9101..9105]) so parallel generations wouldn't overwrite each other's
+    profile mid-render — but the write side was the only half that landed. Workers
+    9101-9105 saved their student correctly and then screenshotted user 181, so
+    five of every six carousels shipped a stats slide belonging to a DIFFERENT
+    applicant than the plan slide. Honour the uid, restricted to the demo rows."""
+    raw = request.args.get("uid")
+    if raw in (None, ""):
+        return default
+    try:
+        uid = int(raw)
+    except (TypeError, ValueError):
+        return default
+    return uid if uid in RENDER_DEMO_UIDS else default
+
+
 def login_required(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
@@ -14371,7 +14417,7 @@ def title_export():
     if not sch or not hook:
         abort(404)
     if request.args.get("stats") == "1":
-        p = get_profile(38 if request.args.get("uid") == "38" else 181)
+        p = get_profile(_render_uid())
         if p:
             return Response(_profile_export_page(_title_stats_body(slug, sch, hook, p),
                                                  dl_name=f"{slug}-title-stats",
@@ -15898,7 +15944,7 @@ def profile_slide_export(slug):
     sch = COLLEGES_BY_SLUG.get(slug)
     if not sch:
         abort(404)
-    _uid = 38 if request.args.get("uid") == "38" else 181
+    _uid = _render_uid()
     p = get_profile(_uid)
     if not p:
         return redirect(url_for("profile_page"))
@@ -15936,8 +15982,8 @@ def profile_slide_export(slug):
         acad.append(numln(p["sat"], f"SAT{sub}"))
     elif p.get("act"):
         acad.append(numln(p["act"], "ACT"))
-    aps = [a.strip() for a in (p.get("aps") or "").split(",") if a.strip()]
-    if aps: acad.append(numln(len(aps), "APs"))
+    _n_aps = _ap_count(p.get("aps"))
+    if _n_aps: acad.append(numln(_n_aps, "APs"))
     for aw in [x.strip() for x in (p.get("awards") or "").split("\n") if x.strip()]:
         acad.append(plainln(aw))
 
