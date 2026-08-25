@@ -21,10 +21,19 @@ OUT="$HOME/CandorBackups/college-$STAMP.sql.gz"
 PYB64="aW1wb3J0IHNxbGl0ZTMsIHN5cwpzcmMgPSBzcWxpdGUzLmNvbm5lY3QoIi9hcHAvZGF0YS9jb2xsZWdlLmRiIikKZHN0ID0gc3FsaXRlMy5jb25uZWN0KCIvdG1wL2NhbmRvcl9iay5kYiIpCnNyYy5iYWNrdXAoZHN0KQpzcmMuY2xvc2UoKQpjb2xzID0gW3JbMV0gZm9yIHIgaW4gZHN0LmV4ZWN1dGUoIlBSQUdNQSB0YWJsZV9pbmZvKGNvbnRlbnRfcXVldWUpIildCmZvciBjb2wgaW4gY29sczoKICAgIHRyeToKICAgICAgICBteCA9IGRzdC5leGVjdXRlKGYnU0VMRUNUIE1BWChMRU5HVEgoIntjb2x9IikpIEZST00gY29udGVudF9xdWV1ZScpLmZldGNob25lKClbMF0gb3IgMAogICAgICAgIGlmIG14ID4gNTAwMDA6CiAgICAgICAgICAgIGRzdC5leGVjdXRlKGYnVVBEQVRFIGNvbnRlbnRfcXVldWUgU0VUICJ7Y29sfSI9TlVMTCcpCiAgICBleGNlcHQgRXhjZXB0aW9uOgogICAgICAgIHBhc3MKZHN0LmNvbW1pdCgpCmRzdC5leGVjdXRlKCJWQUNVVU0iKQpmb3IgbGluZSBpbiBkc3QuaXRlcmR1bXAoKToKICAgIHN5cy5zdGRvdXQud3JpdGUobGluZSArICJcbiIpCg=="
 # Keep stderr — swallowing it is what hid the missing-CLI failure for 23 nights.
 ERRLOG="$HOME/CandorBackups/.last-stderr.log"
-"$RAILWAY" ssh "echo $PYB64 | base64 -d | python3 | gzip | base64" 2>"$ERRLOG" \
-  | grep -E '^[A-Za-z0-9+/=]+$' | base64 -d > "$OUT"
-"$RAILWAY" ssh "rm -f /tmp/candor_bk.db" >/dev/null 2>&1
-SIZE=$(stat -f%z "$OUT" 2>/dev/null || echo 0)
+# Railway's SSH tunnel drops mid-dump often enough to matter: 7 of the 20 nights
+# to 2026-08-25 failed on "broken pipe" or a DNS lookup, with no retry, so a
+# single flaky minute cost the whole night's backup. Try up to 3 times.
+SIZE=0
+for _try in 1 2 3; do
+  "$RAILWAY" ssh "echo $PYB64 | base64 -d | python3 | gzip | base64" 2>"$ERRLOG" \
+    | grep -E '^[A-Za-z0-9+/=]+$' | base64 -d > "$OUT"
+  "$RAILWAY" ssh "rm -f /tmp/candor_bk.db" >/dev/null 2>&1
+  SIZE=$(stat -f%z "$OUT" 2>/dev/null || echo 0)
+  if [ "$SIZE" -gt 300000 ] && gzip -t "$OUT" 2>/dev/null; then break; fi
+  echo "$(date) backup attempt $_try failed (size=$SIZE) :: $(tail -2 "$ERRLOG" 2>/dev/null | tr '\n' ' ')" >> "$HOME/CandorBackups/backup.log"
+  [ "$_try" -lt 3 ] && sleep 30
+done
 if [ "$SIZE" -gt 300000 ] && gzip -t "$OUT" 2>/dev/null \
    && gunzip -c "$OUT" 2>/dev/null | head -80 | grep -q "CREATE TABLE"; then
   echo "$(date) backup ok: $OUT ($(du -h "$OUT" | cut -f1))" >> "$HOME/CandorBackups/backup.log"
