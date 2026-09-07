@@ -4342,11 +4342,19 @@ def _c7_values_card(school):
         rows += ('<div style="margin-top:10px"><div style="font-size:.72em;text-transform:uppercase;'
                  'letter-spacing:.6px;color:#7c8694;font-weight:700">Does not consider</div>'
                  f'<div class="muted" style="font-size:.86em;margin-top:3px">{", ".join(groups["not_considered"])}</div></div>')
-    return (f'<div class="card" style="margin-top:18px">'
-            f'<h3 style="margin:0 0 2px">What {school.get("name")} weighs in admissions</h3>'
-            f'<div class="muted" style="font-size:.82em;margin-bottom:2px">From {school.get("name")}\'s '
+    n_vi = len(groups["very_important"])
+    peek = (f' <span class="muted" style="font-weight:500;font-size:.84em">'
+            f'({n_vi} factor{"" if n_vi == 1 else "s"} they call very important)</span>') if n_vi else ""
+    return (f'<details class="card c7-card" style="margin-top:18px">'
+            f'<summary style="cursor:pointer;font-weight:600;list-style:none">'
+            f'<span class="c7-caret" aria-hidden="true">&#9656;</span> '
+            f'What {school.get("name")} weighs in admissions{peek}</summary>'
+            f'<div class="muted" style="font-size:.82em;margin:8px 0 2px">From {school.get("name")}\'s '
             f'Common Data Set (Section C7) — the factors they say matter most, and the ones they don\'t.</div>'
-            f'{rows}</div>')
+            f'{rows}</details>'
+            '<style>.c7-card>summary::-webkit-details-marker{display:none}'
+            '.c7-card .c7-caret{display:inline-block;transition:transform .15s;color:var(--muted)}'
+            '.c7-card[open] .c7-caret{transform:rotate(90deg)}</style>')
 
 
 # ── Legacy calibration (per-school odds-ratios, from published legacy admit-rate
@@ -7690,6 +7698,7 @@ def college_detail_html(slug):
   </div>
 </div>
 {_match_card(c)}
+{_c7_values_card(c)}
 {_scattergram_block(c, user)}
 {_render_career_outcomes(c)}
 {render_school_feeders(c)}
