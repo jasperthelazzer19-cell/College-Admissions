@@ -14833,6 +14833,22 @@ def _assign_content_account(conn, school_slug=None, slide3_type=None, want_arm=N
     return min(eligible, key=lambda lab: (counts.get(lab, 0), labels.index(lab)))
 
 
+# Schools content must never be made about. Jasper is applying ED to BC — a
+# carousel about his own ED school (odds, "rigged" hot takes) is the last thing an
+# admissions reader should find. Enforced at push so NO generator can slip one in;
+# factory.py also drops these from its pool so it doesn't waste a render.
+CONTENT_BLOCKED_SCHOOLS = {"bc"}
+
+
+def _content_blocked_slugs(d):
+    """Blocked slugs a push payload touches: the anchor school plus any compare school."""
+    slugs = {d.get("school_slug")}
+    meta = d.get("meta")
+    if isinstance(meta, dict) and isinstance(meta.get("compare"), list):
+        slugs.update(meta["compare"])
+    return slugs & CONTENT_BLOCKED_SCHOOLS
+
+
 @app.route("/content/queue/push", methods=["POST"])
 @_csrf_exempt
 def content_queue_push():
@@ -14848,6 +14864,10 @@ def content_queue_push():
     _need3 = d.get("slide3_type") != "bestfit"
     if not (d.get("img1") and d.get("img2") and (d.get("img3") or not _need3)):
         return ("need img1, img2, img3", 400)
+    _blocked = _content_blocked_slugs(d)
+    if _blocked:
+        print(f"CONTENT-BLOCKED push refused: {sorted(_blocked)}", flush=True)
+        return jsonify(ok=False, blocked=sorted(_blocked)), 409
     with db() as conn:
         # Best-fit is a SEPARATE test angle — never auto-assign it to a real
         # account's rotation; park it under the 'bestfit' sentinel so it only shows
@@ -14919,6 +14939,47 @@ def content_queue_recent_rigged():
             "SELECT DISTINCT school_slug FROM content_queue WHERE " + _RIGGED_SQL +
             " AND created_at >= datetime('now', ?)", (f"-{days} days",)).fetchall()
     return jsonify(slugs=[r["school_slug"] for r in rows if r["school_slug"]])
+
+
+@app.route("/content/queue/school-audit")
+def content_queue_school_audit():
+    """Every carousel and TikTok post touching one school, for cleanup.
+    ?slug=bc&key=CRON_KEY. &retire=1 also moves that school's PENDING rows to
+    'skipped' so they never release. Read-only otherwise."""
+    if not _autopilot_authed():
+        return ("unauthorized", 401)
+    slug = (request.args.get("slug") or "").strip()
+    if not slug:
+        return ("need slug", 400)
+    like = f'%"{slug}"%'
+    with db() as conn:
+        acct = {r["open_id"]: r["label"] for r in conn.execute("SELECT open_id, label FROM tiktok_accounts")}
+        rows = conn.execute(
+            "SELECT id, status, school_slug, school_name, title_text, title_formula, slide3_type, "
+            "assigned_account, posted_account, tiktok_video_id, tt_post_status, released_at, created_at "
+            "FROM content_queue WHERE school_slug=? OR json_extract(meta,'$.compare') LIKE ? "
+            "ORDER BY id", (slug, like)).fetchall()
+        cids = [r["id"] for r in rows]
+        # Match attributed posts by carousel AND unattributed ones by caption text —
+        # attribution was dead before 2026-07-26, so most older posts have no carousel_id.
+        tags = [t.strip().lower() for t in (request.args.get("tag") or "").split(",") if t.strip()]
+        where = [f"carousel_id IN ({','.join('?'*len(cids))})"] if cids else []
+        where += ["lower(description) LIKE ?"] * len(tags)
+        posts = []
+        if where:
+            posts = conn.execute(
+                "SELECT video_id, open_id, create_time, share_url, description, view_count, "
+                "carousel_id FROM tiktok_posts WHERE " + " OR ".join(where) +
+                " ORDER BY create_time", [*cids, *[f"%{t}%" for t in tags]]).fetchall()
+        retired = 0
+        if request.args.get("retire") == "1":
+            retired = conn.execute(
+                "UPDATE content_queue SET status='skipped' WHERE status='pending' AND "
+                "(school_slug=? OR json_extract(meta,'$.compare') LIKE ?)", (slug, like)).rowcount
+            conn.commit()
+    return jsonify(slug=slug, retired=retired,
+                   carousels=[dict(r) for r in rows],
+                   posts=[dict(p, account=acct.get(p["open_id"])) for p in posts])
 
 
 @app.route("/content/queue/status")

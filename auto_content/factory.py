@@ -44,7 +44,7 @@ _SHOT_TRIES     = int(os.environ.get("SHOT_TRIES", "3"))
 import app                       # noqa: E402  shared DB + school data
 from auto_content import gen_profile  # noqa: E402
 
-SCHOOLS = sorted(set(app.INST_LOGOS) & set(app.COLLEGES_BY_SLUG))
+SCHOOLS = sorted((set(app.INST_LOGOS) & set(app.COLLEGES_BY_SLUG)) - app.CONTENT_BLOCKED_SCHOOLS)
 
 
 import re  # noqa: E402
