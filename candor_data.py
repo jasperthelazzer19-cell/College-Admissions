@@ -1117,7 +1117,7 @@ CDS_VERIFIED = {
     "ucf": {"accept": 0.4471, "sat_25": 1210, "sat_75": 1340, "act_25": 25, "act_75": 29},
     "uconn": {"accept": 0.5435, "sat_25": 1260, "sat_75": 1420, "act_25": 29, "act_75": 32},
     "ucr": {"accept": 0.7685},
-    "ucsb": {"accept": 0.278, "sat_25": 1230, "sat_75": 1480},
+    "ucsb": {"accept": 0.382, "sat_25": 1230, "sat_75": 1480},
     "uky": {"act_25": 21, "act_75": 28},
     "umaine": {"accept": 0.9664, "sat_25": 1060, "sat_75": 1280, "act_25": 21, "act_75": 30},
     "unlv": {"sat_25": 750, "sat_75": 1020, "act_25": 18, "act_75": 25},
@@ -1139,7 +1139,7 @@ CDS_VERIFIED = {
     "elon": {"accept": 0.6326, "sat_25": 1190, "sat_75": 1340, "act_25": 25, "act_75": 31},
     "furman": {"accept": 0.4295, "sat_25": 1280, "sat_75": 1417, "act_25": 28, "act_75": 32},
     "marist": {"accept": 0.4993},
-    "rochester": {"accept": 0.4008, "sat_25": 1420, "sat_75": 1500, "act_25": 32, "act_75": 34},
+    "rochester": {"accept": 0.419, "sat_25": 1400, "sat_75": 1510, "act_25": 31, "act_75": 34},
     "uh": {"accept": 0.7392, "sat_25": 1170, "sat_75": 1330, "act_25": 23, "act_75": 29},
     "unl": {"accept": 0.8749},
     "wmu": {"accept": 0.3407},
@@ -1217,7 +1217,7 @@ CDS_VERIFIED = {
     "muhlenberg": {"accept": 0.64, "sat_25": 1230, "sat_75": 1390, "act_25": 28, "act_75": 31},
     "niu": {"accept": 0.6979, "sat_25": 1010, "sat_75": 1180},
     "njit": {"accept": 0.6507, "sat_25": 1235, "sat_75": 1460, "act_25": 28, "act_75": 31},
-    "osu": {"accept": 0.6057, "sat_25": 1310, "sat_75": 1480, "act_25": 28, "act_75": 32},
+    "osu": {"accept": 0.492, "sat_25": 1300, "sat_75": 1440, "act_25": 27, "act_75": 32},
     "pace": {"accept": 0.759, "sat_25": 1180, "sat_75": 1340, "act_25": 24, "act_75": 29},
     "pratt": {"accept": 0.701, "sat_25": 1150, "sat_75": 1390, "act_25": 26, "act_75": 31},
     "purdue-nw": {"accept": 0.7236, "sat_25": 890, "sat_75": 1140, "act_25": 16, "act_75": 24},
@@ -1462,6 +1462,7 @@ C7_FACTORS = {  # CDS Section C7 admissions-factor importance, by slug (2024-26 
     "pitt": {"class_rank": "considered", "gpa": "very_important", "test_scores": "considered", "essay": "very_important", "recommendations": "considered", "interview": "not_considered", "extracurriculars": "considered", "talent_ability": "important", "first_generation": "considered", "legacy": "not_considered", "geographical_residence": "considered", "state_residency": "considered", "volunteer_work": "important", "work_experience": "important", "level_of_interest": "important"},
     "ucdavis": {"rigor_of_record": "very_important", "class_rank": "not_considered", "gpa": "very_important", "test_scores": "not_considered", "essay": "important", "recommendations": "not_considered", "interview": "not_considered", "extracurriculars": "important", "talent_ability": "important", "character": "important", "first_generation": "considered", "legacy": "not_considered", "geographical_residence": "considered", "state_residency": "considered", "religious_affiliation": "not_considered", "volunteer_work": "important", "work_experience": "considered", "level_of_interest": "not_considered"},
     "uconn": {"rigor_of_record": "considered", "class_rank": "considered", "gpa": "considered", "test_scores": "considered", "essay": "considered", "recommendations": "considered", "interview": "not_considered", "extracurriculars": "considered", "talent_ability": "considered", "character": "considered", "first_generation": "considered", "legacy": "not_considered", "geographical_residence": "considered", "state_residency": "considered", "religious_affiliation": "not_considered", "volunteer_work": "considered", "work_experience": "considered", "level_of_interest": "considered"},
+    "rochester": {"class_rank": "considered", "gpa": "very_important", "test_scores": "considered", "essay": "important", "recommendations": "important", "interview": "important", "extracurriculars": "very_important", "talent_ability": "important", "character": "very_important", "first_generation": "considered", "legacy": "considered", "geographical_residence": "considered", "state_residency": "not_considered", "religious_affiliation": "not_considered", "volunteer_work": "considered", "work_experience": "considered", "level_of_interest": "important"},
 }
 
 MANUAL_FRESH_ACCEPT = {
