@@ -77,6 +77,23 @@ def identity_ok(slug, rec):
     if not want:
         return True, ""
     overlap = want & have
+    # Sharing ONE word is not identity: "Pomona" is in "California State
+    # Polytechnic University, Pomona" and "Wesleyan" in "Illinois Wesleyan", and
+    # both wrong-school CDSs shipped to the live site this way (fixed 2026-09-25).
+    # A doc name carrying a state name or state/polytechnic qualifier that ours
+    # doesn't is a different institution.
+    QUAL = {"state", "polytechnic", "poly", "community", "technical", "alabama", "alaska",
+            "arizona", "arkansas", "california", "colorado", "connecticut", "delaware",
+            "florida", "georgia", "hawaii", "idaho", "illinois", "indiana", "iowa", "kansas",
+            "kentucky", "louisiana", "maine", "maryland", "massachusetts", "michigan",
+            "minnesota", "mississippi", "missouri", "montana", "nebraska", "nevada", "jersey",
+            "mexico", "york", "carolina", "dakota", "ohio", "oklahoma", "oregon",
+            "pennsylvania", "rhode", "tennessee", "texas", "utah", "vermont", "virginia",
+            "washington", "wisconsin", "wyoming"}
+    extra = {e for e in (have - want) & QUAL if not any(len(w) >= 4 and e.startswith(w) for w in want)}
+    full_want = set(re.sub(r"[^a-z ]", " ", (NAMES.get(slug, slug) + " " + str(CUR.get(slug, {}).get("state", ""))).lower()).split())
+    if overlap and extra - full_want:
+        return False, f"claims to be {got!r} (extra qualifier {sorted(extra - full_want)}), expected {NAMES.get(slug, slug)!r}"
     if overlap:
         return True, ""
     # accept an acronym match (MIT, UCLA, NYU) before rejecting
