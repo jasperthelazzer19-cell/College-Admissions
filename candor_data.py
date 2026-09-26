@@ -769,24 +769,24 @@ ADMISSIONS_DETAIL = {
     "ucdavis": {"rounds": ['RD'], "rates": {"RD": 0.4200}, "in_state_rate": 0.4500, "out_of_state_rate": 0.3900},
     "gatech": {"rounds": ['EA', 'RD'], "rates": {"EA": 0.1258, "RD": 0.1470}, "in_state_rate": 0.2800, "out_of_state_rate": 0.0900},  # Class of 2030: overall 13.2%, in-state 28%, OOS 9% (official GT). Combined EA 12.6% (EA2/OOS track drags it below RD — real). RD ~14.7% (Class 2029).
     "wm": {"rounds": ['ED', 'ED2', 'RD'], "rates": {"ED": 0.5200, "ED2": 0.4000, "RD": 0.3100}, "in_state_rate": 0.4000, "out_of_state_rate": 0.2700},
-    "ut-austin": {"rounds": ['EA', 'RD'], "rates": {"EA": 0.3100, "RD": 0.2900}, "in_state_rate": 0.3600, "out_of_state_rate": 0.1000},
+    "ut-austin": {"rounds": ['EA', 'RD'], "rates": {"EA": 0.2296, "RD": 0.2148}, "in_state_rate": 0.36, "out_of_state_rate": 0.1},  # EA/RD rescaled to average the 2025-26 overall rate; old rates sat above it [2026-09-25]
     "wisc": {"rounds": ['EA', 'RD'], "rates": {"EA": 0.5100, "RD": 0.4500}, "in_state_rate": 0.6200, "out_of_state_rate": 0.3900},
-    "uiuc": {"rounds": ['EA', 'RD'], "rates": {"EA": 0.6000, "RD": 0.4300}, "in_state_rate": 0.493, "out_of_state_rate": 0.29},  # 2025-26 CDS: in-state 49.3% (14,509/29,419), OOS 29.0% (9,495/32,702). [refreshed 2026-09-25]
+    "uiuc": {"rounds": ['EA', 'RD'], "rates": {"EA": 0.4264, "RD": 0.3056}, "in_state_rate": 0.493, "out_of_state_rate": 0.29},  # EA/RD rescaled to average the 2025-26 overall rate; old rates sat above it [2026-09-25]
     "uf": {"rounds": ['EA', 'RD'], "rates": {"EA": 0.2300, "RD": 0.2300}, "in_state_rate": 0.3000, "out_of_state_rate": 0.1300},
     "umd": {"rounds": ['EA', 'RD'], "rates": {"EA": 0.4700, "RD": 0.4300}, "in_state_rate": 0.5500, "out_of_state_rate": 0.3200},
     "uw": {"rounds": ['RD'], "rates": {"RD": 0.4175}, "in_state_rate": 0.4573, "out_of_state_rate": 0.4217},  # 2025-26 CDS: 41.75% overall, in-state 45.7%, OOS 42.2%. [refreshed 2026-09-25]
     "binghamton": {"rounds": ['EA', 'RD'], "rates": {"EA": 0.5000, "RD": 0.3800}, "in_state_rate": 0.4900, "out_of_state_rate": 0.3600},
-    "purdue": {"rounds": ['EA', 'RD'], "rates": {"EA": 0.5300, "RD": 0.5000}, "in_state_rate": 0.5900, "out_of_state_rate": 0.5000},
+    "purdue": {"rounds": ['EA', 'RD'], "rates": {"EA": 0.4466, "RD": 0.4214}, "in_state_rate": 0.59, "out_of_state_rate": 0.5},  # EA/RD rescaled to average the 2025-26 overall rate; old rates sat above it [2026-09-25]
     "rutgers": {"rounds": ['RD'], "rates": {"RD": 0.6600}, "in_state_rate": 0.7200, "out_of_state_rate": 0.5800},
     "penn-state": {"rounds": ['EA', 'RD'], "rates": {"EA": 0.5700, "RD": 0.5400}, "in_state_rate": 0.6200, "out_of_state_rate": 0.4600},
-    "osu": {"rounds": ['EA', 'RD'], "rates": {"RD": 0.6060}, "in_state_rate": 0.6600, "out_of_state_rate": 0.4500},
+    "osu": {"rounds": ['EA', 'RD'], "rates": {"RD": 0.4920}, "in_state_rate": 0.66, "out_of_state_rate": 0.45},  # single round = overall; old rates sat above it [2026-09-25]
     "msu": {"rounds": ['EA', 'RD'], "rates": {"EA": 0.8600, "RD": 0.8300}, "in_state_rate": 0.8600, "out_of_state_rate": 0.7800},
     "uconn": {"rounds": ['ED', 'RD'], "rates": {"ED": 0.4660, "RD": 0.5400}, "in_state_rate": 0.66, "out_of_state_rate": 0.49},  # ED 46.6% = 2025-26 CDS (672/1,442). No EA for 2026-27. [refreshed 2026-09-25]
     "vt": {"rounds": ['EA', 'RD'], "rates": {"EA": 0.6200, "RD": 0.5600}, "in_state_rate": 0.7100, "out_of_state_rate": 0.3900},
     "clemson": {"rounds": ['EA', 'RD'], "rates": {"EA": 0.3570, "RD": 0.4200}, "in_state_rate": 0.5900, "out_of_state_rate": 0.3600},
     "uga": {"rounds": ['EA', 'RD'], "rates": {"EA": 0.4200, "RD": 0.3800}, "in_state_rate": 0.5000, "out_of_state_rate": 0.3400},
     "fsu": {"rounds": ['ED', 'EA', 'RD'], "rates": {"ED": 0.3500, "EA": 0.2600, "RD": 0.2500}, "in_state_rate": 0.3200, "out_of_state_rate": 0.1800},
-    "iu": {"rounds": ['EA', 'RD'], "rates": {"EA": 0.8200, "RD": 0.7700}, "in_state_rate": 0.8400, "out_of_state_rate": 0.7400},
+    "iu": {"rounds": ['EA', 'RD'], "rates": {"EA": 0.8200, "RD": 0.7700}, "in_state_rate": 0.7224, "out_of_state_rate": 0.7858},  # 2025-26 CDS via iuapps.iu.edu/cds: in-state 12,612/17,458, OOS 39,841/50,700; EA/RD split unpublished [refreshed 2026-09-25]
     "asu": {"rounds": ['RD'], "rates": {"RD": 0.8800}, "in_state_rate": 0.9100, "out_of_state_rate": 0.8500},
     "pitt": {"rounds": ['RD'], "rates": {"RD": 0.5945}, "in_state_rate": 0.62, "out_of_state_rate": 0.4},  # Rolling admission, no ED/EA (2025-26 CDS). 59.4% = 38,477/64,724. [refreshed 2026-09-25]
     "tamu": {"rounds": ['EA', 'RD'], "rates": {"RD": 0.5743}, "in_state_rate": 0.6900, "out_of_state_rate": 0.4500},
@@ -819,7 +819,7 @@ ADMISSIONS_DETAIL = {
     "hawaii": {"rounds": ['RD'], "rates": {"RD": 0.8600}, "in_state_rate": 0.6600, "out_of_state_rate": 0.5100},
     "unh": {"rounds": ['EA', 'RD'], "rates": {"EA": 0.8600, "RD": 0.8400}, "in_state_rate": 0.8900, "out_of_state_rate": 0.8200},
     "umaine": {"rounds": ['EA', 'RD'], "rates": {"EA": 0.9200, "RD": 0.9000}, "in_state_rate": 0.9400, "out_of_state_rate": 0.8800},
-    "neiu": {"rounds": ['RD'], "rates": {"RD": 0.8700}, "in_state_rate": 0.8900, "out_of_state_rate": 0.7800},
+    "neiu": {"rounds": ['RD'], "rates": {"RD": 0.7401}, "in_state_rate": 0.89, "out_of_state_rate": 0.78},  # single round = overall; old rates sat above it [2026-09-25]
     "carleton": {"rounds": ['ED', 'ED2', 'RD'], "rates": {"ED": 0.3810, "ED2": 0.2770, "RD": 0.2020}},
     "haverford": {"rounds": ['ED', 'ED2', 'RD'], "rates": {"ED": 0.3700, "ED2": 0.2700, "RD": 0.1500}},
     "davidson": {"rounds": ['ED', 'ED2', 'RD'], "rates": {"ED": 0.2906, "ED2": 0.2330, "RD": 0.1000}},  # ED 29.1% = 2025-26 CDS C21 (358/1,232) [refreshed 2026-09-25]
@@ -864,7 +864,7 @@ ADMISSIONS_DETAIL = {
     "howard": {"rounds": ['ED', 'EA', 'RD'], "rates": {"ED": 0.5600, "EA": 0.4000, "RD": 0.3000}},
     "spelman": {"rounds": ['ED', 'EA', 'RD'], "rates": {"ED": 0.4700, "EA": 0.4300, "RD": 0.3800}},
     "morehouse": {"rounds": ['ED', 'EA', 'RD'], "rates": {"ED": 0.6600, "EA": 0.6550, "RD": 0.2500}},
-    "famu": {"rounds": ['RD'], "rates": {"RD": 0.3500}, "in_state_rate": 0.4100, "out_of_state_rate": 0.3100},
+    "famu": {"rounds": ['RD'], "rates": {"RD": 0.2055}, "in_state_rate": 0.41, "out_of_state_rate": 0.31},  # single round = overall; old rates sat above it [2026-09-25]
     "uprm": {"rounds": ['RD'], "rates": {"RD": 0.5200}, "in_state_rate": 0.7800, "out_of_state_rate": 0.4500},
     "tuskegee": {"rounds": ['RD'], "rates": {"RD": 0.4868}},
     "richmond": {"rounds": ['ED', 'ED2', 'EA', 'RD'], "rates": {"ED": 0.3649}},  # ED 36.5% = 2025-26 CDS C21 (421/1,154). Other round rates unpublished. [refreshed 2026-09-25]
@@ -1042,7 +1042,7 @@ CDS_VERIFIED = {
     "pitt": {"accept": 0.5945, "act_25": 29, "act_75": 33},
     "bc": {"accept": 0.1385, "sat_25": 1460, "sat_75": 1520, "act_25": 33, "act_75": 35},
     "uw": {"accept": 0.4175, "sat_25": 1320, "sat_75": 1500, "act_25": 30, "act_75": 34},
-    "iu": {"accept": 0.7821, "sat_25": 1170, "sat_75": 1400, "act_25": 27, "act_75": 33},
+    "iu": {"accept": 0.7589, "sat_25": 1200, "sat_75": 1410, "act_25": 28, "act_75": 33},
     "fsu": {"accept": 0.24, "sat_25": 1340, "sat_75": 1450, "act_25": 30, "act_75": 33},
     "app-state": {"accept": 0.9388, "sat_25": 1110, "sat_75": 1270, "act_25": 20, "act_75": 27},
     "asu": {"accept": 0.8839},
@@ -1205,7 +1205,7 @@ CDS_VERIFIED = {
     "hampshire": {"accept": 0.71},
     "hampton": {"accept": 0.6225, "sat_75": 1090, "act_25": 13, "act_75": 22},
     "hawaii": {"accept": 0.866, "sat_25": 1070, "sat_75": 1290, "act_25": 17, "act_75": 25},
-    "high-point": {"accept": 0.7531, "sat_25": 1103, "sat_75": 1280, "act_25": 23, "act_75": 29},
+    "high-point": {"accept": 0.68, "sat_25": 1110, "sat_75": 1320},
     "ilstu": {"accept": 0.8901, "sat_25": 1010, "sat_75": 1230, "act_25": 22, "act_75": 27},
     "knox": {"accept": 0.7714, "sat_25": 1150, "sat_75": 1410, "act_25": 26, "act_75": 31},
     "manhattan": {"accept": 0.8216, "sat_25": 1007.5, "sat_75": 1325, "act_25": 22.5, "act_75": 28},
