@@ -7684,7 +7684,7 @@ def college_detail_html(slug):
     <div style="flex:1.4 1 340px;min-width:300px;display:flex;flex-direction:column;justify-content:flex-end">
       <div style="margin:0 0 10px;font-size:1.04em;color:var(--text-2)">{hook_line}</div>
       <a class="btn btn-primary" href="/college/{c['slug']}/plan" style="display:block;width:100%;box-sizing:border-box;text-align:center;font-size:clamp(1.02em,3.2vw,1.25em);font-weight:800;padding:14px 16px;margin:0 0 6px;border-radius:12px">★ Calculate my chances</a>
-      <div class="muted" style="text-align:center;font-size:.8em;margin:0 0 12px">Free · takes ~2 minutes · 700+ students on Candor</div>
+      <div class="muted" style="text-align:center;font-size:.8em;margin:0 0 12px">Free · takes ~2 minutes</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <a class="btn btn-light" href="/chances/{c['slug']}">Chances only</a>
         <a class="btn btn-light" href="/college/{c['slug']}/requirements">Requirements</a>
@@ -11802,7 +11802,6 @@ footer{border-top:1px solid var(--border);padding:56px 0 40px}
 <!-- SOCIAL PROOF -->
 <section><div class="wrap center">
   <h2>Built for students who want the truth.</h2>
-  <p class="sub2">__USER_COUNT__ students use Candor to plan smarter, not panic.</p>
   <div class="tgrid">
     <div class="tcard"><div class="stars">★★★★★</div><p>"Every other calculator told me I had a 40% shot at schools that take 5%. Candor was the first one that didn't lie to me."</p><div class="who">Maya R., junior</div></div>
     <div class="tcard"><div class="stars">★★★★★</div><p>"The C7 breakdown changed my whole list. I finally knew which schools actually cared about my essays vs. my scores."</p><div class="who">Devin K., senior</div></div>
