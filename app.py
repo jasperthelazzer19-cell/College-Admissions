@@ -6957,7 +6957,13 @@ def extract_structured_profiles(college_slug, force=False):
     # IS allowed — it seeds varied carousel profiles from these real results.
     # env checks FIRST so the autopilot (which runs outside any request context)
     # never calls current_user() — that would raise "outside request context".
-    if os.environ.get("CLAUDE_CLI") != "1" and os.environ.get("GRADER_FAST") != "1" and not current_user():
+    # Gate on the REQUEST, not env flags: the Railway render worker sets
+    # GRADER_FAST=1 process-wide, which had opened this gate to every bot.
+    from flask import has_request_context as _hrc
+    if _hrc():
+        if not current_user() and not _has_render_key():
+            return []
+    elif os.environ.get("CLAUDE_CLI") != "1" and os.environ.get("GRADER_FAST") != "1":
         return []
     posts = fetch_reddit_profiles(college_slug, force=False)
     if not posts: return []
