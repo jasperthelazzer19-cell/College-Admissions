@@ -6254,6 +6254,22 @@ def save_profile(user_id, p):
     legacy_schools = (p.get("legacy_schools") or "").strip()
     legacy_flag = 1 if legacy_schools else (1 if p.get("legacy") else 0)
     pref_weights = p.get("pref_weights") or ""
+    # LLM extracurricular rating (1-1000) — computed once here at save time
+    # so compute_fit / ranking stay instant. This is the signal that drives
+    # how much ECs move the odds. Falls back to a deterministic keyword
+    # rating if the call fails or no Claude key is set, so it's never null
+    # for a populated profile. Runs BEFORE the transaction opens: holding the
+    # SQLite write lock across this network call (8s timeout + SDK retries)
+    # stalled every other writer up to the 30s busy_timeout, then errored.
+    try:
+        _ecr, _spk = grade_ec_and_spike(p)   # one combined Haiku call
+        if _ecr is None:
+            _ecr = ec_rating_keyword(p)
+        if _spk is None:
+            _spk = cohesion_keyword(p)
+    except Exception as e:
+        print(f"ec_rating/spike grade failed: {e}")
+        _ecr = _spk = None
     with db() as conn:
         conn.execute("""INSERT INTO profiles
             (user_id, uw_gpa, weighted_gpa, sat, act, major, state, school_type, ecs, leadership, awards,
@@ -6350,19 +6366,10 @@ def save_profile(user_id, p):
             conn.execute("UPDATE profiles SET self_rigor=? WHERE user_id=?", (_sr, user_id))
         except Exception as e:
             print(f"self_rigor save failed: {e}")
-        # LLM extracurricular rating (1-1000) — computed once here at save time
-        # so compute_fit / ranking stay instant. This is the signal that drives
-        # how much ECs move the odds. Falls back to a deterministic keyword
-        # rating if the call fails or no Claude key is set, so it's never null
-        # for a populated profile.
         try:
-            _ecr, _spk = grade_ec_and_spike(p)   # one combined Haiku call
-            if _ecr is None:
-                _ecr = ec_rating_keyword(p)
-            if _spk is None:
-                _spk = cohesion_keyword(p)
-            conn.execute("UPDATE profiles SET ec_rating=?, spike_score=? WHERE user_id=?",
-                         (_ecr, _spk, user_id))
+            if _ecr is not None or _spk is not None:
+                conn.execute("UPDATE profiles SET ec_rating=?, spike_score=? WHERE user_id=?",
+                             (_ecr, _spk, user_id))
         except Exception as e:
             print(f"ec_rating/spike save failed: {e}")
         try:
@@ -8403,7 +8410,7 @@ def profile_html():
 <h1>Your profile</h1>
 {f'<div class="card" style="margin-bottom:14px;border-color:var(--border-strong);max-width:560px"><div style="font-weight:600;margin-bottom:8px">Candor Premium · active</div>{_cancel_subscription_html()}</div>' if _is_paid else ''}
 <p class="muted">Used by the chances calculator. Be specific — generic answers produce generic odds.</p>
-<form method="post" action="/profile" class="card">
+<form method="post" action="/profile" class="card" onsubmit="var b=this.querySelector('button[type=submit]');if(b.dataset.busy)return false;b.dataset.busy=1;b.textContent='Saving\u2026';b.style.opacity=.7;">
   {csrf_input()}
   <h3 style="margin-top:0">Academics</h3>
   <div class="row">
