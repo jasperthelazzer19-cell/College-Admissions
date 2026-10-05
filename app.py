@@ -6561,6 +6561,35 @@ def has_legacy_at(profile, school):
 # ─── ARTICLES (NewsAPI w/ DB cache) ───────────────────────
 REDDIT_POSTS_TTL_HOURS = 24
 
+# Reddit times out from Railway's IPs for long stretches. With ~30 serial
+# requests per school at an 8s timeout, one cold /profiles page took 80-105s
+# and tied up a server thread. Two straight failures open the breaker and
+# every Reddit call is skipped for REDDIT_BREAKER_SECS.
+REDDIT_BREAKER_SECS = 1800
+_reddit_breaker = {"fails": 0, "open_until": 0.0}
+
+def _reddit_get(url, headers):
+    """GET a Reddit JSON URL behind a circuit breaker. Returns the response,
+    or None when the breaker is open or the request failed."""
+    import time as _t
+    if _t.time() < _reddit_breaker["open_until"]:
+        return None
+    try:
+        r = requests.get(url, headers=headers, timeout=4)
+        ok = r.status_code == 200
+    except Exception as e:
+        print(f"reddit request failed: {e}")
+        r, ok = None, False
+    if ok:
+        _reddit_breaker["fails"] = 0
+        return r
+    _reddit_breaker["fails"] += 1
+    if _reddit_breaker["fails"] >= 2:
+        _reddit_breaker["open_until"] = _t.time() + REDDIT_BREAKER_SECS
+        _reddit_breaker["fails"] = 0
+        print(f"reddit breaker open for {REDDIT_BREAKER_SECS}s")
+    return None
+
 
 def fetch_reddit_profiles(college_slug, force=False):
     """Pull real applicant profiles from r/collegeresults + r/chanceme via
@@ -6634,8 +6663,8 @@ def fetch_reddit_profiles(college_slug, force=False):
                 try:
                     qenc = q.replace(" ", "+").replace("&", "%26")
                     url = f"https://www.reddit.com/r/{sub}/search.json?q={qenc}&restrict_sr=1&sort={sort}&limit=25&t=all"
-                    r = requests.get(url, headers=headers, timeout=8)
-                    if r.status_code != 200:
+                    r = _reddit_get(url, headers)
+                    if r is None:
                         continue
                     data = r.json()
                     for child in data.get("data", {}).get("children", []):
@@ -6738,8 +6767,8 @@ def fetch_reddit_essays(college_slug, force=False):
             try:
                 qenc = q.replace(" ", "+").replace("&", "%26").replace("'", "%27")
                 url = f"https://www.reddit.com/r/{sub}/search.json?q={qenc}&restrict_sr=1&sort=top&limit=20&t=all"
-                r = requests.get(url, headers=headers, timeout=8)
-                if r.status_code != 200: continue
+                r = _reddit_get(url, headers)
+                if r is None: continue
                 data = r.json()
                 for child in data.get("data", {}).get("children", []):
                     p = child.get("data", {})
