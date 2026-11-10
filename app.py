@@ -14640,7 +14640,10 @@ def bestfit_result():
 # them to /content/queue/push. A scheduler hits /cron/content-release at each
 # posting slot (8/12/3/6/9) to release one + email the link. /content/today is
 # the creator-only page that serves released carousels ready to save.
-CONTENT_SLOTS = ["08:00", "12:00", "15:00", "18:00", "21:00"]  # 5x/day (2026-06 test, was 4x: 8/12/3/7:30)
+# One drop a day (2026-11-09, his call): the Mac generates one carousel per live account
+# at midnight, they release at 00:30. Was 5x/day 08/12/15/18/21. Override with the
+# CONTENT_SLOTS env var (comma-separated HH:MM) — no deploy needed to change it.
+CONTENT_SLOTS = [s.strip() for s in os.environ.get("CONTENT_SLOTS", "00:30").split(",") if s.strip()]
 
 
 def _autopilot_authed():
